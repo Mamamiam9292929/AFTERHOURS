@@ -16,9 +16,9 @@ Vor jeder Arbeit `README.md` (Stand, Architektur, Sicherheit) und `ROADMAP.md` l
 
 Die Cloud-Sitzung hat in der Regel keinen Zugriff auf die npm-Registry und kein Docker. Maßgeblich ist deshalb GitHub Actions (`.github/workflows/ci.yml`): TypeScript, Produktionsbuild, pgTAP gegen Supabase, Deno-Tests der Edge Functions.
 
-1. Branch pushen, PR als Entwurf öffnen (`gh pr create --draft`).
-2. `gh pr checks --watch`. Bei Fehlern: Die Log-Archive sind aus der Sitzung oft nicht abrufbar. Die Ausgabe fehlgeschlagener Schritte steht deshalb als Annotation bereit: `gh api repos/{owner}/{repo}/check-runs/<job-id>/annotations` (Job-IDs: `gh run view <run-id> --json jobs`). Beheben, erneut pushen.
-3. Erst wenn alles grün ist: PR auf „bereit" setzen (`gh pr ready`).
+1. Branch pushen, PR als Entwurf öffnen. GraphQL ist in der Sitzung gesperrt, also REST: `gh api repos/{owner}/{repo}/pulls -f title=… -f head=<branch> -f base=main -F draft=true -F body=@datei.md`.
+2. Checks abwarten: `gh api "repos/{owner}/{repo}/actions/runs?branch=<branch>&per_page=1"`, dann `…/actions/runs/<id>/jobs`. Bei Fehlern: Die Log-Archive sind aus der Sitzung oft nicht abrufbar. Die Ausgabe fehlgeschlagener Schritte steht deshalb als Annotation bereit: `gh api repos/{owner}/{repo}/check-runs/<job-id>/annotations` (Job-IDs aus `…/actions/runs/<id>/jobs`). Beheben, erneut pushen.
+3. Erst wenn alles grün ist: PR auf „bereit" setzen: `gh api -X POST repos/{owner}/{repo}/pulls/<n>/ccr/ready_for_review`.
 4. Ist ein Fehler nach drei Versuchen nicht lösbar: PR als Entwurf lassen, Ursache und Stand in die Beschreibung schreiben.
 
 Lokal möglich, wenn vorhanden: `deno test supabase/functions/places/osm_test.ts`, `deno check …`.
