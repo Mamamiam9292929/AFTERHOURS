@@ -462,7 +462,8 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   await page.getByLabel("Bestätigungsnummer oder Name").fill("TEST-4711");
   await page.getByRole("button", { name: "Ergebnis eintragen" }).click();
   await page.getByText("Gebucht").first().waitFor();
-  check(await page.getByText("TEST-4711").isVisible(), "Bestätigungsnummer ist festgehalten");
+  // „Gebucht“ steht schon vorher in der Statusleiste – deshalb auf die gespeicherte Nummer warten.
+  check(await page.getByText("TEST-4711").waitFor().then(() => true, () => false), "Bestätigungsnummer ist festgehalten");
   check(await page.getByText(/Testmodus: Dieser Plan gehört zu einem Demo-Ort/).isVisible(), "Demo-Reservierung ist als Testmodus gekennzeichnet");
   await shot(alice, "17-reservierung");
 
@@ -845,6 +846,9 @@ await step("Abmelden, Passwort zurücksetzen, neu anmelden (Alice)", async () =>
   check(true, "nach dem Abmelden sind geschützte Seiten gesperrt");
   const before = await mailCount(alice.email);
   await page.getByRole("link", { name: "Passwort vergessen?" }).click();
+  // Login- und Vergessen-Seite haben dasselbe Feld – erst nach dem Seitenwechsel ausfüllen.
+  await page.waitForURL(/\/forgot-password/);
+  await page.getByRole("heading", { name: "Passwort zurücksetzen" }).waitFor();
   await page.getByLabel("E-Mail-Adresse").fill(alice.email);
   await page.getByRole("button", { name: "Link senden" }).click();
   await page.getByText(/ist der Link jetzt unterwegs/).waitFor();
