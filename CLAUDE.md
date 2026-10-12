@@ -4,13 +4,22 @@ Social-Planning-App für Freundesgruppen. React 19 + Vite + TypeScript + Tailwin
 
 Vor jeder Arbeit `README.md` (Stand, Architektur, Sicherheit) und `ROADMAP.md` lesen.
 
-## Arbeitsweise
+## Arbeitsweise (Stand 12.10.2026: volle Eigenverantwortung)
 
-- Eine Aufgabe = ein Branch (`claude/<roadmap-id>-<kurzname>`) = ein Pull Request gegen `main`.
-- Nie direkt auf `main` pushen, nie selbst mergen, nie deployen, keine Secrets anlegen. Benito prüft und mergt.
-- Gebaut wird nur, was in `ROADMAP.md` den Status **Freigegeben** hat. Eigene Ideen kommen als Zeile mit Status **Vorschlag** in die Roadmap (Nutzen, Aufwand S/M/L, Abhängigkeiten, Akzeptanzkriterien) – nicht als Code.
-- Produktentscheidungen (Preise, Partner, Recht, Kosten, externe Dienste mit Schlüssel) nicht raten: im PR unter „Offene Fragen" aufführen.
+Benito hat Claude die Weiterentwicklung vollständig übertragen: Claude entscheidet selbst über Prioritäten, neue Funktionen, Design und Ideen, und merged eigene PRs, sobald die CI grün ist.
+
+- Eine Aufgabe = ein Branch (`claude/<roadmap-id>-<kurzname>`) = ein Pull Request gegen `main`. Nie direkt auf `main` pushen; gemergt wird per PR (Squash), erst wenn alle Checks grün sind.
+- Priorität: 1. Fehler und Sicherheitslücken, 2. Fundament (Tests/CI), 3. was am meisten dazu beiträgt, dass Gruppen die App nutzen, weiterempfehlen und wiederkommen, 4. Design-Feinschliff.
+- `ROADMAP.md` ist die Arbeitsliste. Neue Ideen trägt Claude selbst ein (Nutzen, Aufwand, Akzeptanzkriterien) und darf sie direkt umsetzen.
+- Design darf und soll laufend schöner werden – innerhalb der Marke: Anthrazit, fast schwarze Navigation, ein Lime-Akzent, Ticket-Motiv, Big Shoulders Display + Figtree. Keine generische KI-Optik, keine Platzhalter. Jede Design-Änderung mit Vorher/Nachher-Screenshots im PR.
 - Commits und PRs auf Deutsch. Commit-Nachrichten enden mit den Attributionszeilen, die die Sitzung vorgibt.
+
+### Was Claude trotz Eigenverantwortung nicht tut
+
+- Nicht deployen, keine Domains, keine Secrets anlegen, nichts, was Geld kostet oder ein Konto bei einem Drittanbieter erfordert. Solche Schritte als „Für Benito" in `ROADMAP.md` notieren und im Bericht nennen.
+- Keine Wachstumstricks auf Kosten der Nutzer: kein Auslesen von Adressbüchern, keine Nachrichten in fremdem Namen, kein Spam, keine erfundenen Nutzerzahlen oder Bewertungen, keine Dark Patterns (versteckte Abmeldung, künstliche Verknappung, Schuldgefühle).
+- Keine Belohnungen mit Geldwert, keine Gewinnspiele, nichts Rechtliches entscheiden (Impressum, AGB, Altersgrenzen) – vorbereiten und als offene Frage markieren.
+- Bestehende Migrationen nie ändern; Datenverlust ausschließen (keine `drop` auf Tabellen mit Nutzerdaten ohne Migration der Daten).
 
 ## Testen
 
@@ -18,8 +27,8 @@ Die Cloud-Sitzung hat in der Regel keinen Zugriff auf die npm-Registry und kein 
 
 1. Branch pushen, PR als Entwurf öffnen. GraphQL ist in der Sitzung gesperrt, also REST: `gh api repos/{owner}/{repo}/pulls -f title=… -f head=<branch> -f base=main -F draft=true -F body=@datei.md`.
 2. Checks abwarten: `gh api "repos/{owner}/{repo}/actions/runs?branch=<branch>&per_page=1"`, dann `…/actions/runs/<id>/jobs`. Bei Fehlern: Die Log-Archive sind aus der Sitzung oft nicht abrufbar. Die Ausgabe fehlgeschlagener Schritte steht deshalb als Annotation bereit: `gh api repos/{owner}/{repo}/check-runs/<job-id>/annotations` (Job-IDs aus `…/actions/runs/<id>/jobs`). Beheben, erneut pushen.
-3. Erst wenn alles grün ist: PR auf „bereit" setzen: `gh api -X POST repos/{owner}/{repo}/pulls/<n>/ccr/ready_for_review`.
-4. Ist ein Fehler nach drei Versuchen nicht lösbar: PR als Entwurf lassen, Ursache und Stand in die Beschreibung schreiben.
+3. Erst wenn alles grün ist: PR auf „bereit" setzen (`gh api -X POST repos/{owner}/{repo}/pulls/<n>/ccr/ready_for_review`) und mergen (`gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f merge_method=squash`). Danach Branch löschen.
+4. Ist ein Fehler nach drei Versuchen nicht lösbar: PR als Entwurf lassen, Ursache und Stand in die Beschreibung schreiben, nicht mergen.
 
 Lokal möglich, wenn vorhanden: `deno test supabase/functions/places/osm_test.ts`, `deno check …`.
 
