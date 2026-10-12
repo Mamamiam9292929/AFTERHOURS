@@ -204,6 +204,8 @@ npm run test:e2e
 
 Der Test legt Konten und Daten an – nur gegen die lokale Umgebung laufen lassen. Alle Schalter stehen im Kopf der Datei.
 
+**In GitHub Actions** läuft die Journey bei jedem Pull Request (Job „Browser-Journey“): `.github/scripts/e2e.sh setup` startet die lokale Supabase-Umgebung, die Edge Functions und den OSM-Stellvertreter `tests/e2e/osm-stub.mjs` (Nominatim und Overpass mit festem Datenbestand: Leipzig mit 2.601 Orten, „frankfurt“ → „Frankfurt am Main“, „Atlantis“ unbekannt), baut die App und liefert sie mit `vite preview` aus. Screenshots und Protokolle liegen danach als Artefakt `journey` am Lauf. Lokal lässt sich der Stellvertreter ebenso nutzen: `node tests/e2e/osm-stub.mjs` und in `supabase/functions/.env` `NOMINATIM_URL`/`OVERPASS_URL` auf ihn zeigen lassen.
+
 ---
 
 ## 7. Architektur
@@ -339,12 +341,11 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Frontend | TypeScript-Prüfung ohne Fehler; Bundle mit esbuild gegen die Original-Quellen von supabase-js 2.117, react-router 6.30 und TanStack Query 5.90 |
 | Nutzerjourney | 186 Browser-Prüfungen (Chromium), als Produktiv- und als Entwicklungs-Build (React StrictMode), ausgeliefert mit der Content-Security-Policy aus `vercel.json` |
 | Edge Functions | Mit Deno 2.9 typgeprüft und lokal ausgeführt. `places` gegen einen Stellvertreter für Nominatim/Overpass mit 2.600 Orten: Stapelimport, Alias, Umkreissuche, Zeitüberschreitung, Kontingent, Anmeldung |
+| CI (GitHub Actions) | Bei jedem PR: TypeScript, Produktionsbuild, pgTAP im Supabase-Container (`supabase test db`), Deno-Tests, Browser-Journey gegen lokale Supabase-Umgebung und OSM-Stellvertreter |
 | Windows-Installation | `AFTERHOURS-starten.cmd` auf Windows 11 mit Windows PowerShell 5.1: Node per winget, Docker Desktop, `npm install`, `supabase start`, Vite-Entwicklungsserver laufen |
 
 | Nicht geprüft | Folge |
 |---|---|
-| `npm run build` (Vite-Produktionsbuild) | `npm install` und `npm run dev` liefen unter Windows; der Produktionsbuild noch nicht. Die beim ersten `npm install` entstandene `package-lock.json` einchecken |
-| `supabase test db` | Die pgTAP-Tests liefen gegen Postgres 16, nicht im Supabase-Container |
 | Import gegen die echten OSM-Server | Getestet gegen einen Stellvertreter mit dem Antwortformat von Nominatim und Overpass. Laufzeit und Datenmenge großer Städte (Berlin: mehrere Tausend Orte) hängen vom öffentlichen Overpass-Server ab |
 | Supabase Realtime | Der Code abonniert Änderungen; ohne Verbindung lädt die App im Takt von 8–45 Sekunden nach. Getestet ist nur dieser Rückfall |
 | Echter KI-Aufruf | Die Edge Function lief gegen einen Stellvertreter, der das Anfrageformat prüft. Modellname und Antwort eines echten Modells sind ungetestet |

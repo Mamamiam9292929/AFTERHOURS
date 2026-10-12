@@ -1,5 +1,6 @@
 # Prüft jeden Pull Request und jeden Stand auf main.
-# Die Browser-Journey läuft hier noch nicht (Roadmap F1); lokal: npm run test:e2e.
+# Job „Browser-Journey“: tests/e2e/journey.mjs gegen eine lokale Supabase-Umgebung und den
+# OSM-Stellvertreter (tests/e2e/osm-stub.mjs); Screenshots und Protokolle als Artefakt „journey“.
 name: CI
 
 on:
@@ -50,3 +51,39 @@ jobs:
           deno-version: v2.x
       - run: .github/scripts/run.sh deno check supabase/functions/places/index.ts supabase/functions/assistant/index.ts
       - run: .github/scripts/run.sh deno test supabase/functions/places/osm_test.ts
+
+  journey:
+    name: Browser-Journey (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APP_URL: http://127.0.0.1:5173
+      SUPABASE_URL: http://127.0.0.1:54321
+      MAILPIT_URL: http://127.0.0.1:54324
+      E2E_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      E2E_SCREENSHOTS: tests/e2e/screenshots
+      E2E_LOGS: e2e-logs
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: .github/scripts/run.sh .github/scripts/e2e.sh setup
+      - run: .github/scripts/run.sh npm run test:e2e
+      - if: failure()
+        run: .github/scripts/e2e.sh logs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journey
+          path: |
+            tests/e2e/screenshots
+            e2e-logs
+          if-no-files-found: ignore
+          retention-days: 14
