@@ -1,0 +1,40 @@
+{
+  "name": "afterhours",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AFTERHOURS – Social-Planning-App für Freundesgruppen (React SPA + Supabase)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc --noEmit",
+    "test:db": "supabase test db",
+    "test:e2e": "node tests/e2e/journey.mjs"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@supabase/supabase-js": "^2.117.3",
+    "@tanstack/react-query": "^5.90.2",
+    "clsx": "^2.1.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-icons": "5.7.0",
+    "react-router-dom": "^6.30.6",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "playwright": "^1.56.0",
+    "supabase": "^2.120.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vite": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

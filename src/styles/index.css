@@ -1,0 +1,211 @@
+@import "tailwindcss";
+
+/* Schriften liegen im Projekt (public/fonts, SIL Open Font License) – es wird nichts von Dritten nachgeladen. */
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/Figtree-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Big Shoulders Display";
+  src: url("/fonts/BigShouldersDisplay-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Big Shoulders Display";
+  src: url("/fonts/BigShouldersDisplay-ExtraBold.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Design-Tokens
+ * Farbe:   Anthrazit als Fläche, fast Schwarz für Navigation, ein einziger Akzent (Lime).
+ * Schrift: Big Shoulders Display (schmal, plakativ) für Überschriften, Zeiten und Zahlen;
+ *          Figtree für alles, was gelesen wird.
+ * Radius:  Bedienelemente 12, Karten 16, Tickets 20, Personen/Chips rund.
+ */
+@theme {
+  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Big Shoulders Display", "Figtree", ui-sans-serif, sans-serif;
+
+  --color-base: #1c1e20;
+  --color-nav: #0e0f10;
+  --color-surface: #25282b;
+  --color-raised: #2f3337;
+  --color-line: #363b40;
+  --color-line-strong: #4d5359;
+  --color-fg: #f3f4f1;
+  --color-muted: #a9aeaa;
+  --color-faint: #8b918d;
+  --color-lime: #c5f82a;
+  --color-lime-press: #b0e016;
+  --color-lime-ink: #141a00;
+  --color-amber: #f2c14e;
+  --color-danger: #ff6b5e;
+
+  --radius-control: 12px;
+  --radius-card: 16px;
+  --radius-ticket: 20px;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-nav);
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  body {
+    min-height: 100dvh;
+    background: var(--color-base);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: var(--color-lime);
+    color: var(--color-lime-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-lime);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  /* iOS zoomt in Formularfelder unter 16px – deshalb nie kleiner. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.75);
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  /* Überschriften: schmal und groß gesetzt; lange deutsche Komposita passen so auch auf 360px. */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: 0.005em;
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+
+  /*
+   * Ticket: das wiederkehrende Bild für "das steht fest". Linker Abriss mit Datum, Perforation,
+   * rechts der Inhalt. Die Kerben übernehmen die Hintergrundfarbe der Seite.
+   */
+  .ticket {
+    position: relative;
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    border-radius: var(--radius-ticket);
+    background: var(--color-surface);
+    isolation: isolate;
+  }
+  .ticket::before,
+  .ticket::after {
+    content: "";
+    position: absolute;
+    left: 84px;
+    width: 18px;
+    height: 18px;
+    margin-left: -9px;
+    border-radius: 999px;
+    background: var(--ticket-cutout, var(--color-base));
+    z-index: 2;
+  }
+  .ticket::before {
+    top: -9px;
+  }
+  .ticket::after {
+    bottom: -9px;
+  }
+  .ticket-stub {
+    border-radius: var(--radius-ticket) 0 0 var(--radius-ticket);
+    border-right: 2px dashed color-mix(in srgb, var(--ticket-cutout, var(--color-base)) 85%, transparent);
+  }
+  @media (min-width: 640px) {
+    .ticket {
+      grid-template-columns: 104px minmax(0, 1fr);
+    }
+    .ticket::before,
+    .ticket::after {
+      left: 104px;
+    }
+  }
+
+  .scroll-row {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+  .scroll-row::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

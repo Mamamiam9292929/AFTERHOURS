@@ -1,0 +1,115 @@
+import { lazy, Suspense } from "react";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageSpinner } from "@/components/ui/Feedback";
+import { PublicOnly, RequireAuth, RequireOnboarded } from "@/features/auth/guards";
+import { DraftBar } from "@/features/polls/DraftBar";
+import { NotFoundPage, RouteError } from "./errors";
+
+/*
+ * Jede Seite ist ein eigener Chunk und wird erst geladen, wenn sie gebraucht wird.
+ * Die Anmeldeseiten liegen gemeinsam in einem Chunk.
+ */
+const page = <T extends Record<string, unknown>, K extends keyof T>(load: () => Promise<T>, name: K) =>
+  lazy(async () => ({ default: (await load())[name] as React.ComponentType }));
+
+const authPages = () => import("@/features/auth/pages");
+const LoginPage = page(authPages, "LoginPage");
+const RegisterPage = page(authPages, "RegisterPage");
+const CheckEmailPage = page(authPages, "CheckEmailPage");
+const ForgotPasswordPage = page(authPages, "ForgotPasswordPage");
+const AuthConfirmPage = page(authPages, "AuthConfirmPage");
+const ResetPasswordPage = page(authPages, "ResetPasswordPage");
+
+const OnboardingPage = page(() => import("@/features/onboarding/OnboardingPage"), "OnboardingPage");
+const HomePage = page(() => import("@/features/home/HomePage"), "HomePage");
+const DiscoverPage = page(() => import("@/features/discover/DiscoverPage"), "DiscoverPage");
+const ActivityDetailPage = page(() => import("@/features/discover/ActivityDetailPage"), "ActivityDetailPage");
+const CrewsPage = page(() => import("@/features/crews/CrewsPage"), "CrewsPage");
+const CrewDetailPage = page(() => import("@/features/crews/CrewDetailPage"), "CrewDetailPage");
+const JoinPage = page(() => import("@/features/crews/JoinPage"), "JoinPage");
+const PollCreatePage = page(() => import("@/features/polls/PollCreatePage"), "PollCreatePage");
+const PollDetailPage = page(() => import("@/features/polls/PollDetailPage"), "PollDetailPage");
+const PlansPage = page(() => import("@/features/plans/PlansPage"), "PlansPage");
+const PlanCreatePage = page(() => import("@/features/plans/PlanCreatePage"), "PlanCreatePage");
+const PlanDetailPage = page(() => import("@/features/plans/PlanDetailPage"), "PlanDetailPage");
+const RewardsPage = page(() => import("@/features/rewards/RewardsPage"), "RewardsPage");
+const NotificationsPage = page(() => import("@/features/notifications/NotificationsPage"), "NotificationsPage");
+const ProfilePage = page(() => import("@/features/profile/ProfilePage"), "ProfilePage");
+const SettingsPage = page(() => import("@/features/profile/SettingsPage"), "SettingsPage");
+const PrivacyPage = page(() => import("@/features/profile/PrivacyPage"), "PrivacyPage");
+const AdminPage = page(() => import("@/features/admin/AdminPage"), "AdminPage");
+const AssistantPage = page(() => import("@/features/assistant/AssistantPage"), "AssistantPage");
+
+function Standalone() {
+  return (
+    <Suspense fallback={<PageSpinner />}>
+      <Outlet />
+    </Suspense>
+  );
+}
+
+function AppLayout() {
+  return (
+    <>
+      <AppShell />
+      <DraftBar />
+    </>
+  );
+}
+
+export const router = createBrowserRouter([
+  {
+    element: <Standalone />,
+    errorElement: <RouteError />,
+    children: [
+      { path: "/", element: <Navigate to="/home" replace /> },
+      {
+        element: <PublicOnly />,
+        children: [
+          { path: "/login", element: <LoginPage /> },
+          { path: "/register", element: <RegisterPage /> },
+          { path: "/check-email", element: <CheckEmailPage /> },
+          { path: "/forgot-password", element: <ForgotPasswordPage /> },
+        ],
+      },
+      { path: "/auth/confirm", element: <AuthConfirmPage /> },
+      { path: "/auth/reset", element: <ResetPasswordPage /> },
+      { path: "/privacy", element: <PrivacyPage /> },
+      {
+        element: <RequireAuth />,
+        children: [
+          { path: "/onboarding", element: <OnboardingPage /> },
+          {
+            element: <RequireOnboarded />,
+            children: [
+              {
+                element: <AppLayout />,
+                children: [
+                  { path: "/home", element: <HomePage /> },
+                  { path: "/discover", element: <DiscoverPage /> },
+                  { path: "/activities/:activityId", element: <ActivityDetailPage /> },
+                  { path: "/crews", element: <CrewsPage /> },
+                  { path: "/crews/:crewId", element: <CrewDetailPage /> },
+                  { path: "/join/:token", element: <JoinPage /> },
+                  { path: "/polls/new", element: <PollCreatePage /> },
+                  { path: "/polls/:pollId", element: <PollDetailPage /> },
+                  { path: "/plans", element: <PlansPage /> },
+                  { path: "/plans/new", element: <PlanCreatePage /> },
+                  { path: "/plans/:planId", element: <PlanDetailPage /> },
+                  { path: "/rewards", element: <RewardsPage /> },
+                  { path: "/notifications", element: <NotificationsPage /> },
+                  { path: "/profile", element: <ProfilePage /> },
+                  { path: "/settings", element: <SettingsPage /> },
+                  { path: "/assistant", element: <AssistantPage /> },
+                  { path: "/admin", element: <AdminPage /> },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      { path: "*", element: <NotFoundPage /> },
+    ],
+  },
+]);
