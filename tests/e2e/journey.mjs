@@ -750,6 +750,8 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
   await shot(alice, "34-osm-ort");
 
   await page.goto(`${APP}/discover`);
+  // Das Feld wird erst gefüllt, wenn das Profil geladen ist.
+  await page.waitForFunction(() => document.querySelector('input[aria-label="Stadt"]')?.value, null, { timeout: 15_000 }).catch(() => {});
   check((await page.getByLabel("Stadt", { exact: true }).inputValue()) === "Leipzig", "Discover merkt sich die zuletzt gewählte Stadt");
   await page.getByLabel("Ort oder Aktivität suchen").fill("cinema 11");
   await page.getByRole("link", { name: "cinema 11", exact: true }).click();
