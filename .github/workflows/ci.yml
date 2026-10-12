@@ -75,6 +75,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Barrierefreiheitsprüfung (F2). Ohne Lockfile-Eintrag, solange die Entwicklungsumgebung keinen
+      # npm-Zugriff hat; Version fest, damit die Regeln nicht unbemerkt wechseln.
+      - run: npm install --no-save --no-audit --no-fund axe-core@4.10.3
       - run: npx playwright install --with-deps chromium
       - uses: supabase/setup-cli@v1
         with:

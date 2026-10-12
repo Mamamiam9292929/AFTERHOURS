@@ -21,9 +21,17 @@
  *   E2E_SCREENSHOTS       Ordner für Screenshots (Smartphone, Tablet, Desktop)
  *   E2E_HEADED=1          Browser sichtbar starten
  *   E2E_BAIL=1            beim ersten abgebrochenen Schritt beenden
+ *   E2E_A11Y=0            Barrierefreiheitsprüfung (axe-core) abschalten
+ *
+ * Barrierefreiheit (Roadmap F2)
+ *   An jedem Screenshot-Punkt prüft axe-core die Seite gegen WCAG 2.1 A/AA. Verstöße der Stufe
+ *   „critical“ oder „serious“ lassen den Test scheitern, „moderate“/„minor“ werden nur berichtet.
+ *   Der vollständige Bericht liegt als a11y.json im Screenshot-Ordner. axe-core ist (noch) nicht im
+ *   Lockfile; die CI installiert es vor dem Lauf, lokal: `npm install --no-save axe-core@4.10.3`.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium } from "playwright";
 
@@ -129,8 +137,49 @@ async function noOverflow(user, label) {
   const overflow = await user.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check(overflow <= 1, `kein horizontaler Überlauf: ${label} (${user.viewport}) – ${overflow}px`);
 }
+// ---- Barrierefreiheit (axe-core) --------------------------------------------------------------------
+const A11Y = process.env.E2E_A11Y !== "0";
+const A11Y_BLOCKING = new Set(["critical", "serious"]);
+let axeSource = null;
+if (A11Y) {
+  try {
+    axeSource = fs.readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
+  } catch {
+    console.log("axe-core fehlt: `npm install --no-save axe-core@4.10.3` ausführen oder E2E_A11Y=0 setzen.");
+    process.exit(1);
+  }
+}
+/** Befunde je Regel und Element, gesammelt über alle Bildschirme: key → { rule, impact, help, url, target, html, screens } */
+const a11yFindings = new Map();
+let a11yScans = 0;
+async function a11y(user, name) {
+  if (!A11Y) return;
+  const { page } = user;
+  // page.evaluate läuft außerhalb der Content-Security-Policy der App; axe liest nur, es ändert nichts.
+  if (!(await page.evaluate(() => typeof window.axe !== "undefined"))) await page.evaluate(axeSource);
+  const result = await page.evaluate(() =>
+    window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] }),
+  );
+  a11yScans++;
+  const screen = `${name}-${user.viewport}`;
+  let blocking = 0;
+  for (const violation of result.violations) {
+    if (A11Y_BLOCKING.has(violation.impact)) blocking += violation.nodes.length;
+    for (const node of violation.nodes) {
+      const target = node.target.join(" ");
+      const key = `${violation.id}|${target}`;
+      const finding = a11yFindings.get(key) ?? { rule: violation.id, impact: violation.impact, help: violation.help, url: violation.helpUrl, target, html: node.html.slice(0, 300), detail: node.failureSummary?.split("\n").slice(0, 3).join(" "), screens: [] };
+      if (!finding.screens.includes(screen)) finding.screens.push(screen);
+      a11yFindings.set(key, finding);
+    }
+  }
+  if (blocking === 0) passed++;
+  else console.log(`   ✗ Barrierefreiheit ${screen}: ${blocking} schwere Befunde (Details am Ende)`);
+}
+
 async function shot(user, name) {
   await noOverflow(user, name);
+  await a11y(user, name);
   if (!SHOTS) return;
   await user.page.screenshot({ path: path.join(SHOTS, `${name}-${user.viewport}.png`) });
 }
@@ -226,6 +275,42 @@ await step("Schutz ohne Anmeldung", async () => {
   await alice.page.getByRole("button", { name: "Anmelden" }).click();
   await alice.page.getByText("E-Mail-Adresse oder Passwort stimmen nicht.").waitFor();
   check(true, "falsche Zugangsdaten ergeben eine verständliche Meldung");
+});
+
+await step("Barrierefreiheit – Anmeldung nur mit der Tastatur (Bob)", async () => {
+  const { page } = bob;
+  await page.goto(`${APP}/login`);
+  await page.getByRole("heading", { level: 1 }).waitFor();
+  // Mit Tab vorwärts, bis das gesuchte Element den Fokus hat; jeder Halt muss sichtbar markiert sein.
+  const focusInfo = () =>
+    page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el || el === document.body) return null;
+      const style = getComputedStyle(el);
+      const label = el.labels?.[0]?.textContent?.trim() ?? el.getAttribute("aria-label") ?? el.textContent?.trim() ?? "";
+      const marked = (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) || style.boxShadow !== "none" || style.borderColor === "rgb(197, 248, 42)";
+      return { tag: el.tagName.toLowerCase(), type: el.getAttribute("type"), label: label.slice(0, 60), marked };
+    });
+  const unmarked = new Set();
+  async function tabTo(matches, what) {
+    for (let i = 0; i < 30; i++) {
+      await page.keyboard.press("Tab");
+      await page.waitForTimeout(200); // Übergänge (transition-colors) abwarten
+      const info = await focusInfo();
+      if (info && !info.marked) unmarked.add(`${info.tag} „${info.label}“`);
+      if (info && matches(info)) return;
+    }
+    throw new Error(`${what} ist mit der Tastatur nicht erreichbar`);
+  }
+  await tabTo((f) => f.tag === "input" && f.type === "email", "E-Mail-Feld");
+  await page.keyboard.type("niemand@example.com");
+  await tabTo((f) => f.tag === "input" && f.type === "password", "Passwort-Feld");
+  await page.keyboard.type("falsches-passwort");
+  await page.keyboard.press("Enter");
+  await page.getByText("E-Mail-Adresse oder Passwort stimmen nicht.").waitFor();
+  check(true, "Anmeldeformular lässt sich mit Tab und Enter bedienen");
+  await tabTo((f) => f.tag === "button" && /Anmelden/.test(f.label), "Anmelden-Knopf");
+  check(unmarked.size === 0, `jeder Tastatur-Halt ist sichtbar markiert${unmarked.size ? ` – ohne Markierung: ${[...unmarked].join(", ")}` : ""}`);
 });
 
 await step("Schritt 1 – Registrierung, E-Mail-Bestätigung, Onboarding (Alice)", async () => {
@@ -934,6 +1019,19 @@ await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz"
 await browser.close();
 
 console.log("");
+if (A11Y) {
+  const findings = [...a11yFindings.values()].sort((a, b) => Number(A11Y_BLOCKING.has(b.impact)) - Number(A11Y_BLOCKING.has(a.impact)));
+  const blocking = findings.filter((f) => A11Y_BLOCKING.has(f.impact));
+  console.log(`Barrierefreiheit: ${a11yScans} Bildschirme geprüft, ${blocking.length} schwere und ${findings.length - blocking.length} leichtere Befunde.`);
+  for (const f of findings.slice(0, 40)) {
+    console.log(`  ${A11Y_BLOCKING.has(f.impact) ? "✗" : "·"} [${f.impact}] ${f.rule} – ${f.help}`);
+    console.log(`      ${f.target}  ${f.html.slice(0, 160)}`);
+    if (f.detail) console.log(`      ${f.detail.slice(0, 300)}`);
+    console.log(`      auf: ${f.screens.slice(0, 6).join(", ")}${f.screens.length > 6 ? ` (+${f.screens.length - 6})` : ""}`);
+  }
+  for (const f of blocking) failures.push(`Barrierefreiheit: ${f.rule} bei ${f.target} (${f.screens.length} Bildschirme)`);
+  if (SHOTS) fs.writeFileSync(path.join(SHOTS, "a11y.json"), JSON.stringify({ scans: a11yScans, findings }, null, 2));
+}
 if (problems.length > 0) {
   console.log(`Konsolen-/Serverfehler während des Tests (${problems.length}):`);
   for (const problem of [...new Set(problems)].slice(0, 20)) console.log(`  - ${problem}`);
