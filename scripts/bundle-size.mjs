@@ -77,8 +77,13 @@ const table = [
 console.log(table);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Build-Größe\n\n${table}\n`);
 if (process.env.GITHUB_ACTIONS) {
-  const line = rows.map((r) => `${r.label}: ${kb(r.value)} / ${kb(r.limit)}`).join(" · ");
-  console.log(`::notice title=Build-Größe::${line.replace(/%/g, "%25")}`);
+  const files = (list) => list.map((a) => `${a.file.replace(/^assets\//, "")} ${kb(a.gzip)}`).join(", ");
+  const line = [
+    rows.map((r) => `${r.label}: ${kb(r.value)} / ${kb(r.limit)}`).join(" · "),
+    `Start: ${files([...initialJs, ...initialCss])}`,
+    `Größte Seiten: ${files(lazyJs.slice(0, 5))}`,
+  ].join("%0A");
+  console.log(`::notice title=Build-Größe::${line}`);
 }
 
 const failed = rows.filter((r) => !r.ok);
