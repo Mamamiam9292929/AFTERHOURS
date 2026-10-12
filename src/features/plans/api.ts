@@ -185,10 +185,11 @@ export function useSetAttendance(planId: string) {
       await client.cancelQueries({ queryKey: qk.plan(planId) });
       const previous = client.getQueryData<PlanWithParticipants | null>(qk.plan(planId));
       if (previous && user) {
-        client.setQueryData<PlanWithParticipants | null>(qk.plan(planId), {
-          ...previous,
-          participants: previous.participants.map((p) => (p.user_id === user.id ? { ...p, attendance_status: status, responded_at: new Date().toISOString() } : p)),
-        });
+        client.setQueryData<PlanWithParticipants | null>(qk.plan(planId), (old) =>
+          old
+            ? { ...old, participants: old.participants.map((p) => (p.user_id === user.id ? { ...p, attendance_status: status, responded_at: new Date().toISOString() } : p)) }
+            : old,
+        );
       }
       return { previous };
     },
