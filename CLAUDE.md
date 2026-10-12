@@ -21,6 +21,14 @@ Benito hat Claude die Weiterentwicklung vollständig übertragen: Claude entsche
 - Keine Belohnungen mit Geldwert, keine Gewinnspiele, nichts Rechtliches entscheiden (Impressum, AGB, Altersgrenzen) – vorbereiten und als offene Frage markieren.
 - Bestehende Migrationen nie ändern; Datenverlust ausschließen (keine `drop` auf Tabellen mit Nutzerdaten ohne Migration der Daten).
 
+## Benitos Wunderliste (GitHub-Issue #3)
+
+Benitos Übersicht auf GitHub: Issue „📋 Benitos Wunderliste" (#3). Nach jeder Änderung an der Roadmap (neue Idee, Start, Fertigstellung) den Text des Issues aktualisieren (`gh api -X PATCH repos/{owner}/{repo}/issues/3 -F body=@datei.md`):
+
+- Abschnitte: Schon fertig · Fundament · Wachstum · Design · Neue Funktionen · Braucht dich.
+- Je Eintrag: `- [x]` fertig bzw. `- [ ]` offen, bei laufender Arbeit `🔧` und Link zum PR, fett `**ID · Titel**`, darunter `Wofür:` in einem Satz in Alltagssprache (kein Fachjargon).
+- Fertige Einträge wandern nach „Schon fertig", mit Link zum gemergten PR.
+
 ## Testen
 
 Die Cloud-Sitzung hat in der Regel keinen Zugriff auf die npm-Registry und kein Docker. Maßgeblich ist deshalb GitHub Actions (`.github/workflows/ci.yml`): TypeScript, Produktionsbuild, pgTAP gegen Supabase, Deno-Tests der Edge Functions.
