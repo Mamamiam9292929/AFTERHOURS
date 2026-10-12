@@ -126,7 +126,7 @@ export function useVote(pollId: string) {
         const mine: PollVote[] = response
           ? [{ id: `optimistic-${optionId}`, poll_id: pollId, poll_option_id: optionId, user_id: user.id, response, updated_at: new Date().toISOString() }]
           : [];
-        client.setQueryData<PollWithDetails | null>(qk.poll(pollId), { ...previous, votes: [...others, ...mine] });
+        client.setQueryData<PollWithDetails | null>(qk.poll(pollId), (old) => (old ? { ...old, votes: [...others, ...mine] } : old));
       }
       return { previous };
     },

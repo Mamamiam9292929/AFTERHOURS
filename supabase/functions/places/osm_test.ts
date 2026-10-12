@@ -1,5 +1,11 @@
 // deno test supabase/functions/places/osm_test.ts
-import { deepStrictEqual as eq, strictEqual as is } from "node:assert/strict";
+// Ohne externe Abhängigkeiten, damit der Test überall gleich läuft (auch neben package.json).
+function eq(actual: unknown, expected: unknown, message = ""): void {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`${message} erwartet ${JSON.stringify(expected)}, erhalten ${JSON.stringify(actual)}`);
+}
+function is(actual: unknown, expected: unknown, message = ""): void {
+  if (!Object.is(actual, expected)) throw new Error(`${message} erwartet ${String(expected)}, erhalten ${String(actual)}`);
+}
 import { buildOverpassQuery, categorize, overpassAreaId, parseOpeningHours, selectPlaces, toPlace, type OsmElement } from "./osm.ts";
 
 Deno.test("Öffnungszeiten: einfache Regeln", () => {
