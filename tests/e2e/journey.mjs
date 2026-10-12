@@ -21,9 +21,15 @@
  *   E2E_SCREENSHOTS       Ordner für Screenshots (Smartphone, Tablet, Desktop)
  *   E2E_HEADED=1          Browser sichtbar starten
  *   E2E_BAIL=1            beim ersten abgebrochenen Schritt beenden
+ *   E2E_A11Y=report       Barrierefreiheit nur melden statt prüfen (Standard: Verstöße lassen den Test scheitern)
+ *   E2E_A11Y=off          Barrierefreiheitsprüfung ganz abschalten
+ *
+ * Barrierefreiheit (Roadmap F2): Bei jedem Screenshot-Punkt prüft axe-core die Seite nach WCAG 2.1 A/AA.
+ * Verstöße der Stufen „serious“ und „critical“ zählen als Fehler; die Liste steht am Ende der Ausgabe.
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium } from "playwright";
 
@@ -129,8 +135,45 @@ async function noOverflow(user, label) {
   const overflow = await user.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   check(overflow <= 1, `kein horizontaler Überlauf: ${label} (${user.viewport}) – ${overflow}px`);
 }
+// ---- Barrierefreiheit (axe-core) -------------------------------------------------------------------------
+const A11Y = process.env.E2E_A11Y ?? "strict";
+const AXE_SOURCE = A11Y === "off" ? "" : createRequire(import.meta.url)("axe-core").source;
+const a11yFindings = new Map(); // Regel → { impact, help, screens, sample }
+async function audit(user, label) {
+  if (A11Y === "off") return;
+  const { page } = user;
+  // page.evaluate läuft am CSP-Schutz der App vorbei; die App selbst bleibt unverändert.
+  if (!(await page.evaluate(() => typeof window.axe !== "undefined"))) await page.evaluate(AXE_SOURCE);
+  const violations = await page.evaluate(async () => {
+    const result = await window.axe.run(document, {
+      runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] },
+      resultTypes: ["violations"],
+    });
+    return result.violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.map((n) => n.target.join(" ")).slice(0, 3), html: v.nodes[0]?.html?.slice(0, 160) ?? "" }));
+  });
+  for (const v of violations) {
+    if (v.impact !== "serious" && v.impact !== "critical") continue;
+    const entry = a11yFindings.get(v.id) ?? { impact: v.impact, help: v.help, screens: new Set(), sample: `${v.nodes.join(", ")} ${v.html}` };
+    entry.screens.add(`${label}-${user.viewport}`);
+    a11yFindings.set(v.id, entry);
+  }
+}
+function a11yReport() {
+  if (A11Y === "off") return;
+  if (a11yFindings.size === 0) {
+    console.log("Barrierefreiheit: keine schweren Verstöße (axe-core, WCAG 2.1 AA).");
+    return;
+  }
+  const lines = [...a11yFindings].map(([id, f]) => `${id} [${f.impact}] ${f.help} – ${f.screens.size} Ansicht(en): ${[...f.screens].slice(0, 4).join(", ")} – z. B. ${f.sample}`);
+  console.log(`Barrierefreiheit: ${a11yFindings.size} Regel(n) verletzt (axe-core, WCAG 2.1 AA):`);
+  for (const line of lines) console.log(`  - ${line}`);
+  if (process.env.GITHUB_ACTIONS) console.log(`::warning title=Barrierefreiheit (axe-core)::${lines.map((l) => l.replace(/%/g, "%25")).join("%0A")}`);
+  if (A11Y === "strict") failures.push(`Barrierefreiheit: ${[...a11yFindings.keys()].join(", ")}`);
+}
+
 async function shot(user, name) {
   await noOverflow(user, name);
+  await audit(user, name).catch((error) => problems.push(`[${user.name}] axe-core: ${error}`));
   if (!SHOTS) return;
   await user.page.screenshot({ path: path.join(SHOTS, `${name}-${user.viewport}.png`) });
 }
@@ -910,6 +953,7 @@ await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz"
 await browser.close();
 
 console.log("");
+a11yReport();
 if (problems.length > 0) {
   console.log(`Konsolen-/Serverfehler während des Tests (${problems.length}):`);
   for (const problem of [...new Set(problems)].slice(0, 20)) console.log(`  - ${problem}`);
