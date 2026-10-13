@@ -450,6 +450,9 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   check(/^(HEUTE|HEUTE ABEND|MORGEN|NOCH \d+ TAGE BIS) STRIKE DISTRICT BOWLING$/.test(headline.replace(/\s+/g, " ").trim().toUpperCase()), `Überschrift zählt bis zum Plan herunter (${headline})`);
   check(/2\s*von \d+ dabei/.test(await heroTicket.innerText()), "großes Ticket zeigt Zusagen von allen Eingeladenen");
   await shot(bob, "15b-home-ticket");
+  // Schritt 10 erwartet Bob wieder auf der Planseite.
+  await bob.page.goto(`${APP}/plans/${ids.plan}`);
+  await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
 });
 
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {
