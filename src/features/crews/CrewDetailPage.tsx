@@ -303,8 +303,6 @@ function Settings({ crew, role, onInvite }: { crew: CrewWithMembers; role: CrewR
   const toast = useToast();
   const people = usePeople();
   const manage = canManageCrew(role);
-  // Echte Zahl: abgeschlossene Pläne dieser Crew. Erscheint erst ab dem ersten gemeinsamen Abend.
-  const evenings = (plans.data ?? []).filter((p) => p.crew_id === crew.id && p.status === "completed").length;
   const invitations = useCrewInvitations(crew.id, manage);
   const revoke = useRevokeInvitation(crew.id);
   const update = useUpdateCrew(crew.id);
@@ -466,6 +464,8 @@ export function CrewDetailPage() {
 
   const role = myRole(crew, user.id);
   const manage = canManageCrew(role);
+  // Echte Zahl: abgeschlossene Pläne dieser Crew. Erscheint erst ab dem ersten gemeinsamen Abend.
+  const evenings = (plans.data ?? []).filter((p) => p.crew_id === crew.id && p.status === "completed").length;
 
   return (
     <>
