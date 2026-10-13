@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { IconBell, IconCalendar, IconCalendarPlus, IconCrown, IconEuro, IconHourglass, IconPin, IconVote } from "@/components/icons";
-import { PageHeader, Section } from "@/components/layout/Page";
+import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconVote } from "@/components/icons";
+import { PageHeader, PosterTitle, Section } from "@/components/layout/Page";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Controls";
@@ -48,47 +48,52 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action }:
   const overBudget = poll.budget_cents != null && option.estimated_price_cents != null && option.estimated_price_cents > poll.budget_cents;
   const names = (ids: string[]) => ids.map((id) => lookup(id)?.display_name ?? t.states.formerMember).join(", ");
 
+  const meta = [optionWhen(option), option.estimated_price_cents != null ? t.polls.detail.priceEstimate(formatEuro(option.estimated_price_cents)) : t.polls.detail.priceOpen];
+  const leadingOpen = tally.leading && poll.status === "open";
+
   return (
-    <li className={cn("relative overflow-hidden rounded-card border", isWinner ? "border-lime bg-lime/10" : tally.leading ? "border-line bg-lime/[0.06]" : "border-line bg-surface")}>
-      {/* Balken am unteren Rand: Anteil der Zusagen an der Crew */}
-      <div aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-raised">
-        <div className="h-full bg-lime transition-[width] duration-500 ease-[var(--ease-out-soft)]" style={{ width: `${tally.yesShare * 100}%` }} />
-      </div>
-      <div className="relative p-4 pb-5">
+    <li
+      className={cn(
+        "poll-option relative overflow-hidden rounded-card border",
+        isWinner ? "border-lime bg-lime/10" : leadingOpen ? "poll-option-leading border-lime/45" : "border-line bg-surface",
+      )}
+    >
+      <div className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="min-w-0 break-words text-[19px] font-bold leading-tight text-fg">{option.title}</h3>
+          <h3 className="display min-w-0 break-words text-[26px] uppercase text-fg sm:text-[28px]">{option.title}</h3>
           {isWinner ? (
             <Badge tone="lime" icon={<IconCrown className="size-3.5" aria-hidden />}>
               {t.polls.detail.result.title}
             </Badge>
           ) : (
-            tally.leading && poll.status === "open" && <Badge tone="outline" className="border-lime/60 text-lime">{t.polls.leadingBadge}</Badge>
+            leadingOpen && (
+              <Badge tone="lime" className="mt-0.5 text-[13px]">
+                {t.polls.leadingBadge}
+              </Badge>
+            )
           )}
         </div>
-        <dl className="mt-2 space-y-1 text-sm text-muted">
-          <div className="flex items-center gap-2">
-            <dt className="sr-only">{t.polls.create.whenTitle}</dt>
-            <IconCalendar className="size-4 shrink-0" aria-hidden />
-            <dd>{optionWhen(option)}</dd>
-          </div>
-          <div className="flex items-center gap-2">
-            <dt className="sr-only">{t.polls.create.optionPrice}</dt>
-            <IconEuro className="size-4 shrink-0" aria-hidden />
-            <dd>
-              {option.estimated_price_cents != null ? t.polls.detail.priceEstimate(formatEuro(option.estimated_price_cents)) : t.polls.detail.priceOpen}
-              {overBudget && <span className="ml-2 font-semibold text-amber">{t.polls.detail.overBudget}</span>}
-            </dd>
-          </div>
-        </dl>
+        <p className="mt-1.5 text-sm text-muted">
+          {meta.join(" · ")}
+          {overBudget && <span className="ml-2 font-semibold text-amber">{t.polls.detail.overBudget}</span>}
+        </p>
 
-        <div className="mt-3.5 flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1.5">
-          <AvatarStack people={tally.yes.map((id) => lookup(id))} max={6} />
-          <span className="text-sm font-semibold text-fg">{t.polls.yesCount(tally.yes.length)}</span>
-          {tally.maybe.length > 0 && <span className="text-sm text-muted">{t.polls.maybeCount(tally.maybe.length)}</span>}
-          {tally.no.length > 0 && <span className="text-sm text-muted">{t.polls.noCount(tally.no.length)}</span>}
+        {/* Stand als Balken: Anteil der Zusagen an der Crew, eigene Zusage mit Lime-Rahmen. */}
+        <div className={cn("relative mt-3.5 flex min-h-14 items-center gap-3 overflow-hidden rounded-control border bg-raised/70 py-2 pl-3 pr-4", tally.mine === "yes" ? "border-lime" : "border-transparent")}>
+          <div aria-hidden className="poll-bar-fill absolute inset-y-0 left-0" style={{ width: `${tally.yesShare * 100}%` }} />
+          <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+            <AvatarStack people={tally.yes.map((id) => lookup(id))} max={5} ringColor="var(--color-raised)" />
+            <span className="text-sm font-semibold text-fg">{t.polls.yesCount(tally.yes.length)}</span>
+            {/* Auf dem Lime-Verlauf reicht Grau nicht für AA – deshalb Vordergrundfarbe, nur dünner. */}
+            {tally.maybe.length > 0 && <span className="text-sm text-fg/90">{t.polls.maybeCount(tally.maybe.length)}</span>}
+            {tally.no.length > 0 && <span className="text-sm text-fg/90">{t.polls.noCount(tally.no.length)}</span>}
+          </div>
+          <span aria-hidden className="display relative text-[30px] leading-none text-fg tabular-nums">
+            {tally.yes.length}
+          </span>
         </div>
         {tally.yes.length + tally.maybe.length + tally.no.length > 0 && (
-          <details className="mt-1 text-[13px] text-muted">
+          <details className="mt-1.5 text-[13px] text-muted">
             <summary className="inline-flex h-8 cursor-pointer items-center font-semibold underline-offset-4 hover:text-fg hover:underline">{t.polls.detail.whoAnswered}</summary>
             <dl className="space-y-1 pb-1 pt-1">
               {tally.yes.length > 0 && (
@@ -125,8 +130,8 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action }:
                   aria-checked={selected}
                   onClick={() => onVote(selected ? null : response)}
                   className={cn(
-                    "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-[13px] font-semibold leading-tight transition-colors sm:text-sm",
-                    !selected && "border-line-strong bg-base/60 text-muted hover:border-faint hover:text-fg",
+                    "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-[13px] font-semibold leading-tight transition-colors sm:text-[15px]",
+                    !selected && "border-transparent bg-raised text-fg/85 hover:border-line-strong hover:text-fg",
                     selected && response === "yes" && "border-lime bg-lime text-lime-ink",
                     selected && response === "maybe" && "border-lime bg-transparent text-lime",
                     selected && response === "no" && "border-fg/40 bg-raised text-fg",
@@ -360,15 +365,26 @@ export function PollDetailPage() {
   return (
     <>
       <PageHeader
-        title={poll.title}
+        title={
+          <span className="uppercase">
+            <PosterTitle text={poll.title} />
+          </span>
+        }
         back={crew ? { to: `/crews/${crew.id}`, label: t.polls.detail.backToCrew(`${crew.emoji} ${crew.name}`) } : { to: "/plans", label: t.polls.detail.back }}
         lead={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <Badge tone={summary.isOver ? "neutral" : "lime"} icon={<IconHourglass className="size-3.5" aria-hidden />}>
-              {summary.isOver ? t.enums.pollStatus.closed : t.polls.status.endsIn(formatRelative(poll.ends_at, now))}
-            </Badge>
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {summary.isOver ? (
+              <Badge tone="neutral" icon={<IconHourglass className="size-3.5" aria-hidden />}>
+                {t.enums.pollStatus.closed}
+              </Badge>
+            ) : (
+              <span className="inline-flex h-8 items-center gap-2 rounded-full bg-lime/15 px-3 text-sm font-semibold text-lime">
+                <span aria-hidden className="size-2 rounded-full bg-lime" />
+                {t.polls.status.endsIn(formatRelative(poll.ends_at, now))}
+              </span>
+            )}
             {poll.parent_poll_id && <Badge tone="outline">{t.polls.runoffBadge}</Badge>}
-            <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.status.endsAt(formatDateTime(poll.ends_at))}</span>
+            <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.participation(votedCount, memberIds.length)}</span>
           </span>
         }
       />
@@ -487,6 +503,7 @@ export function PollDetailPage() {
             </dl>
           )}
 
+          {!summary.isOver && <p className="text-[13px] text-faint">{t.polls.status.endsAt(formatDateTime(poll.ends_at))}</p>}
           <p className="text-[13px] text-faint">{poll.created_by === user.id ? t.polls.detail.createdByYou : t.polls.detail.createdBy(people.lookup(poll.created_by)?.display_name ?? t.states.formerMember)}</p>
 
           {canManage && !summary.isOver && (
