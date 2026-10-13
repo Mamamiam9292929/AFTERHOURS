@@ -15,7 +15,7 @@ export default defineConfig({
       output: {
         // Bibliotheken in eigene Chunks: Sie ändern sich selten und bleiben nach einem Update im Browser-Cache.
         manualChunks: {
-          react: ["react", "react-dom", "react-router-dom"],
+          react: ["react", "react-dom", "react-dom/client", "react-router-dom"],
           supabase: ["@supabase/supabase-js"],
           query: ["@tanstack/react-query"],
         },
