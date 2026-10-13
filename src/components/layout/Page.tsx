@@ -72,15 +72,21 @@ export function SectionLink({ to, children }: { to: string; children: ReactNode 
   );
 }
 
-/** Zeile aus Icon, Beschriftung und Wert – für die "Was/Wann/Wo"-Übersichten. */
+/**
+ * Zeile aus Icon, Beschriftung und Wert – für die "Was/Wann/Wo"-Übersichten. Steht in einem <dl>;
+ * <dt>/<dd> sind direkte Kinder der Zeile (HTML erlaubt nur eine <div>-Ebene dazwischen), das Icon
+ * sitzt deshalb absolut im <dt>.
+ */
 export function Fact({ icon, label, children, className }: { icon: ReactNode; label: string; children: ReactNode; className?: string }) {
   return (
-    <div className={cn("flex gap-3.5 py-3.5", className)}>
-      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-raised text-muted [&>svg]:size-[18px]">{icon}</div>
-      <div className="min-w-0 flex-1">
-        <dt className="text-[13px] font-medium text-muted">{label}</dt>
-        <dd className="mt-0.5 break-words text-[15px] leading-snug text-fg">{children}</dd>
-      </div>
+    <div className={cn("relative min-w-0 py-3.5 pl-[50px]", className)}>
+      <dt className="text-[13px] font-medium text-muted">
+        <span aria-hidden className="absolute left-0 top-4 flex size-9 items-center justify-center rounded-full bg-raised text-muted [&>svg]:size-[18px]">
+          {icon}
+        </span>
+        {label}
+      </dt>
+      <dd className="mt-0.5 break-words text-[15px] leading-snug text-fg">{children}</dd>
     </div>
   );
 }

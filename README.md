@@ -207,6 +207,8 @@ npm run test:e2e
 
 Der Test legt Konten und Daten an – nur gegen die lokale Umgebung laufen lassen. Alle Schalter stehen im Kopf der Datei.
 
+**Barrierefreiheit (in der Journey)** – an jedem Screenshot-Punkt (rund 45 Bildschirme auf Smartphone, Tablet und Desktop) prüft [axe-core](https://github.com/dequelabs/axe-core) 4.10.3 die Seite gegen WCAG 2.1 A/AA: Kontrast, Beschriftungen, Rollen, Überschriften, Sprache. Befunde der Stufe „critical“/„serious“ lassen den Lauf scheitern, leichtere werden nur aufgelistet; der vollständige Bericht liegt als `a11y.json` neben den Screenshots. Dazu ein Tastaturschritt: Anmeldung nur mit Tab und Enter, jeder Halt muss sichtbar markiert sein. axe-core steht noch nicht im Lockfile (die Entwicklungsumgebung hatte keinen npm-Zugriff); die CI installiert es vor dem Lauf, lokal `npm install --no-save axe-core@4.10.3`. Abschalten mit `E2E_A11Y=0`. Grenzen: axe findet erfahrungsgemäß nur einen Teil der Probleme; Screenreader-Bedienung und Tastaturwege jenseits der Anmeldung sind nicht automatisch geprüft.
+
 **In GitHub Actions** läuft die Journey bei jedem Pull Request (Job „Browser-Journey“): `.github/scripts/e2e.sh setup` startet die lokale Supabase-Umgebung, die Edge Functions und den OSM-Stellvertreter `tests/e2e/osm-stub.mjs` (Nominatim und Overpass mit festem Datenbestand: Leipzig mit 2.601 Orten, „frankfurt“ → „Frankfurt am Main“, „Atlantis“ unbekannt), baut die App und liefert sie mit `vite preview` aus. Screenshots und Protokolle liegen danach als Artefakt `journey` am Lauf. Die Screenshots legt `.github/scripts/screenshots.sh` zusätzlich auf einen eigenen Branch: `screenshots/main` (Stand von main) und `screenshots/pr-<n>` (Stand eines PRs, nur für PRs aus diesem Repository). Jeder Lauf ersetzt den Branch durch einen einzigen Commit. So lassen sich Vorher/Nachher im PR verlinken (`…/blob/screenshots/pr-<n>/04-home-neu-mobile.png`) oder lokal per `git fetch origin screenshots/main` ansehen. Lokal lässt sich der Stellvertreter ebenso nutzen: `node tests/e2e/osm-stub.mjs` und in `supabase/functions/.env` `NOMINATIM_URL`/`OVERPASS_URL` auf ihn zeigen lassen.
 
 ---
@@ -355,6 +357,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Eigene E-Mail-Vorlagen | Getestet mit den Standardvorlagen von Supabase Auth |
 | Safari, Firefox, echte Mobilgeräte | Getestet nur in Chromium mit Geräte-Viewports |
 | Lasttests | Keine |
+| Barrierefreiheit jenseits von axe-core | Automatisch geprüft sind WCAG-Regeln, die axe erkennt, und die Tastatur-Anmeldung. Screenreader (VoiceOver, TalkBack) und Tastaturwege durch die übrigen Abläufe nicht |
 
 ---
 

@@ -10,9 +10,9 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | # | Aufgabe | Nutzen | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
 | F1 | Browser-Journey (`tests/e2e/journey.mjs`) in GitHub Actions lauffähig machen, inkl. Stellvertreter für OpenStreetMap | Jeder PR wird automatisch durchgeklickt, bevor du ihn siehst | M | – | Erledigt (#6) |
-| F2 | Barrierefreiheit automatisch prüfen (axe-core in der Journey) | Fehler bei Kontrast, Beschriftung, Tastatur fallen sofort auf | S | F1 | Freigegeben |
+| F2 | Barrierefreiheit automatisch prüfen (axe-core in der Journey) | Fehler bei Kontrast, Beschriftung, Tastatur fallen sofort auf | S | F1 | PR offen (#8) |
 | F3 | Produktionsbuild-Größe überwachen, Seiten aufteilen wo nötig | Schneller Start auf dem Handy | S | – | Erledigt (#7) |
-| F4 | Screenshots der Journey auf eigenem Branch (`screenshots/main`, `screenshots/pr-<n>`), im PR verlinkbar. Akzeptanz: nach jedem Lauf liegen alle Bilder auf dem Branch; Vorher/Nachher ohne Artefakt-Download | Jede Design-Änderung lässt sich im PR mit echten Bildern vergleichen | S | F1 | In Arbeit |
+| F4 | Screenshots der Journey auf eigenem Branch (`screenshots/main`, `screenshots/pr-<n>`), im PR verlinkbar. Akzeptanz: nach jedem Lauf liegen alle Bilder auf dem Branch; Vorher/Nachher ohne Artefakt-Download | Jede Design-Änderung lässt sich im PR mit echten Bildern vergleichen | S | F1 | Erledigt (#10) |
 
 ## Wachstum – warum Leute die App laden und weiterempfehlen
 
@@ -24,6 +24,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | W4 | Installierbare App (PWA): Installations-Hinweis zum richtigen Zeitpunkt, Offline-Grundgerüst, App-Icon-Badges | „Runterladen" ohne App Store | S | – | Freigegeben |
 | W5 | Erster Plan in 60 Sekunden: geführter Start nach der Registrierung (Crew → Freunde einladen → Abstimmung mit 3 Vorschlägen aus der eigenen Stadt) | Neue Nutzer erleben den Kernnutzen sofort | M | – | Freigegeben |
 | W6 | Öffentliche Startseite (afterhours…/) mit echtem Produkt statt Login-Wand: was die App kann, Screens, „Crew gründen" | Wer von Freunden hört, muss verstehen, was es ist | M | Domain/Hosting durch Benito | Freigegeben |
+| W8 | „Plan teilen“: Knopf auf Plan und Abstimmung öffnet das Teilen-Menü des Handys (Web Share API, Rückfall: Text kopieren) mit Titel, Datum und Link – ohne Namen oder Adressen der Mitglieder. Akzeptanz: Journey prüft Text und Rückfall; keine Daten an Dritte | Ein Tipp, und der Plan steht im WhatsApp-Gruppenchat – der natürliche Weg zu neuen Nutzern | S | – | Vorschlag |
 | W7 | Store-Verpackung vorbereiten (Capacitor-Projekt, Icons, Screenshots, Store-Texte) | Präsenz im App Store / Play Store | L | Entwicklerkonten Apple (99 €/Jahr) und Google (25 €) – Für Benito | Freigegeben |
 
 ## Design
@@ -35,6 +36,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | D2 | Discover visueller: größere Karten mit Kategorie-Farbwelten, Kartenansicht (P6), Fotos aus Commons (P7) | Stöbern macht Spaß statt Liste lesen | M | P6, P7 | Freigegeben |
 | D3 | Home als „Heute Abend"-Bühne: nächster Plan als großes Ticket, Live-Countdown, offene Abstimmungen mit einem Tipp beantworten | Ein Blick genügt | M | – | Freigegeben |
 | D4 | Leere Zustände und Onboarding mit eigener Illustration im Ticket-Stil | Erster Eindruck | S | – | Freigegeben |
+| D6 | Zusage direkt auf Home: Fehlt deine Antwort zu einem Plan, zeigt das Ticket auf Home „Bin dabei / Vielleicht / Kann nicht“ mit einem Tipp (gleiche RPC wie auf der Planseite). Akzeptanz: Journey sagt auf Home zu; Fehler- und Ladezustand | Ein Blick, ein Tipp – weniger offene Antworten | S | – | Vorschlag |
 | D5 | Design-Audit auf echten Geräten (Safari iOS, Android Chrome), Abstände, Typo-Skala, Kontraste | Feinschliff | S | – | Freigegeben |
 
 ## Produkt
