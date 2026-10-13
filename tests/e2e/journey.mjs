@@ -85,8 +85,10 @@ async function step(name, fn) {
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch({ headless: !process.env.E2E_HEADED });
 
-async function newUser(name, viewport) {
-  const context = await browser.newContext({ viewport: VIEWPORTS[viewport], deviceScaleFactor: viewport === "mobile" ? 2 : 1, locale: "de-DE", timezoneId: "Europe/Berlin", acceptDownloads: true });
+// Service Worker (W4) sind standardmäßig blockiert, damit page.route() und Netz-Proben unverfälscht bleiben;
+// der PWA-Schritt öffnet dafür einen eigenen Kontext.
+async function newUser(name, viewport, { serviceWorkers = "block" } = {}) {
+  const context = await browser.newContext({ viewport: VIEWPORTS[viewport], deviceScaleFactor: viewport === "mobile" ? 2 : 1, locale: "de-DE", timezoneId: "Europe/Berlin", acceptDownloads: true, serviceWorkers });
   const page = await context.newPage();
   page.setDefaultTimeout(15_000);
   page.on("console", (m) => {
@@ -1152,6 +1154,89 @@ await step("Abmelden, Passwort zurücksetzen, neu anmelden (Alice)", async () =>
   await login(alice, "Noch-geheimer-2031!");
   await page.waitForURL(/\/home/);
   check(true, "Anmeldung mit dem neuen Passwort");
+});
+
+await step("W4 – Installierbar, offline, Zähler am App-Icon (Bob)", async () => {
+  const app = await newUser("Bob", "mobile", { serviceWorkers: "allow" });
+  const { page, context } = app;
+  // Badging-API und Installations-Angebot gibt es im Headless-Chromium nicht – beides wird nachgestellt.
+  await page.addInitScript(() => {
+    window.__badge = null;
+    navigator.setAppBadge = async (n) => void (window.__badge = n);
+    navigator.clearAppBadge = async () => void (window.__badge = 0);
+  });
+  const offerInstall = () =>
+    page.evaluate(() => {
+      const event = new Event("beforeinstallprompt");
+      event.prompt = async () => void (window.__prompted = (window.__prompted ?? 0) + 1);
+      event.userChoice = Promise.resolve({ outcome: "accepted" });
+      window.dispatchEvent(event);
+    });
+  const card = page.getByRole("region", { name: "Hol dir AFTERHOURS auf den Homescreen" });
+  const homeReady = async () => {
+    await page.getByRole("heading", { level: 1 }).waitFor();
+    await page.getByRole("heading", { name: "Ideen für euch" }).waitFor();
+  };
+
+  await login(app);
+  await page.waitForURL(/\/home/);
+  await homeReady();
+  const bell = await page.getByRole("link", { name: /^Benachrichtigungen/ }).first().getAttribute("aria-label");
+  const unread = Number(/(\d+) ungelesen/.exec(bell ?? "")?.[1] ?? 0);
+  await page.waitForFunction((n) => window.__badge === n, unread);
+  check(true, `Zähler am App-Icon zeigt die ungelesenen Benachrichtigungen (${unread})`);
+
+  check((await card.count()) === 0, "ohne Angebot des Browsers kein Installations-Hinweis");
+  await offerInstall();
+  await card.waitFor();
+  check(true, "Installations-Hinweis erscheint auf Home, sobald der Browser die Installation anbietet");
+  await shot(app, "33-installieren");
+  await card.getByRole("button", { name: "Nicht jetzt" }).click();
+  await card.waitFor({ state: "detached" });
+  await page.reload();
+  await homeReady();
+  await offerInstall();
+  await page.waitForTimeout(400);
+  check((await card.count()) === 0, "„Nicht jetzt“ hält den Hinweis fern (30 Tage)");
+  await page.evaluate(() => localStorage.removeItem("afterhours.install-dismissed"));
+  await page.reload();
+  await homeReady();
+  await offerInstall();
+  await card.getByRole("button", { name: "Installieren" }).click();
+  await toast(app, "AFTERHOURS ist installiert.");
+  check((await page.evaluate(() => window.__prompted)) === 1, "„Installieren“ öffnet den Dialog des Browsers");
+  await card.waitFor({ state: "detached" });
+
+  const dev = await page.evaluate(() => Boolean(document.querySelector('script[src="/@vite/client"]')));
+  if (dev) {
+    console.log("   (Entwicklungsserver – der Service Worker läuft nur im Produktionsbuild; Offline-Probe übersprungen)");
+    return;
+  }
+  const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
+  check(scope === `${APP}/`, "Service Worker ist für die ganze App registriert");
+  await page.reload();
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
+  await homeReady();
+  // Startdateien und besuchte Seiten liegen im Cache; Supabase-Antworten nie.
+  const cached = await page.evaluate(async () => {
+    const urls = [];
+    for (const name of await caches.keys()) for (const request of await (await caches.open(name)).keys()) urls.push(request.url);
+    return urls;
+  });
+  check(cached.some((url) => url.endsWith("/index.html")) && cached.some((url) => /\/assets\/.+\.js$/.test(url)), `App-Hülle und Skripte liegen im Cache (${cached.length} Dateien)`);
+  check(!cached.some((url) => /\/(rest|auth)\/v1\//.test(url)), "keine API-Antworten (Nutzerdaten) im Cache");
+
+  await context.setOffline(true);
+  await page.reload();
+  await page.getByText("Offline – Inhalte laden, sobald du wieder Netz hast.").waitFor();
+  check(true, "ohne Netz öffnet sich die App aus dem Cache und sagt ehrlich, dass sie offline ist");
+  await shot(app, "34-offline");
+  await context.setOffline(false);
+  await page.getByText("Offline – Inhalte laden").waitFor({ state: "detached" });
+  await homeReady();
+  check(true, "wieder online: Hinweis verschwindet, Home lädt");
+  users.splice(users.indexOf(app), 1);
+  await context.close();
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {

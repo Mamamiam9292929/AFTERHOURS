@@ -15,6 +15,7 @@ import { useActivitySearch, usePlaceRegion } from "@/features/discover/api";
 import { placesProvider } from "@/features/discover/provider";
 import { isUpcoming, usePlans } from "@/features/plans/api";
 import { FeatureTicket, PlanTicket } from "@/features/plans/PlanTicket";
+import { InstallCard } from "./InstallCard";
 import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
 import { PollCard } from "@/features/polls/PollCard";
@@ -234,6 +235,8 @@ export function HomePage() {
                   </div>
                 </Section>
               )}
+
+              <InstallCard className="mt-9 first:mt-0" />
 
               {(nextPlans.length > 0 || (plansNeedingMe.length === 0 && !featured)) && (
                 <Section title={t.home.nextUp} action={upcoming.length > 0 ? <SectionLink to="/plans">{t.home.allPlans}</SectionLink> : undefined}>

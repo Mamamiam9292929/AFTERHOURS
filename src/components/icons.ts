@@ -60,6 +60,7 @@ export {
   LuShare2 as IconShare,
   LuShieldCheck as IconShield,
   LuSlidersHorizontal as IconFilter,
+  LuSmartphone as IconPhoneApp,
   LuSparkles as IconSparkles,
   LuTicket as IconPlans,
   LuTimer as IconTimer,
@@ -71,5 +72,6 @@ export {
   LuUsers as IconCrews,
   LuVote as IconVote,
   LuWallet as IconWallet,
+  LuWifiOff as IconOffline,
   LuX as IconClose,
 } from "react-icons/lu";
