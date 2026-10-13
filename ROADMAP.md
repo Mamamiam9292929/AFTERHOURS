@@ -31,7 +31,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
 | # | Aufgabe | Nutzen | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
-| D0 | Redesign nach `docs/design/DESIGN.md` (Konzept von Benito abgesegnet): Plakat-Überschriften, Ticket als Held auf Home, Abstimm-Balken, Discover mit Bühne, neue Tab-Leiste. In Etappen: Home → Abstimmung → Discover → Rest | Der Wow-Effekt beim ersten Öffnen | M | – | Etappe 1 Home (#11) und Etappe 2 Abstimmung (#13) erledigt; Etappe 3 Discover (#15) erledigt; Etappe 4 Tab-Leiste, Crews- und Plans-Übersicht (#16) erledigt; Etappe 5a Plan-Detail: PR offen; danach Etappe 5b Crew-Detail und Profil |
+| D0 | Redesign nach `docs/design/DESIGN.md` (Konzept von Benito abgesegnet): Plakat-Überschriften, Ticket als Held auf Home, Abstimm-Balken, Discover mit Bühne, neue Tab-Leiste. In Etappen: Home → Abstimmung → Discover → Rest | Der Wow-Effekt beim ersten Öffnen | M | – | Etappe 1 Home (#11) und Etappe 2 Abstimmung (#13) erledigt; Etappe 3 Discover (#15) erledigt; Etappe 4 Tab-Leiste, Crews- und Plans-Übersicht (#16) erledigt; Etappe 5a Plan-Detail (#17) erledigt; Etappe 5b Crew-Detail: PR offen; danach Etappe 5c Profil |
 | D1 | Bewegung mit Sinn: Ticket „reißt ab", wenn ein Plan bestätigt wird; Stimmbalken wachsen; reduzierte Bewegung respektiert | Die entscheidenden Momente fühlen sich gut an | S | – | Freigegeben |
 | D2 | Discover visueller: größere Karten mit Kategorie-Farbwelten, Kartenansicht (P6), Fotos aus Commons (P7) | Stöbern macht Spaß statt Liste lesen | M | P6, P7 | Freigegeben |
 | D3 | Home als „Heute Abend"-Bühne: nächster Plan als großes Ticket, Live-Countdown, offene Abstimmungen mit einem Tipp beantworten | Ein Blick genügt | M | – | Freigegeben |

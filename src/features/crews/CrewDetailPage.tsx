@@ -2,7 +2,7 @@ import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { IconCalendarPlus, IconMore, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
-import { PageHeader, Section } from "@/components/layout/Page";
+import { PageHeader, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Controls";
@@ -11,7 +11,7 @@ import { Badge, EmptyState, ErrorState, ListSkeleton, Notice, PageSpinner } from
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/features/auth/AuthProvider";
 import { isUpcoming, usePlans } from "@/features/plans/api";
-import { PlanTicket } from "@/features/plans/PlanTicket";
+import { FeatureTicket, PlanTicket } from "@/features/plans/PlanTicket";
 import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
 import { PollCard } from "@/features/polls/PollCard";
@@ -42,6 +42,9 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
   const openPolls = (polls.data ?? []).filter((p) => p.crew_id === crew.id && !isPollOver(p, now));
   const crewPlans = (plans.data ?? []).filter((p) => p.crew_id === crew.id);
   const upcoming = crewPlans.filter((p) => isUpcoming(p, now));
+  // D0 Etappe 5b: der nächste nicht abgesagte Plan als großes Ticket – der eine große Moment der Crew.
+  const featured = upcoming.find((p) => p.status !== "cancelled");
+  const rest = upcoming.filter((p) => p !== featured);
   const past = crewPlans.filter((p) => !isUpcoming(p, now)).reverse().slice(0, 4);
 
   return (
@@ -55,6 +58,13 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
             </Button>
           )}
         </Notice>
+      )}
+      {featured && (
+        <Section title={t.crews.detail.nextUp}>
+          <div className="max-w-2xl pb-2">
+            <FeatureTicket plan={featured} userId={user.id} lookup={people.lookup} />
+          </div>
+        </Section>
       )}
       <Section title={t.crews.detail.activePolls}>
         {polls.isPending ? (
@@ -71,21 +81,23 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
           </div>
         )}
       </Section>
-      <Section title={t.crews.detail.upcomingPlans}>
-        {plans.isPending ? (
-          <ListSkeleton rows={1} height="h-32" />
-        ) : plans.isError ? (
-          <ErrorState error={plans.error} onRetry={() => void plans.refetch()} />
-        ) : upcoming.length === 0 ? (
-          <EmptyState title={t.crews.detail.noPlans} body={t.crews.detail.noPlansBody} />
-        ) : (
-          <div className="grid gap-5 lg:grid-cols-2">
-            {upcoming.map((plan) => (
-              <PlanTicket key={plan.id} plan={plan} userId={user.id} lookup={people.lookup} />
-            ))}
-          </div>
-        )}
-      </Section>
+      {(!featured || rest.length > 0) && (
+        <Section title={featured ? t.crews.detail.morePlans : t.crews.detail.upcomingPlans}>
+          {plans.isPending ? (
+            <ListSkeleton rows={1} height="h-32" />
+          ) : plans.isError ? (
+            <ErrorState error={plans.error} onRetry={() => void plans.refetch()} />
+          ) : upcoming.length === 0 ? (
+            <EmptyState title={t.crews.detail.noPlans} body={t.crews.detail.noPlansBody} />
+          ) : (
+            <div className="grid gap-5 lg:grid-cols-2">
+              {rest.map((plan) => (
+                <PlanTicket key={plan.id} plan={plan} userId={user.id} lookup={people.lookup} />
+              ))}
+            </div>
+          )}
+        </Section>
+      )}
       {past.length > 0 && (
         <Section title={t.crews.detail.pastPlans}>
           <div className="grid gap-5 lg:grid-cols-2">
@@ -419,6 +431,7 @@ export function CrewDetailPage() {
   const user = useUser();
   const people = usePeople();
   const crewQuery = useCrew(crewId);
+  const plans = usePlans();
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>("overview");
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -451,16 +464,22 @@ export function CrewDetailPage() {
 
   const role = myRole(crew, user.id);
   const manage = canManageCrew(role);
+  // Echte Zahl: abgeschlossene Pläne dieser Crew. Erscheint erst ab dem ersten gemeinsamen Abend.
+  const evenings = (plans.data ?? []).filter((p) => p.crew_id === crew.id && p.status === "completed").length;
 
   return (
     <>
       <PageHeader
-        title={`${crew.emoji} ${crew.name}`}
+        poster
+        title={<PosterTitle text={`${crew.emoji} ${crew.name}`} />}
         back={{ to: "/crews", label: t.crews.detail.back }}
         lead={
           <span className="flex items-center gap-2.5">
             <AvatarStack people={crew.members.map((m) => people.lookup(m.user_id))} max={6} ringColor="var(--color-base)" />
-            {t.members(crew.members.length)}
+            <span>
+              {t.members(crew.members.length)}
+              {evenings > 0 && ` · ${t.crews.detail.evenings(evenings)}`}
+            </span>
           </span>
         }
         actions={
