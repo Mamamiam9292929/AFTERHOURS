@@ -249,7 +249,7 @@ supabase/
 tests/e2e/        Playwright-Journey
 ```
 
-**Design** – Anthrazit als Fläche, fast Schwarz für die Navigation, Lime als einziger Akzent. Überschriften und Zahlen in *Big Shoulders Display*, Fließtext in *Figtree* (beide SIL Open Font License, lokal eingebunden in `public/fonts/`). Wiederkehrendes Motiv ist das Ticket: Ein Plan sieht aus wie eine Eintrittskarte, deren Abriss lime wird, sobald er feststeht. Tokens stehen in `src/styles/index.css`.
+**Design** – Richtung: `docs/design/DESIGN.md` („Wow, aber nicht zu viel“), Umsetzung in Etappen (Roadmap D0). Home: Plakat-Überschrift in Versalien aus echten Daten (Countdown bis zum nächsten zugesagten Plan, sonst die Leitfrage) mit einem Schlüsselwort in Lime, darunter der nächste Plan als großes, leicht schräges Ticket mit echten Kerben (CSS-Maske), Strichcode-Detail und „2 von 3 dabei“, dezenter Lime-Schein mit feinem Korn oben. Anthrazit als Fläche, fast Schwarz für die Navigation, Lime als einziger Akzent. Überschriften und Zahlen in *Big Shoulders Display*, Fließtext in *Figtree* (beide SIL Open Font License, lokal eingebunden in `public/fonts/`). Wiederkehrendes Motiv ist das Ticket: Ein Plan sieht aus wie eine Eintrittskarte, deren Abriss lime wird, sobald er feststeht. Tokens stehen in `src/styles/index.css`.
 
 ---
 

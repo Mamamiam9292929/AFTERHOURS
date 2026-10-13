@@ -14,12 +14,13 @@ import { ActivityCard } from "@/features/discover/ActivityCard";
 import { useActivitySearch, usePlaceRegion } from "@/features/discover/api";
 import { placesProvider } from "@/features/discover/provider";
 import { isUpcoming, usePlans } from "@/features/plans/api";
-import { PlanTicket } from "@/features/plans/PlanTicket";
+import { FeatureTicket, PlanTicket } from "@/features/plans/PlanTicket";
 import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
 import { PollCard } from "@/features/polls/PollCard";
 import { usePeople, useProfile, useSettings } from "@/features/profile/api";
 import { t } from "@/i18n";
+import { cn } from "@/lib/cn";
 import { formatEuro } from "@/lib/format";
 import { distanceKm } from "@/lib/geo";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
@@ -27,8 +28,14 @@ import { qk } from "@/lib/query";
 import { dayPhase, zonedParts } from "@/lib/time";
 import type { Activity, ActivityCategory } from "@/lib/types";
 
+interface Headline {
+  lead: string;
+  key: string;
+  tail: string;
+}
+
 /** Die Leitfrage der App – je nach Wochentag und Tageszeit in Berlin. */
-function leadQuestion(now: Date): string {
+function leadQuestion(now: Date): Headline {
   const phase = dayPhase(now);
   const { weekday } = zonedParts(now);
   if ((weekday === "thu" || weekday === "fri") && (phase === "morning" || phase === "day")) return t.home.question.weekend;
@@ -36,6 +43,29 @@ function leadQuestion(now: Date): string {
   if (phase === "day") return t.home.question.tonight;
   if (phase === "evening") return t.home.question.later;
   return t.home.question.tomorrow;
+}
+
+/** Kalendertage zwischen zwei Zeitpunkten in Berliner Zeit (heute = 0, morgen = 1). */
+function calendarDaysBetween(from: Date, to: Date | string): number {
+  const day = (v: Date | string) => {
+    const p = zonedParts(v);
+    return Date.UTC(p.year, p.month - 1, p.day) / 86_400_000;
+  };
+  return Math.round(day(to) - day(from));
+}
+
+/**
+ * Plakat-Überschrift aus echten Daten: Steht der nächste Plan in den kommenden 13 Tagen fest,
+ * zählt sie herunter („Noch 3 Tage bis Bowling“), sonst stellt sie die Leitfrage.
+ */
+function headline(now: Date, plan: { title: string; starts_at: string } | undefined): Headline {
+  if (plan) {
+    const days = calendarDaysBetween(now, plan.starts_at);
+    const evening = zonedParts(plan.starts_at).hour >= 17;
+    const lead = days <= 0 ? (evening ? t.home.countdown.tonight : t.home.countdown.today) : days === 1 ? t.home.countdown.tomorrow : days <= 13 ? t.home.countdown.days(days) : null;
+    if (lead) return { lead: `${lead} `, key: plan.title, tail: "" };
+  }
+  return leadQuestion(now);
 }
 
 interface Ideas {
@@ -131,22 +161,38 @@ export function HomePage() {
   const otherPolls = openPolls.filter((p) => !pollsNeedingMe.includes(p));
   const upcoming = (plans.data ?? []).filter((p) => isUpcoming(p, now));
   const plansNeedingMe = upcoming.filter((p) => p.participants.some((pp) => pp.user_id === user.id && pp.attendance_status === "invited"));
-  const nextPlans = upcoming.filter((p) => !plansNeedingMe.includes(p)).slice(0, 2);
+  // Das große Ticket: der nächste Plan, bei dem die eigene Antwort nicht fehlt und der nicht abgesagt wurde.
+  const featured = upcoming.find(
+    (p) => !plansNeedingMe.includes(p) && p.status !== "cancelled" && p.participants.find((pp) => pp.user_id === user.id)?.attendance_status !== "declined",
+  );
+  const nextPlans = upcoming.filter((p) => !plansNeedingMe.includes(p) && p !== featured).slice(0, 2);
   const needsAnswer = pollsNeedingMe.length + plansNeedingMe.length;
 
   const loading = crews.isPending || polls.isPending || plans.isPending;
   const failed = crews.isError ? crews : polls.isError ? polls : plans.isError ? plans : null;
   const noCrews = crews.data?.length === 0;
   const phase = dayPhase(now);
+  const title = headline(now, loading || failed ? undefined : featured);
+  const long = title.lead.length + title.key.length > 30;
 
   return (
-    <>
+    <div className="relative isolate">
+      <div className="home-glow" aria-hidden />
       <header className="mb-8 lg:mb-10">
         <p className="text-[15px] font-medium text-muted">
           {t.home.greeting[phase]}, {profile.data?.display_name ?? ""}
         </p>
-        <h1 className="display mt-2 text-[52px] text-fg sm:text-[72px]">{leadQuestion(now)}</h1>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        <h1 className={cn("display mt-2 break-words uppercase text-fg", long ? "text-[40px] sm:text-[60px]" : "text-[52px] sm:text-[76px]")}>
+          {title.lead}
+          <span className="text-lime">{title.key}</span>
+          {title.tail}
+        </h1>
+        {featured && !loading && !failed && (
+          <div className="mt-7 max-w-2xl lg:mt-9">
+            <FeatureTicket plan={featured} crew={crewById.get(featured.crew_id)} userId={user.id} lookup={people.lookup} />
+          </div>
+        )}
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
           <ButtonLink to="/polls/new" size="lg" icon={<IconVote className="size-5" aria-hidden />}>
             {t.home.startPoll}
           </ButtonLink>
@@ -198,7 +244,7 @@ export function HomePage() {
                 </Section>
               )}
 
-              {(nextPlans.length > 0 || plansNeedingMe.length === 0) && (
+              {(nextPlans.length > 0 || (plansNeedingMe.length === 0 && !featured)) && (
                 <Section title={t.home.nextUp} action={upcoming.length > 0 ? <SectionLink to="/plans">{t.home.allPlans}</SectionLink> : undefined}>
                   {nextPlans.length > 0 ? (
                     <div className="space-y-5">
@@ -288,6 +334,6 @@ export function HomePage() {
           </Section>
         </aside>
       </div>
-    </>
+    </div>
   );
 }

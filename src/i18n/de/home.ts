@@ -1,11 +1,19 @@
 export const home = {
   greeting: { morning: "Guten Morgen", day: "Hi", evening: "Guten Abend", night: "Noch wach" },
+  /** Plakat-Überschrift: `key` wird in Lime gesetzt. */
   question: {
-    today: "Was geht heute?",
-    tonight: "Was geht heute Abend?",
-    later: "Was geht heute noch?",
-    tomorrow: "Was geht morgen?",
-    weekend: "Was geht am Wochenende?",
+    today: { lead: "Was geht ", key: "heute", tail: "?" },
+    tonight: { lead: "Was geht ", key: "heute Abend", tail: "?" },
+    later: { lead: "Was geht ", key: "heute noch", tail: "?" },
+    tomorrow: { lead: "Was geht ", key: "morgen", tail: "?" },
+    weekend: { lead: "Was geht am ", key: "Wochenende", tail: "?" },
+  },
+  /** Überschrift, wenn der nächste Plan feststeht; danach folgt der Plantitel in Lime. */
+  countdown: {
+    today: "Heute",
+    tonight: "Heute Abend",
+    tomorrow: "Morgen",
+    days: (n: number) => `Noch ${n} Tage bis`,
   },
   startPoll: "Abstimmung starten",
   createPlan: "Plan erstellen",

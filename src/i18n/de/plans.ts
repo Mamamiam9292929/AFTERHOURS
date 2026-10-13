@@ -14,6 +14,7 @@ export const plans = {
   },
   ticket: {
     going: (n: number) => (n === 1 ? "1 dabei" : `${n} dabei`),
+    goingOf: (total: number) => `von ${total} dabei`,
     yourAnswerOpen: "Deine Antwort fehlt",
     youGoing: "Du bist dabei",
     youMaybe: "Du: vielleicht",
