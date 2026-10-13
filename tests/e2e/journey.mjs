@@ -187,6 +187,10 @@ async function shot(user, name) {
   await noOverflow(user, name);
   await a11y(user, name);
   if (!SHOTS) return;
+  // Laufende Übergänge (Farbwechsel, Stempel, Seitenwechsel) erst zu Ende laufen lassen – sonst zeigt das Bild einen Zwischenstand.
+  await user.page
+    .evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))))
+    .catch(() => undefined);
   await user.page.screenshot({ path: path.join(SHOTS, `${name}-${user.viewport}.png`) });
 }
 const dialog = (user) => user.page.getByRole("dialog");
@@ -530,14 +534,47 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   await bob.page.goto(`${APP}/home`);
   await bob.page.getByText("Deine Antwort fehlt").first().waitFor();
   await shot(bob, "15-home");
+  // D7: Seitenwechsel laufen als View Transition; das angetippte Ticket wird zum großen Ticket der Planseite.
+  const viewTransitions = await bob.page.evaluate(() => typeof document.startViewTransition === "function");
+  if (viewTransitions) {
+    await bob.page.evaluate(() => {
+      window.__vt = [];
+      const start = document.startViewTransition.bind(document);
+      document.startViewTransition = (update) =>
+        start(async () => {
+          const before = [...document.querySelectorAll("*")].filter((el) => el.style?.viewTransitionName === "plan-ticket").length;
+          await update();
+          window.__vt.push({ before, after: document.querySelectorAll(".vt-plan-ticket").length });
+        });
+    });
+    // Die Seiten werden im Leerlauf vorgeladen; erst dann gleitet das Ticket ohne Ladezustand hinüber.
+    await bob.page.waitForTimeout(1000);
+  }
   await bob.page.getByRole("link", { name: /Strike District Bowling/ }).first().click();
   await bob.page.waitForURL(new RegExp(`/plans/${ids.plan}`));
+  if (viewTransitions) {
+    await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+    const vt = await bob.page.evaluate(() => window.__vt);
+    check(vt.length === 1 && vt[0].before === 1 && vt[0].after === 1, `Ticket gleitet per View Transition zur Planseite (${JSON.stringify(vt)})`);
+  }
   await bob.page.getByRole("radiogroup", { name: "Bist du dabei?" }).getByRole("radio", { name: "Bin dabei" }).click();
   await toast(bob, "Antwort gespeichert.");
+  // D7: Der Abriss trägt die eigene Antwort – grün dabei, gelb vielleicht, rot abgesagt – mit Stempel.
+  const answerOf = (user) => user.page.locator(".ticket-feature-wrap").getAttribute("data-answer");
+  await bob.page.locator('.ticket-feature-wrap[data-answer="going"]').waitFor();
+  check((await bob.page.locator(".ticket-feature .ticket-stamp").innerText()).toLowerCase() === "dabei", "Zusage: grünes Ticket mit Stempel „Dabei“");
   await shot(bob, "16-plan");
   await carol.page.goto(`${APP}/plans/${ids.plan}`);
-  await carol.page.getByRole("radiogroup", { name: "Bist du dabei?" }).getByRole("radio", { name: "Kann nicht" }).click();
+  await carol.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  check((await answerOf(carol)) === "invited" && (await carol.page.locator(".ticket-feature .ticket-stamp").count()) === 0, "Ohne Antwort: graues Ticket mit Strichcode statt Stempel");
+  await carol.page.getByRole("radiogroup", { name: "Bist du dabei?" }).getByRole("radio", { name: "Vielleicht" }).click();
+  await carol.page.locator('.ticket-feature-wrap[data-answer="maybe"]').waitFor();
+  check((await carol.page.locator(".ticket-feature .ticket-stamp").innerText()).toLowerCase() === "vielleicht", "Vielleicht: gelbes Ticket mit Stempel");
   await toast(carol, "Antwort gespeichert.");
+  await shot(carol, "16b-plan-vielleicht");
+  await carol.page.getByRole("radiogroup", { name: "Bist du dabei?" }).getByRole("radio", { name: "Kann nicht" }).click();
+  await carol.page.locator('.ticket-feature-wrap[data-answer="declined"]').waitFor();
+  check((await carol.page.locator(".ticket-feature .ticket-stamp").innerText()).toLowerCase() === "abgesagt", "Absage: rotes Ticket mit Stempel „Abgesagt“");
   await shot(carol, "16-plan");
   await alice.page.reload();
   await alice.page.getByText("Dabei (2)").waitFor();

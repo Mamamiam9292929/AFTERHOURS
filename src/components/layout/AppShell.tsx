@@ -55,7 +55,7 @@ export function AppShell() {
       </a>
 
       {/* Desktop: Seitenleiste */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-nav px-4 py-6 lg:flex">
+      <aside className="vt-sidebar fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-nav px-4 py-6 lg:flex">
         <Link to="/home" className="px-2">
           <Logo />
         </Link>
@@ -100,7 +100,7 @@ export function AppShell() {
       </aside>
 
       {/* Smartphone/Tablet: obere Leiste */}
-      <header className="sticky top-0 z-30 border-b border-line bg-base pt-safe lg:hidden">
+      <header className="vt-header sticky top-0 z-30 border-b border-line bg-base pt-safe lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <Link to="/home" aria-label={t.nav.home}>
             <Logo compact />
@@ -126,15 +126,16 @@ export function AppShell() {
       </main>
 
       {/* Smartphone/Tablet: untere Navigation */}
-      <nav aria-label={t.nav.main} className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-nav pb-safe supports-[backdrop-filter]:bg-nav/85 supports-[backdrop-filter]:backdrop-blur-md lg:hidden">
+      <nav aria-label={t.nav.main} className="vt-tabbar fixed inset-x-0 bottom-0 z-30 border-t border-line bg-nav pb-safe supports-[backdrop-filter]:bg-nav/85 supports-[backdrop-filter]:backdrop-blur-md lg:hidden">
         <ul className="mx-auto grid max-w-xl grid-cols-5">
           {NAV.map(({ to, label, icon: Icon }) => {
             const isActive = active === to;
             return (
               <li key={to}>
-                <Link to={to} aria-current={isActive ? "page" : undefined} className={cn("relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold tracking-wide", isActive ? "text-fg" : "text-faint")}>
-                  <span className={cn("absolute top-0 h-[3px] w-8 rounded-b-full transition-colors", isActive ? "bg-lime" : "bg-transparent")} aria-hidden />
-                  <Icon className={cn("size-[22px]", isActive && "text-lime")} aria-hidden />
+                <Link to={to} aria-current={isActive ? "page" : undefined} className={cn("group relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold tracking-wide transition-colors duration-200", isActive ? "text-fg" : "text-faint")}>
+                  {/* Der Lime-Strich gleitet beim Tabwechsel zum neuen Tab (View Transition, D7). */}
+                  <span className={cn("absolute top-0 h-[3px] w-8 rounded-b-full", isActive ? "vt-tab-indicator bg-lime" : "bg-transparent")} aria-hidden />
+                  <Icon className={cn("size-[22px] transition-transform duration-150 group-active:scale-90", isActive && "text-lime")} aria-hidden />
                   {label}
                 </Link>
               </li>

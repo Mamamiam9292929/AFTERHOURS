@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { IconClock, IconPin } from "@/components/icons";
 import { AvatarStack, type Person } from "@/components/ui/Avatar";
@@ -9,18 +9,68 @@ import { calendarDaysBetween, formatTime, ticketDate, zonedParts } from "@/lib/t
 import type { AttendanceStatus, Crew, PlanStatus } from "@/lib/types";
 import type { PlanWithParticipants } from "./api";
 
-const STUB_TONE: Record<PlanStatus, string> = {
-  proposed: "bg-raised text-fg",
-  confirmed: "bg-lime text-lime-ink",
-  booking_pending: "bg-lime text-lime-ink",
-  booked: "bg-lime text-lime-ink",
-  completed: "bg-raised text-muted",
-  cancelled: "bg-raised text-faint",
+/** Eigene Antwort auf einem Ticket: offen (`none` = nicht eingeladen) oder `past` bei vergangenen/abgesagten Plänen. */
+export type TicketAnswer = AttendanceStatus | "none" | "past";
+
+export function ticketAnswer(plan: { status: PlanStatus; participants: { user_id: string; attendance_status: AttendanceStatus }[] }, userId: string): TicketAnswer {
+  if (plan.status === "completed" || plan.status === "cancelled") return "past";
+  return plan.participants.find((p) => p.user_id === userId)?.attendance_status ?? "none";
+}
+
+/**
+ * Der Abriss trägt deine Antwort (D7, Benitos Wunsch): grün dabei, gelb vielleicht, rot abgesagt.
+ * Ohne Antwort bleibt er grau; vergangene und abgesagte Pläne sind ausgegraut.
+ */
+const STUB_TONE: Record<TicketAnswer, string> = {
+  going: "bg-lime text-lime-ink",
+  maybe: "bg-amber text-amber-ink",
+  declined: "bg-danger text-danger-ink",
+  invited: "bg-raised text-fg",
+  none: "bg-raised text-fg",
+  past: "bg-raised text-muted",
+};
+
+/** Textfarbe für die Antwortzeile und Gruppen – dieselbe Zuordnung wie der Abriss. */
+export const ANSWER_TEXT: Record<AttendanceStatus, string> = {
+  going: "text-lime",
+  maybe: "text-amber",
+  declined: "text-danger",
+  invited: "text-fg",
 };
 
 export function planStatusBadge(status: PlanStatus): ReactNode {
   const tone = status === "confirmed" || status === "booked" ? "lime" : status === "booking_pending" ? "amber" : status === "cancelled" ? "danger" : "neutral";
   return <Badge tone={tone}>{t.enums.planStatus[status]}</Badge>;
+}
+
+const STAMP: Partial<Record<TicketAnswer, string>> = {
+  going: t.plans.ticket.stamp.going,
+  maybe: t.plans.ticket.stamp.maybe,
+  declined: t.plans.ticket.stamp.declined,
+};
+
+/**
+ * Für den Übergang zur Planseite: Das angetippte Ticket bekommt den View-Transition-Namen, den dort das
+ * große Ticket trägt. Nur ein Element darf ihn gleichzeitig haben, deshalb wird ein älteres freigegeben.
+ */
+let namedTicket: HTMLElement | null = null;
+function nameForTransition(event: MouseEvent<HTMLElement>) {
+  if (namedTicket) namedTicket.style.viewTransitionName = "";
+  const el = event.currentTarget.closest<HTMLElement>(".ticket-feature-wrap") ?? event.currentTarget;
+  el.style.viewTransitionName = "plan-ticket";
+  namedTicket = el;
+}
+
+/** Zählt, wie oft sich ein Wert seit dem Laden geändert hat – 0 heißt: nichts animieren. */
+function useChangeCount<T>(value: T): number {
+  const previous = useRef(value);
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (previous.current === value) return;
+    previous.current = value;
+    setCount((c) => c + 1);
+  }, [value]);
+  return count;
 }
 
 const MY_STATUS: Record<AttendanceStatus, string> = {
@@ -42,17 +92,18 @@ interface PlanTicketProps {
 
 /**
  * Ein Plan als Ticket: links der Abriss mit dem Datum, rechts was, wann, wo und wer.
- * Lime bedeutet "steht fest"; Vorschläge und Vergangenes bleiben grau.
+ * Der Abriss zeigt deine Antwort in Farbe (grün/gelb/rot); ohne Antwort und bei Vergangenem bleibt er grau.
  */
 export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: PlanTicketProps) {
   const date = ticketDate(plan.starts_at);
   const going = plan.participants.filter((p) => p.attendance_status === "going");
   const mine = plan.participants.find((p) => p.user_id === userId)?.attendance_status;
   const active = plan.status !== "completed" && plan.status !== "cancelled";
+  const answer = ticketAnswer(plan, userId);
 
   const body = (
     <>
-      <div className={cn("ticket-stub flex flex-col items-center justify-center px-2 py-4 text-center", STUB_TONE[plan.status])}>
+      <div className={cn("ticket-stub flex flex-col items-center justify-center px-2 py-4 text-center", STUB_TONE[answer])}>
         <span className="text-[13px] font-bold">{date.weekday}</span>
         <span className="font-display text-[48px] font-extrabold leading-[0.9] sm:text-[56px]">{date.day}</span>
         <span className="text-[13px] font-bold">{date.month}</span>
@@ -87,7 +138,7 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
             {t.plans.ticket.going(going.length)}
           </span>
           {active && mine && (
-            <span className={cn("text-[13px] font-semibold", mine === "invited" ? "text-amber" : mine === "going" ? "text-lime" : "text-muted")}>{MY_STATUS[mine]}</span>
+            <span className={cn("text-[13px] font-semibold", ANSWER_TEXT[mine])}>{MY_STATUS[mine]}</span>
           )}
         </div>
       </div>
@@ -96,7 +147,13 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
 
   const style = cutout ? ({ ["--ticket-cutout" as string]: cutout } as React.CSSProperties) : undefined;
   return (
-    <Link to={`/plans/${plan.id}`} className={cn("ticket transition-[filter] hover:brightness-110 focus-visible:outline-offset-4", className)} style={style}>
+    <Link
+      to={`/plans/${plan.id}`}
+      onClick={nameForTransition}
+      data-answer={answer}
+      className={cn("ticket transition-[filter,transform] duration-200 hover:brightness-110 focus-visible:outline-offset-4 active:scale-[0.985]", className)}
+      style={style}
+    >
       {body}
     </Link>
   );
@@ -133,14 +190,33 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
   const place = plan.address ?? plan.meeting_point;
   const countdown = hero && now ? planCountdown(plan, now) : null;
   const Title = hero ? "h1" : "h2";
+  const answer = ticketAnswer(plan, userId);
+  const changes = useChangeCount(answer);
+  const ticketRef = useRef<HTMLDivElement>(null);
 
+  // Ändert sich die Antwort, gibt das Ticket kurz nach – wie beim Abstempeln. Beim Laden passiert nichts.
+  useEffect(() => {
+    if (changes === 0 || !ticketRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    ticketRef.current.animate(
+      [{ transform: "translateY(0) scale(1)" }, { transform: "translateY(3px) scale(0.985)", offset: 0.35 }, { transform: "translateY(0) scale(1)" }],
+      { duration: 420, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    );
+  }, [changes]);
+
+  const stamp = STAMP[answer];
   const body = (
     <>
-      <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", STUB_TONE[plan.status])}>
+      <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", STUB_TONE[answer])}>
         <span className="text-[15px] font-bold uppercase tracking-wide">{date.weekday}</span>
         <span className="font-display text-[76px] font-extrabold leading-[0.85] sm:text-[92px]">{date.day}</span>
         <span className="text-[15px] font-bold uppercase tracking-wide">{date.month}</span>
-        <span className="ticket-barcode mt-3" aria-hidden />
+        {stamp ? (
+          <span key={`${answer}-${changes}`} className={cn("ticket-stamp", changes > 0 && "is-new")} aria-hidden>
+            {stamp}
+          </span>
+        ) : (
+          <span className="ticket-barcode mt-3" aria-hidden />
+        )}
       </div>
       <div className="flex min-w-0 flex-col justify-between gap-4 p-5 sm:p-6">
         <div className="min-w-0">
@@ -166,19 +242,19 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
             {t.plans.ticket.goingOf(plan.participants.length)}
           </span>
         </div>
-        {active && mine && mine !== "going" && (
-          <span className={cn("text-[13px] font-semibold", mine === "invited" ? "text-amber" : "text-muted")}>{MY_STATUS[mine]}</span>
-        )}
+        {active && mine && <span className={cn("text-[13px] font-semibold", mine === "going" ? "sr-only" : ANSWER_TEXT[mine])}>{MY_STATUS[mine]}</span>}
       </div>
     </>
   );
 
   return (
-    <div className={cn("ticket-feature-wrap", hero && !active && "ticket-feature-past")}>
+    <div className={cn("ticket-feature-wrap", hero && !active && "ticket-feature-past", hero && "vt-plan-ticket")} data-answer={answer}>
       {hero ? (
-        <div className="ticket ticket-feature">{body}</div>
+        <div ref={ticketRef} className="ticket ticket-feature">
+          {body}
+        </div>
       ) : (
-        <Link to={`/plans/${plan.id}`} className="ticket ticket-feature">
+        <Link to={`/plans/${plan.id}`} onClick={nameForTransition} className="ticket ticket-feature">
           {body}
         </Link>
       )}

@@ -32,6 +32,7 @@ const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] 
   { value: "declined", label: t.plans.detail.attendance.declined },
 ];
 const GROUPS: AttendanceStatus[] = ["going", "maybe", "invited", "declined"];
+const GROUP_DOT: Record<AttendanceStatus, string> = { going: "bg-lime", maybe: "bg-amber", invited: "bg-line-strong", declined: "bg-danger" };
 
 function FollowUp({ plan, city }: { plan: PlanWithParticipants; city: string | null }) {
   const activities = useActivitySearch(city ? { city, limit: 60 } : null);
@@ -154,11 +155,12 @@ export function PlanDetailPage() {
                     disabled={locked}
                     onClick={() => !selected && setAttendance.mutate(value, { onSuccess: () => toast.success(t.plans.detail.attendance.saved), onError: (error) => toast.error(error) })}
                     className={cn(
-                      "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-sm font-semibold leading-tight transition-colors disabled:opacity-50",
+                      "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-sm font-semibold leading-tight transition-[background-color,border-color,color,transform] duration-300 ease-out active:scale-[0.96] disabled:opacity-50",
                       !selected && "border-line-strong text-muted hover:border-faint hover:text-fg",
+                      // Gleiche Farben wie der Abriss des Tickets: grün dabei, gelb vielleicht, rot abgesagt.
                       selected && value === "going" && "border-lime bg-lime text-lime-ink",
-                      selected && value === "maybe" && "border-lime text-lime",
-                      selected && value === "declined" && "border-fg/40 bg-raised text-fg",
+                      selected && value === "maybe" && "border-amber bg-amber text-amber-ink",
+                      selected && value === "declined" && "border-danger bg-danger text-danger-ink",
                     )}
                   >
                     {label}
@@ -226,7 +228,8 @@ export function PlanDetailPage() {
                   if (group.length === 0) return null;
                   return (
                     <div key={status}>
-                      <p className="text-[13px] font-semibold text-muted">
+                      <p className="flex items-center gap-2 text-[13px] font-semibold text-muted">
+                        <span aria-hidden className={cn("size-2 rounded-full", GROUP_DOT[status])} />
                         {t.plans.detail.attendance.groups[status]} ({group.length})
                       </p>
                       <ul className="mt-1.5 flex flex-wrap gap-x-4 gap-y-2">

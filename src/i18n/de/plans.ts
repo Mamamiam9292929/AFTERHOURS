@@ -25,6 +25,8 @@ export const plans = {
     youGoing: "Du bist dabei",
     youMaybe: "Du: vielleicht",
     youDeclined: "Du hast abgesagt",
+    /** Stempel im Abriss des großen Tickets, sobald du geantwortet hast. */
+    stamp: { going: "Dabei", maybe: "Vielleicht", declined: "Abgesagt" },
     countdown: {
       today: "Heute",
       tonight: "Heute Abend",

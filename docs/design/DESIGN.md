@@ -14,11 +14,14 @@ Ein Abend mit Freunden ist ein Ereignis. Die App fühlt sich an wie das Ticket d
 6. **Discover mit Bühne:** eine große Hauptkarte (offen jetzt, nah), darunter horizontale Reihe. Kategorie-Grafiken auf dunklem Lime-Radialverlauf; echte Fotos ersetzen sie, sobald P7 fertig ist.
 7. **Navigation:** halbtransparente Leiste mit Unschärfe, aktiver Tab mit Lime-Strich oben und Lime-Icon.
 
-## Bewegung (D1)
-Nur dort, wo etwas passiert: Ticket fährt beim Laden einmal hoch, Stimmbalken wachsen beim Abstimmen, Ticket „reißt ab", wenn ein Plan bestätigt wird. `prefers-reduced-motion` schaltet alles ab.
+## Bewegung (D1, D7)
+Nur dort, wo etwas passiert: Stimmbalken wachsen beim Abstimmen, Ticket „reißt ab", wenn ein Plan bestätigt wird. Seitenwechsel gleiten (View Transition: aus- und aufsteigend, Navigation bleibt stehen, Lime-Strich gleitet zum Tab, angetipptes Ticket wird zum großen Ticket). Beim Antworten schlägt der Stempel auf und das Ticket gibt kurz nach. `prefers-reduced-motion` schaltet alles ab.
+
+## Antwortfarben (D7, Benitos Wunsch vom 13.10.2026)
+Die eigene Antwort auf einen Plan färbt den Abriss des Tickets und die Antwort-Knöpfe: **grün (Lime) dabei, gelb (Amber) vielleicht, rot (Danger) abgesagt**, grau ohne Antwort und bei vergangenen Plänen. Auf dem großen Ticket ersetzt ein Stempel den Strichcode, dazu ein Hauch Schein in der Antwortfarbe. Gelb und Rot gibt es nur dort – überall sonst bleibt Lime der einzige Akzent.
 
 ## Grenzen (damit es nicht zu extrem wird)
-- Lime bleibt der einzige Akzent; keine zweite Signalfarbe, keine bunten Verläufe.
+- Lime bleibt der einzige Akzent; Gelb und Rot nur als Antwortfarben auf Ticket und Antwort-Knöpfen (siehe oben); keine bunten Verläufe.
 - Kein Glassmorphismus außer der Tab-Leiste, keine Neon-Glows auf Text, keine Dauer-Animationen.
 - Kontrast AA für Text, Bedienflächen ≥ 44 px.
 - Nichts erfinden: „Jetzt geöffnet" nur mit bekannten Öffnungszeiten, Entfernung nur mit Koordinaten, Preis sonst „unbekannt".
