@@ -4,12 +4,16 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import { AppErrorBoundary, SetupScreen } from "@/app/errors";
 import { router } from "@/app/router";
+import { OfflineBar } from "@/components/ui/OfflineBar";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AuthProvider } from "@/features/auth/AuthProvider";
 import { PollDraftProvider } from "@/features/polls/draft";
 import { queryClient } from "@/lib/query";
+import { setupPwa } from "@/lib/pwa";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import "@/styles/index.css";
+
+setupPwa();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Root element missing");
@@ -23,6 +27,7 @@ createRoot(root).render(
             <ToastProvider>
               <PollDraftProvider>
                 <RouterProvider router={router} future={{ v7_startTransition: true }} />
+                <OfflineBar />
               </PollDraftProvider>
             </ToastProvider>
           </AuthProvider>

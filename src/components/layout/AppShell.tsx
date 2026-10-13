@@ -8,6 +8,7 @@ import { useUnreadCount } from "@/features/notifications/api";
 import { useIsAdmin, useProfile } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { useAppBadge } from "@/lib/pwa";
 
 interface NavItem {
   to: string;
@@ -43,6 +44,7 @@ function UnreadDot({ count }: { count: number }) {
 export function AppShell() {
   const active = useActiveSection();
   const unread = useUnreadCount();
+  useAppBadge(unread);
   const profile = useProfile();
   const admin = useIsAdmin();
   const { pathname } = useLocation();

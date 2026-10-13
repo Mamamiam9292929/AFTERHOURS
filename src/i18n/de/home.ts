@@ -1,4 +1,15 @@
 export const home = {
+  // W4: Installations-Hinweis auf Home – erst, wenn du in einer Crew bist.
+  install: {
+    title: "Hol dir AFTERHOURS auf den Homescreen",
+    body: "Ein Tipp aufs Icon, und du bist bei deiner Crew – ohne App Store, ohne Download-Umweg.",
+    iosBody: "Tippe in Safari unten auf „Teilen“ und dann auf „Zum Home-Bildschirm“.",
+    action: "Installieren",
+    later: "Nicht jetzt",
+    ok: "Verstanden",
+    done: "AFTERHOURS ist installiert.",
+  },
+  offline: "Offline – Inhalte laden, sobald du wieder Netz hast.",
   greeting: { morning: "Guten Morgen", day: "Hi", evening: "Guten Abend", night: "Noch wach" },
   /** Plakat-Überschrift: `key` wird in Lime gesetzt. */
   question: {

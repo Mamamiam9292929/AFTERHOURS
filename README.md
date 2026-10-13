@@ -45,6 +45,7 @@
 | Rewards | Punkte-Ledger: 30 Punkte fürs Organisieren, 10 fürs Dabeisein, vergeben beim Abschließen eines Plans – serverseitig, einmalig, mit Tageslimit |
 | Benachrichtigungen | In-App für alle im Konzept genannten Ereignisse, pro Gruppe abschaltbar, gelesen/ungelesen, löschen |
 | Admin | Geschützter Bereich: Kennzahlen, Aktivitäten ein-/ausblenden und als geprüft markieren, Meldungen bearbeiten, Audit-Log |
+| Installierbare App (W4) | Manifest, Icons und ein eigener Service Worker (`public/sw.js`, ohne Bibliothek, nur im Produktionsbuild). Hinweis „Hol dir AFTERHOURS auf den Homescreen“ auf Home – erst wenn du in einer Crew bist, nur wenn der Browser die Installation anbietet (Chromium: `beforeinstallprompt`) bzw. auf iPhone/iPad in Safari mit der Anleitung „Teilen → Zum Home-Bildschirm“; „Nicht jetzt“ hält ihn 30 Tage fern. Offline öffnet sich die App aus dem Cache und zeigt oben „Offline – Inhalte laden, sobald du wieder Netz hast.“ Ungelesene Benachrichtigungen als Zahl am App-Icon (Badging-API, wo vorhanden) |
 | Oberfläche | Smartphone (untere Navigation), Tablet, Desktop (Seitenleiste); Lade-, Leer- und Fehlerzustände; Tastaturbedienung, sichtbarer Fokus, reduzierte Bewegung |
 
 ### Demo-Modus (klar gekennzeichnet)
@@ -150,7 +151,7 @@ Das Frontend ist eine statische Single-Page-App. `npm run build` erzeugt `dist/`
 
 Nach dem ersten Deployment die Domain in Supabase unter *Site URL* und *Redirect URLs* nachtragen ([Abschnitt 3](#3-supabase-projekt-einrichten-gehostet)). Nutzt du eine eigene Supabase-Domain, ergänze sie in der `connect-src`-Zeile der Content-Security-Policy (`vercel.json` bzw. `public/_headers`).
 
-**Als App auf dem Homescreen**: Manifest und Icons sind vorhanden („Zum Home-Bildschirm“). Für die App-Stores lässt sich die SPA später mit Capacitor verpacken.
+**Als App auf dem Homescreen**: Manifest, Icons und Service Worker (`public/sw.js`) sind vorhanden. `sw.js` muss mit `Cache-Control: no-cache` ausgeliefert werden (steht in `vercel.json` und `public/_headers`), damit Updates sofort greifen. Der Service Worker speichert nur die App selbst (HTML-Hülle, `/assets/`, `/fonts/`, `/icons/`, höchstens 150 Dateien) – nie Antworten von Supabase. Für die App-Stores lässt sich die SPA später mit Capacitor verpacken.
 
 ---
 
@@ -297,6 +298,7 @@ Abweichungen vom Konzept: `users` heißt `profiles` (Supabase-Konvention). `noti
 | Fehlermeldungen | Die Oberfläche zeigt übersetzte, allgemeine Meldungen; technische Details nur in der Konsole |
 | Browser | Content-Security-Policy ohne Inline-Skripte, kein Nachladen von Schriften oder Trackern, Karte erst nach Klick |
 | Standort | Opt-in, Standard „aus“; in dieser Version wird kein Standort erhoben |
+| Offline-Cache (W4) | Der Service Worker bedient nur Anfragen an die eigene Adresse und cacht nur App-Dateien; Supabase-Anfragen (Nutzerdaten, Sitzung) laufen nie durch ihn. Beim Abmelden bleiben deshalb keine Daten im Cache |
 | Betroffenenrechte | Datenexport und sofortige Kontolöschung in den Einstellungen |
 
 Die Seite `/privacy` beschreibt das in einfachen Worten. Sie ist **keine** rechtlich geprüfte Datenschutzerklärung.
@@ -358,6 +360,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Eigene E-Mail-Vorlagen | Getestet mit den Standardvorlagen von Supabase Auth |
 | Safari, Firefox, echte Mobilgeräte | Getestet nur in Chromium mit Geräte-Viewports |
 | Lasttests | Keine |
+| Installation und Offline auf echten Geräten | Die Journey stellt das Installations-Angebot und die Badging-API nach (Headless-Chromium hat beides nicht) und prüft Service Worker, Cache-Inhalt und Offline-Start in Chromium. Installation unter Android/iOS und der Zähler am Icon sind nicht auf Geräten geprüft |
 | Barrierefreiheit jenseits von axe-core | Automatisch geprüft sind WCAG-Regeln, die axe erkennt, und die Tastatur-Anmeldung. Screenreader (VoiceOver, TalkBack) und Tastaturwege durch die übrigen Abläufe nicht |
 
 ---
