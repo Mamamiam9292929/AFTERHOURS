@@ -1,17 +1,31 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageSpinner } from "@/components/ui/Feedback";
 import { PublicOnly, RequireAuth, RequireOnboarded } from "@/features/auth/guards";
 import { DraftBar } from "@/features/polls/DraftBar";
 import { NotFoundPage, RouteError } from "./errors";
+import { preloadWhenIdle, smoothNavigation } from "./transitions";
 
 /*
  * Jede Seite ist ein eigener Chunk und wird erst geladen, wenn sie gebraucht wird.
  * Die Anmeldeseiten liegen gemeinsam in einem Chunk.
  */
-const page = <T extends Record<string, unknown>, K extends keyof T>(load: () => Promise<T>, name: K) =>
-  lazy(async () => ({ default: (await load())[name] as React.ComponentType }));
+/*
+ * Ist der Chunk schon da (vorgeladen oder einmal besucht), rendert die Seite sofort – ohne den einen
+ * Suspense-Durchlauf, den React.lazy sonst immer braucht. Das hält Seitenwechsel ohne Spinner (D7).
+ */
+function page<T extends Record<string, unknown>, K extends keyof T>(load: () => Promise<T>, name: K) {
+  let loaded: React.ComponentType | null = null;
+  let pending: Promise<React.ComponentType> | null = null;
+  const preload = () => (pending ??= load().then((module) => (loaded = module[name] as React.ComponentType)));
+  const Lazy = lazy(async () => ({ default: await preload() }));
+  function Page() {
+    const Loaded = loaded;
+    return Loaded ? <Loaded /> : <Lazy />;
+  }
+  return Object.assign(Page, { preload });
+}
 
 const authPages = () => import("@/features/auth/pages");
 const LoginPage = page(authPages, "LoginPage");
@@ -49,7 +63,11 @@ function Standalone() {
   );
 }
 
+/** Seiten, die man aus der Navigation und von Tickets aus öffnet – im Leerlauf vorgeladen (D7). */
+const PRELOAD = () => [HomePage, DiscoverPage, CrewsPage, CrewDetailPage, PlansPage, PlanDetailPage, PollDetailPage].map((p) => p.preload);
+
 function AppLayout() {
+  useEffect(() => preloadWhenIdle(PRELOAD()), []);
   return (
     <>
       <AppShell />
@@ -113,3 +131,5 @@ export const router = createBrowserRouter([
     ],
   },
 ]);
+
+smoothNavigation(router);

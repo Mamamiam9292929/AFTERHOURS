@@ -65,6 +65,9 @@ export function usePlan(planId: string | undefined) {
     queryKey: qk.plan(planId ?? "none"),
     enabled: Boolean(planId),
     refetchInterval: 20_000,
+    // Kommt man aus einer Liste, steht der Plan dort schon (gleiche Spalten): Seite sofort zeigen,
+    // im Hintergrund frisch laden. Ohne Ladezustand kann das Ticket zur Planseite hinübergleiten.
+    placeholderData: () => client.getQueryData<PlanWithParticipants[]>(qk.plans)?.find((p) => p.id === planId),
     queryFn: async (): Promise<PlanWithParticipants | null> => {
       const { data, error } = await supabase.from("plans").select(PLAN_SELECT).eq("id", planId ?? "").maybeSingle();
       if (error) throw error;
