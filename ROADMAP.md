@@ -10,7 +10,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | # | Aufgabe | Nutzen | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
 | F1 | Browser-Journey (`tests/e2e/journey.mjs`) in GitHub Actions lauffähig machen, inkl. Stellvertreter für OpenStreetMap | Jeder PR wird automatisch durchgeklickt, bevor du ihn siehst | M | – | Erledigt (#6) |
-| F2 | Barrierefreiheit automatisch prüfen (axe-core in der Journey) | Fehler bei Kontrast, Beschriftung, Tastatur fallen sofort auf | S | F1 | PR offen (#8) |
+| F2 | Barrierefreiheit automatisch prüfen (axe-core in der Journey) | Fehler bei Kontrast, Beschriftung, Tastatur fallen sofort auf | S | F1 | Erledigt (#8) |
 | F3 | Produktionsbuild-Größe überwachen, Seiten aufteilen wo nötig | Schneller Start auf dem Handy | S | – | Erledigt (#7) |
 | F4 | Screenshots der Journey auf eigenem Branch (`screenshots/main`, `screenshots/pr-<n>`), im PR verlinkbar. Akzeptanz: nach jedem Lauf liegen alle Bilder auf dem Branch; Vorher/Nachher ohne Artefakt-Download | Jede Design-Änderung lässt sich im PR mit echten Bildern vergleichen | S | F1 | Erledigt (#10) |
 
@@ -31,7 +31,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
 | # | Aufgabe | Nutzen | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
-| D0 | Redesign nach `docs/design/DESIGN.md` (Konzept von Benito abgesegnet): Plakat-Überschriften, Ticket als Held auf Home, Abstimm-Balken, Discover mit Bühne, neue Tab-Leiste. In Etappen: Home → Abstimmung → Discover → Rest | Der Wow-Effekt beim ersten Öffnen | M | – | Etappe 1 Home (#11) und Etappe 2 Abstimmung (#13) erledigt; Etappe 3 Discover (#15) erledigt; weiter mit Etappe 4 Rest (Tab-Leiste, Crews, Pläne) |
+| D0 | Redesign nach `docs/design/DESIGN.md` (Konzept von Benito abgesegnet): Plakat-Überschriften, Ticket als Held auf Home, Abstimm-Balken, Discover mit Bühne, neue Tab-Leiste. In Etappen: Home → Abstimmung → Discover → Rest | Der Wow-Effekt beim ersten Öffnen | M | – | Etappe 1 Home (#11) und Etappe 2 Abstimmung (#13) erledigt; Etappe 3 Discover (#15) erledigt; Etappe 4 Tab-Leiste, Crews- und Plans-Übersicht: PR offen; danach Etappe 5 Crew-Detail, Plan-Detail, Profil |
 | D1 | Bewegung mit Sinn: Ticket „reißt ab", wenn ein Plan bestätigt wird; Stimmbalken wachsen; reduzierte Bewegung respektiert | Die entscheidenden Momente fühlen sich gut an | S | – | Freigegeben |
 | D2 | Discover visueller: größere Karten mit Kategorie-Farbwelten, Kartenansicht (P6), Fotos aus Commons (P7) | Stöbern macht Spaß statt Liste lesen | M | P6, P7 | Freigegeben |
 | D3 | Home als „Heute Abend"-Bühne: nächster Plan als großes Ticket, Live-Countdown, offene Abstimmungen mit einem Tipp beantworten | Ein Blick genügt | M | – | Freigegeben |

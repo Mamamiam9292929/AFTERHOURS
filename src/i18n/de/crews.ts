@@ -1,6 +1,11 @@
 export const crews = {
   title: "Crews",
   lead: "Deine Freundesgruppen. Jede Crew hat eigene Abstimmungen, Pläne und einen Chat.",
+  /** Plakat-Überschrift (D0) aus den eigenen Daten; `key` in Lime. */
+  poster: {
+    friends: (friends: number, crews: number) => ({ lead: "", key: friends === 1 ? "1 Freund" : `${friends} Freunde`, tail: crews === 1 ? " in 1 Crew" : ` in ${crews} Crews` }),
+    none: { lead: "Deine ", key: "Crews", tail: "" },
+  },
   create: "Crew erstellen",
   createTitle: "Neue Crew",
   createBody: "Gib ihr einen Namen – einladen kannst du gleich danach.",
