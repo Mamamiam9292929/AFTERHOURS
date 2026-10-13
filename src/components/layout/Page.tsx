@@ -4,7 +4,7 @@ import { IconBack } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 interface PageHeaderProps {
-  title: string;
+  title: ReactNode;
   /** Kurze Einordnung unter dem Titel – nur, wenn sie etwas erklärt, das der Titel nicht sagt. */
   lead?: ReactNode;
   back?: { to: string; label: string };
@@ -30,6 +30,24 @@ export function PageHeader({ title, lead, back, actions, className }: PageHeader
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
     </header>
+  );
+}
+
+/**
+ * Plakat-Überschrift (D0) aus einem Text, den die Crew selbst geschrieben hat: Das letzte Wort wird in
+ * Lime gesetzt („Was machen wir am **Samstag?**“). Satzzeichen am Ende bleiben weiß; der Text selbst –
+ * und damit der barrierefreie Name der Überschrift – bleibt unverändert.
+ */
+export function PosterTitle({ text }: { text: string }) {
+  const match = /^(.*\s)(\S*?[\p{L}\p{N}][\S]*?)([?!.…:]*)$/u.exec(text.trim());
+  if (!match) return <>{text}</>;
+  const [, lead, key, tail] = match;
+  return (
+    <>
+      {lead}
+      <span className="text-lime">{key}</span>
+      {tail}
+    </>
   );
 }
 

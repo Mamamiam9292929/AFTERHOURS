@@ -378,6 +378,11 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   await optionCard(alice, "Lichtspielhaus Nord").getByText("1 Zusage").waitFor();
   await alice.page.getByText("Alle haben abgestimmt.").waitFor();
   check(true, "Beteiligung: alle drei haben abgestimmt");
+  // D0: Plakat-Überschrift mit dem letzten Wort der Frage in Lime, führende Option mit „Vorn“.
+  const keyword = ids.pollTitle.replace(/[?!.]+$/, "").split(/\s+/).pop();
+  check((await alice.page.getByRole("heading", { level: 1 }).locator(".text-lime").innerText()).toLowerCase() === keyword.toLowerCase(), `Überschrift hebt „${keyword}“ hervor`);
+  check(await optionCard(alice, "Strike District Bowling").getByText("Vorn", { exact: true }).isVisible(), "führende Option trägt „Vorn“");
+  check((await optionCard(alice, "Lichtspielhaus Nord").getByText("Vorn", { exact: true }).count()) === 0, "nur die führende Option trägt „Vorn“");
   await shot(alice, "12-abstimmung-zwischenstand");
   await carol.page.reload();
   await optionCard(carol, "Strike District Bowling").getByText("3 Zusagen").waitFor();
