@@ -24,7 +24,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | W4 | Installierbare App (PWA): Installations-Hinweis zum richtigen Zeitpunkt, Offline-Grundgerüst, App-Icon-Badges | „Runterladen" ohne App Store | S | – | Freigegeben |
 | W5 | Erster Plan in 60 Sekunden: geführter Start nach der Registrierung (Crew → Freunde einladen → Abstimmung mit 3 Vorschlägen aus der eigenen Stadt) | Neue Nutzer erleben den Kernnutzen sofort | M | – | Freigegeben |
 | W6 | Öffentliche Startseite (afterhours…/) mit echtem Produkt statt Login-Wand: was die App kann, Screens, „Crew gründen" | Wer von Freunden hört, muss verstehen, was es ist | M | Domain/Hosting durch Benito | Freigegeben |
-| W8 | „Plan teilen“: Knopf auf Plan und Abstimmung öffnet das Teilen-Menü des Handys (Web Share API, Rückfall: Text kopieren) mit Titel, Datum und Link – ohne Namen oder Adressen der Mitglieder. Akzeptanz: Journey prüft Text und Rückfall; keine Daten an Dritte | Ein Tipp, und der Plan steht im WhatsApp-Gruppenchat – der natürliche Weg zu neuen Nutzern | S | – | Vorschlag |
+| W8 | „Plan teilen“: Knopf auf Plan und Abstimmung öffnet das Teilen-Menü des Handys (Web Share API, Rückfall: Text kopieren) mit Titel, Datum und Link – ohne Namen oder Adressen der Mitglieder. Akzeptanz: Journey prüft Text und Rückfall; keine Daten an Dritte | Ein Tipp, und der Plan steht im WhatsApp-Gruppenchat – der natürliche Weg zu neuen Nutzern | S | – | Erledigt (#24) |
 | W7 | Store-Verpackung vorbereiten (Capacitor-Projekt, Icons, Screenshots, Store-Texte) | Präsenz im App Store / Play Store | L | Entwicklerkonten Apple (99 €/Jahr) und Google (25 €) – Für Benito | Freigegeben |
 
 ## Design

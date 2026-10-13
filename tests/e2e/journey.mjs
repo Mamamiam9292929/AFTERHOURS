@@ -239,6 +239,18 @@ async function onboard(user, { full = false } = {}) {
   await page.waitForURL((url) => !url.pathname.startsWith("/onboarding"));
 }
 
+// W8: navigator.share ersetzen, um den geteilten Inhalt zu prüfen (headless Chromium hat kein Teilen-Menü).
+async function stubShare(page) {
+  await page.evaluate(() => {
+    window.__shared = [];
+    Object.defineProperty(navigator, "share", { configurable: true, value: async (data) => void window.__shared.push(data) });
+  });
+}
+async function unstubShare(page) {
+  await page.evaluate(() => Object.defineProperty(navigator, "share", { configurable: true, value: undefined }));
+}
+const sharedData = (page) => page.evaluate(() => window.__shared ?? []);
+
 async function login(user, password = PASSWORD) {
   const { page } = user;
   await page.goto(`${APP}/login`);
@@ -466,6 +478,14 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   await bob.page.getByText("Alice hat eine Abstimmung gestartet").click();
   await bob.page.waitForURL(new RegExp(`/polls/${ids.poll}`));
 
+  // W8: Abstimmung in den Gruppenchat teilen – Titel, Frist, Link; keine Namen.
+  await stubShare(bob.page);
+  await bob.page.getByRole("button", { name: "Abstimmung teilen" }).click();
+  const pollShared = (await sharedData(bob.page))[0];
+  check(pollShared?.url?.endsWith(`/polls/${ids.poll}`), "Abstimmung teilen: Link führt zur Abstimmung");
+  check(/stimm mit ab, bis /.test(pollShared?.text ?? "") && !/Alice|Bob|Carol/.test(pollShared?.text ?? ""), `Abstimmung teilen: Text mit Frist, ohne Namen („${pollShared?.text}“)`);
+  await unstubShare(bob.page);
+
   await answer(bob, "Strike District Bowling", "Bin dabei").click();
   await answer(bob, "Lichtspielhaus Nord", "Vielleicht").click();
   await answer(bob, "Grillen bei Bob", "Bin nicht dabei").click();
@@ -615,6 +635,27 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   // Schritt 10 erwartet Bob wieder auf der Planseite.
   await bob.page.goto(`${APP}/plans/${ids.plan}`);
   await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+});
+
+await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
+  const { page, context } = carol;
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  await stubShare(page);
+  await page.getByRole("button", { name: "Plan teilen" }).click();
+  const shared = (await sharedData(page))[0];
+  check(shared?.url?.endsWith(`/plans/${ids.plan}`), "Plan teilen: Link führt zum Plan");
+  check(/^Strike District Bowling – .+\. Bist du dabei\?$/.test(shared?.text ?? ""), `Plan teilen: Titel, Zeitpunkt, Frage („${shared?.text}“)`);
+  check(!/Alice|Bob|Carol|@/.test(JSON.stringify(shared ?? {})), "Plan teilen: keine Namen oder E-Mail-Adressen im geteilten Text");
+  await shot(carol, "16a-plan-teilen");
+  // Rückfall ohne Teilen-Menü: Text und Link landen in der Zwischenablage.
+  await unstubShare(page);
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(APP).origin }).catch(() => {});
+  await page.getByRole("button", { name: "Plan teilen" }).click();
+  await toast(carol, "Text und Link kopiert");
+  check(true, "Plan teilen ohne Web Share API: Text und Link werden kopiert");
+  const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
+  if (clip !== null) check(clip.startsWith("Strike District Bowling – ") && clip.trim().endsWith(`/plans/${ids.plan}`), "Zwischenablage enthält Text und Link");
 });
 
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {

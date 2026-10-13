@@ -1,3 +1,5 @@
+import { ShareButton } from "@/components/ui/ShareButton";
+import { planShare } from "@/lib/share";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { IconBack, IconCalendar, IconCalendarCheck, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
@@ -122,10 +124,14 @@ export function PlanDetailPage() {
     // Der Schein liegt hinter dem gesamten Inhalt (isolate), damit er keine Karte darunter überdeckt.
     <div className="relative isolate">
       {!locked && <div className="home-glow" aria-hidden />}
-      <Link to={crew ? `/crews/${crew.id}` : "/plans"} className="-ml-1 mb-5 inline-flex h-9 items-center gap-1.5 rounded-control px-1 text-sm font-semibold text-muted hover:text-fg">
-        <IconBack className="size-4" aria-hidden />
-        {crew ? `${crew.emoji} ${crew.name}` : t.plans.detail.back}
-      </Link>
+      <div className="mb-5 flex max-w-3xl items-center justify-between gap-3">
+        <Link to={crew ? `/crews/${crew.id}` : "/plans"} className="-ml-1 inline-flex h-9 min-w-0 items-center gap-1.5 rounded-control px-1 text-sm font-semibold text-muted hover:text-fg">
+          <IconBack className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">{crew ? `${crew.emoji} ${crew.name}` : t.plans.detail.back}</span>
+        </Link>
+        {/* W8: Plan in den Gruppenchat teilen – nicht mehr bei abgesagten Plänen. */}
+        {plan.status !== "cancelled" && <ShareButton label={t.share.plan} content={() => planShare(plan)} className="shrink-0" />}
+      </div>
       <div className="max-w-3xl">
         <FeatureTicket plan={plan} crew={crew} userId={user.id} lookup={people.lookup} now={now} hero />
       </div>

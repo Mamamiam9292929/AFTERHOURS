@@ -1,6 +1,15 @@
 export const common = {
   appName: "AFTERHOURS",
   claim: "Weniger planen. Mehr erleben.",
+  // W8: Plan oder Abstimmung in den Gruppenchat teilen – nur Titel, Zeitpunkt und Link, keine Namen oder Adressen.
+  share: {
+    plan: "Plan teilen",
+    poll: "Abstimmung teilen",
+    planText: (title: string, when: string) => `${title} – ${when}. Bist du dabei?`,
+    pollText: (title: string, until: string) => `${title} – stimm mit ab, bis ${until}.`,
+    copied: "Text und Link kopiert – füg ihn im Gruppenchat ein.",
+    failed: "Teilen hat nicht geklappt. Kopiere den Link aus der Adresszeile.",
+  },
   actions: {
     save: "Speichern",
     saveChanges: "Änderungen speichern",
