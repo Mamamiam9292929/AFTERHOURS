@@ -42,6 +42,7 @@ const ActivityDetailPage = page(() => import("@/features/discover/ActivityDetail
 const CrewsPage = page(() => import("@/features/crews/CrewsPage"), "CrewsPage");
 const CrewDetailPage = page(() => import("@/features/crews/CrewDetailPage"), "CrewDetailPage");
 const JoinPage = page(() => import("@/features/crews/JoinPage"), "JoinPage");
+const InviteLandingPage = page(() => import("@/features/crews/InviteLandingPage"), "InviteLandingPage");
 const PollCreatePage = page(() => import("@/features/polls/PollCreatePage"), "PollCreatePage");
 const PollDetailPage = page(() => import("@/features/polls/PollDetailPage"), "PollDetailPage");
 const PlansPage = page(() => import("@/features/plans/PlansPage"), "PlansPage");
@@ -94,6 +95,8 @@ export const router = createBrowserRouter([
       { path: "/auth/confirm", element: <AuthConfirmPage /> },
       { path: "/auth/reset", element: <ResetPasswordPage /> },
       { path: "/privacy", element: <PrivacyPage /> },
+      // W1: Einladung ohne Konto – Angemeldete leitet die Seite selbst zu /join/<token> weiter.
+      { path: "/invite/:token", element: <InviteLandingPage /> },
       {
         element: <RequireAuth />,
         children: [

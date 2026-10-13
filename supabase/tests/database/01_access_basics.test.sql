@@ -20,8 +20,9 @@ select is(
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname in ('public', 'app_private') and has_function_privilege('anon', p.oid, 'execute')),
-  0, 'anon darf keine einzige Funktion ausführen');
+   where n.nspname in ('public', 'app_private') and has_function_privilege('anon', p.oid, 'execute')
+     and p.oid <> 'public.preview_public_invitation(text)'::regprocedure),
+  0, 'anon darf keine Funktion ausführen – einzige Ausnahme: die öffentliche Einladungsvorschau (W1)');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace

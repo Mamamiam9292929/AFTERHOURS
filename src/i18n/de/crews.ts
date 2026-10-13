@@ -138,4 +138,30 @@ export const crews = {
     },
     toCrews: "Zu meinen Crews",
   },
+  // W1: Einladungs-Landingpage für alle ohne Konto.
+  landing: {
+    pageTitle: (crew: string) => `Einladung zu ${crew}`,
+    invitedBy: (name: string) => `${name} lädt dich ein`,
+    invitedAnonymous: "Du bist eingeladen",
+    admit: "Einlass",
+    crew: "Crew",
+    members: (names: string[], total: number) => {
+      const rest = total - names.length;
+      const shown = names.join(", ");
+      if (names.length === 0) return "";
+      if (rest > 0) return `${shown} und ${rest === 1 ? "1 weitere Person" : `${rest} weitere`}`;
+      if (names.length === 1) return `${shown} ist schon dabei`;
+      return `${names.slice(0, -1).join(", ")} und ${names[names.length - 1]} sind schon dabei`;
+    },
+    membersLabel: "Schon dabei",
+    nextPlan: "Als Nächstes",
+    nextPlanNone: "Noch kein Abend geplant – plant den ersten zusammen.",
+    title: "Sei dabei",
+    intro: "Konto erstellen, E-Mail bestätigen – danach trittst du der Crew mit einem Tipp bei.",
+    submit: "Konto erstellen",
+    hasAccount: "Schon ein Konto?",
+    toLogin: "Anmelden und beitreten",
+    privacy: "Die Crew sieht erst nach deinem Beitritt deinen Anzeigenamen und dein Profilbild.",
+    invalidTo: "Zur Anmeldung",
+  },
 };

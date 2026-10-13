@@ -18,7 +18,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
 | # | Idee | Nutzen | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
-| W1 | Einladungs-Landingpage: Wer einen Crew-Link öffnet und noch kein Konto hat, sieht Crew, Mitglieder und den nächsten Plan – Registrierung in einem Schritt | Jede Einladung ist der wichtigste Weg zu neuen Nutzern | M | – | Freigegeben |
+| W1 | Einladungs-Landingpage: Wer einen Crew-Link öffnet und noch kein Konto hat, sieht Crew, Mitglieder und den nächsten Plan – Registrierung in einem Schritt | Jede Einladung ist der wichtigste Weg zu neuen Nutzern | M | – | Etappe 1 erledigt (#23): Landingpage `/invite/<token>` mit Einladungs-Ticket (Crew, Vornamen, nächster Abend) und Registrierung direkt darunter. Etappe 2 offen: nach Bestätigung und Profil ohne Umweg beitreten (Beitrittsfrage gleich im Onboarding), Onboarding für Eingeladene auf einen Schritt kürzen; Link-Vorschau in Messengern siehe W2 |
 | W2 | Teilen-Karten: Abstimmung/Plan als schöne Vorschau in WhatsApp & Co. (Open-Graph-Bild pro Plan, Text ohne private Daten) | Gruppenchats sind der Ort, an dem geplant wird – dort muss AFTERHOURS auffallen | M | Server-Rendering des Vorschaubilds (Edge Function) | Freigegeben |
 | W3 | Abstimmen ohne Konto per Link (Gastname, später Konto übernehmen) | Senkt die Hürde für die Freunde, die noch nicht dabei sind | L | Missbrauchsschutz, Rate Limits | Freigegeben |
 | W4 | Installierbare App (PWA): Installations-Hinweis zum richtigen Zeitpunkt, Offline-Grundgerüst, App-Icon-Badges | „Runterladen" ohne App Store | S | – | Freigegeben |

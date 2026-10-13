@@ -116,7 +116,12 @@ export function LoginPage() {
 }
 
 // ------------------------------------------------------------------------------------------------
-export function RegisterPage() {
+/**
+ * Registrierungsformular – auf der Registrierungsseite und auf der Einladungs-Landingpage (W1).
+ * Nach dem Absenden geht es zur Bestätigungsseite; ohne E-Mail-Bestätigung entsteht die Sitzung
+ * sofort, und die umgebende Seite leitet weiter.
+ */
+export function RegisterForm({ submitLabel = t.auth.register.submit }: { submitLabel?: string }) {
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -153,6 +158,37 @@ export function RegisterPage() {
   }
 
   return (
+    <form onSubmit={submit} noValidate className="space-y-5">
+      <TextField label={t.auth.fields.displayName} name="display_name" autoComplete="nickname" maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} error={errors.displayName} hint={t.auth.fields.displayNameHint} required />
+      <TextField label={t.auth.fields.email} name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} required />
+      <PasswordField label={t.auth.fields.password} name="password" value={password} onChange={setPassword} error={errors.password} hint={t.auth.fields.passwordHint} autoComplete="new-password" />
+      <div className="space-y-1.5">
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
+          <input type="checkbox" name="age" checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-lime)]" aria-invalid={Boolean(errors.age)} />
+          {t.auth.register.ageConfirm}
+        </label>
+        {errors.age && (
+          <p role="alert" className="text-[13px] text-danger">
+            {errors.age}
+          </p>
+        )}
+      </div>
+      {formError && <FormMessage>{formError}</FormMessage>}
+      <Button type="submit" size="lg" block loading={busy}>
+        {submitLabel}
+      </Button>
+      <p className="text-[13px] leading-snug text-faint">
+        {t.auth.register.privacyNote}{" "}
+        <Link to="/privacy" className="underline underline-offset-2 hover:text-fg">
+          {t.auth.register.privacyLink}
+        </Link>
+      </p>
+    </form>
+  );
+}
+
+export function RegisterPage() {
+  return (
     <AuthLayout
       title={t.auth.register.title}
       footer={
@@ -164,32 +200,7 @@ export function RegisterPage() {
         </>
       }
     >
-      <form onSubmit={submit} noValidate className="space-y-5">
-        <TextField label={t.auth.fields.displayName} name="display_name" autoComplete="nickname" maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} error={errors.displayName} hint={t.auth.fields.displayNameHint} required />
-        <TextField label={t.auth.fields.email} name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} required />
-        <PasswordField label={t.auth.fields.password} name="password" value={password} onChange={setPassword} error={errors.password} hint={t.auth.fields.passwordHint} autoComplete="new-password" />
-        <div className="space-y-1.5">
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
-            <input type="checkbox" name="age" checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-lime)]" aria-invalid={Boolean(errors.age)} />
-            {t.auth.register.ageConfirm}
-          </label>
-          {errors.age && (
-            <p role="alert" className="text-[13px] text-danger">
-              {errors.age}
-            </p>
-          )}
-        </div>
-        {formError && <FormMessage>{formError}</FormMessage>}
-        <Button type="submit" size="lg" block loading={busy}>
-          {t.auth.register.submit}
-        </Button>
-        <p className="text-[13px] leading-snug text-faint">
-          {t.auth.register.privacyNote}{" "}
-          <Link to="/privacy" className="underline underline-offset-2 hover:text-fg">
-            {t.auth.register.privacyLink}
-          </Link>
-        </p>
-      </form>
+      <RegisterForm />
     </AuthLayout>
   );
 }

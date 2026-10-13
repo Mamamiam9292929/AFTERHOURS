@@ -197,9 +197,9 @@ const dialog = (user) => user.page.getByRole("dialog");
 const toast = async (user, text) => user.page.getByText(text).first().waitFor({ state: "visible" });
 const idFromUrl = (page) => page.url().split("/").pop().split("?")[0];
 
-async function register(user) {
+async function register(user, { here = false } = {}) {
   const { page } = user;
-  if (!page.url().includes("/register")) await page.goto(`${APP}/register`);
+  if (!here && !page.url().includes("/register")) await page.goto(`${APP}/register`);
   await page.getByLabel("Anzeigename").fill(user.name);
   await page.getByLabel("E-Mail-Adresse").fill(user.email);
   await page.getByLabel("Passwort", { exact: true }).fill(PASSWORD);
@@ -361,11 +361,17 @@ await step("Schritt 3 – Freunde registrieren sich über den Link und treten be
   for (const friend of [bob, carol]) {
     const { page } = friend;
     await page.goto(ids.invite);
-    await page.waitForURL(/\/login/);
-    await page.getByText(/Du wurdest in eine Crew eingeladen\./).waitFor();
-    check(true, `${friend.name}: Anmeldeseite weist auf die Einladung hin`);
-    await page.getByRole("link", { name: "Konto erstellen" }).click();
-    await register(friend);
+    // W1: ohne Konto führt der Link auf die Einladungs-Landingpage – Crew, wer dabei ist, nächster Abend.
+    await page.waitForURL(/\/invite\/[0-9a-f]{64}$/);
+    const pass = page.locator("section.ticket-feature-wrap");
+    await pass.getByText("Weekend Crew").waitFor();
+    check(await pass.getByText("Alice lädt dich ein").isVisible(), `${friend.name}: Landingpage zeigt, wer einlädt`);
+    const already = friend === bob ? "Alice ist schon dabei" : "Alice und Bob sind schon dabei";
+    check(await pass.getByText(already).isVisible(), `${friend.name}: Landingpage zeigt, wer schon dabei ist („${already}“)`);
+    check(await pass.getByText("Noch kein Abend geplant").isVisible(), `${friend.name}: ohne Plan steht ehrlich „Noch kein Abend geplant“`);
+    check((await page.getByRole("heading", { level: 1, name: "Sei dabei" }).count()) === 1, `${friend.name}: Registrierung direkt auf der Landingpage`);
+    await shot(friend, "06a-einladung-landing");
+    await register(friend, { here: true });
     await onboard(friend);
     await page.waitForURL(/\/join\//);
     await page.getByRole("heading", { name: "Weekend Crew" }).waitFor();
@@ -859,6 +865,17 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   check((await api(mallory, "POST", "reward_transactions", { user_id: "00000000-0000-0000-0000-000000000000", points_delta: 99999, reason: "admin_adjustment" })).status === 403, "API: Punkte lassen sich nicht selbst gutschreiben (403)");
   check((await api(mallory, "POST", "app_admins", { user_id: "00000000-0000-0000-0000-000000000000" })).status === 403, "API: niemand kann sich zum Admin machen (403)");
   check((await api(mallory, "PATCH", `profiles?display_name=eq.Alice`, { display_name: "Gehackt" })).json?.length === 0, "API: fremde Profile lassen sich nicht ändern");
+  // W1: Ohne Konto ist nur die öffentliche Einladungsvorschau erreichbar – ohne IDs, Adressen oder Nachnamen.
+  const inviteToken = ids.invite.split("/").pop();
+  const publicPreview = await api(null, "POST", "rpc/preview_public_invitation", { p_token: inviteToken });
+  check(publicPreview.status === 200 && publicPreview.json?.status === "valid", "API ohne Konto: öffentliche Einladungsvorschau antwortet");
+  check(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(JSON.stringify(publicPreview.json)), "API ohne Konto: Vorschau enthält keine IDs");
+  // Hier sind die Pläne der Crew schon abgeschlossen oder abgesagt: next_plan ist leer (Feldauswahl prüft pgTAP).
+  const nextPlan = publicPreview.json?.next_plan;
+  check(nextPlan === null || Object.keys(nextPlan).sort().join(",") === "starts_at,title", "API ohne Konto: vom nächsten Plan höchstens Titel und Beginn");
+  check((await api(null, "POST", "rpc/preview_public_invitation", { p_token: "0".repeat(64) })).json?.status === "not_found", "API ohne Konto: unbekannter Token verrät nichts");
+  check((await api(null, "POST", "rpc/preview_crew_invitation", { p_token: inviteToken })).status >= 400, "API ohne Konto: Beitrittsvorschau für Angemeldete bleibt gesperrt");
+  check((await api(null, "POST", "rpc/accept_crew_invitation", { p_token: inviteToken })).status >= 400, "API ohne Konto: Beitritt ist gesperrt");
   // Bob (Mitglied, aber nicht Organisator) darf Alices Plan nicht verwalten.
   check((await api(bob, "POST", "rpc/set_plan_status", { p_plan_id: ids.plan, p_status: "cancelled" })).status === 403, "API: Mitglieder können fremde Pläne nicht absagen (403)");
   check((await api(bob, "POST", "rpc/remove_crew_member", { p_crew_id: ids.crew, p_user_id: (await api(carol, "GET", "user_settings?select=user_id")).json[0].user_id })).status === 403, "API: Mitglieder können niemanden entfernen (403)");
