@@ -870,7 +870,9 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   const publicPreview = await api(null, "POST", "rpc/preview_public_invitation", { p_token: inviteToken });
   check(publicPreview.status === 200 && publicPreview.json?.status === "valid", "API ohne Konto: öffentliche Einladungsvorschau antwortet");
   check(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/.test(JSON.stringify(publicPreview.json)), "API ohne Konto: Vorschau enthält keine IDs");
-  check(Object.keys(publicPreview.json?.next_plan ?? {}).sort().join(",") === "starts_at,title", "API ohne Konto: vom nächsten Plan nur Titel und Beginn");
+  // Hier sind die Pläne der Crew schon abgeschlossen oder abgesagt: next_plan ist leer (Feldauswahl prüft pgTAP).
+  const nextPlan = publicPreview.json?.next_plan;
+  check(nextPlan === null || Object.keys(nextPlan).sort().join(",") === "starts_at,title", "API ohne Konto: vom nächsten Plan höchstens Titel und Beginn");
   check((await api(null, "POST", "rpc/preview_public_invitation", { p_token: "0".repeat(64) })).json?.status === "not_found", "API ohne Konto: unbekannter Token verrät nichts");
   check((await api(null, "POST", "rpc/preview_crew_invitation", { p_token: inviteToken })).status >= 400, "API ohne Konto: Beitrittsvorschau für Angemeldete bleibt gesperrt");
   check((await api(null, "POST", "rpc/accept_crew_invitation", { p_token: inviteToken })).status >= 400, "API ohne Konto: Beitritt ist gesperrt");
