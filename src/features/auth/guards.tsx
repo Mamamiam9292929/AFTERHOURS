@@ -13,10 +13,15 @@ export function RequireAuth() {
   if (!user) {
     const target = location.pathname + location.search;
     if (target !== "/" && target !== "/home") rememberNext(target);
+    // W1: Einladungslinks führen ohne Konto auf die Landingpage statt auf die Anmeldung.
+    const invite = INVITE_PATH.exec(location.pathname);
+    if (invite) return <Navigate to={`/invite/${invite[1]}`} replace />;
     return <Navigate to="/login" replace />;
   }
   return <Outlet />;
 }
+
+const INVITE_PATH = /^\/join\/([0-9a-f]{64})\/?$/;
 
 /** Die App selbst ist erst nach dem Onboarding erreichbar. */
 export function RequireOnboarded() {

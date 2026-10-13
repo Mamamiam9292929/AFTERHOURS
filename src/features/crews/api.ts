@@ -208,6 +208,33 @@ export function useInvitationPreview(token: string | undefined) {
   });
 }
 
+/** W1: Vorschau ohne Konto – nur Vornamen, nur Titel und Beginn des nächsten Plans, keine IDs. */
+export type PublicInvitationPreview =
+  | {
+      status: "valid";
+      crew: { name: string; emoji: string; member_count: number };
+      invited_by: string | null;
+      members: string[];
+      next_plan: { title: string; starts_at: string } | null;
+      expires_at: string;
+    }
+  | { status: "not_found" | "revoked" | "expired" | "exhausted" };
+
+export function usePublicInvitationPreview(token: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["invitation-public", token ?? "none"] as const,
+    enabled: Boolean(token) && enabled,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async (): Promise<PublicInvitationPreview> => {
+      const { data, error } = await supabase.rpc("preview_public_invitation", { p_token: token ?? "" });
+      if (error) throw error;
+      return data as PublicInvitationPreview;
+    },
+  });
+}
+
 export type AcceptResult = { status: "joined" | "already_member"; crew_id: string } | { status: "not_found" | "revoked" | "expired" | "exhausted" | "crew_full" | "crew_limit_reached" };
 
 export function useAcceptInvitation() {

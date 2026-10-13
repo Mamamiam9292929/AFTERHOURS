@@ -34,7 +34,7 @@
 | Konto | Registrierung mit E-Mail und Passwort, E-Mail-Bestätigung, Anmeldung, Passwort zurücksetzen und ändern, Abmelden, Datenexport (JSON), Konto löschen (serverseitig) |
 | Onboarding | Anzeigename, Profilbild, Stadt, Interessen, Lieblingsaktivitäten, Budget, Entfernung, Benachrichtigungen – alles außer dem Namen optional |
 | Crews | Anlegen, umbenennen, löschen, verlassen; Rollen Owner/Admin/Mitglied; Mitglieder entfernen; Crew übergeben; automatische Nachfolge, wenn der Owner geht |
-| Einladungen | Links mit Ablaufzeit und Nutzungslimit, widerrufbar; gespeichert wird nur der Hash des Tokens; Beitritt mit Vorschau und ausdrücklicher Zustimmung |
+| Einladungen | Links mit Ablaufzeit und Nutzungslimit, widerrufbar; gespeichert wird nur der Hash des Tokens; Beitritt mit Vorschau und ausdrücklicher Zustimmung. Wer den Link ohne Konto öffnet, landet auf der Einladungs-Landingpage `/invite/<token>` (W1): Einladung als Ticket mit Crew, Vornamen der Mitglieder und dem nächsten Abend (nur Titel und Beginn), darunter direkt die Registrierung; nach Bestätigung und Profil geht es zum Beitritt |
 | Crew-Chat | Nachrichten schreiben und löschen |
 | Echte Orte | Jede Stadt in Deutschland: Beim ersten Aufruf importiert die Edge Function `places` die Orte aus OpenStreetMap (Restaurants, Cafés, Bars, Kinos, Bowling, Minigolf, Bäder, Escape Rooms, Lasertag, Kart, Klettern, Theater, Museen, Zoos …), danach liegen sie 30 Tage in der Datenbank. Quelle und Stand stehen bei jedem Ort, Öffnungszeiten werden übersetzt oder im Original gezeigt |
 | Discover | Freie Stadtwahl, Kategorien, Suche (serverseitig über alle Orte der Stadt), Filter (Preis, Entfernung ab Stadtmitte, Gruppengröße, Dauer, drinnen/draußen, Alter, jetzt geöffnet), Detailseite mit Öffnungszeiten, Karte (erst nach Klick), Meldefunktion |
@@ -191,7 +191,7 @@ npm run build && npm run size   # Build-Größe gegen scripts/bundle-budget.json
 
 **Build-Größe (`scripts/bundle-size.mjs`)** – misst nach dem Build die gzip-Größe dessen, was beim ersten Öffnen geladen wird (Skripte, Modul-Preloads und CSS aus `dist/index.html`), den größten Seiten-Chunk und alle Skripte zusammen. Grenzen in `scripts/bundle-budget.json` (Stand Oktober 2026: Start 201 kB JavaScript + 10 kB CSS, größte Seite 22 kB). Jede Seite ist ein eigener Chunk; React/Router, Supabase und TanStack Query liegen in eigenen Bibliotheks-Chunks, die nach einem Update im Browser-Cache bleiben. In der CI läuft die Prüfung im Job „TypeScript und Build“; die Tabelle steht in der Zusammenfassung des Laufs und als Annotation. Wer eine Grenze bewusst anhebt, begründet das im PR.
 
-**Datenbank (`supabase/tests/database/`)** – prüft Berechtigungen aus Sicht echter API-Rollen: RLS auf jeder Tabelle, keine Rechte für `anon`, Rollenregeln in Crews, Einladungslinks (Ablauf, Limit, Widerruf), eine Stimme pro Person und Option, Ergebnislogik, Fristablauf, Statusübergänge von Plänen und Reservierungen, Punktevergabe ohne Doppelbuchung, Datenexport, Kontolöschung, Import echter Orte (Sperre, Kontingent, Aktualisierung, Deaktivierung verschwundener Orte, Suche).
+**Datenbank (`supabase/tests/database/`)** – prüft Berechtigungen aus Sicht echter API-Rollen: RLS auf jeder Tabelle, keine Rechte für `anon`, Rollenregeln in Crews, Einladungslinks (Ablauf, Limit, Widerruf), öffentliche Einladungsvorschau ohne Konto (nur freigegebene Felder, Rate Limit pro Link, ungültige Links verraten nichts), eine Stimme pro Person und Option, Ergebnislogik, Fristablauf, Statusübergänge von Plänen und Reservierungen, Punktevergabe ohne Doppelbuchung, Datenexport, Kontolöschung, Import echter Orte (Sperre, Kontingent, Aktualisierung, Deaktivierung verschwundener Orte, Suche).
 
 **OSM-Umwandlung (`supabase/functions/places/osm_test.ts`)** – Kategorien, Adressen, Links (nur https), Dubletten und der Öffnungszeiten-Parser: übersetzt werden nur sichere Fälle, alles andere bleibt Originaltext.
 
@@ -284,13 +284,14 @@ Abweichungen vom Konzept: `users` heißt `profiles` (Supabase-Konvention). `noti
 | Anforderung | Umsetzung |
 |---|---|
 | Authentifizierung | Supabase Auth (Passwörter gehasht, E-Mail-Bestätigung, Rate Limits) |
-| Serverseitige Berechtigungen | RLS auf allen 22 Tabellen (30 Policies); `anon` hat keinerlei Rechte; Schreiben über 40 RPC-Funktionen für angemeldete Nutzer mit festem `search_path`; vier weitere nur für die Edge Function `places` |
+| Serverseitige Berechtigungen | RLS auf allen 22 Tabellen (30 Policies); `anon` hat keine Tabellenrechte und darf genau eine Funktion ausführen: `preview_public_invitation` (W1, siehe unten); Schreiben über 40 RPC-Funktionen für angemeldete Nutzer mit festem `search_path`; vier weitere nur für die Edge Function `places` |
 | Importierte Orte | Nutzer können einen Import nur anstoßen, nicht selbst Orte schreiben. Kontingent: 10 Importe pro Person und Stunde, 60 insgesamt; Sperre gegen parallele Importe; Links nur https, Quell-Links nur auf openstreetmap.org |
 | Crew-Grenzen | Jede Policy und jede Funktion prüft die Mitgliedschaft in der Datenbank |
 | Eingaben | Bereinigung und Grenzen in den Funktionen, zusätzlich Check-Constraints auf den Tabellen |
 | Einladungslinks | 244 Bit Zufall, nur SHA-256-Hash gespeichert, Ablauf (max. 30 Tage), Nutzungslimit (max. 50), widerrufbar, Rate Limit auf Abfragen |
+| Einladung ohne Konto (W1) | `preview_public_invitation` liefert bei gültigem Link nur Crew-Name, Emoji, Zahl der Mitglieder, Vornamen (erstes Wort des Anzeigenamens, höchstens sechs, keine Bilder), Vorname der einladenden Person und vom nächsten Plan Titel und Beginn – keine IDs, Adressen, Treffpunkte, Notizen, Kosten oder E-Mails. Ungültige, widerrufene und abgelaufene Links liefern nur ihren Status. Rate Limit 60 Abrufe je Link in 10 Minuten (`app_private.rate_limit_key`); ungültige Tokens schreiben nichts. Wer den Link hat, sieht diese Angaben – so wie bei Gruppenlinks in Messengern |
 | Punkte | Nur per Trigger beim Abschließen; nicht direkt schreibbar; Unique-Index, Tageslimit, Audit-Eintrag |
-| Rate Limits | Pro Person und Aktion in der Datenbank (Crews, Einladungen, Abstimmungen, Stimmen, Nachrichten, Pläne, Meldungen, Assistent, Ortsimport) |
+| Rate Limits | Pro Person und Aktion in der Datenbank, für die Einladungsvorschau ohne Konto pro Link (Crews, Einladungen, Abstimmungen, Stimmen, Nachrichten, Pläne, Meldungen, Assistent, Ortsimport) |
 | Secrets | Im Frontend nur der öffentliche anon-Key; KI-Schlüssel nur als Secret der Edge Function |
 | Protokoll | `audit_log` für Rollenwechsel, Entfernen, Einladungen, Abstimmungsende, Planstatus, Reservierung, Punkte, Kontolöschung |
 | Fehlermeldungen | Die Oberfläche zeigt übersetzte, allgemeine Meldungen; technische Details nur in der Konsole |

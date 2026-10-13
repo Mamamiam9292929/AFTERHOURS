@@ -5,9 +5,10 @@ import { t } from "@/i18n";
 
 /**
  * Rahmen für Anmeldung und Registrierung. Ab Desktop steht links die Marke mit dem Ticket-Motiv,
- * rechts das Formular; auf dem Smartphone nur Logo und Formular.
+ * rechts das Formular; auf dem Smartphone nur Logo und Formular. `hero` steht über der Überschrift
+ * (Einladungs-Landingpage: das Ticket der Crew).
  */
-export function AuthLayout({ title, intro, children, footer }: { title: string; intro?: ReactNode; children: ReactNode; footer?: ReactNode }) {
+export function AuthLayout({ title, intro, hero, children, footer }: { title: string; intro?: ReactNode; hero?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       <aside className="relative hidden overflow-hidden bg-nav lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
@@ -41,6 +42,7 @@ export function AuthLayout({ title, intro, children, footer }: { title: string; 
           <Logo compact />
         </div>
         <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-10">
+          {hero && <div className="mb-10">{hero}</div>}
           <h1 className="display text-[44px] text-fg sm:text-[52px]">{title}</h1>
           {intro && <div className="mt-3 text-[15px] leading-snug text-muted">{intro}</div>}
           <div className="mt-8">{children}</div>
