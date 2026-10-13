@@ -11,10 +11,11 @@ import { useProfile } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/errors";
 import { useDebouncedValue } from "@/lib/hooks";
-import { formatDateWithYear } from "@/lib/time";
+import { dayPhase, formatDateWithYear } from "@/lib/time";
 import { ActivityCard } from "./ActivityCard";
 import { applyFilters, countActiveFilters, EMPTY_FILTERS, useActivitySearch, usePlaceRegion, type ActivityFilters } from "./api";
 import { CityField } from "./CityField";
+import { pickStage, StageCard } from "./StageCard";
 
 const numberOrNull = (value: string) => (value === "" ? null : Number(value));
 
@@ -74,10 +75,24 @@ export function DiscoverPage() {
   const activeCount = countActiveFilters(filters);
   const region = places.region.data;
   const syncError = places.syncError;
+  // Bühne (D0): ein Ort groß oben – nur beim Stöbern, nicht bei einer Suche nach etwas Bestimmtem.
+  const stage = filters.search.trim() === "" ? pickStage(results) : null;
+  const rest = stage ? results.filter((r) => r !== stage) : results;
+  const cityName = places.canonicalName ?? city;
 
   return (
     <>
-      <PageHeader title={t.discover.title} lead={t.discover.lead} />
+      {cityName ? (
+        <header className="mb-6 lg:mb-8">
+          <h1 className="display break-words uppercase text-fg text-[44px] sm:text-[64px]">
+            {cityName}
+            <br />
+            <span className="text-lime">{t.discover.poster[dayPhase()]}</span>
+          </h1>
+        </header>
+      ) : (
+        <PageHeader title={t.discover.title} lead={t.discover.lead} />
+      )}
 
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px_auto]">
         <div className="relative">
@@ -173,6 +188,12 @@ export function DiscoverPage() {
                     {t.discover.demoNotice.body}
                   </Notice>
                 )}
+                {stage && (
+                  <div className="mb-8">
+                    <StageCard activity={stage.activity} distanceKm={stage.distanceKm} />
+                  </div>
+                )}
+                {stage && rest.length > 0 && <h2 className="mb-1 text-xl font-bold text-fg">{t.discover.stage.more(cityName ?? "")}</h2>}
                 <p className="mb-3 text-sm text-muted" aria-live="polite">
                   {page && page.total > items.length ? t.discover.resultsOf(results.length, page.total) : t.discover.results(results.length)}
                 </p>
@@ -188,7 +209,7 @@ export function DiscoverPage() {
                   />
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {results.map(({ activity, distanceKm }) => (
+                    {rest.map(({ activity, distanceKm }) => (
                       <ActivityCard key={activity.id} activity={activity} distanceKm={distanceKm} />
                     ))}
                   </div>
