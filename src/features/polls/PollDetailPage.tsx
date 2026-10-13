@@ -1,3 +1,5 @@
+import { ShareButton } from "@/components/ui/ShareButton";
+import { pollShare } from "@/lib/share";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconVote } from "@/components/icons";
@@ -371,6 +373,7 @@ export function PollDetailPage() {
           </span>
         }
         back={crew ? { to: `/crews/${crew.id}`, label: t.polls.detail.backToCrew(`${crew.emoji} ${crew.name}`) } : { to: "/plans", label: t.polls.detail.back }}
+        actions={!summary.isOver ? <ShareButton label={t.share.poll} content={() => pollShare(poll)} /> : undefined}
         lead={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {summary.isOver ? (
