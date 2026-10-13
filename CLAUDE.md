@@ -36,6 +36,7 @@ Die Cloud-Sitzung hat in der Regel keinen Zugriff auf die npm-Registry und kein 
 
 1. Branch pushen, PR als Entwurf öffnen. GraphQL ist in der Sitzung gesperrt, also REST: `gh api repos/{owner}/{repo}/pulls -f title=… -f head=<branch> -f base=main -F draft=true -F body=@datei.md`.
 2. Checks abwarten: `gh api "repos/{owner}/{repo}/actions/runs?branch=<branch>&per_page=1"`, dann `…/actions/runs/<id>/jobs`. Bei Fehlern: Die Log-Archive sind aus der Sitzung oft nicht abrufbar. Die Ausgabe fehlgeschlagener Schritte steht deshalb als Annotation bereit: `gh api repos/{owner}/{repo}/check-runs/<job-id>/annotations` (Job-IDs aus `…/actions/runs/<id>/jobs`). Beheben, erneut pushen.
+   Screenshots der Journey: Branch `screenshots/pr-<n>` (PR) bzw. `screenshots/main` (vorher) – `git fetch origin screenshots/pr-<n>`, im PR verlinken als `../blob/screenshots/pr-<n>/<datei>.png`.
 3. Erst wenn alles grün ist: PR auf „bereit" setzen (`gh api -X POST repos/{owner}/{repo}/pulls/<n>/ccr/ready_for_review`) und mergen (`gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f merge_method=squash`). Danach Branch löschen.
 4. Ist ein Fehler nach drei Versuchen nicht lösbar: PR als Entwurf lassen, Ursache und Stand in die Beschreibung schreiben, nicht mergen.
 

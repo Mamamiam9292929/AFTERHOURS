@@ -11,7 +11,8 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 |---|---|---|---|---|---|
 | F1 | Browser-Journey (`tests/e2e/journey.mjs`) in GitHub Actions lauffähig machen, inkl. Stellvertreter für OpenStreetMap | Jeder PR wird automatisch durchgeklickt, bevor du ihn siehst | M | – | Erledigt (#6) |
 | F2 | Barrierefreiheit automatisch prüfen (axe-core in der Journey) | Fehler bei Kontrast, Beschriftung, Tastatur fallen sofort auf | S | F1 | Freigegeben |
-| F3 | Produktionsbuild-Größe überwachen, Seiten aufteilen wo nötig | Schneller Start auf dem Handy | S | – | PR offen (#7) |
+| F3 | Produktionsbuild-Größe überwachen, Seiten aufteilen wo nötig | Schneller Start auf dem Handy | S | – | Erledigt (#7) |
+| F4 | Screenshots der Journey auf eigenem Branch (`screenshots/main`, `screenshots/pr-<n>`), im PR verlinkbar. Akzeptanz: nach jedem Lauf liegen alle Bilder auf dem Branch; Vorher/Nachher ohne Artefakt-Download | Jede Design-Änderung lässt sich im PR mit echten Bildern vergleichen | S | F1 | In Arbeit |
 
 ## Wachstum – warum Leute die App laden und weiterempfehlen
 
