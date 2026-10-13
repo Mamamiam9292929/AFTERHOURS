@@ -157,6 +157,12 @@ async function a11y(user, name) {
   const { page } = user;
   // page.evaluate läuft außerhalb der Content-Security-Policy der App; axe liest nur, es ändert nichts.
   if (!(await page.evaluate(() => typeof window.axe !== "undefined"))) await page.evaluate(axeSource);
+  // Laufende Übergänge (Farbwechsel nach einem Klick, eingeblendete Hinweise) erst abwarten – sonst misst
+  // axe Zwischenfarben. Endlos-Animationen (Ladeanzeigen) zählen nicht; höchstens 2 Sekunden.
+  await page.evaluate(async () => {
+    const running = document.getAnimations().filter((a) => a.playState === "running" && a.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 2000))]);
+  });
   const result = await page.evaluate(() =>
     window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] }),
   );
@@ -1023,7 +1029,7 @@ if (A11Y) {
   const findings = [...a11yFindings.values()].sort((a, b) => Number(A11Y_BLOCKING.has(b.impact)) - Number(A11Y_BLOCKING.has(a.impact)));
   const blocking = findings.filter((f) => A11Y_BLOCKING.has(f.impact));
   console.log(`Barrierefreiheit: ${a11yScans} Bildschirme geprüft, ${blocking.length} schwere und ${findings.length - blocking.length} leichtere Befunde.`);
-  for (const f of findings.slice(0, 40)) {
+  for (const f of findings.slice(0, 100)) {
     console.log(`  ${A11Y_BLOCKING.has(f.impact) ? "✗" : "·"} [${f.impact}] ${f.rule} – ${f.help}`);
     console.log(`      ${f.target}  ${f.html.slice(0, 160)}`);
     if (f.detail) console.log(`      ${f.detail.slice(0, 300)}`);
