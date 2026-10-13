@@ -60,6 +60,14 @@ if ($LASTEXITCODE -ne 0) { Fail 'npm install ist fehlgeschlagen. Details stehen 
 
 # 4. Supabase ------------------------------------------------------------------------------
 Step 'Supabase starten (beim ersten Mal werden Docker-Images geladen, das dauert einige Minuten)'
+function Restart-Supabase {
+  # "stop" behaelt die Daten (Docker-Volumes); nur die Container werden neu erzeugt.
+  Write-Host 'Supabase wird neu gestartet (deine Daten bleiben erhalten) ...'
+  npx supabase stop 2>&1 | Out-Host
+  npx supabase start 2>&1 | Out-Host
+  if ($LASTEXITCODE -ne 0) { Fail 'supabase start ist fehlgeschlagen. Details stehen oben und in setup.log.' }
+}
+
 npx supabase status *> $null
 if ($LASTEXITCODE -eq 0) {
   Write-Host 'Supabase laeuft bereits.'
@@ -68,9 +76,41 @@ if ($LASTEXITCODE -eq 0) {
   if ($LASTEXITCODE -ne 0) { Fail 'supabase start ist fehlgeschlagen. Details stehen oben und in setup.log.' }
 }
 
+# Die Datenbank braucht nach dem Start manchmal noch einige Sekunden, bis sie Verbindungen annimmt.
+# Nach einem Neustart von Windows/Docker meldet "supabase status" oft schon "laeuft", waehrend die
+# Datenbank noch hochfaehrt ("Connection terminated unexpectedly"). Deshalb erst warten, dann mit
+# Wiederholungen einspielen und im Notfall Supabase einmal neu starten.
+function Wait-Database {
+  for ($i = 0; $i -lt 30; $i++) {
+    docker exec supabase_db_afterhours pg_isready -U postgres -h 127.0.0.1 *> $null
+    if ($LASTEXITCODE -eq 0) { return }
+    Start-Sleep -Seconds 2
+  }
+}
+function Invoke-Migrations([int]$attempts) {
+  Wait-Database
+  for ($i = 1; $i -le $attempts; $i++) {
+    # Ausgabe direkt anzeigen - sonst wuerde sie Teil des Rueckgabewerts der Funktion.
+    npx supabase migration up --local 2>&1 | Out-Host
+    if ($LASTEXITCODE -eq 0) { return $true }
+    if ($i -lt $attempts) {
+      Write-Host "Datenbank noch nicht bereit - neuer Versuch in 5 Sekunden ($i/$attempts) ..."
+      Start-Sleep -Seconds 5
+    }
+  }
+  return $false
+}
+
 Step 'Neue Datenbank-Migrationen einspielen'
-npx supabase migration up --local
-if ($LASTEXITCODE -ne 0) { Fail 'Die Migrationen konnten nicht eingespielt werden. Details stehen oben und in setup.log.' }
+if (-not (Invoke-Migrations 6)) {
+  Restart-Supabase
+  if (-not (Invoke-Migrations 6)) {
+    Write-Host ''
+    Write-Host 'Letzte Meldungen der Datenbank:'
+    docker logs --tail 40 supabase_db_afterhours 2>&1 | Out-Host
+    Fail 'Die Migrationen konnten nicht eingespielt werden. Details stehen oben und in setup.log.'
+  }
+}
 
 $values = @{}
 foreach ($line in (npx supabase status -o env)) {
