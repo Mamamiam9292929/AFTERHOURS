@@ -255,6 +255,8 @@ async function invitedOnboarding(user) {
   await page.getByText("Mindestens 2 Zeichen.").first().waitFor();
   check(page.url().includes("/onboarding"), `${user.name}: leerer Name hält den Beitritt auf`);
   await page.getByLabel("Anzeigename").fill(user.name);
+  check((await page.getByText("Mindestens 2 Zeichen.").count()) === 0, `${user.name}: Fehlermeldung verschwindet, sobald der Name passt`);
+  await page.evaluate(() => window.scrollTo({ top: 0 }));
 }
 
 // W8: navigator.share ersetzen, um den geteilten Inhalt zu prüfen (headless Chromium hat kein Teilen-Menü).

@@ -177,7 +177,10 @@ export function OnboardingPage() {
                 <p className="mt-3 text-[15px] text-muted">{t.onboarding.profile.body}</p>
               </div>
             )}
-            <TextField label={t.onboarding.profile.name} name="display_name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} error={nameError} autoComplete="nickname" required />
+            <TextField label={t.onboarding.profile.name} name="display_name" value={name} onChange={(e) => {
+                setName(e.target.value);
+                if (nameError && e.target.value.trim().length >= 2) setNameError(null);
+              }} maxLength={40} error={nameError} autoComplete="nickname" required />
             <AvatarPicker userId={user.id} name={name} value={avatar} onChange={setAvatar} />
             <div>
               <TextField label={t.onboarding.profile.city} name="city" value={city} onChange={(e) => setCity(e.target.value)} list="city-options" placeholder={t.onboarding.profile.cityPlaceholder} hint={t.onboarding.profile.cityHint} maxLength={80} autoComplete="address-level2" optional />
