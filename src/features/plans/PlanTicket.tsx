@@ -114,3 +114,53 @@ export function PlanTicket({ plan, crew, userId, lookup, hero = false, cutout, c
     </Link>
   );
 }
+
+/**
+ * Der nächste Plan als großes Ticket – der eine große Moment auf Home (D0).
+ * Echte Löcher statt aufgemalter Kerben (CSS-Maske), dadurch passt es auf jeden Hintergrund.
+ * Leicht schräg; bei Zeiger oder Fokus richtet es sich auf. Der Strichcode ist reine Dekoration.
+ */
+export function FeatureTicket({ plan, crew, userId, lookup }: Omit<PlanTicketProps, "hero" | "cutout" | "className">) {
+  const date = ticketDate(plan.starts_at);
+  const going = plan.participants.filter((p) => p.attendance_status === "going");
+  const mine = plan.participants.find((p) => p.user_id === userId)?.attendance_status;
+  const place = plan.address ?? plan.meeting_point;
+
+  return (
+    <div className="ticket-feature-wrap">
+      <Link to={`/plans/${plan.id}`} className="ticket ticket-feature">
+        <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", STUB_TONE[plan.status])}>
+          <span className="text-[15px] font-bold uppercase tracking-wide">{date.weekday}</span>
+          <span className="font-display text-[76px] font-extrabold leading-[0.85] sm:text-[92px]">{date.day}</span>
+          <span className="text-[15px] font-bold uppercase tracking-wide">{date.month}</span>
+          <span className="ticket-barcode mt-3" aria-hidden />
+        </div>
+        <div className="flex min-w-0 flex-col justify-between gap-4 p-5 sm:p-6">
+          <div className="min-w-0">
+            {planStatusBadge(plan.status)}
+            <h2 className={cn("display mt-3 break-words text-[32px] text-fg sm:text-[44px]", plan.status === "cancelled" && "line-through decoration-2")}>{plan.title}</h2>
+            <p className="mt-2.5 truncate text-[15px] text-muted">
+              <span className="font-semibold text-fg">{formatTime(plan.starts_at)}</span>
+              {place && ` · ${place}`}
+            </p>
+            {crew && (
+              <p className="mt-1 truncate text-[15px] text-muted">
+                {crew.emoji} {crew.name}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+            <AvatarStack people={going.map((p) => lookup(p.user_id))} max={5} size="md" />
+            <span className="ml-auto flex items-baseline gap-1.5 text-[15px] font-semibold text-muted">
+              <span className="font-display text-[34px] font-extrabold leading-none text-fg">{going.length}</span>
+              {t.plans.ticket.goingOf(plan.participants.length)}
+            </span>
+          </div>
+          {mine && mine !== "going" && (
+            <span className={cn("text-[13px] font-semibold", mine === "invited" ? "text-amber" : "text-muted")}>{MY_STATUS[mine]}</span>
+          )}
+        </div>
+      </Link>
+    </div>
+  );
+}

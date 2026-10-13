@@ -441,6 +441,18 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   await alice.page.getByText("Abgesagt (1)").waitFor();
   check(true, "Organisatorin sieht Zu- und Absagen");
   check((await carol.page.getByRole("button", { name: "Plan absagen" }).count()) === 0, "Mitglieder können den Plan nicht absagen");
+  // D0: Nach der Zusage ist der Plan das große Ticket auf Home, die Überschrift zählt herunter.
+  await bob.page.goto(`${APP}/home`);
+  const heroTicket = bob.page.locator(".ticket-feature");
+  await heroTicket.waitFor();
+  check((await heroTicket.getAttribute("href"))?.endsWith(`/plans/${ids.plan}`), "Home zeigt den zugesagten Plan als großes Ticket");
+  const headline = await bob.page.getByRole("heading", { level: 1 }).innerText();
+  check(/^(HEUTE|HEUTE ABEND|MORGEN|NOCH \d+ TAGE BIS) STRIKE DISTRICT BOWLING$/.test(headline.replace(/\s+/g, " ").trim().toUpperCase()), `Überschrift zählt bis zum Plan herunter (${headline})`);
+  check(/2\s*von \d+ dabei/.test(await heroTicket.innerText()), "großes Ticket zeigt Zusagen von allen Eingeladenen");
+  await shot(bob, "15b-home-ticket");
+  // Schritt 10 erwartet Bob wieder auf der Planseite.
+  await bob.page.goto(`${APP}/plans/${ids.plan}`);
+  await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
 });
 
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {

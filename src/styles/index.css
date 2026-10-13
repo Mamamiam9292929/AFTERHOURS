@@ -155,6 +155,95 @@
     }
   }
 
+  /*
+   * Großes Ticket auf Home (D0): echte Löcher per Maske statt aufgemalter Kerben, damit es auch auf dem
+   * Lichtschein funktioniert. Die Schräge sitzt am Wrapper, der Schatten als drop-shadow folgt der Maske.
+   */
+  .ticket-feature-wrap {
+    transform: rotate(-1.2deg);
+    filter: drop-shadow(0 18px 28px rgb(0 0 0 / 0.45));
+    transition: transform 0.4s var(--ease-out-soft);
+  }
+  .ticket-feature-wrap:hover,
+  .ticket-feature-wrap:focus-within {
+    transform: rotate(0deg);
+  }
+  .ticket-feature {
+    --stub: 112px;
+    grid-template-columns: var(--stub) minmax(0, 1fr);
+    border-radius: 22px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+    -webkit-mask:
+      radial-gradient(circle 11px at var(--stub) 0, #0000 96%, #000) top / 100% 51% no-repeat,
+      radial-gradient(circle 11px at var(--stub) 100%, #0000 96%, #000) bottom / 100% 51% no-repeat;
+    mask:
+      radial-gradient(circle 11px at var(--stub) 0, #0000 96%, #000) top / 100% 51% no-repeat,
+      radial-gradient(circle 11px at var(--stub) 100%, #0000 96%, #000) bottom / 100% 51% no-repeat;
+  }
+  .ticket-feature:focus-visible {
+    outline-offset: 4px;
+  }
+  .ticket-feature::before,
+  .ticket-feature::after {
+    display: none;
+  }
+  .ticket-feature .ticket-stub {
+    border-radius: 22px 0 0 22px;
+    border-right: 2px dashed rgb(0 0 0 / 0.4);
+  }
+  @media (min-width: 640px) {
+    .ticket-feature {
+      --stub: 140px;
+      grid-template-columns: var(--stub) minmax(0, 1fr);
+    }
+  }
+  /* Strichcode-Detail im Abriss – Dekoration, ohne Bedeutung. */
+  .ticket-barcode {
+    display: block;
+    width: 64px;
+    height: 24px;
+    background: repeating-linear-gradient(
+      90deg,
+      currentColor 0 2px,
+      transparent 2px 4px,
+      currentColor 4px 5px,
+      transparent 5px 7px,
+      currentColor 7px 10px,
+      transparent 10px 11px,
+      currentColor 11px 12px,
+      transparent 12px 15px
+    );
+    opacity: 0.85;
+  }
+
+  /*
+   * Licht statt Fläche (D0): dezenter Lime-Schein oben auf Home mit feinem Korn. Läuft zu den Rändern
+   * transparent aus, damit keine Kante entsteht; liegt hinter dem Inhalt (Eltern-Element mit isolation).
+   */
+  .home-glow {
+    position: absolute;
+    inset: -1.25rem -1rem auto;
+    height: 560px;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(ellipse 70% 80% at 35% 0%, color-mix(in srgb, var(--color-lime) 13%, transparent), transparent 75%);
+    /* Maske blendet Schein und Korn zu allen Rändern aus – keine sichtbare Kante, auch nicht auf dem Desktop. */
+    -webkit-mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
+    mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
+  }
+  @media (min-width: 1024px) {
+    .home-glow {
+      inset: -2.5rem -2.5rem auto;
+    }
+  }
+  .home-glow::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
   .scroll-row {
     display: flex;
     gap: 0.5rem;
