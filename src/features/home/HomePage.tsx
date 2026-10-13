@@ -25,7 +25,7 @@ import { formatEuro } from "@/lib/format";
 import { distanceKm } from "@/lib/geo";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { qk } from "@/lib/query";
-import { dayPhase, zonedParts } from "@/lib/time";
+import { calendarDaysBetween, dayPhase, zonedParts } from "@/lib/time";
 import type { Activity, ActivityCategory } from "@/lib/types";
 
 interface Headline {
@@ -43,15 +43,6 @@ function leadQuestion(now: Date): Headline {
   if (phase === "day") return t.home.question.tonight;
   if (phase === "evening") return t.home.question.later;
   return t.home.question.tomorrow;
-}
-
-/** Kalendertage zwischen zwei Zeitpunkten in Berliner Zeit (heute = 0, morgen = 1). */
-function calendarDaysBetween(from: Date, to: Date | string): number {
-  const day = (v: Date | string) => {
-    const p = zonedParts(v);
-    return Date.UTC(p.year, p.month - 1, p.day) / 86_400_000;
-  };
-  return Math.round(day(to) - day(from));
 }
 
 /**

@@ -556,6 +556,12 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   // Schritt 10 erwartet Bob wieder auf der Planseite.
   await bob.page.goto(`${APP}/plans/${ids.plan}`);
   await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  // D0 Etappe 5a: Kopf der Planseite ist das große Ticket – ohne Link, Titel als h1, mit Countdown.
+  const planTicket = bob.page.locator(".ticket-feature");
+  check((await planTicket.count()) === 1 && (await planTicket.getAttribute("href")) === null, "Planseite zeigt den Plan als großes Ticket (ohne Link)");
+  check((await planTicket.getByRole("heading", { level: 1 }).count()) === 1, "Titel des Plans steht als Überschrift im Ticket");
+  check(/(heute|heute abend|morgen|in \d+ tagen)/i.test(await planTicket.innerText()), "Ticket zählt bis zum Plan herunter");
+  check((await bob.page.locator("#attendance-heading .text-lime").innerText()).toLowerCase() === "dabei", "„Bist du dabei?“ als Plakat mit Lime-Schlüsselwort");
 });
 
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {
