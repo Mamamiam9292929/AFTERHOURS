@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { IconBack, IconCalendar, IconCalendarCheck, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
-import { Fact, Section } from "@/components/layout/Page";
+import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
@@ -23,7 +23,7 @@ import type { AttendanceStatus, PlanStatus } from "@/lib/types";
 import { estimateCosts, hasStarted, usePlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { BookingPanel } from "./BookingPanel";
 import { PlanForm } from "./PlanForm";
-import { PlanTicket } from "./PlanTicket";
+import { FeatureTicket } from "./PlanTicket";
 import { RidesPanel } from "./RidesPanel";
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
@@ -117,13 +117,17 @@ export function PlanDetailPage() {
   }
 
   return (
-    <>
-      <Link to={crew ? `/crews/${crew.id}` : "/plans"} className="-ml-1 mb-4 inline-flex h-9 items-center gap-1.5 rounded-control px-1 text-sm font-semibold text-muted hover:text-fg">
+    // D0 Etappe 5a: der Plan als großes Ticket auf dem Lichtschein – der eine große Moment der Seite.
+    // Der Schein liegt hinter dem gesamten Inhalt (isolate), damit er keine Karte darunter überdeckt.
+    <div className="relative isolate">
+      {!locked && <div className="home-glow" aria-hidden />}
+      <Link to={crew ? `/crews/${crew.id}` : "/plans"} className="-ml-1 mb-5 inline-flex h-9 items-center gap-1.5 rounded-control px-1 text-sm font-semibold text-muted hover:text-fg">
         <IconBack className="size-4" aria-hidden />
         {crew ? `${crew.emoji} ${crew.name}` : t.plans.detail.back}
       </Link>
-
-      <PlanTicket plan={plan} crew={crew} userId={user.id} lookup={people.lookup} hero />
+      <div className="max-w-3xl">
+        <FeatureTicket plan={plan} crew={crew} userId={user.id} lookup={people.lookup} now={now} hero />
+      </div>
 
       {plan.status === "proposed" && (
         <Notice icon={<IconInfo aria-hidden />} className="mt-5">
@@ -134,11 +138,11 @@ export function PlanDetailPage() {
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
           {/* Eigene Antwort */}
-          <section aria-labelledby="attendance-heading" className="rounded-card border border-line bg-surface p-4">
-            <h2 id="attendance-heading" className="text-[17px] font-bold text-fg">
-              {t.plans.detail.attendance.question}
+          <section aria-labelledby="attendance-heading" className={cn("rounded-card border p-4 sm:p-5", mine === "invited" && !locked ? "attendance-open border-lime/45" : "border-line bg-surface")}>
+            <h2 id="attendance-heading" className="display text-[30px] uppercase text-fg sm:text-[36px]">
+              <PosterTitle text={t.plans.detail.attendance.question} />
             </h2>
-            <div role="radiogroup" aria-labelledby="attendance-heading" className="mt-3 grid grid-cols-3 gap-2">
+            <div role="radiogroup" aria-labelledby="attendance-heading" className="mt-4 grid grid-cols-3 gap-2">
               {ANSWERS.map(({ value, label }) => {
                 const selected = mine === value;
                 return (
@@ -332,6 +336,6 @@ export function PlanDetailPage() {
         error={setStatus.isError ? errorMessage(setStatus.error) : null}
         onConfirm={() => changeStatus("completed", t.plans.detail.manage.completed)}
       />
-    </>
+    </div>
   );
 }

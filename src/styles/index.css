@@ -168,6 +168,11 @@
   .ticket-feature-wrap:focus-within {
     transform: rotate(0deg);
   }
+  /* Vergangene oder abgesagte Pläne liegen gerade und ohne Schatten – das Ticket ist "abgelegt". */
+  .ticket-feature-wrap.ticket-feature-past {
+    transform: none;
+    filter: none;
+  }
   .ticket-feature {
     --stub: 112px;
     grid-template-columns: var(--stub) minmax(0, 1fr);
@@ -253,6 +258,10 @@
   }
   .poll-option-leading {
     background: linear-gradient(180deg, color-mix(in srgb, var(--color-lime) 7%, var(--color-surface)), var(--color-surface) 60%);
+  }
+  /* Planseite (D0 Etappe 5a): fehlt die eigene Antwort, trägt die Frage einen Lime-Schimmer. */
+  .attendance-open {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--color-lime) 9%, var(--color-surface)), var(--color-surface) 70%);
   }
   .poll-bar-fill {
     background: linear-gradient(90deg, color-mix(in srgb, var(--color-lime) 24%, transparent), color-mix(in srgb, var(--color-lime) 9%, transparent));

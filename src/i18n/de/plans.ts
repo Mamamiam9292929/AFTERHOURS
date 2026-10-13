@@ -25,6 +25,12 @@ export const plans = {
     youGoing: "Du bist dabei",
     youMaybe: "Du: vielleicht",
     youDeclined: "Du hast abgesagt",
+    countdown: {
+      today: "Heute",
+      tonight: "Heute Abend",
+      tomorrow: "Morgen",
+      days: (n: number) => `In ${n} Tagen`,
+    },
   },
   create: {
     title: "Plan erstellen",

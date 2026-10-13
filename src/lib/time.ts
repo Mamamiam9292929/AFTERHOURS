@@ -120,6 +120,15 @@ export function formatRelative(v: Date | string, now: Date = new Date()): string
 }
 
 /** Tageszeit-Abschnitt in Berlin – steuert Begrüßung und Leitfrage auf Home. */
+/** Kalendertage zwischen zwei Zeitpunkten in Berliner Zeit (heute = 0, morgen = 1). */
+export function calendarDaysBetween(from: Date | string, to: Date | string): number {
+  const day = (v: Date | string) => {
+    const p = zonedParts(v);
+    return Date.UTC(p.year, p.month - 1, p.day) / 86_400_000;
+  };
+  return Math.round(day(to) - day(from));
+}
+
 export function dayPhase(now: Date = new Date()): "morning" | "day" | "evening" | "night" {
   const { hour } = zonedParts(now);
   if (hour < 5) return "night";
