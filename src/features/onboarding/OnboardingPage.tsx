@@ -6,10 +6,12 @@ import { Chip, SwitchRow } from "@/components/ui/Controls";
 import { ErrorState, Notice, PageSpinner } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { Logo } from "@/components/ui/Logo";
+import { useToast } from "@/components/ui/Toast";
 import { CITY_NAMES } from "@/data/cities";
 import { CATEGORIES, INTERESTS } from "@/data/options";
 import { useUser } from "@/features/auth/AuthProvider";
-import { consumeNext } from "@/features/auth/next";
+import { clearNext, consumeNext, peekNext } from "@/features/auth/next";
+import { type InvitationPreview, useAcceptInvitation, useInvitationPreview } from "@/features/crews/api";
 import { useProfile, useSettings, useUpdateProfile, useUpdateSettings } from "@/features/profile/api";
 import { AvatarPicker } from "@/features/profile/AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "@/features/profile/notificationGroups";
@@ -19,6 +21,8 @@ import { useDocumentTitle } from "@/lib/hooks";
 import type { ActivityCategory, Interest, UserSettings } from "@/lib/types";
 
 const STEPS = 3;
+const INVITE_TARGET = /^\/join\/([0-9a-f]{64})$/;
+type ValidInvite = Extract<InvitationPreview, { status: "valid" }>;
 const toggle = <T,>(list: T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
 export function OnboardingPage() {
@@ -28,6 +32,16 @@ export function OnboardingPage() {
   const settings = useSettings();
   const updateProfile = useUpdateProfile();
   const updateSettings = useUpdateSettings();
+  const toast = useToast();
+
+  // W1 Etappe 2: Kommt jemand über einen gültigen Einladungslink, reicht ein Schritt – Profil speichern und
+  // mit demselben Tipp der Crew beitreten. Die Einladung wird beim ersten gültigen Ergebnis festgehalten,
+  // damit die Seite nicht umspringt, wenn die Vorschau nach dem Beitritt „already_member“ meldet.
+  const [inviteToken] = useState(() => INVITE_TARGET.exec(peekNext() ?? "")?.[1]);
+  const invitePreview = useInvitationPreview(inviteToken);
+  const acceptInvite = useAcceptInvitation();
+  const [invite, setInvite] = useState<ValidInvite | null>(null);
+  if (!invite && invitePreview.data?.status === "valid") setInvite(invitePreview.data);
 
   const [step, setStep] = useState(1);
   const [initialized, setInitialized] = useState(false);
@@ -58,13 +72,14 @@ export function OnboardingPage() {
     setInitialized(true);
   }, [initialized, profile.data, settings.data]);
 
-  if (profile.isPending || settings.isPending) return <PageSpinner />;
+  if (profile.isPending || settings.isPending || (inviteToken && invitePreview.isPending)) return <PageSpinner />;
   if (profile.isError) return <div className="mx-auto max-w-md p-6"><ErrorState error={profile.error} onRetry={() => void profile.refetch()} /></div>;
   if (settings.isError) return <div className="mx-auto max-w-md p-6"><ErrorState error={settings.error} onRetry={() => void settings.refetch()} /></div>;
   if (target) return <Navigate to={target} replace />;
   if (profile.data.onboarded_at && !finishing) return <Navigate to="/home" replace />;
 
   const saving = finishing || updateProfile.isPending || updateSettings.isPending;
+  const steps = invite ? 1 : STEPS;
 
   function next() {
     if (step === 1 && name.trim().length < 2) {
@@ -72,7 +87,7 @@ export function OnboardingPage() {
       return;
     }
     setNameError(null);
-    setStep((s) => Math.min(STEPS, s + 1));
+    setStep((s) => Math.min(steps, s + 1));
     window.scrollTo({ top: 0 });
   }
 
@@ -96,16 +111,51 @@ export function OnboardingPage() {
     }
   }
 
+  /** Eingeladene: nur das Profil speichern, dann – wenn gewünscht – ausdrücklich beitreten. */
+  async function finishInvited(join: boolean) {
+    if (!invite || !inviteToken) return;
+    if (name.trim().length < 2) {
+      setNameError(t.validation.minLength(2));
+      return;
+    }
+    setNameError(null);
+    setFormError(null);
+    setFinishing(true);
+    try {
+      await updateProfile.mutateAsync({ display_name: name.trim(), avatar_url: avatar, city: city.trim() || null, onboarded_at: new Date().toISOString() });
+    } catch (error) {
+      setFinishing(false);
+      setFormError(errorMessage(error));
+      return;
+    }
+    clearNext();
+    if (!join) {
+      setTarget("/home");
+      return;
+    }
+    try {
+      const result = await acceptInvite.mutateAsync(inviteToken);
+      if (result.status === "joined" || result.status === "already_member") {
+        toast.success(t.crews.join.joined(invite.crew.name));
+        setTarget(`/crews/${result.crew_id}`);
+        return;
+      }
+    } catch {
+      /* Netzwerk o. Ä.: Die Beitrittsseite bietet den Beitritt erneut an. */
+    }
+    setTarget(`/join/${inviteToken}`);
+  }
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-5 pb-10 pt-safe sm:px-8">
       <header className="flex items-center justify-between pt-6">
         <Logo compact />
         <span className="text-sm font-semibold text-muted" aria-live="polite">
-          {t.onboarding.step(step, STEPS)}
+          {invite ? t.onboarding.invite.step : t.onboarding.step(step, steps)}
         </span>
       </header>
-      <div className="mt-5 grid grid-cols-3 gap-1.5" aria-hidden>
-        {Array.from({ length: STEPS }, (_, i) => (
+      <div className={`mt-5 grid gap-1.5 ${invite ? "grid-cols-1" : "grid-cols-3"}`} aria-hidden>
+        {Array.from({ length: steps }, (_, i) => (
           <span key={i} className={`h-1 rounded-full ${i < step ? "bg-lime" : "bg-raised"}`} />
         ))}
       </div>
@@ -113,10 +163,20 @@ export function OnboardingPage() {
       <main className="flex flex-1 flex-col pt-10">
         {step === 1 && (
           <section className="space-y-6">
-            <div>
-              <h1 className="display text-[40px] text-fg sm:text-[48px]">{t.onboarding.profile.title}</h1>
-              <p className="mt-3 text-[15px] text-muted">{t.onboarding.profile.body}</p>
-            </div>
+            {invite ? (
+              <>
+                <div>
+                  <h1 className="display text-[40px] text-fg sm:text-[48px]">{t.onboarding.invite.title}</h1>
+                  <p className="mt-3 text-[15px] text-muted">{t.onboarding.invite.body}</p>
+                </div>
+                <InvitePass invite={invite} />
+              </>
+            ) : (
+              <div>
+                <h1 className="display text-[40px] text-fg sm:text-[48px]">{t.onboarding.profile.title}</h1>
+                <p className="mt-3 text-[15px] text-muted">{t.onboarding.profile.body}</p>
+              </div>
+            )}
             <TextField label={t.onboarding.profile.name} name="display_name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} error={nameError} autoComplete="nickname" required />
             <AvatarPicker userId={user.id} name={name} value={avatar} onChange={setAvatar} />
             <div>
@@ -127,6 +187,12 @@ export function OnboardingPage() {
                 ))}
               </datalist>
             </div>
+            {invite && (
+              <>
+                <p className="text-[14px] leading-snug text-muted">{t.onboarding.invite.later}</p>
+                <Notice icon={<IconShield aria-hidden />}>{t.crews.join.whatHappens}</Notice>
+              </>
+            )}
           </section>
         )}
 
@@ -207,24 +273,54 @@ export function OnboardingPage() {
 
         <div className="mt-auto space-y-3 pt-10">
           {formError && <FormMessage>{formError}</FormMessage>}
-          <div className="flex gap-3">
-            {step > 1 && (
-              <Button variant="secondary" size="lg" onClick={() => setStep((s) => s - 1)} disabled={saving}>
-                {t.actions.back}
+          {invite ? (
+            <div className="flex flex-col gap-2.5">
+              <Button size="lg" block onClick={() => void finishInvited(true)} loading={saving}>
+                {t.onboarding.invite.join(invite.crew.name)}
               </Button>
-            )}
-            {step < STEPS ? (
-              <Button size="lg" className="flex-1" onClick={next}>
-                {t.actions.next}
+              <Button variant="ghost" block onClick={() => void finishInvited(false)} disabled={saving}>
+                {t.onboarding.invite.skip}
               </Button>
-            ) : (
-              <Button size="lg" className="flex-1" onClick={() => void finish()} loading={saving}>
-                {t.onboarding.finish}
-              </Button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              {step > 1 && (
+                <Button variant="secondary" size="lg" onClick={() => setStep((s) => s - 1)} disabled={saving}>
+                  {t.actions.back}
+                </Button>
+              )}
+              {step < STEPS ? (
+                <Button size="lg" className="flex-1" onClick={next}>
+                  {t.actions.next}
+                </Button>
+              ) : (
+                <Button size="lg" className="flex-1" onClick={() => void finish()} loading={saving}>
+                  {t.onboarding.finish}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>
+  );
+}
+
+/** Die Einladung als kleines Ticket über dem Profil: Crew, wer einlädt, wie viele schon dabei sind. */
+function InvitePass({ invite }: { invite: ValidInvite }) {
+  return (
+    <section aria-label={t.onboarding.invite.label} className="ticket">
+      <div className="ticket-stub flex flex-col items-center justify-center gap-1 bg-lime px-2 py-4 text-center text-lime-ink">
+        <span className="text-[36px] leading-none" aria-hidden>
+          {invite.crew.emoji}
+        </span>
+        <span className="text-[12px] font-bold uppercase tracking-wide">{t.crews.landing.admit}</span>
+      </div>
+      <div className="min-w-0 p-4 sm:p-5">
+        <p className="text-[13px] text-muted">{invite.invited_by ? t.crews.landing.invitedBy(invite.invited_by) : t.crews.landing.invitedAnonymous}</p>
+        <p className="display mt-1 break-words text-[30px] uppercase text-fg">{invite.crew.name}</p>
+        <p className="mt-1 text-[14px] text-muted">{t.onboarding.invite.members(t.members(invite.crew.member_count))}</p>
+      </div>
+    </section>
   );
 }

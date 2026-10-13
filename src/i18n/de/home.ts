@@ -100,4 +100,15 @@ export const onboarding = {
   },
   finish: "Los geht’s",
   saving: "Profil wird gespeichert …",
+  // W1 Etappe 2: Wer über einen Einladungslink kommt, braucht nur das Profil und tritt direkt bei.
+  invite: {
+    step: "Nur ein Schritt",
+    title: "Fast drin",
+    body: "Sag deinen Freunden noch, wie du heißt – dann bist du in der Crew.",
+    label: "Deine Einladung",
+    members: (members: string) => `Crew mit ${members}`,
+    join: (crew: string) => `${crew} beitreten`,
+    skip: "Erst mal ohne Crew weiter",
+    later: "Interessen, Budget und Benachrichtigungen kannst du später in den Einstellungen festlegen.",
+  },
 };
