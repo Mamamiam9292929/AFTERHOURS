@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { IconChevronRight, IconPlus } from "@/components/icons";
-import { PageHeader, Section } from "@/components/layout/Page";
+import { PageHeader, PosterLine, Section } from "@/components/layout/Page";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/Feedback";
 import { TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
+import { useUser } from "@/features/auth/AuthProvider";
 import { isUpcoming, usePlans } from "@/features/plans/api";
 import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
@@ -49,6 +50,7 @@ export function CrewsPage() {
   const polls = usePolls();
   const plans = usePlans();
   const create = useCreateCrew();
+  const user = useUser();
   const [createOpen, setCreateOpen] = useState(params.get("new") === "1");
   const [invite, setInvite] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -68,6 +70,11 @@ export function CrewsPage() {
     return map;
   }, [crews.data, polls.data, plans.data]);
 
+  // Freunde = verschiedene Mitglieder aller Crews ohne dich selbst.
+  const friends = useMemo(() => new Set((crews.data ?? []).flatMap((c) => c.members.map((m) => m.user_id)).filter((id) => id !== user.id)).size, [crews.data, user.id]);
+  const crewCount = crews.data?.length ?? 0;
+  const poster = crewCount > 0 && friends > 0 ? t.crews.poster.friends(friends, crewCount) : t.crews.poster.none;
+
   function openInvite(event: FormEvent) {
     event.preventDefault();
     const token = extractInviteToken(invite);
@@ -81,7 +88,8 @@ export function CrewsPage() {
   return (
     <>
       <PageHeader
-        title={t.crews.title}
+        poster
+        title={<PosterLine lead={poster.lead} keyword={poster.key} tail={poster.tail} />}
         lead={t.crews.lead}
         actions={
           <Button onClick={() => setCreateOpen(true)} icon={<IconPlus className="size-4" aria-hidden />}>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { IconCalendarPlus, IconVote } from "@/components/icons";
-import { PageHeader } from "@/components/layout/Page";
+import { PageHeader, PosterLine } from "@/components/layout/Page";
 import { ButtonLink } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Controls";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/Feedback";
@@ -37,13 +37,16 @@ export function PlansPage() {
     [polls.data, plans.data, now],
   );
 
+  const poster = upcoming.length > 0 ? t.plans.poster.upcoming(upcoming.length) : openPolls.length > 0 ? t.plans.poster.voting(openPolls.length) : t.plans.poster.none;
+
   const loading = plans.isPending || polls.isPending || crews.isPending;
   const failed = plans.isError ? plans : polls.isError ? polls : null;
 
   return (
     <>
       <PageHeader
-        title={t.plans.title}
+        poster
+        title={<PosterLine lead={poster.lead} keyword={poster.key} tail={poster.tail} />}
         lead={t.plans.lead}
         actions={
           <>

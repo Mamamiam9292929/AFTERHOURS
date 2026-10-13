@@ -10,10 +10,12 @@ interface PageHeaderProps {
   back?: { to: string; label: string };
   actions?: ReactNode;
   className?: string;
+  /** Plakat-Überschrift (D0): Versalien, größer; das Schlüsselwort setzt der Aufrufer in Lime. */
+  poster?: boolean;
 }
 
 /** Seitentitel in der Display-Schrift, optional mit Rückweg und Aktionen. */
-export function PageHeader({ title, lead, back, actions, className }: PageHeaderProps) {
+export function PageHeader({ title, lead, back, actions, className, poster }: PageHeaderProps) {
   return (
     <header className={cn("mb-6 lg:mb-8", className)}>
       {back && (
@@ -24,7 +26,7 @@ export function PageHeader({ title, lead, back, actions, className }: PageHeader
       )}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0 max-w-2xl">
-          <h1 className="display break-words text-[40px] text-fg sm:text-[52px]">{title}</h1>
+          <h1 className={cn("display break-words text-fg", poster ? "text-[44px] uppercase sm:text-[64px]" : "text-[40px] sm:text-[52px]")}>{title}</h1>
           {lead && <div className="mt-2.5 text-[15px] leading-snug text-muted">{lead}</div>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -46,6 +48,17 @@ export function PosterTitle({ text }: { text: string }) {
     <>
       {lead}
       <span className="text-lime">{key}</span>
+      {tail}
+    </>
+  );
+}
+
+/** Plakat-Überschrift aus Teilen: `key` in Lime. Die Teile kommen aus echten Daten, nie Dekor. */
+export function PosterLine({ lead = "", keyword, tail = "" }: { lead?: string; keyword: string; tail?: string }) {
+  return (
+    <>
+      {lead}
+      <span className="text-lime">{keyword}</span>
       {tail}
     </>
   );

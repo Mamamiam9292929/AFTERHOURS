@@ -651,11 +651,20 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   check(true, "Nachricht erscheint bei anderen Mitgliedern");
   await alice.page.getByRole("tab", { name: "Übersicht" }).click();
   await shot(alice, "21-crew");
+  await alice.page.goto(`${APP}/crews`);
+  await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
+  const crewsTitle = alice.page.getByRole("heading", { level: 1 });
+  await crewsTitle.waitFor();
+  check(/^\d+ Freunde? in \d+ Crews?$/i.test((await crewsTitle.innerText()).trim()), `Crews-Überschrift zählt echte Freunde und Crews („${(await crewsTitle.innerText()).trim()}“)`);
+  check(/^\d+ Freunde?$/i.test((await crewsTitle.locator(".text-lime").innerText()).trim()), "Crews-Überschrift hebt die Zahl der Freunde hervor");
+  await shot(alice, "21-crews");
   for (const user of [alice, bob, carol]) {
     await user.page.goto(`${APP}/plans`);
     await user.page.getByRole("tab", { name: /Anstehend|Vergangen/ }).first().waitFor();
     if (DB_URL) await user.page.getByRole("tab", { name: "Vergangen" }).click();
     await user.page.getByRole("link", { name: /Strike District Bowling/ }).first().waitFor();
+    const plansTitle = (await user.page.getByRole("heading", { level: 1 }).innerText()).trim();
+    check(/^(\d+ Abende? in Sicht|\d+ Fragen? offen|Eure Pläne)$/i.test(plansTitle), `Plans-Überschrift aus echten Daten (${user.name}: „${plansTitle}“)`);
     await shot(user, "22-plans");
     await user.page.goto(`${APP}/home`);
     await user.page.getByRole("heading", { name: "Ideen für euch" }).waitFor();

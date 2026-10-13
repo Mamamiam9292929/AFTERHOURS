@@ -1,6 +1,12 @@
 export const plans = {
   title: "Plans",
   lead: "Was ansteht, was noch entschieden wird und was ihr schon erlebt habt.",
+  /** Plakat-Überschrift (D0) aus den eigenen Daten; `key` in Lime. */
+  poster: {
+    upcoming: (n: number) => ({ lead: "", key: n === 1 ? "1 Abend" : `${n} Abende`, tail: " in Sicht" }),
+    voting: (n: number) => ({ lead: "", key: n === 1 ? "1 Frage" : `${n} Fragen`, tail: " offen" }),
+    none: { lead: "Eure ", key: "Pläne", tail: "" },
+  },
   tabs: { upcoming: "Anstehend", voting: "In Abstimmung", past: "Vergangen", label: "Ansicht" },
   newPlan: "Plan erstellen",
   newPoll: "Abstimmung starten",
