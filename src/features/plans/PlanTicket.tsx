@@ -124,7 +124,7 @@ export function FeatureTicket({ plan, crew, userId, lookup }: Omit<PlanTicketPro
   const date = ticketDate(plan.starts_at);
   const going = plan.participants.filter((p) => p.attendance_status === "going");
   const mine = plan.participants.find((p) => p.user_id === userId)?.attendance_status;
-  const meta = [crew ? `${crew.emoji} ${crew.name}`.trim() : null, plan.address ?? plan.meeting_point].filter(Boolean).join(" · ");
+  const place = plan.address ?? plan.meeting_point;
 
   return (
     <div className="ticket-feature-wrap">
@@ -139,10 +139,15 @@ export function FeatureTicket({ plan, crew, userId, lookup }: Omit<PlanTicketPro
           <div className="min-w-0">
             {planStatusBadge(plan.status)}
             <h2 className={cn("display mt-3 break-words text-[32px] text-fg sm:text-[44px]", plan.status === "cancelled" && "line-through decoration-2")}>{plan.title}</h2>
-            <p className="mt-2.5 text-[15px] text-muted">
+            <p className="mt-2.5 truncate text-[15px] text-muted">
               <span className="font-semibold text-fg">{formatTime(plan.starts_at)}</span>
-              {meta && <span className="break-words"> · {meta}</span>}
+              {place && ` · ${place}`}
             </p>
+            {crew && (
+              <p className="mt-1 truncate text-[15px] text-muted">
+                {crew.emoji} {crew.name}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
             <AvatarStack people={going.map((p) => lookup(p.user_id))} max={5} size="md" />

@@ -226,9 +226,15 @@
     height: 560px;
     z-index: -1;
     pointer-events: none;
-    background: radial-gradient(ellipse 75% 65% at 22% 0%, color-mix(in srgb, var(--color-lime) 13%, transparent), transparent 72%);
-    -webkit-mask: linear-gradient(#000 55%, #0000);
-    mask: linear-gradient(#000 55%, #0000);
+    background: radial-gradient(ellipse 70% 80% at 35% 0%, color-mix(in srgb, var(--color-lime) 13%, transparent), transparent 75%);
+    /* Maske blendet Schein und Korn zu allen Rändern aus – keine sichtbare Kante, auch nicht auf dem Desktop. */
+    -webkit-mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
+    mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
+  }
+  @media (min-width: 1024px) {
+    .home-glow {
+      inset: -2.5rem -2.5rem auto;
+    }
   }
   .home-glow::after {
     content: "";
