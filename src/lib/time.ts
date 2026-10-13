@@ -89,6 +89,10 @@ export const formatDateWithYear = (v: Date | string) => dateWithYear.format(new 
 export const formatTime = (v: Date | string) => `${timeOnly.format(new Date(v))} Uhr`;
 export const formatDateTime = (v: Date | string) => `${formatDateShort(v)}, ${formatTime(v)}`;
 
+const monthYear = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, month: "long", year: "numeric" });
+/** "Oktober 2026" – z. B. für „Dabei seit …“ im Profil. */
+export const formatMonthYear = (v: Date | string) => monthYear.format(new Date(v));
+
 /** Für den Ticket-Abriss: Wochentag, Tag und Monat getrennt. */
 export function ticketDate(v: Date | string): { weekday: string; day: string; month: string } {
   const d = new Date(v);
