@@ -692,6 +692,14 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     await shot(user, "23-home");
     await user.page.goto(`${APP}/profile`);
     await user.page.getByRole("heading", { level: 1, name: user.name }).waitFor();
+    // D0 Etappe 5c: Das Profil ist eine Stammkarte im Ticket-Stil; der Abriss zählt erlebte Abende.
+    const pass = user.page.locator(".profile-pass");
+    check((await pass.getByRole("heading", { level: 1 }).count()) === 1, `Profil-Name steht als Überschrift auf der Stammkarte (${user.name})`);
+    await pass.locator(".ticket-stub").getByText(/^\d+$/).waitFor();
+    const stub = (await pass.locator(".ticket-stub").innerText()).replace(/\s+/g, " ").trim();
+    check(/^\d+ abende? erlebt$/i.test(stub), `Abriss zählt erlebte Abende (${user.name}: „${stub}“)`);
+    if (DB_URL && user !== carol) check(!/^0 /.test(stub), `abgeschlossener Plan zählt als erlebter Abend (${user.name})`);
+    check(/dabei seit \S+ \d{4}/i.test(await pass.innerText()), "Stammkarte zeigt „Dabei seit“ aus dem Kontodatum");
     await shot(user, "24-profil");
   }
 });

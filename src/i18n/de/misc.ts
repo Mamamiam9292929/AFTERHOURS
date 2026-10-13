@@ -103,6 +103,10 @@ export const profile = {
   noInterests: "Noch keine Interessen gewählt.",
   stats: { crews: "Crews", planned: "Geplant", completed: "Erlebt", points: "Punkte" },
   crews: "Deine Crews",
+  pass: {
+    evenings: (n: number) => (n === 1 ? "Abend erlebt" : "Abende erlebt"),
+    since: (monthYear: string) => `Dabei seit ${monthYear}`,
+  },
   links: { settings: "Einstellungen", notifications: "Benachrichtigungen", privacy: "Datenschutz und deine Daten", admin: "Admin-Bereich", assistant: "Planungsassistent" },
 };
 

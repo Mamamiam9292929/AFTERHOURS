@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { IconBell, IconBot, IconChevronRight, IconLogout, IconPin, IconSettings, IconShield } from "@/components/icons";
-import { Section } from "@/components/layout/Page";
+import { PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Badge, ErrorState, PageSpinner } from "@/components/ui/Feedback";
@@ -10,8 +10,10 @@ import { CrewRow } from "@/features/crews/CrewsPage";
 import { isUpcoming, usePlans } from "@/features/plans/api";
 import { totalPoints, useRewards } from "@/features/rewards/RewardsPage";
 import { t } from "@/i18n";
+import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
+import { formatMonthYear } from "@/lib/time";
 import { useIsAdmin, useProfile } from "./api";
 
 export function ProfilePage() {
@@ -28,11 +30,14 @@ export function ProfilePage() {
   if (profile.isError) return <ErrorState error={profile.error} onRetry={() => void profile.refetch()} />;
   const me = profile.data;
   const mine = (plans.data ?? []).filter((p) => p.participants.some((pp) => pp.user_id === user?.id && pp.attendance_status !== "declined"));
+  // Solange eine Quelle lädt oder fehlt, steht „–“ statt einer falschen 0.
+  const count = (ready: boolean, value: number) => (ready ? formatNumber(value) : "–");
+  const plansReady = plans.isSuccess;
+  const evenings = mine.filter((p) => p.status === "completed").length;
   const stats = [
-    { label: t.profile.stats.crews, value: crews.data?.length ?? 0 },
-    { label: t.profile.stats.planned, value: mine.filter((p) => isUpcoming(p)).length },
-    { label: t.profile.stats.completed, value: mine.filter((p) => p.status === "completed").length },
-    { label: t.profile.stats.points, value: totalPoints(rewards.data) },
+    { label: t.profile.stats.crews, value: count(crews.isSuccess, crews.data?.length ?? 0) },
+    { label: t.profile.stats.planned, value: count(plansReady, mine.filter((p) => isUpcoming(p)).length) },
+    { label: t.profile.stats.points, value: count(rewards.isSuccess, totalPoints(rewards.data)) },
   ];
   const links = [
     { to: "/settings", label: t.profile.links.settings, icon: IconSettings },
@@ -43,28 +48,48 @@ export function ProfilePage() {
   ];
 
   return (
-    <div className="max-w-2xl">
-      <header className="flex items-center gap-5">
-        <Avatar person={me} size="xl" decorative />
-        <div className="min-w-0">
-          <h1 className="display break-words text-[44px] text-fg sm:text-[52px]">{me.display_name}</h1>
-          <p className="mt-1.5 flex items-center gap-1.5 text-[15px] text-muted">
-            <IconPin className="size-4 shrink-0" aria-hidden />
-            {me.city ?? t.profile.noCity}
-          </p>
-        </div>
-      </header>
-
-      <dl className="mt-7 grid grid-cols-4 divide-x divide-line rounded-card border border-line bg-surface">
-        {stats.map((stat) => (
-          <div key={stat.label} className="px-2 py-4 text-center">
-            <dd className="font-display text-[34px] font-extrabold leading-none text-fg">{formatNumber(stat.value)}</dd>
-            <dt className="mt-1.5 text-[13px] text-muted">{stat.label}</dt>
+    <div className="relative isolate max-w-2xl">
+      <div className="home-glow" aria-hidden />
+      {/*
+        D0 Etappe 5c: Das Profil ist eine Stammkarte im Ticket-Stil – der eine große Moment der Seite.
+        Der Abriss zählt die erlebten Abende; lime wird er erst ab dem ersten gemeinsamen Abend.
+      */}
+      <div className="ticket-feature-wrap">
+        <div className="ticket ticket-feature profile-pass">
+          <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", evenings > 0 ? "bg-lime text-lime-ink" : "bg-raised text-fg")}>
+            <p className="flex flex-col items-center">
+              <span className="font-display text-[76px] font-extrabold leading-[0.85] sm:text-[92px]">{count(plansReady, evenings)}</span>{" "}
+              <span className="mt-1 text-[13px] font-bold uppercase leading-tight tracking-wide">{t.profile.pass.evenings(evenings)}</span>
+            </p>
+            <span className="ticket-barcode mt-3" aria-hidden />
           </div>
-        ))}
-      </dl>
+          <div className="flex min-w-0 flex-col gap-4 p-5 sm:p-6">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+              <Avatar person={me} size="lg" decorative className="shrink-0" />
+              <div className="min-w-0">
+                <h1 className="display break-words text-[36px] uppercase text-fg sm:text-[52px]">
+                  <PosterTitle text={me.display_name} />
+                </h1>
+                <p className="mt-1.5 flex items-center gap-1.5 text-[15px] text-muted">
+                  <IconPin className="size-4 shrink-0" aria-hidden />
+                  <span className="min-w-0 truncate">{me.city ?? t.profile.noCity}</span>
+                </p>
+                <p className="mt-0.5 text-[13px] text-muted">{t.profile.pass.since(formatMonthYear(me.created_at))}</p>
+              </div>
+            </div>
+            <dl className="grid grid-cols-3 gap-2 border-t border-dashed border-line pt-4">
+              {stats.map((stat) => (
+                <div key={stat.label} className="flex min-w-0 flex-col-reverse">
+                  <dt className="mt-1 truncate text-[13px] text-muted">{stat.label}</dt>
+                  <dd className="font-display text-[30px] font-extrabold leading-none text-fg sm:text-[36px]">{stat.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      </div>
 
-      <ButtonLink to="/settings" variant="secondary" className="mt-4" block>
+      <ButtonLink to="/settings" variant="secondary" className="mt-6" block>
         {t.profile.edit}
       </ButtonLink>
 
