@@ -239,6 +239,26 @@ async function onboard(user, { full = false } = {}) {
   await page.waitForURL((url) => !url.pathname.startsWith("/onboarding"));
 }
 
+/** W1 Etappe 2: verkürztes Onboarding nach einem Einladungslink – ein Schritt, Einladung als Ticket. */
+async function invitedOnboarding(user) {
+  const { page } = user;
+  await page.getByRole("heading", { name: "Fast drin" }).waitFor();
+  check(await page.getByText("Nur ein Schritt").isVisible(), `${user.name}: Onboarding für Eingeladene hat nur einen Schritt`);
+  const pass = page.getByRole("region", { name: "Deine Einladung" });
+  check(await pass.getByText("Weekend Crew").isVisible(), `${user.name}: Onboarding zeigt die Crew der Einladung`);
+  check(await pass.getByText("Alice lädt dich ein").isVisible(), `${user.name}: Onboarding zeigt, wer einlädt`);
+  check((await page.getByLabel("Anzeigename").inputValue()) === user.name, `${user.name}: Anzeigename aus der Registrierung ist vorausgefüllt`);
+  check((await page.getByRole("button", { name: "Weiter", exact: true }).count()) === 0, `${user.name}: keine Interessen- und Vorlieben-Schritte`);
+  // Ohne Namen geht es nicht weiter – auch nicht in die Crew.
+  await page.getByLabel("Anzeigename").fill("");
+  await page.getByRole("button", { name: "Weekend Crew beitreten" }).click();
+  await page.getByText("Mindestens 2 Zeichen.").first().waitFor();
+  check(page.url().includes("/onboarding"), `${user.name}: leerer Name hält den Beitritt auf`);
+  await page.getByLabel("Anzeigename").fill(user.name);
+  check((await page.getByText("Mindestens 2 Zeichen.").count()) === 0, `${user.name}: Fehlermeldung verschwindet, sobald der Name passt`);
+  await page.evaluate(() => window.scrollTo({ top: 0 }));
+}
+
 // W8: navigator.share ersetzen, um den geteilten Inhalt zu prüfen (headless Chromium hat kein Teilen-Menü).
 async function stubShare(page) {
   await page.evaluate(() => {
@@ -384,14 +404,13 @@ await step("Schritt 3 – Freunde registrieren sich über den Link und treten be
     check((await page.getByRole("heading", { level: 1, name: "Sei dabei" }).count()) === 1, `${friend.name}: Registrierung direkt auf der Landingpage`);
     await shot(friend, "06a-einladung-landing");
     await register(friend, { here: true });
-    await onboard(friend);
-    await page.waitForURL(/\/join\//);
-    await page.getByRole("heading", { name: "Weekend Crew" }).waitFor();
-    check(await page.getByText("Alice lädt dich ein").isVisible(), `${friend.name}: Einladung zeigt, wer einlädt`);
+    // W1 Etappe 2: Eingeladene brauchen nur einen Schritt – Profil und Beitritt mit demselben Tipp.
+    await invitedOnboarding(friend);
     if (friend === bob) await shot(bob, "06-einladung-annehmen");
-    await page.getByRole("button", { name: "Crew beitreten" }).click();
+    await page.getByRole("button", { name: "Weekend Crew beitreten" }).click();
     await page.waitForURL(new RegExp(`/crews/${ids.crew}`));
-    check(true, `${friend.name} ist der Crew beigetreten`);
+    await toast(friend, "Willkommen in Weekend Crew.");
+    check(true, `${friend.name} ist der Crew direkt aus dem Onboarding beigetreten`);
   }
   await alice.page.reload();
   await alice.page.getByText("3 Mitglieder").first().waitFor();
@@ -867,9 +886,15 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
 });
 
 await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", async () => {
-  await register(mallory);
-  await onboard(mallory);
   const { page } = mallory;
+  // W1 Etappe 2: Mallory hat den Link, registriert sich darüber, tritt aber nicht bei – sie bleibt außen vor.
+  await page.goto(ids.invite);
+  await page.waitForURL(/\/invite\//);
+  await register(mallory, { here: true });
+  await invitedOnboarding(mallory);
+  await page.getByRole("button", { name: "Erst mal ohne Crew weiter" }).click();
+  await page.waitForURL(/\/home/);
+  check(true, "Einladung ausschlagen: Onboarding endet auf Home, ohne Beitritt");
   await page.goto(`${APP}/crews/${ids.crew}`);
   await page.getByText("Diese Crew gibt es nicht").waitFor();
   await page.goto(`${APP}/polls/${ids.poll}`);
