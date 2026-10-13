@@ -248,7 +248,7 @@ async function invitedOnboarding(user) {
   check(await pass.getByText("Weekend Crew").isVisible(), `${user.name}: Onboarding zeigt die Crew der Einladung`);
   check(await pass.getByText("Alice lädt dich ein").isVisible(), `${user.name}: Onboarding zeigt, wer einlädt`);
   check((await page.getByLabel("Anzeigename").inputValue()) === user.name, `${user.name}: Anzeigename aus der Registrierung ist vorausgefüllt`);
-  check((await page.getByRole("button", { name: "Weiter" }).count()) === 0, `${user.name}: keine Interessen- und Vorlieben-Schritte`);
+  check((await page.getByRole("button", { name: "Weiter", exact: true }).count()) === 0, `${user.name}: keine Interessen- und Vorlieben-Schritte`);
   // Ohne Namen geht es nicht weiter – auch nicht in die Crew.
   await page.getByLabel("Anzeigename").fill("");
   await page.getByRole("button", { name: "Weekend Crew beitreten" }).click();
