@@ -186,7 +186,10 @@ npm run typecheck      # TypeScript
 npm run test:db        # 338 pgTAP-Prüfungen der Datenbank (supabase test db)
 deno test supabase/functions/places/osm_test.ts   # OSM-Umwandlung und Öffnungszeiten
 npm run test:e2e       # komplette Nutzerjourney im Browser (Playwright)
+npm run build && npm run size   # Build-Größe gegen scripts/bundle-budget.json
 ```
+
+**Build-Größe (`scripts/bundle-size.mjs`)** – misst nach dem Build die gzip-Größe dessen, was beim ersten Öffnen geladen wird (Skripte, Modul-Preloads und CSS aus `dist/index.html`), den größten Seiten-Chunk und alle Skripte zusammen. Grenzen in `scripts/bundle-budget.json` (Stand Oktober 2026: Start 201 kB JavaScript + 10 kB CSS, größte Seite 22 kB). Jede Seite ist ein eigener Chunk; React/Router, Supabase und TanStack Query liegen in eigenen Bibliotheks-Chunks, die nach einem Update im Browser-Cache bleiben. In der CI läuft die Prüfung im Job „TypeScript und Build“; die Tabelle steht in der Zusammenfassung des Laufs und als Annotation. Wer eine Grenze bewusst anhebt, begründet das im PR.
 
 **Datenbank (`supabase/tests/database/`)** – prüft Berechtigungen aus Sicht echter API-Rollen: RLS auf jeder Tabelle, keine Rechte für `anon`, Rollenregeln in Crews, Einladungslinks (Ablauf, Limit, Widerruf), eine Stimme pro Person und Option, Ergebnislogik, Fristablauf, Statusübergänge von Plänen und Reservierungen, Punktevergabe ohne Doppelbuchung, Datenexport, Kontolöschung, Import echter Orte (Sperre, Kontingent, Aktualisierung, Deaktivierung verschwundener Orte, Suche).
 
@@ -341,7 +344,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Frontend | TypeScript-Prüfung ohne Fehler; Bundle mit esbuild gegen die Original-Quellen von supabase-js 2.117, react-router 6.30 und TanStack Query 5.90 |
 | Nutzerjourney | 186 Browser-Prüfungen (Chromium), als Produktiv- und als Entwicklungs-Build (React StrictMode), ausgeliefert mit der Content-Security-Policy aus `vercel.json` |
 | Edge Functions | Mit Deno 2.9 typgeprüft und lokal ausgeführt. `places` gegen einen Stellvertreter für Nominatim/Overpass mit 2.600 Orten: Stapelimport, Alias, Umkreissuche, Zeitüberschreitung, Kontingent, Anmeldung |
-| CI (GitHub Actions) | Bei jedem PR: TypeScript, Produktionsbuild, pgTAP im Supabase-Container (`supabase test db`), Deno-Tests, Browser-Journey gegen lokale Supabase-Umgebung und OSM-Stellvertreter |
+| CI (GitHub Actions) | Bei jedem PR: TypeScript, Produktionsbuild, Build-Größe, pgTAP im Supabase-Container (`supabase test db`), Deno-Tests, Browser-Journey gegen lokale Supabase-Umgebung und OSM-Stellvertreter |
 | Windows-Installation | `AFTERHOURS-starten.cmd` auf Windows 11 mit Windows PowerShell 5.1: Node per winget, Docker Desktop, `npm install`, `supabase start`, Vite-Entwicklungsserver laufen |
 
 | Nicht geprüft | Folge |

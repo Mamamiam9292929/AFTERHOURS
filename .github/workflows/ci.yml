@@ -29,6 +29,8 @@ jobs:
           # Nur für den Build; die echten Werte setzt der Hoster.
           VITE_SUPABASE_URL: http://127.0.0.1:54321
           VITE_SUPABASE_ANON_KEY: ci-placeholder
+      # Roadmap F3: Startgröße und größter Seiten-Chunk gegen scripts/bundle-budget.json.
+      - run: .github/scripts/run.sh npm run size
 
   database:
     name: Datenbank (pgTAP)
