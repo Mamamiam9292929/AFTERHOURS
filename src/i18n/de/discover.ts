@@ -1,6 +1,15 @@
 export const discover = {
   title: "Discover",
   lead: "Orte und Aktivitäten für eure nächste Unternehmung.",
+  /** Plakat-Überschrift (D0): Stadt in Weiß, darunter die Tageszeit in Lime – „Leipzig / heute Abend“. */
+  poster: { morning: "heute", day: "heute", evening: "heute Abend", night: "heute Nacht" },
+  stage: {
+    openNow: "Jetzt geöffnet",
+    openUntil: (time: string) => `bis ${time} Uhr`,
+    more: (city: string) => `Mehr in ${city}`,
+    addToPoll: "Zur Abstimmung",
+    addedToPoll: "In der Abstimmung",
+  },
   searchLabel: "Ort oder Aktivität suchen",
   searchPlaceholder: "Bowling, Burger, Kino …",
   allCategories: "Alle",

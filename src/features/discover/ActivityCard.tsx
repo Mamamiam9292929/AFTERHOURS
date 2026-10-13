@@ -26,16 +26,23 @@ export function ActivityCover({ activity, className }: { activity: Pick<Activity
   );
 }
 
-export function ActivityCard({ activity, distanceKm, compact = false }: { activity: Activity; distanceKm?: number | null; compact?: boolean }) {
+/** Ort in den Sammelkorb für die nächste Abstimmung legen oder wieder herausnehmen. */
+export function usePollToggle(activity: Activity): { selected: boolean; toggle: () => void } {
   const draft = usePollDraft();
   const toast = useToast();
   const selected = draft.has(activity.id);
-  const open = openLabel(activity);
+  return {
+    selected,
+    toggle() {
+      if (selected) draft.remove(activity.id);
+      else if (!draft.add({ activityId: activity.id, title: activity.name, priceCents: typicalPriceCents(activity) })) toast.error(t.discover.draft.full);
+    },
+  };
+}
 
-  function toggle() {
-    if (selected) draft.remove(activity.id);
-    else if (!draft.add({ activityId: activity.id, title: activity.name, priceCents: typicalPriceCents(activity) })) toast.error(t.discover.draft.full);
-  }
+export function ActivityCard({ activity, distanceKm, compact = false }: { activity: Activity; distanceKm?: number | null; compact?: boolean }) {
+  const { selected, toggle } = usePollToggle(activity);
+  const open = openLabel(activity);
 
   return (
     <article className={cn("group relative flex flex-col rounded-card border bg-surface transition-colors", selected ? "border-lime" : "border-line hover:border-line-strong")}>

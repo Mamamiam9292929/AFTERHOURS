@@ -294,6 +294,12 @@ await step("Schritt 4 – Aktivitäten in Discover auswählen", async () => {
   await page.getByRole("heading", { name: "Strike District Bowling" }).waitFor();
   check(await page.getByText("Beispieldaten").first().isVisible(), "Demo-Daten sind als solche gekennzeichnet");
   check((await page.getByLabel("Stadt", { exact: true }).inputValue()) === "Berlin", "Discover startet mit der Stadt aus dem Profil");
+  // D0: Plakat-Überschrift mit der Stadt, darunter die Tageszeit in Lime; ein Ort steht groß auf der Bühne.
+  const discoverTitle = page.getByRole("heading", { level: 1 });
+  check((await discoverTitle.innerText()).toLowerCase().startsWith("berlin"), "Discover-Überschrift nennt die Stadt");
+  check((await discoverTitle.locator(".text-lime").innerText()).toLowerCase().startsWith("heute"), "Tageszeit steht in Lime");
+  check((await page.locator(".stage-card").count()) === 1, "ein Ort steht groß auf der Bühne");
+  check((await page.locator(".stage-card").getByRole("link", { name: "Details" }).count()) === 1, "Bühne führt zu den Details");
   await shot(alice, "08-discover");
   await page.getByRole("button", { name: "Filter" }).click();
   await dialog(alice).getByLabel("Höchstpreis pro Person").selectOption({ label: "bis 15 €" });
@@ -305,6 +311,7 @@ await step("Schritt 4 – Aktivitäten in Discover auswählen", async () => {
   await page.getByLabel("Ort oder Aktivität suchen").fill("gibtesnicht");
   await page.getByText("Kein Ort passt zu dieser Auswahl").waitFor();
   check(true, "leere Suche zeigt einen Leerzustand");
+  check((await page.locator(".stage-card").count()) === 0, "bei einer Suche gibt es keine Bühne");
   await page.getByLabel("Ort oder Aktivität suchen").fill("");
   await page.getByRole("button", { name: "Strike District Bowling: Zur Abstimmung hinzufügen" }).click();
   await page.getByRole("button", { name: "Lichtspielhaus Nord: Zur Abstimmung hinzufügen" }).click();
