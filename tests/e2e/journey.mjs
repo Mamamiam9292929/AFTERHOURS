@@ -562,6 +562,16 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   check((await planTicket.getByRole("heading", { level: 1 }).count()) === 1, "Titel des Plans steht als Überschrift im Ticket");
   check(/(heute|heute abend|morgen|in \d+ tagen)/i.test(await planTicket.innerText()), "Ticket zählt bis zum Plan herunter");
   check((await bob.page.locator("#attendance-heading .text-lime").innerText()).toLowerCase() === "dabei", "„Bist du dabei?“ als Plakat mit Lime-Schlüsselwort");
+  // D0 Etappe 5b: Auf der Crew-Seite ist der nächste Plan das große Ticket.
+  await bob.page.goto(`${APP}/crews/${ids.crew}`);
+  const crewTicket = bob.page.locator(".ticket-feature");
+  await crewTicket.waitFor();
+  check((await crewTicket.getAttribute("href"))?.endsWith(`/plans/${ids.plan}`), "Crew-Seite zeigt den nächsten Plan als großes Ticket");
+  check((await bob.page.getByRole("heading", { level: 1 }).locator(".text-lime").innerText()).toLowerCase() === "crew", "Crew-Name als Plakat mit Lime-Schlüsselwort");
+  await shot(bob, "16c-crew-ticket");
+  // Schritt 10 erwartet Bob wieder auf der Planseite.
+  await bob.page.goto(`${APP}/plans/${ids.plan}`);
+  await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
 });
 
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {
@@ -656,6 +666,11 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await alice.page.getByText("Bin Samstag pünktlich!").waitFor();
   check(true, "Nachricht erscheint bei anderen Mitgliedern");
   await alice.page.getByRole("tab", { name: "Übersicht" }).click();
+  if (DB_URL) {
+    // Der Plan wurde in Schritt 11 abgeschlossen – das ist der erste gemeinsame Abend.
+    await alice.page.getByText("1 gemeinsamer Abend").waitFor();
+    check(true, "Crew-Kopf zählt abgeschlossene Pläne als gemeinsame Abende");
+  }
   await shot(alice, "21-crew");
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
