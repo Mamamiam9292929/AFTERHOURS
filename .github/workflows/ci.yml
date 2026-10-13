@@ -58,6 +58,9 @@ jobs:
     name: Browser-Journey (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # contents: write nur für den Screenshot-Branch (.github/scripts/screenshots.sh).
+    permissions:
+      contents: write
     env:
       APP_URL: http://127.0.0.1:5173
       SUPABASE_URL: http://127.0.0.1:54321
@@ -89,3 +92,9 @@ jobs:
             e2e-logs
           if-no-files-found: ignore
           retention-days: 14
+      # Roadmap F4: Screenshots auf Branch screenshots/main bzw. screenshots/pr-<n> (nur PRs aus diesem Repository).
+      - if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        run: .github/scripts/run.sh .github/scripts/screenshots.sh
+        env:
+          TARGET: ${{ github.event_name == 'push' && 'main' || format('pr-{0}', github.event.pull_request.number) }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
