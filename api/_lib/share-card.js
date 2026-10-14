@@ -74,9 +74,16 @@ export function shareMetaTags({ title, description, url, image }) {
   ].join("\n    ");
 }
 
-/** Ersetzt Titel und Beschreibung der App-Hülle durch die Vorschau-Tags; der Rest bleibt unverändert. */
+/**
+ * Ersetzt Titel, Beschreibung und die allgemeinen Vorschau-Tags der App-Hülle (W6, index.html) durch die
+ * Vorschau-Tags des Plans – Messenger nehmen sonst oft das erste og:title. Der Rest bleibt unverändert.
+ */
 export function injectMeta(html, tags) {
-  const stripped = html.replace(/<title>[\s\S]*?<\/title>\s*/i, "").replace(/<meta\s+name="description"[^>]*>\s*/i, "");
+  const stripped = html
+    .replace(/<title>[\s\S]*?<\/title>\s*/i, "")
+    .replace(/<meta\s+name="description"[^>]*>\s*/i, "")
+    .replace(/<meta\s+(?:property="og:[^"]*"|name="twitter:[^"]*")[^>]*>\s*/gi, "")
+    .replace(/<!--\s*W6 · Vorschau[\s\S]*?-->\s*/i, "");
   if (!/<\/head>/i.test(stripped)) return `<!doctype html><html lang="de"><head>${tags}</head><body></body></html>`;
   return stripped.replace(/<\/head>/i, `    ${tags}\n  </head>`);
 }

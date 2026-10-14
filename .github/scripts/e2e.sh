@@ -50,7 +50,8 @@ EOF
     "[ \"\$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/places -H 'Content-Type: application/json' -d '{}')\" = 401 ]"
 
   # 4. Produktionsbuild gegen die lokale Umgebung, ausgeliefert auf Port 5173 (= site_url in config.toml).
-  VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY="$anon" npm run build
+  # VITE_SITE_URL = dieselbe Adresse: prüft, dass der Build og:image absolut macht (W6).
+  VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY="$anon" VITE_SITE_URL=http://127.0.0.1:5173 npm run build
   nohup npx vite preview --host 127.0.0.1 --port 5173 --strictPort >"$LOGS/preview.log" 2>&1 &
   wait_for "App (vite preview)" 30 curl -sf http://127.0.0.1:5173/
 }
