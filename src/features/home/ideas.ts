@@ -21,10 +21,11 @@ export interface Ideas {
  * Interessen und Budget. Fehlen Angaben, wird der jeweilige Filter weggelassen, und die Begründung
  * nennt nur, was wirklich berücksichtigt wurde. Innerhalb einer Kategorie wechselt der Vorschlag täglich.
  */
-export function useIdeas(): { ideas: Ideas | null; isPending: boolean; city: string | null; importing: boolean } {
+export function useIdeas(fallbackCity?: string | null): { ideas: Ideas | null; isPending: boolean; city: string | null; importing: boolean } {
   const profile = useProfile();
   const settings = useSettings();
-  const city = profile.data?.city?.trim() || null;
+  // Ohne Stadt im Profil darf der Aufrufer eine andere vorgeben (W5: die zuletzt in Discover gewählte).
+  const city = profile.data?.city?.trim() || (profile.data ? fallbackCity?.trim() || null : null);
   const places = usePlaceRegion(city);
   const overview = useActivitySearch(city ? { city, limit: 1 } : null);
 

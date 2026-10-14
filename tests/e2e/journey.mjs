@@ -1187,6 +1187,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   await page.getByRole("button", { name: "Crew gründen" }).click();
   await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
   check(/\/start\?crew=[0-9a-f-]{36}$/.test(page.url()), "Schritt 1: Crew gegründet, der Stand steht in der Adresse");
+  const crewId = new URL(page.url()).searchParams.get("crew");
   await page.reload();
   await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
   check(true, "Neuladen bleibt in Schritt 2");
@@ -1202,7 +1203,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
 
   await page.getByRole("button", { name: "Weiter zur Abstimmung" }).click();
   await page.getByRole("heading", { level: 1, name: /^Was macht ihr am (Freitag|Samstag)\?$/ }).waitFor();
-  const ideas = page.getByRole("region", { name: "Vorschläge" });
+  const ideas = page.getByRole("region", { name: "Vorschläge", exact: true });
   const cards = ideas.locator("button[aria-pressed]");
   await cards.first().waitFor({ timeout: 45_000 });
   const count = await cards.count();
@@ -1214,13 +1215,65 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   }
   const names = [];
   for (const card of await ideas.locator('button[aria-pressed="true"]').all()) names.push((await card.locator("span.truncate").first().innerText()).trim());
-  await page.getByRole("button", { name: /^Abstimmung mit \d+ Vorschl/ }).click();
+  const ideaNames = [];
+  for (const card of await cards.all()) ideaNames.push((await card.locator("span.truncate").first().innerText()).trim());
+
+  // Etappe 2: eigener Vorschlag und Ortssuche im selben Schritt.
+  const own = page.getByRole("region", { name: "Eigene Vorschläge" });
+  const ownField = own.getByLabel("Eigener Vorschlag");
+  await ownField.fill("x");
+  await own.getByRole("button", { name: "Hinzufügen" }).click();
+  await own.getByText("Mindestens 2 Zeichen.").waitFor();
+  check(true, "zu kurzer eigener Vorschlag wird abgelehnt");
+  await ownField.fill("Grillen bei Bob");
+  await ownField.press("Enter");
+  await own.getByText("Grillen bei Bob", { exact: true }).waitFor();
+  check((await ownField.inputValue()) === "", "eigener Vorschlag steht in der Liste, das Feld ist wieder leer");
+  await ownField.fill("grillen bei BOB");
+  await own.getByRole("button", { name: "Hinzufügen" }).click();
+  await own.getByText("Den Vorschlag gibt es schon.").waitFor();
+  check((await own.getByText("Grillen bei Bob", { exact: true }).count()) === 1, "doppelter eigener Vorschlag wird abgelehnt");
+  await ownField.fill("");
+  await own.getByRole("button", { name: "Ort suchen" }).click();
+  const picker = dialog(dana);
+  await picker.locator("button[aria-pressed]").first().waitFor({ timeout: 45_000 });
+  let picked = null;
+  for (const option of await picker.locator('button[aria-pressed="false"]').all()) {
+    const name = (await option.locator("span.truncate").first().innerText()).trim();
+    if (!ideaNames.includes(name)) {
+      await option.click();
+      picked = name;
+      break;
+    }
+  }
+  check(Boolean(picked), "Ortssuche zeigt weitere Orte der Stadt");
+  await picker.getByRole("button", { name: "1 Ort übernehmen" }).click();
+  await picker.waitFor({ state: "detached" });
+  await own.getByText(picked, { exact: true }).waitFor();
+  check(true, `Ort aus der Suche kommt zu den Vorschlägen (${picked})`);
+  await own.getByRole("button", { name: "Grillen bei Bob entfernen" }).waitFor();
+  await shot(dana, "39b-start-eigene");
+  names.push("Grillen bei Bob", picked);
+
+  await page.getByRole("button", { name: `Abstimmung mit ${names.length} Vorschlägen starten` }).click();
   await page.waitForURL(/\/polls\/[0-9a-f-]{36}/);
   await page.getByRole("heading", { level: 1, name: /^Was machen wir am (Freitag|Samstag)\?$/ }).waitFor();
   for (const name of names) await page.getByText(name, { exact: true }).first().waitFor();
-  check(names.length === Math.max(count - 1, 1), `Abstimmung enthält genau die gewählten Orte (${names.join(", ")})`);
+  check(names.length === Math.max(count - 1, 1) + 2, `Abstimmung enthält genau die gewählten Orte und eigenen Vorschläge (${names.join(", ")})`);
   check(true, `erste Abstimmung steht ${Math.round((Date.now() - started) / 1000)} s nach der E-Mail-Bestätigung (inkl. Onboarding)`);
   await shot(dana, "40-start-fertig");
+
+  // Ohne Stadt im Profil nimmt Schritt 3 die zuletzt in Discover gewählte Stadt (nur im Browser gespeichert).
+  if (DB_URL) {
+    execFileSync("psql", [DB_URL, "-qc", `update public.profiles set city = null where id = (select id from auth.users where email = '${dana.email}')`]);
+    await page.evaluate(() => localStorage.setItem("afterhours.discover.city", "Leipzig"));
+    await page.goto(`${APP}/start?crew=${crewId}&step=poll`);
+    await page.getByText("Stadt aus Discover: Leipzig.", { exact: false }).waitFor({ timeout: 60_000 });
+    check(await page.getByRole("region", { name: "Vorschläge", exact: true }).getByText(/in Leipzig/).first().isVisible(), "ohne Profilstadt: Vorschläge aus der Discover-Stadt, ehrlich benannt");
+    check((await page.getByLabel("Stadt", { exact: true }).count()) === 0, "keine Stadtabfrage, wenn Discover die Stadt schon kennt");
+  } else {
+    console.log("   (E2E_DB_URL nicht gesetzt – Stadt aus Discover wird übersprungen)");
+  }
   users.splice(users.indexOf(dana), 1);
   await context.close();
 });
