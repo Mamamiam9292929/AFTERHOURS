@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageSpinner } from "@/components/ui/Feedback";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { PublicOnly, RequireAuth, RequireOnboarded } from "@/features/auth/guards";
 import { DraftBar } from "@/features/polls/DraftBar";
 import { NotFoundPage, RouteError } from "./errors";
@@ -35,6 +36,7 @@ const ForgotPasswordPage = page(authPages, "ForgotPasswordPage");
 const AuthConfirmPage = page(authPages, "AuthConfirmPage");
 const ResetPasswordPage = page(authPages, "ResetPasswordPage");
 
+const LandingPage = page(() => import("@/features/landing/LandingPage"), "LandingPage");
 const OnboardingPage = page(() => import("@/features/onboarding/OnboardingPage"), "OnboardingPage");
 const HomePage = page(() => import("@/features/home/HomePage"), "HomePage");
 const QuickStartPage = page(() => import("@/features/home/QuickStartPage"), "QuickStartPage");
@@ -57,6 +59,14 @@ const SettingsPage = page(() => import("@/features/profile/SettingsPage"), "Sett
 const PrivacyPage = page(() => import("@/features/profile/PrivacyPage"), "PrivacyPage");
 const AdminPage = page(() => import("@/features/admin/AdminPage"), "AdminPage");
 const AssistantPage = page(() => import("@/features/assistant/AssistantPage"), "AssistantPage");
+
+/** W6: „/“ ist ohne Konto die öffentliche Startseite, mit Konto geht es direkt zu Home. */
+function Root() {
+  const { loading, user } = useAuth();
+  if (loading) return <PageSpinner />;
+  if (user) return <Navigate to="/home" replace />;
+  return <LandingPage />;
+}
 
 function Standalone() {
   return (
@@ -84,7 +94,7 @@ export const router = createBrowserRouter([
     element: <Standalone />,
     errorElement: <RouteError />,
     children: [
-      { path: "/", element: <Navigate to="/home" replace /> },
+      { path: "/", element: <Root /> },
       {
         element: <PublicOnly />,
         children: [

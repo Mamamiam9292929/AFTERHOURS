@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { IconCheck, IconShare, IconSpinner, IconVote } from "@/components/icons";
+import { IconCheck, IconClose, IconPlus, IconSearch, IconShare, IconSpinner, IconVote } from "@/components/icons";
 import { PosterTitle } from "@/components/layout/Page";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Controls";
 import { DemoBadge, ErrorState, ListSkeleton, Notice } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
@@ -12,9 +12,12 @@ import { CrewForm } from "@/features/crews/CrewForm";
 import { CategoryArt } from "@/features/discover/CategoryArt";
 import { CityField } from "@/features/discover/CityField";
 import { typicalPriceCents } from "@/features/discover/api";
+import { rememberedCity } from "@/features/discover/rememberedCity";
 import { priceLabel } from "@/features/discover/display";
-import { useCreatePoll } from "@/features/polls/api";
-import { useUpdateProfile } from "@/features/profile/api";
+import { ActivityPicker } from "@/features/polls/ActivityPicker";
+import { useCreatePoll, type PollOptionInput } from "@/features/polls/api";
+import { MAX_POLL_OPTIONS } from "@/features/polls/draft";
+import { useProfile, useUpdateProfile } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
@@ -22,14 +25,15 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { shareOrCopy } from "@/lib/share";
 import { siteUrl } from "@/lib/supabase";
 import { addDays, formatDateShort, formatDateTime, nextWeekday, zonedParts, zonedToUtc } from "@/lib/time";
-import type { Crew, Weekday } from "@/lib/types";
+import type { Activity, Crew, Weekday } from "@/lib/types";
 import { useIdeas } from "./ideas";
 
 /*
  * W5 · Erster Plan in 60 Sekunden. Drei Schritte auf einer Seite, der Stand steht in der Adresse
  * (/start → /start?crew=<id> → /start?crew=<id>&step=poll), damit Neuladen und Zurück funktionieren:
  *   1. Crew gründen  2. Einladungslink teilen (überspringbar)  3. Abstimmung mit bis zu drei echten Orten
- *      aus der eigenen Stadt – nur Orte aus der Datenbank, nichts erfunden.
+ *      aus der eigenen Stadt – nur Orte aus der Datenbank, nichts erfunden. Dazu eigene Vorschläge als Text
+ *      und weitere Orte aus der Suche (Etappe 2); ohne Stadt im Profil gilt die zuletzt in Discover gewählte.
  * Geschrieben wird ausschließlich über die bestehenden RPCs (create_crew, create_crew_invitation, create_poll).
  */
 
@@ -191,49 +195,118 @@ function deadlineFor(date: string, time: string): Date | null {
   return ends > Date.now() + 10 * 60_000 ? new Date(ends) : null;
 }
 
+/** Ein zusätzlicher Vorschlag: ein Ort aus der Suche oder ein freier Text („Grillen bei Bob“). */
+type Extra = { key: string; kind: "place"; activity: Activity } | { key: string; kind: "own"; title: string };
+
+function ExtraRow({ extra, onRemove }: { extra: Extra; onRemove: () => void }) {
+  const title = extra.kind === "place" ? extra.activity.name : extra.title;
+  return (
+    <li className="flex items-center gap-3 overflow-hidden rounded-card border border-lime/60 bg-surface p-2 pr-1.5">
+      <span className="relative flex h-16 w-20 shrink-0 items-center justify-center overflow-hidden rounded-control">
+        {extra.kind === "place" ? (
+          <CategoryArt category={extra.activity.category} />
+        ) : (
+          <span className="display flex size-full items-center justify-center rounded-control border border-dashed border-lime/50 bg-raised text-3xl uppercase text-lime" aria-hidden>
+            {title.slice(0, 1)}
+          </span>
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate font-semibold text-fg">{title}</span>
+          {extra.kind === "place" && extra.activity.is_demo && <DemoBadge />}
+        </span>
+        <span className="mt-0.5 block truncate text-[13px] text-muted">
+          {extra.kind === "place" ? `${t.enums.category[extra.activity.category]} · ${priceLabel(extra.activity)}` : t.home.quickStart.poll.own.ownTag}
+        </span>
+      </span>
+      <IconButton label={t.home.quickStart.poll.own.remove(title)} onClick={onRemove}>
+        <IconClose className="size-5" aria-hidden />
+      </IconButton>
+    </li>
+  );
+}
+
+let extraCounter = 0;
+
 function PollStep({ crew }: { crew: Crew }) {
   const navigate = useNavigate();
   const toast = useToast();
   const createPoll = useCreatePoll();
   const updateProfile = useUpdateProfile();
-  const { ideas, isPending, city, importing } = useIdeas();
+  const profile = useProfile();
+  const discoverCity = useMemo(rememberedCity, []);
+  const { ideas, isPending, city, importing } = useIdeas(discoverCity);
+  const cityFromDiscover = Boolean(city && profile.data && !profile.data.city?.trim());
   const [time, setTime] = useState("19:00");
   const choices = useMemo(() => dateChoices(time), [time]);
   const [date, setDate] = useState(() => choices[choices.length - 1]?.date ?? "");
   const [removed, setRemoved] = useState<Set<string>>(() => new Set());
+  const [extras, setExtras] = useState<Extra[]>([]);
+  const [ownText, setOwnText] = useState("");
+  const [ownError, setOwnError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const weekday = choices.find((c) => c.date === date)?.weekday ?? zonedParts(zonedToUtc(date, "12:00") ?? new Date()).weekday;
   const title = t.polls.create.defaultTitle(t.weekdays[weekday]);
   const suggestions = ideas?.activities ?? [];
   const selected = suggestions.filter(({ activity }) => !removed.has(activity.id));
+  const total = selected.length + extras.length;
+  const full = total >= MAX_POLL_OPTIONS;
   const deadline = deadlineFor(date, time);
+  const ideaIds = new Set(suggestions.map(({ activity }) => activity.id));
+  const pickedIds = new Set([...selected.map(({ activity }) => activity.id), ...extras.flatMap((e) => (e.kind === "place" ? [e.activity.id] : []))]);
+
+  // Aus der Suche: Vorschläge von oben werden an- bzw. abgewählt, alles andere kommt unten dazu.
+  function togglePicked(activity: Activity) {
+    if (ideaIds.has(activity.id)) return toggle(activity.id);
+    setExtras((current) => {
+      if (current.some((e) => e.kind === "place" && e.activity.id === activity.id)) return current.filter((e) => !(e.kind === "place" && e.activity.id === activity.id));
+      if (selected.length + current.length >= MAX_POLL_OPTIONS) return current;
+      return [...current, { key: `x${++extraCounter}`, kind: "place", activity }];
+    });
+  }
+
+  function addOwn(event: FormEvent) {
+    event.preventDefault();
+    const title = ownText.replace(/\s+/g, " ").trim();
+    if (title.length < 2) return setOwnError(t.home.quickStart.poll.own.tooShort);
+    const taken = [...selected.map(({ activity }) => activity.name), ...extras.map((e) => (e.kind === "place" ? e.activity.name : e.title))];
+    if (taken.some((name) => name.toLocaleLowerCase("de") === title.toLocaleLowerCase("de"))) return setOwnError(t.home.quickStart.poll.own.duplicate);
+    if (full) return setOwnError(t.home.quickStart.poll.own.full(MAX_POLL_OPTIONS));
+    setExtras((current) => [...current, { key: `x${++extraCounter}`, kind: "own", title }]);
+    setOwnText("");
+    setOwnError(null);
+    setError(null);
+  }
 
   function toggle(id: string) {
     setRemoved((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        if (full) return current;
+        next.delete(id);
+      } else next.add(id);
       return next;
     });
   }
 
   function start() {
     setError(null);
-    if (selected.length === 0) return setError(t.home.quickStart.poll.pickOne);
+    if (total === 0) return setError(t.home.quickStart.poll.pickOne);
     if (!deadline) return setError(t.validation.dateInPast);
     createPoll.mutate(
       {
         crewId: crew.id,
         title,
         endsAt: deadline,
-        options: selected.map(({ activity }) => ({
-          activity_id: activity.id,
-          title: activity.name,
-          proposed_date: date,
-          proposed_time: time,
-          estimated_price_cents: typicalPriceCents(activity),
-        })),
+        options: [...selected.map(({ activity }) => activity), ...extras.map((e) => (e.kind === "place" ? e.activity : e.title))].map(
+          (option): PollOptionInput =>
+            typeof option === "string"
+              ? { activity_id: null, title: option, proposed_date: date, proposed_time: time, estimated_price_cents: null }
+              : { activity_id: option.id, title: option.name, proposed_date: date, proposed_time: time, estimated_price_cents: typicalPriceCents(option) },
+        ),
       },
       {
         onSuccess: (pollId) => {
@@ -283,15 +356,11 @@ function PollStep({ crew }: { crew: Crew }) {
               <ListSkeleton rows={3} height="h-20" />
             </div>
           ) : suggestions.length === 0 ? (
-            <Notice className="mt-3">
-              {t.home.quickStart.poll.none}{" "}
-              <Link to={`/polls/new?crew=${crew.id}`} className="font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
-                {t.home.quickStart.poll.custom}
-              </Link>
-            </Notice>
+            <Notice className="mt-3">{t.home.quickStart.poll.none}</Notice>
           ) : (
             <>
               <p className="mb-3 text-[13px] text-muted first-letter:uppercase">{ideas?.reasons.join(", ")}</p>
+              {cityFromDiscover && city && <p className="-mt-1.5 mb-3 text-[13px] text-faint">{t.home.quickStart.poll.fromDiscover(city)}</p>}
               <ul className="space-y-2.5">
                 {suggestions.map(({ activity }) => {
                   const on = !removed.has(activity.id);
@@ -330,9 +399,47 @@ function PollStep({ crew }: { crew: Crew }) {
           )}
         </section>
 
+        <section aria-labelledby="qs-own">
+          <h2 id="qs-own" className="mb-1 text-sm font-semibold text-fg">
+            {t.home.quickStart.poll.own.title}
+          </h2>
+          <p className="mb-3 text-[13px] text-muted">{t.home.quickStart.poll.own.body}</p>
+          {extras.length > 0 && (
+            <ul className="mb-3 space-y-2.5">
+              {extras.map((extra) => (
+                <ExtraRow key={extra.key} extra={extra} onRemove={() => setExtras((current) => current.filter((e) => e.key !== extra.key))} />
+              ))}
+            </ul>
+          )}
+          <form onSubmit={addOwn} noValidate className="flex items-start gap-2">
+            <TextField
+              label={t.home.quickStart.poll.own.label}
+              name="qs_own"
+              value={ownText}
+              maxLength={80}
+              autoComplete="off"
+              placeholder={t.home.quickStart.poll.own.placeholder}
+              onChange={(e) => {
+                setOwnText(e.target.value);
+                if (ownError) setOwnError(null);
+              }}
+              error={ownError}
+              fieldClassName="min-w-0 flex-1"
+            />
+            <Button type="submit" variant="secondary" className="mt-[26px] h-12 shrink-0" disabled={full} icon={<IconPlus className="size-5" aria-hidden />}>
+              {t.home.quickStart.poll.own.add}
+            </Button>
+          </form>
+          <Button variant="ghost" size="sm" className="-ml-3 mt-2" disabled={full} onClick={() => setPickerOpen(true)} icon={<IconSearch className="size-4" aria-hidden />}>
+            {t.home.quickStart.poll.own.search}
+          </Button>
+          {full && <p className="mt-2 text-[13px] text-faint">{t.home.quickStart.poll.own.full(MAX_POLL_OPTIONS)}</p>}
+          <ActivityPicker open={pickerOpen} onClose={() => setPickerOpen(false)} selectedIds={pickedIds} onToggle={togglePicked} initialCity={city} />
+        </section>
+
         {error && <FormMessage>{error}</FormMessage>}
-        <Button size="lg" block onClick={start} loading={createPoll.isPending} disabled={selected.length === 0} icon={<IconVote className="size-5" aria-hidden />}>
-          {t.home.quickStart.poll.submit(selected.length)}
+        <Button size="lg" block onClick={start} loading={createPoll.isPending} disabled={total === 0} icon={<IconVote className="size-5" aria-hidden />}>
+          {t.home.quickStart.poll.submit(total)}
         </Button>
       </div>
     </>

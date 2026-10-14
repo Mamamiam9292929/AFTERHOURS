@@ -2,7 +2,7 @@ import { ShareButton } from "@/components/ui/ShareButton";
 import { planShare } from "@/lib/share";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { IconBack, IconCalendar, IconCalendarCheck, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
+import { IconBack, IconCalendar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
 import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
+import { downloadPlanIcs } from "@/lib/ics";
 import { mapProvider } from "@/lib/maps";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
@@ -201,6 +202,20 @@ export function PlanDetailPage() {
                 {formatDateLong(plan.starts_at)}, {formatTime(plan.starts_at)}
               </span>
               {!locked && <span className="mt-0.5 block text-sm text-muted">{started ? t.plans.detail.started(formatAgo(plan.starts_at, now)) : t.plans.detail.startsIn(formatRelative(plan.starts_at, now))}</span>}
+              {/* P2 Etappe 1: Termin als .ics – entsteht im Browser, nur Titel, Zeit, Ort, Treffpunkt und Link. */}
+              {!locked && !started && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadPlanIcs(plan);
+                    toast.success(t.plans.calendar.done);
+                  }}
+                  className="mt-1.5 flex w-fit items-center gap-1.5 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"
+                >
+                  <IconCalendarPlus className="size-4" aria-hidden />
+                  {t.plans.calendar.add}
+                </button>
+              )}
             </Fact>
             <Fact icon={<IconPin aria-hidden />} label={t.plans.detail.where}>
               {plan.address ? <span className="font-semibold">{plan.address}</span> : <span className="text-muted">{t.plans.detail.noAddress}</span>}

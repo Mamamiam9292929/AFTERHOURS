@@ -306,6 +306,35 @@ const carol = await newUser("Carol", "tablet");
 const mallory = await newUser("Mallory", "mobile");
 const ids = {};
 
+await step("W6 – Öffentliche Startseite ohne Anmeldung", async () => {
+  for (const user of [alice, bob, carol]) {
+    const { page } = user;
+    await page.goto(`${APP}/`);
+    await page.getByRole("heading", { level: 1, name: /Kein Chat-Chaos/ }).waitFor();
+    check(new URL(page.url()).pathname === "/", `„/“ ohne Konto zeigt die Startseite statt der Anmeldung (${user.viewport})`);
+    check((await page.getByText("Beispiel", { exact: true }).count()) >= 2, `Beispiel-Ticket und -Abstimmung sind als „Beispiel“ markiert (${user.viewport})`);
+    await shot(user, "00-startseite");
+    if (SHOTS && user !== carol) await page.screenshot({ path: path.join(SHOTS, `00-startseite-ganz-${user.viewport}.png`), fullPage: true });
+  }
+  const text = await bob.page.locator("main").innerText();
+  check(!/\d[\d.]*\s*(Nutzer|Crews|Downloads|Bewertungen)|★|Sterne|kostenlos|gratis/i.test(text), "Startseite behauptet keine Nutzerzahlen, Bewertungen oder Preise");
+  check(await bob.page.getByRole("link", { name: "Datenschutz" }).isVisible(), "Startseite verlinkt den Datenschutz");
+
+  // Smartphone: „Crew gründen“ führt zur Registrierung, das Logo dort zurück zur Startseite.
+  await bob.page.getByRole("link", { name: "Crew gründen" }).first().click();
+  await bob.page.waitForURL(/\/register$/);
+  await bob.page.getByRole("heading", { level: 1, name: "Konto erstellen" }).waitFor();
+  check(true, "„Crew gründen“ führt zur Registrierung");
+  await bob.page.getByRole("link", { name: "AFTERHOURS – zur Startseite" }).click();
+  await bob.page.waitForURL((url) => url.pathname === "/");
+  check(true, "Logo auf der Registrierung führt zurück zur Startseite");
+
+  // Desktop: „Anmelden“ oben rechts.
+  await alice.page.getByRole("link", { name: "Anmelden", exact: true }).first().click();
+  await alice.page.waitForURL(/\/login$/);
+  check(true, "„Anmelden“ auf der Startseite führt zur Anmeldung");
+});
+
 await step("Schutz ohne Anmeldung", async () => {
   await alice.page.goto(`${APP}/plans`);
   await alice.page.waitForURL(/\/login/);
@@ -364,7 +393,10 @@ await step("Schritt 1 – Registrierung, E-Mail-Bestätigung, Onboarding (Alice)
   // Alice wollte ursprünglich zu /plans (siehe oben) – dorthin geht es nach Anmeldung und Onboarding.
   await alice.page.waitForURL(/\/plans/);
   check(true, "nach dem Onboarding geht es zum ursprünglich aufgerufenen Ziel");
-  await alice.page.goto(`${APP}/home`);
+  // W6: Mit Konto führt „/“ direkt zu Home statt zur Startseite.
+  await alice.page.goto(`${APP}/`);
+  await alice.page.waitForURL(/\/home$/);
+  check(true, "„/“ führt Angemeldete direkt zu Home");
   await alice.page.getByRole("heading", { level: 1 }).waitFor();
   await alice.page.getByText("In drei Schritten zum ersten Plan").waitFor();
   check(true, "Home zeigt neuen Nutzern den Einstieg");
@@ -684,6 +716,26 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   check(true, "Plan teilen ohne Web Share API: Text und Link werden kopiert");
   const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
   if (clip !== null) check(clip.startsWith("Strike District Bowling – ") && clip.trim().endsWith(ids.shareUrl), "Zwischenablage enthält Text und Link");
+
+  // P2 Etappe 1: Plan als Kalenderdatei – entsteht im Browser, ohne Namen oder E-Mail-Adressen.
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "In den Kalender" }).click()]);
+  check(download.suggestedFilename() === "strike-district-bowling.ics", `Kalenderdatei heißt nach dem Plan (${download.suggestedFilename()})`);
+  const ics = fs.readFileSync(await download.path(), "utf8");
+  const startsAt = DB_URL
+    ? execFileSync("psql", [DB_URL, "-tAc", `select to_char(starts_at at time zone 'UTC', 'YYYYMMDD"T"HH24MISS"Z"') from public.plans where id = '${ids.plan}'`], { encoding: "utf8" }).trim()
+    : null;
+  check(ics.startsWith("BEGIN:VCALENDAR\r\n") && ics.includes("\r\nBEGIN:VEVENT\r\n") && ics.endsWith("END:VCALENDAR\r\n"), "Kalenderdatei ist gültiges iCalendar mit CRLF");
+  check(ics.includes(`UID:plan-${ids.plan}@afterhours`) && ics.includes("SUMMARY:Strike District Bowling"), "Kalenderdatei: feste UID und Titel");
+  check(ics.includes("LOCATION:Demochaussee 220\\, 10365 Berlin"), "Kalenderdatei: Adresse mit maskiertem Komma");
+  check(startsAt ? ics.includes(`\r\nDTSTART:${startsAt}\r\n`) : /\r\nDTSTART:\d{8}T\d{6}Z\r\n/.test(ics), `Kalenderdatei: Beginn in UTC${startsAt ? ` (${startsAt})` : ""}`);
+  check(ics.split("\r\n").every((line) => Buffer.byteLength(line) <= 75), "Kalenderdatei: Zeilen höchstens 75 Byte");
+  check(!/Alice|Bob|Carol|ATTENDEE|ORGANIZER|@(?!afterhours)/.test(ics), "Kalenderdatei: keine Namen, Teilnehmer oder E-Mail-Adressen");
+  await toast(carol, "Kalenderdatei geladen");
+
+  // Ticket-Countdown und „Beginnt in …“ zählen dieselben Kalendertage.
+  const countdown = /in (\d+) tagen/i.exec(await page.locator(".ticket-feature").innerText())?.[1];
+  const startsIn = /Beginnt in (\d+) Tagen/.exec(await page.locator("main").innerText())?.[1];
+  if (countdown && startsIn) check(countdown === startsIn, `Countdown und „Beginnt in …“ stimmen überein (${countdown} = ${startsIn})`);
 });
 
 await step("W2 – Geteilter Plan: Vorschau im Messenger und für Freunde ohne Konto", async () => {
@@ -1243,7 +1295,11 @@ await step("Abmelden, Passwort zurücksetzen, neu anmelden (Alice)", async () =>
 await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana)", async () => {
   const dana = await newUser("Dana", "mobile");
   const { page, context } = dana;
-  await register(dana);
+  // W6: Dana kommt über die öffentliche Startseite.
+  await page.goto(`${APP}/`);
+  await page.getByRole("link", { name: "Crew gründen" }).first().click();
+  await page.waitForURL(/\/register$/);
+  await register(dana, { here: true });
   const started = Date.now();
   await onboard(dana, { full: true });
   await page.waitForURL(/\/start$/);
@@ -1256,6 +1312,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   await page.getByRole("button", { name: "Crew gründen" }).click();
   await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
   check(/\/start\?crew=[0-9a-f-]{36}$/.test(page.url()), "Schritt 1: Crew gegründet, der Stand steht in der Adresse");
+  const crewId = new URL(page.url()).searchParams.get("crew");
   await page.reload();
   await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
   check(true, "Neuladen bleibt in Schritt 2");
@@ -1271,7 +1328,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
 
   await page.getByRole("button", { name: "Weiter zur Abstimmung" }).click();
   await page.getByRole("heading", { level: 1, name: /^Was macht ihr am (Freitag|Samstag)\?$/ }).waitFor();
-  const ideas = page.getByRole("region", { name: "Vorschläge" });
+  const ideas = page.getByRole("region", { name: "Vorschläge", exact: true });
   const cards = ideas.locator("button[aria-pressed]");
   await cards.first().waitFor({ timeout: 45_000 });
   const count = await cards.count();
@@ -1283,13 +1340,65 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   }
   const names = [];
   for (const card of await ideas.locator('button[aria-pressed="true"]').all()) names.push((await card.locator("span.truncate").first().innerText()).trim());
-  await page.getByRole("button", { name: /^Abstimmung mit \d+ Vorschl/ }).click();
+  const ideaNames = [];
+  for (const card of await cards.all()) ideaNames.push((await card.locator("span.truncate").first().innerText()).trim());
+
+  // Etappe 2: eigener Vorschlag und Ortssuche im selben Schritt.
+  const own = page.getByRole("region", { name: "Eigene Vorschläge" });
+  const ownField = own.getByLabel("Eigener Vorschlag");
+  await ownField.fill("x");
+  await own.getByRole("button", { name: "Hinzufügen" }).click();
+  await own.getByText("Mindestens 2 Zeichen.").waitFor();
+  check(true, "zu kurzer eigener Vorschlag wird abgelehnt");
+  await ownField.fill("Grillen bei Bob");
+  await ownField.press("Enter");
+  await own.getByText("Grillen bei Bob", { exact: true }).waitFor();
+  check((await ownField.inputValue()) === "", "eigener Vorschlag steht in der Liste, das Feld ist wieder leer");
+  await ownField.fill("grillen bei BOB");
+  await own.getByRole("button", { name: "Hinzufügen" }).click();
+  await own.getByText("Den Vorschlag gibt es schon.").waitFor();
+  check((await own.getByText("Grillen bei Bob", { exact: true }).count()) === 1, "doppelter eigener Vorschlag wird abgelehnt");
+  await ownField.fill("");
+  await own.getByRole("button", { name: "Ort suchen" }).click();
+  const picker = dialog(dana);
+  await picker.locator("button[aria-pressed]").first().waitFor({ timeout: 45_000 });
+  let picked = null;
+  for (const option of await picker.locator('button[aria-pressed="false"]').all()) {
+    const name = (await option.locator("span.truncate").first().innerText()).trim();
+    if (!ideaNames.includes(name)) {
+      await option.click();
+      picked = name;
+      break;
+    }
+  }
+  check(Boolean(picked), "Ortssuche zeigt weitere Orte der Stadt");
+  await picker.getByRole("button", { name: "1 Ort übernehmen" }).click();
+  await picker.waitFor({ state: "detached" });
+  await own.getByText(picked, { exact: true }).waitFor();
+  check(true, `Ort aus der Suche kommt zu den Vorschlägen (${picked})`);
+  await own.getByRole("button", { name: "Grillen bei Bob entfernen" }).waitFor();
+  await shot(dana, "39b-start-eigene");
+  names.push("Grillen bei Bob", picked);
+
+  await page.getByRole("button", { name: `Abstimmung mit ${names.length} Vorschlägen starten` }).click();
   await page.waitForURL(/\/polls\/[0-9a-f-]{36}/);
   await page.getByRole("heading", { level: 1, name: /^Was machen wir am (Freitag|Samstag)\?$/ }).waitFor();
   for (const name of names) await page.getByText(name, { exact: true }).first().waitFor();
-  check(names.length === Math.max(count - 1, 1), `Abstimmung enthält genau die gewählten Orte (${names.join(", ")})`);
+  check(names.length === Math.max(count - 1, 1) + 2, `Abstimmung enthält genau die gewählten Orte und eigenen Vorschläge (${names.join(", ")})`);
   check(true, `erste Abstimmung steht ${Math.round((Date.now() - started) / 1000)} s nach der E-Mail-Bestätigung (inkl. Onboarding)`);
   await shot(dana, "40-start-fertig");
+
+  // Ohne Stadt im Profil nimmt Schritt 3 die zuletzt in Discover gewählte Stadt (nur im Browser gespeichert).
+  if (DB_URL) {
+    execFileSync("psql", [DB_URL, "-qc", `update public.profiles set city = null where id = (select id from auth.users where email = '${dana.email}')`]);
+    await page.evaluate(() => localStorage.setItem("afterhours.discover.city", "Leipzig"));
+    await page.goto(`${APP}/start?crew=${crewId}&step=poll`);
+    await page.getByText("Stadt aus Discover: Leipzig.", { exact: false }).waitFor({ timeout: 60_000 });
+    check(await page.getByRole("region", { name: "Vorschläge", exact: true }).getByText(/in Leipzig/).first().isVisible(), "ohne Profilstadt: Vorschläge aus der Discover-Stadt, ehrlich benannt");
+    check((await page.getByLabel("Stadt", { exact: true }).count()) === 0, "keine Stadtabfrage, wenn Discover die Stadt schon kennt");
+  } else {
+    console.log("   (E2E_DB_URL nicht gesetzt – Stadt aus Discover wird übersprungen)");
+  }
   users.splice(users.indexOf(dana), 1);
   await context.close();
 });

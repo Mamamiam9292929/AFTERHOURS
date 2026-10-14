@@ -4,6 +4,7 @@ import { crews } from "./crews";
 import { discover } from "./discover";
 import { enums } from "./enums";
 import { home, onboarding } from "./home";
+import { landing } from "./landing";
 import { admin, assistant, notifications, privacy, profile, rewards, settings } from "./misc";
 import { plans } from "./plans";
 import { polls } from "./polls";
@@ -15,6 +16,7 @@ export const de = {
   errors,
   enums,
   auth,
+  landing,
   home,
   onboarding,
   discover,

@@ -62,6 +62,13 @@ export const plans = {
     submit: "Plan erstellen",
     created: "Plan erstellt. Die Crew ist benachrichtigt.",
   },
+  /** P2 Etappe 1: Plan als Kalenderdatei (.ics). */
+  calendar: {
+    add: "In den Kalender",
+    done: "Kalenderdatei geladen – öffne sie, um den Termin einzutragen.",
+    meetingPoint: (value: string) => `Treffpunkt: ${value}`,
+    link: (url: string) => `Plan in AFTERHOURS: ${url}`,
+  },
   detail: {
     back: "Plans",
     what: "Was machen wir?",
