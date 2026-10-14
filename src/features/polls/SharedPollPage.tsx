@@ -245,6 +245,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
                           onClick={() => {
                             setAnswers((prev) => ({ ...prev, [key]: selected ? null : response }));
                             setSaved(false);
+                            setErrors((prev) => ({ ...prev, answers: null }));
                           }}
                           className={cn(
                             "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-[13px] font-semibold leading-tight transition-colors sm:text-[15px]",
@@ -285,6 +286,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
               onChange={(e) => {
                 setName(e.target.value);
                 setSaved(false);
+                setErrors((prev) => ({ ...prev, name: null }));
               }}
               maxLength={40}
               hint={t.polls.shared.ballot.nameHint}

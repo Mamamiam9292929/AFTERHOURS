@@ -664,7 +664,8 @@ await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () =>
     await guest.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
     check((await guest.page.getByRole("radiogroup").count()) === 3, "Gast sieht alle drei Vorschläge zum Abstimmen");
     const body = await guest.page.locator("body").innerText();
-    check(/Strike District Bowling/.test(body) && /3 dabei/.test(body), "Gast sieht Vorschläge im Wortlaut und den Stand");
+    // Titel stehen in Versalien (CSS) – innerText liefert sie so.
+    check(/Strike District Bowling/i.test(body) && /3 dabei/.test(body), `Gast sieht Vorschläge im Wortlaut und den Stand („${body.replace(/\s+/g, " ").slice(0, 300)}“)`);
     check(!/Alice|Carol|U-Bahn|example\.test/.test(body), "Gast sieht keine Namen der Crew und keinen Treffpunkt");
     await guest.page.getByRole("button", { name: "Abstimmen" }).click();
     check(await guest.page.getByText("Gib deinen Namen ein (mindestens 2 Zeichen).").isVisible(), "ohne Namen keine Stimme");
@@ -696,7 +697,7 @@ await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () =>
   await optionCard(alice, "Grillen bei Bob").getByText("1 Zusage").waitFor();
   check(true, "Gast-Zusage zählt im Balken mit");
   check(await alice.page.getByText("+ 1 Gast hat mitgestimmt").isVisible(), "Beteiligung nennt den Gast");
-  check(await alice.page.getByText("Dana (Gast)").first().isVisible(), "Gast steht mit „(Gast)“ in der Liste");
+  check(await alice.page.getByRole("list", { name: "Gäste" }).getByText("Dana (Gast)").isVisible(), "Gast steht mit „(Gast)“ in der Gästeliste");
   await shot(alice, "12b-abstimmung-mit-gast");
   await alice.page.goto(`${APP}/notifications`);
   await alice.page.getByText("Dana (Gast) hat abgestimmt").waitFor();
@@ -1219,7 +1220,9 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
     check(preview.status === 200 && preview.json?.poll_id === null && preview.json?.poll?.status === "closed", "API: Abstimmungs-Vorschau gibt Außenstehenden keine ID");
   }
   check([401, 403].includes((await api(null, "POST", "rpc/poll_share_token", { p_poll_id: ids.poll })).status), "API: ohne Konto kein Abstimmungs-Link");
-  check((await rows("poll_guests")).length === 0 && (await rows("poll_guest_votes")).length === 0, "API: keine fremden Gäste oder Gast-Stimmen lesbar");
+  // poll_guests nur mit freigegebenen Spalten abfragen – den Hash darf niemand lesen (select=* scheitert deshalb absichtlich).
+  const guestRows = (await api(mallory, "GET", "poll_guests?select=id,display_name")).json;
+  check(Array.isArray(guestRows) && guestRows.length === 0 && (await rows("poll_guest_votes")).length === 0, "API: keine fremden Gäste oder Gast-Stimmen lesbar");
   check((await api(mallory, "POST", "rpc/set_poll_guests", { p_poll_id: ids.poll, p_allowed: true })).status === 403, "API: Gäste für fremde Abstimmung freischalten wird abgewiesen (403)");
   const anonShare = await api(null, "POST", "rpc/plan_share_token", { p_plan_id: ids.plan });
   check([401, 403].includes(anonShare.status), `API: ohne Konto kein Teilen-Link (${anonShare.status})`);
