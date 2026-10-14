@@ -59,7 +59,7 @@ export function LandingPage() {
       </main>
 
       <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 border-t border-line px-5 py-8 text-sm text-muted sm:px-8">
-        <span className="flex items-center gap-3">
+        <span className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
           <Logo compact />
           <span className="font-display text-lg font-bold tracking-wide text-faint">{t.claim}</span>
         </span>
@@ -82,7 +82,7 @@ function Hero() {
     <section aria-labelledby="landing-title" className="mx-auto grid w-full max-w-6xl items-center gap-12 px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] lg:gap-16 lg:pb-24 lg:pt-20">
       <div className="min-w-0">
         <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-lime">{copy.hero.eyebrow}</p>
-        <h1 id="landing-title" className="display mt-4 text-[46px] uppercase text-fg sm:text-[76px] lg:text-[88px]">
+        <h1 id="landing-title" className="display mt-4 text-[46px] uppercase text-fg sm:text-[76px] lg:text-[78px]">
           {copy.hero.title.map((line) => (
             <span key={line} className="block">
               {line}{" "}
