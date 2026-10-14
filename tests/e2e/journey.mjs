@@ -877,6 +877,18 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await page.getByRole("button", { name: "Plan bestätigen" }).click();
   await toast(carol, "Plan bestätigt.");
   await page.getByRole("button", { name: "Reservierung vorbereiten" }).waitFor();
+  // D6: Bob antwortet direkt auf Home – ohne die Planseite zu öffnen.
+  await bob.page.goto(`${APP}/home`);
+  const quick = bob.page.getByRole("group", { name: "Deine Antwort zu „Schwarzlicht Minigolf 18“" });
+  await quick.waitFor();
+  await shot(bob, "32-home-zusage");
+  await quick.getByRole("button", { name: "Vielleicht" }).click();
+  await toast(bob, "Antwort gespeichert.");
+  await quick.waitFor({ state: "detached" });
+  check(true, "Zusage direkt auf Home: Antwort gespeichert, der Plan verlässt „Deine Antwort fehlt“");
+  const minigolf = bob.page.locator('[data-answer="maybe"]').filter({ hasText: "Schwarzlicht Minigolf 18" });
+  await minigolf.first().waitFor();
+  check(true, "Ticket auf Home trägt danach die Farbe der Antwort (vielleicht)");
   await page.getByRole("button", { name: "Plan absagen" }).click();
   await dialog(carol).getByRole("button", { name: "Plan absagen" }).click();
   await toast(carol, "Plan abgesagt.");

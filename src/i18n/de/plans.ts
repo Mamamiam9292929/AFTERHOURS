@@ -18,6 +18,8 @@ export const plans = {
     pastTitle: "Noch keine vergangenen Pläne",
     pastBody: "Abgeschlossene und abgesagte Pläne erscheinen hier.",
   },
+  /** D6: Gruppe der Antwort-Knöpfe unter einem Ticket auf Home. */
+  quickAnswer: (title: string) => `Deine Antwort zu „${title}“`,
   ticket: {
     going: (n: number) => (n === 1 ? "1 dabei" : `${n} dabei`),
     goingOf: (total: number) => `von ${total} dabei`,

@@ -10,6 +10,7 @@ import { CrewRow } from "@/features/crews/CrewsPage";
 import { ActivityCard } from "@/features/discover/ActivityCard";
 import { isUpcoming, usePlans } from "@/features/plans/api";
 import { FeatureTicket, PlanTicket } from "@/features/plans/PlanTicket";
+import { PlanQuickAnswer } from "@/features/plans/QuickAnswer";
 import { useIdeas } from "./ideas";
 import { InstallCard } from "./InstallCard";
 import { usePolls } from "@/features/polls/api";
@@ -154,7 +155,11 @@ export function HomePage() {
                       <PollCard key={poll.id} poll={poll} crew={crewById.get(poll.crew_id)} memberIds={membersOf(poll.crew_id)} userId={user.id} now={now} />
                     ))}
                     {plansNeedingMe.map((plan) => (
-                      <PlanTicket key={plan.id} plan={plan} crew={crewById.get(plan.crew_id)} userId={user.id} lookup={people.lookup} />
+                      // D6: direkt unter dem Ticket antworten – ohne erst die Planseite zu öffnen.
+                      <div key={plan.id}>
+                        <PlanTicket plan={plan} crew={crewById.get(plan.crew_id)} userId={user.id} lookup={people.lookup} />
+                        <PlanQuickAnswer plan={plan} className="mt-2.5" />
+                      </div>
                     ))}
                   </div>
                 </Section>
