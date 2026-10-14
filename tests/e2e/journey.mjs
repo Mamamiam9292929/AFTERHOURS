@@ -1257,7 +1257,7 @@ await step("W4 – Installierbar, offline lesbar, neue Version, Zähler am App-I
 
   // Neue Version: Die laufende Seite vergleicht ihr Start-Skript mit dem der aktuellen index.html.
   const versionCheck = () => page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
-  const updateBar = page.getByText("Neue Version von AFTERHOURS ist da.");
+  const updateBar = page.getByText("Neue Version ist da.");
   await versionCheck();
   await page.waitForTimeout(800);
   check((await updateBar.count()) === 0, "ohne neuen Build kein Update-Hinweis");
