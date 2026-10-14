@@ -73,4 +73,4 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
 ## Offene Fragen an Benito
 
-- Keine
+Alle Fragen, klein und groß, stehen im Issue „❓ Frageliste“ (#42). Beantwortete wandern als Entscheidung in den Abschnitt oben.
