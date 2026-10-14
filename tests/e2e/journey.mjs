@@ -320,6 +320,15 @@ await step("W6 – Öffentliche Startseite ohne Anmeldung", async () => {
   check(!/\d[\d.]*\s*(Nutzer|Crews|Downloads|Bewertungen)|★|Sterne|kostenlos|gratis/i.test(text), "Startseite behauptet keine Nutzerzahlen, Bewertungen oder Preise");
   check(await bob.page.getByRole("link", { name: "Datenschutz" }).isVisible(), "Startseite verlinkt den Datenschutz");
 
+  // W6 Etappe 2: Messenger und Suchmaschinen lesen nur das HTML – ohne JavaScript.
+  const raw = await (await fetch(`${APP}/`)).text();
+  const rawHead = raw.slice(0, raw.indexOf("</head>"));
+  check(rawHead.includes('<meta property="og:title" content="AFTERHOURS – Ein Abend. Eine Crew. Kein Chat-Chaos." />'), "Startseite: Vorschau-Titel im HTML (og:title)");
+  check(/<meta property="og:image" content="https?:\/\/[^"]+\/og\/home\.png" \/>/.test(rawHead), "Startseite: Vorschaubild mit absoluter Adresse (Build mit VITE_SITE_URL)");
+  check(!/name="robots"/.test(rawHead), "Startseite ist für Suchmaschinen nicht gesperrt");
+  const homeImage = await fetch(`${APP}/og/home.png`);
+  check(homeImage.ok && homeImage.headers.get("content-type") === "image/png", "Vorschaubild der Startseite wird ausgeliefert");
+
   // Smartphone: „Crew gründen“ führt zur Registrierung, das Logo dort zurück zur Startseite.
   await bob.page.getByRole("link", { name: "Crew gründen" }).first().click();
   await bob.page.waitForURL(/\/register$/);
@@ -750,6 +759,7 @@ await step("W2 – Geteilter Plan: Vorschau im Messenger und für Freunde ohne K
     check(head.includes('<meta property="og:title" content="Strike District Bowling · AFTERHOURS" />'), "Vorschau: Titel des Plans als og:title");
     check(/<meta property="og:description" content="[^"]+ · \d+ (sind|ist) dabei\. Bist du dabei\?" \/>/.test(head), "Vorschau: Zeit und Zahl der Zusagen als og:description");
     check(head.includes(`content="${APP}/og/plan.png"`), "Vorschau: absolutes Vorschaubild");
+    check((head.match(/property="og:title"/g) ?? []).length === 1 && !head.includes("home.png"), "Vorschau: ersetzt die Vorschau der Startseite (W6) vollständig");
     check(!/Alice|Bob|Carol|Demochaussee|@example/.test(head), "Vorschau: keine Namen, keine Adresse");
     check(html.includes('<div id="root"></div>'), "Vorschau: Menschen bekommen die App");
     const image = await fetch(`${APP}/og/plan.png`);
