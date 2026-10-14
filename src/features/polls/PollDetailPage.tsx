@@ -49,7 +49,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action }:
   const { option } = tally;
   const overBudget = poll.budget_cents != null && option.estimated_price_cents != null && option.estimated_price_cents > poll.budget_cents;
   const names = (ids: string[]) =>
-    ids.map((id) => (isGuestId(id) ? t.polls.guestLabel(lookup(id)?.display_name ?? "?") : (lookup(id)?.display_name ?? t.states.formerMember))).join(", ");
+    ids.map((id) => (isGuestId(id) ? t.polls.detail.guestLabel(lookup(id)?.display_name ?? "?") : (lookup(id)?.display_name ?? t.states.formerMember))).join(", ");
 
   const meta = [optionWhen(option), option.estimated_price_cents != null ? t.polls.detail.priceEstimate(formatEuro(option.estimated_price_cents)) : t.polls.detail.priceOpen];
   const leadingOpen = tally.leading && poll.status === "open";
@@ -334,7 +334,7 @@ function GuestSettings({ poll, guests }: { poll: PollWithDetails; guests: PollGu
           {guests.length === 0 && <li className="text-sm text-muted">{t.polls.detail.guests.none}</li>}
           {guests.map((guest) => (
             <li key={guest.id} className="flex items-center justify-between gap-3">
-              <span className="min-w-0 truncate text-fg">{t.polls.guestLabel(guest.display_name)}</span>
+              <span className="min-w-0 truncate text-fg">{t.polls.detail.guestLabel(guest.display_name)}</span>
               <Button variant="ghost" size="sm" onClick={() => setRemoving(guest)} aria-label={t.polls.detail.guests.remove(guest.display_name)}>
                 {t.polls.detail.guests.removeConfirm}
               </Button>
@@ -454,7 +454,7 @@ export function PollDetailPage() {
               </span>
             )}
             {poll.parent_poll_id && <Badge tone="outline">{t.polls.runoffBadge}</Badge>}
-            {poll.guests_allowed && !summary.isOver && <Badge tone="outline">{t.polls.guestsBadge}</Badge>}
+            {poll.guests_allowed && !summary.isOver && <Badge tone="outline">{t.polls.detail.guestsBadge}</Badge>}
             <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.participation(votedCount, memberIds.length)}</span>
           </span>
         }
@@ -538,7 +538,7 @@ export function PollDetailPage() {
         <aside className="space-y-6 lg:sticky lg:top-10 lg:self-start">
           <div className="rounded-card border border-line bg-surface p-4">
             <ParticipationBar voted={votedCount} total={memberIds.length} />
-            {summary.guestVoterCount > 0 && <p className="mt-2 text-sm font-semibold text-fg">{t.polls.guestVoters(summary.guestVoterCount)}</p>}
+            {summary.guestVoterCount > 0 && <p className="mt-2 text-sm font-semibold text-fg">{t.polls.detail.guestVoters(summary.guestVoterCount)}</p>}
             <p className="mt-3 text-sm text-muted">
               {openMembers.length === 0 ? (
                 t.polls.detail.everyoneVoted
