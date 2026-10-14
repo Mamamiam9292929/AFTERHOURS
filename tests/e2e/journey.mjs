@@ -722,6 +722,90 @@ await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () =>
   }
 });
 
+await step("W3 Etappe 2 – Wer als Gast abgestimmt hat und beitritt, übernimmt seine Stimmen", async () => {
+  if (!ANON) {
+    console.log("   (übersprungen: SUPABASE_ANON_KEY fehlt)");
+    return;
+  }
+  // Eigene kleine Crew, damit der Rest der Journey (Weekend Crew) unberührt bleibt.
+  const frida = await newUser("Frida", "desktop");
+  const erik = await newUser("Erik", "mobile");
+  try {
+    await register(frida);
+    await onboard(frida);
+    const crew = await api(frida, "POST", "rpc/create_crew", { p_name: "Kiez Crew", p_emoji: "🍻" });
+    check(crew.status === 200, `Frida gründet die Kiez Crew (${crew.status})`);
+    const invitation = await api(frida, "POST", "rpc/create_crew_invitation", { p_crew_id: crew.json });
+    const inviteToken = invitation.json?.[0]?.token;
+    const endsAt = new Date(Date.now() + 2 * 24 * 3600_000).toISOString();
+    const poll = await api(frida, "POST", "rpc/create_poll", {
+      p_crew_id: crew.json,
+      p_title: "Kickern oder Tischtennis?",
+      p_ends_at: endsAt,
+      p_options: [{ title: "Kickern" }, { title: "Tischtennis" }],
+    });
+    check(poll.status === 200 && Boolean(inviteToken), "Abstimmung und Einladungslink stehen");
+    await api(frida, "POST", "rpc/set_poll_guests", { p_poll_id: poll.json, p_allowed: true });
+    const pollToken = (await api(frida, "POST", "rpc/poll_share_token", { p_poll_id: poll.json })).json;
+
+    // Erik stimmt ohne Konto ab …
+    await erik.page.goto(`${APP}/v/${pollToken}`);
+    await erik.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
+    await answer(erik, "Kickern", "Bin dabei").click();
+    await answer(erik, "Tischtennis", "Vielleicht").click();
+    await erik.page.getByLabel("Dein Name").fill("Erik");
+    await erik.page.getByRole("button", { name: "Abstimmen" }).click();
+    await erik.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Erik" }).waitFor();
+    check(await erik.page.getByText(/nimmst du deine Stimme auf diesem Gerät mit/).isVisible(), "Gast erfährt, dass er seine Stimme mitnehmen kann");
+
+    // … bekommt den Einladungslink, legt ein Konto an und tritt bei.
+    await erik.page.goto(`${APP}/join/${inviteToken}`);
+    await erik.page.waitForURL(/\/invite\/[0-9a-f]{64}$/);
+    await register(erik, { here: true });
+    await erik.page.getByRole("heading", { name: "Fast drin" }).waitFor();
+    await erik.page.getByRole("button", { name: "Kiez Crew beitreten" }).click();
+    await erik.page.waitForURL(new RegExp(`/crews/${crew.json}`));
+
+    // Derselbe Link führt Mitglieder zur Abstimmung – dort wartet die Übernahme.
+    await erik.page.goto(`${APP}/v/${pollToken}`);
+    await erik.page.waitForURL(new RegExp(`/polls/${poll.json}`));
+    const card = erik.page.getByRole("region", { name: "Du hast hier schon als Gast abgestimmt" });
+    await card.waitFor();
+    check(await card.getByText("Als „Erik“ hast du 2 Antworten gegeben.", { exact: false }).isVisible(), "Hinweis nennt Gastname und Zahl der Antworten");
+    check((await optionCard(erik, "Kickern").getByText("1 Zusage").count()) === 1, "vor der Übernahme zählt die Gast-Zusage");
+    await shot(erik, "12c-gast-stimmen-uebernehmen");
+
+    // Frida (Mitglied ohne Gast-Stimme) sieht den Hinweis nicht.
+    await frida.page.goto(`${APP}/polls/${poll.json}`);
+    await frida.page.getByRole("heading", { name: "Kickern oder Tischtennis?" }).waitFor();
+    check((await frida.page.getByRole("region", { name: "Du hast hier schon als Gast abgestimmt" }).count()) === 0, "ohne Gast-Stimme auf dem Gerät kein Hinweis");
+
+    await card.getByRole("button", { name: "Stimmen übernehmen" }).click();
+    await toast(erik, "2 Antworten übernommen.");
+    await card.waitFor({ state: "detached" });
+    check((await answer(erik, "Kickern", "Bin dabei").getAttribute("aria-checked")) === "true", "die Zusage ist jetzt Eriks eigene Antwort");
+    check((await answer(erik, "Tischtennis", "Vielleicht").getAttribute("aria-checked")) === "true", "„Vielleicht“ ebenso");
+    await optionCard(erik, "Kickern").getByText("1 Zusage").waitFor();
+    check(true, "keine doppelte Stimme: weiter 1 Zusage");
+    check((await erik.page.getByText(/Gast hat mitgestimmt|Gäste haben mitgestimmt/).count()) === 0, "Erik zählt nicht mehr als Gast");
+    check(await erik.page.evaluate((key) => localStorage.getItem(key) === null, `afterhours.guest.${pollToken}`), "das Gast-Geheimnis ist vom Gerät gelöscht");
+    await shot(erik, "12d-gast-stimmen-uebernommen");
+
+    const guests = await api(frida, "GET", `poll_guests?select=id&poll_id=eq.${poll.json}`);
+    check(guests.status === 200 && guests.json.length === 0, "in der Datenbank gibt es keinen Gast mehr");
+    // Ohne Konto geht es nicht (Angriffe von Außenstehenden und mit fremdem Geheimnis prüft pgTAP).
+    const attack = await api(null, "POST", "rpc/claim_poll_guest", { p_poll_id: poll.json, p_secret: "a".repeat(64), p_keep: true });
+    check(attack.status >= 400, `API: ohne Konto keine Übernahme (${attack.status})`);
+    const guess = await api(frida, "POST", "rpc/claim_poll_guest", { p_poll_id: poll.json, p_secret: "a".repeat(64), p_keep: true });
+    check(guess.status === 400 && guess.json?.message === "guest_not_found", `API: geratenes Geheimnis findet keinen Gast (${guess.status} ${guess.json?.message})`);
+  } finally {
+    for (const user of [frida, erik]) {
+      users.splice(users.indexOf(user), 1);
+      await user.context.close();
+    }
+  }
+});
+
 await step("Schritt 7 – Abstimmung beenden, Ergebnis", async () => {
   const { page } = alice;
   check((await bob.page.getByRole("button", { name: "Abstimmung beenden" }).count()) === 0, "nur die Erstellerin sieht „Abstimmung beenden“");
