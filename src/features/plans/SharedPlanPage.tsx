@@ -119,7 +119,7 @@ function SharedPlanTicket({ data }: { data: Valid }) {
           </div>
           <p className="flex items-baseline gap-1.5 border-t border-dashed border-line pt-4 text-[15px] font-semibold text-muted">
             {plan.going_count > 0 && <span className="font-display text-[34px] font-extrabold leading-none text-fg">{plan.going_count}</span>}
-            {t.plans.shared.going(plan.going_count)}
+            {t.plans.shared.going(plan.going_count, over)}
           </p>
         </div>
       </div>

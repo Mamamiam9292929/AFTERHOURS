@@ -966,6 +966,7 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
     await page.goto(ids.shareUrl);
     await page.getByRole("heading", { level: 1, name: "Noch nicht in der Crew" }).waitFor();
     check(!page.url().includes(ids.plan), "Teilen-Link: Außenstehende bleiben auf der Karte");
+    check(/\d+\s*(waren|war) dabei|Keine Zusage/.test(await page.getByRole("region").innerText()), "vergangener Plan: Zusagen in der Vergangenheit");
     await shot(mallory, "16e-geteilter-plan-aussen");
   }
 
