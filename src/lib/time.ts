@@ -119,7 +119,12 @@ export function formatRelative(v: Date | string, now: Date = new Date()): string
   if (abs < 60) return relative.format(Math.round(diffSeconds), "second");
   if (abs < 3600) return relative.format(Math.round(diffSeconds / 60), "minute");
   if (abs < 86400) return relative.format(Math.round(diffSeconds / 3600), "hour");
-  if (abs < 86400 * 30) return relative.format(Math.round(diffSeconds / 86400), "day");
+  // Ab einem Tag in Kalendertagen (Berlin), wie der Countdown auf dem Ticket: Samstag 19 Uhr ist am
+  // Mittwochmorgen „in 3 Tagen“, nicht gerundet „in 4 Tagen“.
+  if (abs < 86400 * 30) {
+    const days = calendarDaysBetween(now, v);
+    return relative.format(days === 0 ? Math.sign(diffSeconds) : days, "day");
+  }
   return formatDateWithYear(v);
 }
 

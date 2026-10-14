@@ -693,6 +693,11 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   check(ics.split("\r\n").every((line) => Buffer.byteLength(line) <= 75), "Kalenderdatei: Zeilen höchstens 75 Byte");
   check(!/Alice|Bob|Carol|ATTENDEE|ORGANIZER|@(?!afterhours)/.test(ics), "Kalenderdatei: keine Namen, Teilnehmer oder E-Mail-Adressen");
   await toast(carol, "Kalenderdatei geladen");
+
+  // Ticket-Countdown und „Beginnt in …“ zählen dieselben Kalendertage.
+  const countdown = /in (\d+) tagen/i.exec(await page.locator(".ticket-feature").innerText())?.[1];
+  const startsIn = /Beginnt in (\d+) Tagen/.exec(await page.locator("main").innerText())?.[1];
+  if (countdown && startsIn) check(countdown === startsIn, `Countdown und „Beginnt in …“ stimmen überein (${countdown} = ${startsIn})`);
 });
 
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {
