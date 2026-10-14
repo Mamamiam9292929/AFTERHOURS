@@ -373,7 +373,8 @@ await step("Schritt 1 – Registrierung, E-Mail-Bestätigung, Onboarding (Alice)
 
 await step("Schritt 2 – Crew erstellen", async () => {
   const { page } = alice;
-  await page.getByRole("link", { name: "Crew erstellen" }).first().click();
+  check(await page.getByRole("link", { name: "Erster Plan in 60 Sekunden" }).isVisible(), "Home bietet neuen Nutzern den geführten Start an (W5)");
+  await page.getByRole("link", { name: "Nur Crew erstellen" }).click();
   await dialog(alice).getByLabel("Name der Crew").fill("Weekend Crew");
   await dialog(alice).getByRole("radio", { name: "🎳" }).click();
   await dialog(alice).getByRole("button", { name: "Crew erstellen" }).click();
@@ -930,10 +931,24 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await page.getByRole("button", { name: "Plan bestätigen" }).click();
   await toast(carol, "Plan bestätigt.");
   await page.getByRole("button", { name: "Reservierung vorbereiten" }).waitFor();
+  // D6: Bob antwortet direkt auf Home – ohne die Planseite zu öffnen.
+  await bob.page.goto(`${APP}/home`);
+  const quick = bob.page.getByRole("group", { name: "Deine Antwort zu „Schwarzlicht Minigolf 18“" });
+  await quick.waitFor();
+  await shot(bob, "32-home-zusage");
+  await quick.getByRole("button", { name: "Vielleicht" }).click();
+  await toast(bob, "Antwort gespeichert.");
+  await quick.waitFor({ state: "detached" });
+  check(true, "Zusage direkt auf Home: Antwort gespeichert, der Plan verlässt „Deine Antwort fehlt“");
+  const minigolf = bob.page.locator('[data-answer="maybe"]').filter({ hasText: "Schwarzlicht Minigolf 18" });
+  await minigolf.first().waitFor();
+  check(true, "Ticket auf Home trägt danach die Farbe der Antwort (vielleicht)");
   await page.getByRole("button", { name: "Plan absagen" }).click();
   await dialog(carol).getByRole("button", { name: "Plan absagen" }).click();
   await toast(carol, "Plan abgesagt.");
   await page.getByText("Abgesagt").first().waitFor();
+  // „Abgesagt“ steht auch als Gruppe in der Teilnehmerliste – auf den neuen Planstatus warten, nicht nur auf das Wort.
+  await page.getByRole("button", { name: "Plan bearbeiten" }).waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
   check((await page.getByRole("button", { name: "Plan bearbeiten" }).count()) === 0, "abgesagter Plan lässt sich nicht mehr bearbeiten");
   await alice.page.goto(`${APP}/notifications`);
   await alice.page.getByText("Carol hat einen Plan abgesagt").waitFor();
@@ -1225,7 +1240,61 @@ await step("Abmelden, Passwort zurücksetzen, neu anmelden (Alice)", async () =>
   check(true, "Anmeldung mit dem neuen Passwort");
 });
 
-await step("W4 – Installierbar, offline, Zähler am App-Icon (Bob)", async () => {
+await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana)", async () => {
+  const dana = await newUser("Dana", "mobile");
+  const { page, context } = dana;
+  await register(dana);
+  const started = Date.now();
+  await onboard(dana, { full: true });
+  await page.waitForURL(/\/start$/);
+  await page.getByRole("heading", { level: 1, name: "Wie heißt eure Crew?" }).waitFor();
+  check(true, "ohne Einladungslink geht es nach dem Onboarding in den geführten Start");
+  await shot(dana, "37-start-crew");
+
+  await page.getByLabel("Name der Crew").fill("Freitagsrunde");
+  await page.getByRole("radio", { name: "🎳" }).click();
+  await page.getByRole("button", { name: "Crew gründen" }).click();
+  await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
+  check(/\/start\?crew=[0-9a-f-]{36}$/.test(page.url()), "Schritt 1: Crew gegründet, der Stand steht in der Adresse");
+  await page.reload();
+  await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
+  check(true, "Neuladen bleibt in Schritt 2");
+
+  await stubShare(page);
+  await page.getByRole("button", { name: "Einladungslink teilen" }).click();
+  await page.getByLabel("Dein Einladungslink").waitFor();
+  const shared = (await sharedData(page))[0];
+  check(/\/join\/[A-Za-z0-9_-]{20,}$/.test(shared?.url ?? ""), "Schritt 2: Einladungslink geht ins Teilen-Menü des Handys");
+  check(Boolean(shared?.text?.includes("Freitagsrunde")) && !/@/.test(shared?.text ?? ""), "Teilen-Text nennt die Crew, keine E-Mail-Adressen");
+  check((await page.getByLabel("Dein Einladungslink").inputValue()) === shared?.url, "angezeigter Link ist der geteilte");
+  await shot(dana, "38-start-einladen");
+
+  await page.getByRole("button", { name: "Weiter zur Abstimmung" }).click();
+  await page.getByRole("heading", { level: 1, name: /^Was macht ihr am (Freitag|Samstag)\?$/ }).waitFor();
+  const ideas = page.getByRole("region", { name: "Vorschläge" });
+  const cards = ideas.locator("button[aria-pressed]");
+  await cards.first().waitFor({ timeout: 45_000 });
+  const count = await cards.count();
+  check(count >= 1 && count <= 3, `Schritt 3: bis zu drei echte Orte aus der eigenen Stadt (${count})`);
+  await shot(dana, "39-start-abstimmung");
+  if (count > 1) {
+    await cards.last().click();
+    check((await cards.last().getAttribute("aria-pressed")) === "false", "Vorschlag lässt sich mit einem Tipp abwählen");
+  }
+  const names = [];
+  for (const card of await ideas.locator('button[aria-pressed="true"]').all()) names.push((await card.locator("span.truncate").first().innerText()).trim());
+  await page.getByRole("button", { name: /^Abstimmung mit \d+ Vorschl/ }).click();
+  await page.waitForURL(/\/polls\/[0-9a-f-]{36}/);
+  await page.getByRole("heading", { level: 1, name: /^Was machen wir am (Freitag|Samstag)\?$/ }).waitFor();
+  for (const name of names) await page.getByText(name, { exact: true }).first().waitFor();
+  check(names.length === Math.max(count - 1, 1), `Abstimmung enthält genau die gewählten Orte (${names.join(", ")})`);
+  check(true, `erste Abstimmung steht ${Math.round((Date.now() - started) / 1000)} s nach der E-Mail-Bestätigung (inkl. Onboarding)`);
+  await shot(dana, "40-start-fertig");
+  users.splice(users.indexOf(dana), 1);
+  await context.close();
+});
+
+await step("W4 – Installierbar, offline lesbar, neue Version, Zähler am App-Icon (Bob)", async () => {
   const app = await newUser("Bob", "mobile", { serviceWorkers: "allow" });
   const { page, context } = app;
   // Badging-API und Installations-Angebot gibt es im Headless-Chromium nicht – beides wird nachgestellt.
@@ -1295,15 +1364,58 @@ await step("W4 – Installierbar, offline, Zähler am App-Icon (Bob)", async () 
   check(cached.some((url) => url.endsWith("/index.html")) && cached.some((url) => /\/assets\/.+\.js$/.test(url)), `App-Hülle und Skripte liegen im Cache (${cached.length} Dateien)`);
   check(!cached.some((url) => /\/(rest|auth)\/v1\//.test(url)), "keine API-Antworten (Nutzerdaten) im Cache");
 
+  // W4 Etappe 2: Was Bob gesehen hat, bleibt auf dem Gerät – nur Pläne, Crews, Namen, Orte, Abstimmungen.
+  const storedKeys = () => page.evaluate(() => JSON.parse(localStorage.getItem("afterhours.offline") ?? "null")?.entries.map((e) => e.key) ?? []);
+  if (ids.plan) {
+    await page.goto(`${APP}/plans/${ids.plan}`);
+    await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+    await page.waitForFunction((id) => (JSON.parse(localStorage.getItem("afterhours.offline") ?? "null")?.entries ?? []).some((e) => e.key[0] === "plans" && e.key[1] === id), ids.plan);
+  }
+  const keys = await storedKeys();
+  check(keys.some((key) => key.length === 1 && key[0] === "plans"), "Planliste liegt für offline auf dem Gerät");
+  check(keys.every((key) => ["plans", "crews", "profile", "polls", "activities", "people"].includes(key[0]) && !["invitations", "messages", "bookings", "rides", "search"].includes(key[2] ?? key[1])), `auf dem Gerät nur Pläne, Crews, Namen, Orte, Abstimmungen – keine Einladungslinks, Chats oder Einstellungen (${keys.map((k) => k[0]).join(", ")})`);
+
   await context.setOffline(true);
-  await page.reload();
-  await page.getByText("Offline – Inhalte laden, sobald du wieder Netz hast.").waitFor();
-  check(true, "ohne Netz öffnet sich die App aus dem Cache und sagt ehrlich, dass sie offline ist");
+  await page.goto(`${APP}/home`);
+  await page.getByText(/^Offline – gespeicherter Stand von .+ Uhr\.$/).waitFor();
+  await page.getByRole("heading", { level: 1 }).waitFor();
+  check(true, "ohne Netz öffnet sich die App aus dem Cache und nennt die Uhrzeit des gespeicherten Stands");
   await shot(app, "34-offline");
+  if (ids.plan) {
+    await page.goto(`${APP}/plans/${ids.plan}`);
+    await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+    check(await page.getByText(/^Offline – gespeicherter Stand/).isVisible(), "Plan ist offline lesbar (Titel, Zeit, Ort aus dem Gerätespeicher)");
+    await shot(app, "35-plan-offline");
+  }
   await context.setOffline(false);
-  await page.getByText("Offline – Inhalte laden").waitFor({ state: "detached" });
+  await page.getByText(/^Offline –/).waitFor({ state: "detached" });
+  await page.goto(`${APP}/home`);
   await homeReady();
   check(true, "wieder online: Hinweis verschwindet, Home lädt");
+
+  // Neue Version: Die laufende Seite vergleicht ihr Start-Skript mit dem der aktuellen index.html.
+  const versionCheck = () => page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  const updateBar = page.getByText("Neue Version ist da.");
+  await versionCheck();
+  await page.waitForTimeout(800);
+  check((await updateBar.count()) === 0, "ohne neuen Build kein Update-Hinweis");
+  await page.reload();
+  await homeReady();
+  // Die Seite tut so, als stamme sie aus einem älteren Build (ein Modul-Skript läuft nach dem Laden nicht erneut).
+  await page.evaluate(() => document.querySelector('script[type="module"][src*="/assets/"]')?.setAttribute("src", "/assets/index-alter-build.js"));
+  await versionCheck();
+  await updateBar.waitFor();
+  check(true, "neuer Build auf dem Server: Hinweis „Neue Version“ erscheint");
+  await shot(app, "36-neue-version");
+  await Promise.all([page.waitForEvent("load"), page.getByRole("button", { name: "Neu laden" }).click()]);
+  await homeReady();
+  check((await updateBar.count()) === 0, "„Neu laden“ startet die neue Version, der Hinweis ist weg");
+
+  // Abmelden räumt den gespeicherten Stand vom Gerät.
+  await page.goto(`${APP}/profile`);
+  await page.getByRole("button", { name: "Abmelden" }).click();
+  await page.waitForURL(/\/login/);
+  check((await page.evaluate(() => localStorage.getItem("afterhours.offline"))) === null, "Abmelden löscht den gespeicherten Stand vom Gerät");
   users.splice(users.indexOf(app), 1);
   await context.close();
 });

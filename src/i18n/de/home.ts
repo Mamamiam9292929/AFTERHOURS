@@ -10,6 +10,12 @@ export const home = {
     done: "AFTERHOURS ist installiert.",
   },
   offline: "Offline – Inhalte laden, sobald du wieder Netz hast.",
+  // W4 Etappe 2: ohne Netz zeigt die App den zuletzt geladenen Stand von diesem Gerät.
+  offlineSaved: (when: string) => `Offline – gespeicherter Stand von ${when}.`,
+  update: {
+    body: "Neue Version ist da.",
+    action: "Neu laden",
+  },
   greeting: { morning: "Guten Morgen", day: "Hi", evening: "Guten Abend", night: "Noch wach" },
   /** Plakat-Überschrift: `key` wird in Lime gesetzt. */
   question: {
@@ -58,8 +64,48 @@ export const home = {
       { title: "Freunde einladen", body: "Per Link, den du jederzeit widerrufen kannst." },
       { title: "Abstimmung starten", body: "Ein paar Optionen, die Crew entscheidet." },
     ],
-    action: "Crew erstellen",
+    action: "Erster Plan in 60 Sekunden",
+    crewOnly: "Nur Crew erstellen",
     haveInvite: "Einladung erhalten? Öffne den Link oder füge ihn unter Crews ein.",
+  },
+  // W5: geführter Start – Crew, Freunde einladen, erste Abstimmung mit Vorschlägen aus deiner Stadt.
+  quickStart: {
+    documentTitle: "Erster Plan",
+    step: (current: number, total: number) => `Schritt ${current} von ${total}`,
+    later: "Später – erst mal umsehen",
+    crew: {
+      title: "Wie heißt eure Crew?",
+      body: "Die Freunde, mit denen du am meisten unternimmst. Name und Symbol lassen sich jederzeit ändern.",
+      submit: "Crew gründen",
+      created: (name: string) => `${name} ist gegründet.`,
+      haveCrew: "Du hast schon eine Crew? Dann starte direkt eine Abstimmung.",
+      haveCrewAction: "Zur Abstimmung",
+    },
+    invite: {
+      title: "Hol deine Leute dazu",
+      body: "Schick den Link in euren Gruppenchat. Wer ihn öffnet, sieht deine Crew und ist mit einem Tipp dabei – auch ohne Konto.",
+      share: "Einladungslink teilen",
+      shareAgain: "Nochmal teilen",
+      copied: "Link kopiert – füg ihn im Gruppenchat ein.",
+      failed: "Teilen hat nicht geklappt. Kopiere den Link von Hand.",
+      linkLabel: "Dein Einladungslink",
+      linkNote: "Gilt 7 Tage für bis zu 20 Personen. Du kannst ihn in der Crew jederzeit widerrufen.",
+      next: "Weiter zur Abstimmung",
+      skip: "Ohne Einladung weiter",
+    },
+    poll: {
+      title: (weekday: string) => `Was macht ihr am ${weekday}?`,
+      body: "Drei Vorschläge aus deiner Stadt – tipp weg, was nicht passt. Die Crew stimmt ab, du siehst den Stand live.",
+      when: "Wann?",
+      time: "Uhrzeit",
+      ideas: "Vorschläge",
+      noCity: "In welcher Stadt seid ihr unterwegs? Dann suchen wir echte Orte in deiner Nähe.",
+      none: "Für diese Stadt haben wir noch keine Orte. Stell die Abstimmung mit eigenen Vorschlägen zusammen.",
+      custom: "Eigene Vorschläge",
+      pickOne: "Wähle mindestens einen Vorschlag.",
+      submit: (n: number) => (n === 1 ? "Abstimmung mit 1 Vorschlag starten" : `Abstimmung mit ${n} Vorschlägen starten`),
+      deadline: (when: string) => `Abstimmen bis ${when}.`,
+    },
   },
   location: {
     title: "Freunde in der Nähe",
