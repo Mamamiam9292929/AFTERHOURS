@@ -24,6 +24,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: .github/scripts/run.sh npm run typecheck
+      # W2: Messenger-Vorschau (api/share.js) ohne Netz.
+      - run: .github/scripts/run.sh npm run test:unit
       - run: .github/scripts/run.sh npm run build
         env:
           # Nur für den Build; die echten Werte setzt der Hoster.

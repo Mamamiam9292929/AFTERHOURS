@@ -39,12 +39,13 @@
 | Echte Orte | Jede Stadt in Deutschland: Beim ersten Aufruf importiert die Edge Function `places` die Orte aus OpenStreetMap (Restaurants, Cafés, Bars, Kinos, Bowling, Minigolf, Bäder, Escape Rooms, Lasertag, Kart, Klettern, Theater, Museen, Zoos …), danach liegen sie 30 Tage in der Datenbank. Quelle und Stand stehen bei jedem Ort, Öffnungszeiten werden übersetzt oder im Original gezeigt |
 | Discover | Freie Stadtwahl, Kategorien, Suche (serverseitig über alle Orte der Stadt), Filter (Preis, Entfernung ab Stadtmitte, Gruppengröße, Dauer, drinnen/draußen, Alter, jetzt geöffnet), Detailseite mit Öffnungszeiten, Karte (erst nach Klick), Meldefunktion |
 | Abstimmungen | 1–10 Optionen aus Orten oder eigenen Vorschlägen, Termin je Option, Budget, Treffpunkt, Mindestteilnehmer, Frist; Antworten „Bin dabei / Vielleicht / Bin nicht dabei“, änderbar bis zum Ende; Zwischenstand, Beteiligung, Erinnerung; „Abstimmung teilen“ (W8); Ergebnis, Gleichstand, Stichwahl; automatisches Ende nach Fristablauf |
-| Pläne | Aus einer Abstimmung oder direkt; Status Vorschlag → Bestätigt → Reservierung ausstehend → Gebucht → Abgeschlossen bzw. Abgesagt; Zu- und Absagen; Kosten pro Person und gesamt; Bearbeiten mit Benachrichtigung bei wesentlichen Änderungen; „Plan teilen“ (W8): Teilen-Menü des Geräts (Web Share API), sonst Text und Link in die Zwischenablage – geteilt werden nur Titel, Zeitpunkt und Link, keine Namen, Adressen oder Treffpunkte |
+| Pläne | Aus einer Abstimmung oder direkt; Status Vorschlag → Bestätigt → Reservierung ausstehend → Gebucht → Abgeschlossen bzw. Abgesagt; Zu- und Absagen; Kosten pro Person und gesamt; Bearbeiten mit Benachrichtigung bei wesentlichen Änderungen; „Plan teilen“ (W8): Teilen-Menü des Geräts (Web Share API), sonst Text und Link in die Zwischenablage – geteilt werden nur Titel, Zeitpunkt und Link, keine Namen, Adressen oder Treffpunkte. Der Link ist ein eigener Teilen-Link `/s/<token>` (W2, siehe unten) |
 | Reservierung | Dokumentierter Ablauf: Entwurf → ausdrückliche Freigabe → Ergebnis eintragen. Die App reserviert nicht selbst (siehe unten) |
 | Fahrgemeinschaften | Fahrt anbieten, Mitfahrt anfragen, Zusage durch die fahrende Person, Platzkontrolle |
 | Rewards | Punkte-Ledger: 30 Punkte fürs Organisieren, 10 fürs Dabeisein, vergeben beim Abschließen eines Plans – serverseitig, einmalig, mit Tageslimit |
 | Benachrichtigungen | In-App für alle im Konzept genannten Ereignisse, pro Gruppe abschaltbar, gelesen/ungelesen, löschen |
 | Admin | Geschützter Bereich: Kennzahlen, Aktivitäten ein-/ausblenden und als geprüft markieren, Meldungen bearbeiten, Audit-Log |
+| Teilen-Karten (W2 Etappe 1) | Geteilte Pläne bekommen einen eigenen Link `/s/<token>` (ein Link je Plan, angelegt beim ersten Öffnen der Planseite durch ein Mitglied). Messenger (WhatsApp, Signal, Telegram …) zeigen dazu eine Vorschau: Titel des Plans, „Freitag, 17. Oktober · 20:00 Uhr · 3 sind dabei. Bist du dabei?“ und ein Vorschaubild im Ticket-Stil (`public/og/plan.png`, für alle Pläne gleich; Quelle `docs/design/og-plan.html`). Die Tags setzt die Vercel-Funktion `api/share.js` in die normale App-Hülle. In der App: Mitglieder der Crew springen direkt zum Plan; Freunde ohne Konto sehen die Karte (Titel, Zeit, Zahl der Zusagen) mit „Konto erstellen“ und kommen nach der Registrierung auf die Karte zurück; Angemeldete außerhalb der Crew sehen die Karte mit dem Hinweis, nach dem Einladungslink zu fragen. Drei Tage nach dem Plan zeigt der Link nichts mehr. Ein Vorschaubild je Plan (Titel im Bild) folgt in Etappe 2 |
 | Installierbare App (W4) | Manifest, Icons und ein eigener Service Worker (`public/sw.js`, ohne Bibliothek, nur im Produktionsbuild). Hinweis „Hol dir AFTERHOURS auf den Homescreen“ auf Home – erst wenn du in einer Crew bist, nur wenn der Browser die Installation anbietet (Chromium: `beforeinstallprompt`) bzw. auf iPhone/iPad in Safari mit der Anleitung „Teilen → Zum Home-Bildschirm“; „Nicht jetzt“ hält ihn 30 Tage fern. Offline öffnet sich die App aus dem Cache und zeigt oben „Offline – Inhalte laden, sobald du wieder Netz hast.“; Daten (Pläne, Crews) sind offline noch nicht lesbar, darunter steht ein Ladekreis, bis das Netz zurück ist (Etappe 2) Ungelesene Benachrichtigungen als Zahl am App-Icon (Badging-API, wo vorhanden) |
 | Oberfläche | Smartphone (untere Navigation), Tablet, Desktop (Seitenleiste); Lade-, Leer- und Fehlerzustände; Tastaturbedienung, sichtbarer Fokus, reduzierte Bewegung |
 
@@ -141,11 +142,11 @@ Die App funktioniert mit dem klassischen `anon`-Key und mit dem neueren „publi
 
 ## 4. Deployment
 
-Das Frontend ist eine statische Single-Page-App. `npm run build` erzeugt `dist/`.
+Das Frontend ist eine statische Single-Page-App. `npm run build` erzeugt `dist/`. Einzige Ausnahme: die Vercel-Funktion `api/share.js` für die Messenger-Vorschau geteilter Pläne (W2).
 
-**Vercel** – Repository importieren; Framework „Vite“ wird erkannt. Umgebungsvariablen aus [Abschnitt 5](#5-umgebungsvariablen) setzen. `vercel.json` liefert SPA-Rewrite und Sicherheits-Header.
+**Vercel** – Repository importieren; Framework „Vite“ wird erkannt. Umgebungsvariablen aus [Abschnitt 5](#5-umgebungsvariablen) setzen. `vercel.json` liefert SPA-Rewrite und Sicherheits-Header und leitet `/s/<token>` an die Funktion `api/share.js` (Node-Laufzeit, keine eigene Abhängigkeit). Sie lädt `index.html` der eigenen Domain, fragt `preview_shared_plan` mit dem öffentlichen anon-Key ab und setzt Titel, Beschreibung und Open-Graph-Tags in den `<head>`; die Antwort wird 5 Minuten im CDN zwischengespeichert. Sie liest `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` und `VITE_SITE_URL` zur Laufzeit – dieselben Variablen wie der Build, also nichts zusätzlich anzulegen.
 
-**Netlify / Cloudflare Pages** – Build-Befehl `npm run build`, Ausgabeordner `dist`. `public/_redirects` und `public/_headers` werden mit ausgeliefert.
+**Netlify / Cloudflare Pages** – Build-Befehl `npm run build`, Ausgabeordner `dist`. `public/_redirects` und `public/_headers` werden mit ausgeliefert. Geteilte Links funktionieren dort, nur die Messenger-Vorschau ist dann allgemein (die Funktion `api/share.js` müsste als Netlify-/Cloudflare-Function nachgebaut werden).
 
 **Eigener Server** – `dist/` statisch ausliefern, alle unbekannten Pfade auf `index.html` umleiten und die Header aus `public/_headers` setzen.
 
@@ -163,7 +164,7 @@ Frontend (`.env.local` bzw. beim Hoster) – ausschließlich öffentliche Werte:
 |---|---|---|
 | `VITE_SUPABASE_URL` | ja | API-Adresse des Supabase-Projekts |
 | `VITE_SUPABASE_ANON_KEY` | ja | anon- bzw. publishable Key (öffentlich; der Schutz kommt aus RLS) |
-| `VITE_SITE_URL` | nein | Öffentliche Adresse der App für Einladungs- und E-Mail-Links. Leer = aktuelle Browser-Adresse |
+| `VITE_SITE_URL` | nein | Öffentliche Adresse der App für Einladungs-, Teilen- und E-Mail-Links sowie das Vorschaubild geteilter Pläne. Leer = aktuelle Browser-Adresse |
 | `VITE_ASSISTANT_ENABLED` | nein | `true`, sobald die Edge Function `assistant` deployt ist |
 
 Server-Secrets (nie ins Frontend, nie in `.env.local`): `supabase secrets set …`
@@ -184,7 +185,8 @@ Den `service_role`-Key setzt Supabase in Edge Functions automatisch; nur die Fun
 
 ```bash
 npm run typecheck      # TypeScript
-npm run test:db        # 338 pgTAP-Prüfungen der Datenbank (supabase test db)
+npm run test:db        # 411 pgTAP-Prüfungen der Datenbank (supabase test db)
+npm run test:unit      # Messenger-Vorschau (api/share.js), ohne Netz
 deno test supabase/functions/places/osm_test.ts   # OSM-Umwandlung und Öffnungszeiten
 npm run test:e2e       # komplette Nutzerjourney im Browser (Playwright)
 npm run build && npm run size   # Build-Größe gegen scripts/bundle-budget.json
@@ -195,6 +197,8 @@ npm run build && npm run size   # Build-Größe gegen scripts/bundle-budget.json
 **Datenbank (`supabase/tests/database/`)** – prüft Berechtigungen aus Sicht echter API-Rollen: RLS auf jeder Tabelle, keine Rechte für `anon`, Rollenregeln in Crews, Einladungslinks (Ablauf, Limit, Widerruf), öffentliche Einladungsvorschau ohne Konto (nur freigegebene Felder, Rate Limit pro Link, ungültige Links verraten nichts), eine Stimme pro Person und Option, Ergebnislogik, Fristablauf, Statusübergänge von Plänen und Reservierungen, Punktevergabe ohne Doppelbuchung, Datenexport, Kontolöschung, Import echter Orte (Sperre, Kontingent, Aktualisierung, Deaktivierung verschwundener Orte, Suche).
 
 **OSM-Umwandlung (`supabase/functions/places/osm_test.ts`)** – Kategorien, Adressen, Links (nur https), Dubletten und der Öffnungszeiten-Parser: übersetzt werden nur sichere Fälle, alles andere bleibt Originaltext.
+
+**Messenger-Vorschau (`tests/unit/share-card.test.mjs`)** – `node --test`, ohne Netz: Datum in Berliner Zeit, Texte je Planstatus, HTML-Escaping (ein Plantitel kann kein Markup einschleusen), Einbau in `index.html`, Verhalten bei ungültigem Token, Datenbankfehler, Rate Limit und fehlender App-Hülle. Läuft in der CI im Job „TypeScript und Build“. Die Journey ruft dieselbe Funktion zusätzlich gegen die lokale Datenbank auf und prüft die Seite `/s/<token>` als Gast, Mitglied und Außenstehende.
 
 **End-to-End (`tests/e2e/journey.mjs`)** – vier Konten auf Smartphone, Tablet und Desktop spielen die Journey aus dem Konzept durch (Schritte 1–11), dazu Gleichstand/Stichwahl, Fristablauf, direkter Plan, Admin, Import echter Orte, Widerruf, Einstellungen, Kontolöschung, Passwort-Reset und Fehlerzustände. Ein Außenstehender greift zusätzlich direkt auf die API zu; alle Versuche müssen scheitern. Vor dem ersten Lauf: `npx playwright install chromium`.
 
@@ -217,8 +221,8 @@ Der Test legt Konten und Daten an – nur gegen die lokale Umgebung laufen lasse
 ## 7. Architektur
 
 ```
-Browser (React-SPA)
-   │  nur anon-Key + Sitzung der angemeldeten Person
+Browser (React-SPA)          Messenger (WhatsApp & Co.) ──► /s/<token> ──► Vercel-Funktion api/share.js
+   │  nur anon-Key + Sitzung der angemeldeten Person                       (anon-Key, nur preview_shared_plan)
    ▼
 Supabase API ──► Auth        Registrierung, Sitzungen, E-Mails
              ──► PostgREST   Lesen über RLS-Policies
@@ -258,7 +262,7 @@ tests/e2e/        Playwright-Journey
 
 ## 8. Datenmodell
 
-22 Tabellen im Schema `public`. Geldbeträge sind Cent-Werte, Zeitpunkte `timestamptz`.
+23 Tabellen im Schema `public`. Geldbeträge sind Cent-Werte, Zeitpunkte `timestamptz`.
 
 | Tabelle | Inhalt |
 |---|---|
@@ -270,6 +274,7 @@ tests/e2e/        Playwright-Journey
 | `place_regions` | Importierte Städte: OSM-Objekt, Status, Anzahl, Stand, weitere Schreibweisen |
 | `polls`, `poll_options`, `poll_votes` | Abstimmungen; eine Stimme je Person und Option (Unique-Index) |
 | `plans`, `plan_participants` | Pläne und Zusagen |
+| `plan_share_links` | Teilen-Link je Plan (W2): Token, wer ihn angelegt hat. Ohne API-Rechte; Zugriff nur über `plan_share_token` und `preview_shared_plan` |
 | `booking_requests` | Reservierungsanfragen mit Status und Zeitpunkt der Nutzerfreigabe |
 | `ride_offers`, `ride_requests` | Fahrgemeinschaften |
 | `reward_transactions` | Punkte-Ledger (Unique-Index gegen Doppelvergabe) |
@@ -285,12 +290,13 @@ Abweichungen vom Konzept: `users` heißt `profiles` (Supabase-Konvention). `noti
 | Anforderung | Umsetzung |
 |---|---|
 | Authentifizierung | Supabase Auth (Passwörter gehasht, E-Mail-Bestätigung, Rate Limits) |
-| Serverseitige Berechtigungen | RLS auf allen 22 Tabellen (30 Policies); `anon` hat keine Tabellenrechte und darf genau eine Funktion ausführen: `preview_public_invitation` (W1, siehe unten); Schreiben über 40 RPC-Funktionen für angemeldete Nutzer mit festem `search_path`; vier weitere nur für die Edge Function `places` |
+| Serverseitige Berechtigungen | RLS auf allen 23 Tabellen (30 Policies); `anon` hat keine Tabellenrechte und darf genau zwei Funktionen ausführen: `preview_public_invitation` (W1) und `preview_shared_plan` (W2), siehe unten; Schreiben über 40 RPC-Funktionen für angemeldete Nutzer mit festem `search_path`; vier weitere nur für die Edge Function `places` |
 | Importierte Orte | Nutzer können einen Import nur anstoßen, nicht selbst Orte schreiben. Kontingent: 10 Importe pro Person und Stunde, 60 insgesamt; Sperre gegen parallele Importe; Links nur https, Quell-Links nur auf openstreetmap.org |
 | Crew-Grenzen | Jede Policy und jede Funktion prüft die Mitgliedschaft in der Datenbank |
 | Eingaben | Bereinigung und Grenzen in den Funktionen, zusätzlich Check-Constraints auf den Tabellen |
 | Einladungslinks | 244 Bit Zufall, nur SHA-256-Hash gespeichert, Ablauf (max. 30 Tage), Nutzungslimit (max. 50), widerrufbar, Rate Limit auf Abfragen |
 | Einladung ohne Konto (W1) | `preview_public_invitation` liefert bei gültigem Link nur Crew-Name, Emoji, Zahl der Mitglieder, Vornamen (erstes Wort des Anzeigenamens, höchstens sechs, keine Bilder), Vorname der einladenden Person und vom nächsten Plan Titel und Beginn – keine IDs, Adressen, Treffpunkte, Notizen, Kosten oder E-Mails. Ungültige, widerrufene und abgelaufene Links liefern nur ihren Status. Rate Limit 60 Abrufe je Link in 10 Minuten (`app_private.rate_limit_key`); ungültige Tokens schreiben nichts. Wer den Link hat, sieht diese Angaben – so wie bei Gruppenlinks in Messengern |
+| Geteilte Pläne (W2) | `plan_share_token` gibt nur Crew-Mitgliedern den Link (30 neue Links pro Person und Stunde). `preview_shared_plan` liefert bei gültigem Link nur Titel, Beginn, Ende, Status und die Zahl der Zusagen – keine IDs, Namen, Adressen, Treffpunkte, Notizen, Kosten, keinen Crew-Namen; die Plan-ID nur angemeldeten Mitgliedern (für die Weiterleitung). Unbekannte Links liefern `not_found`, Links zu Plänen, die mehr als drei Tage vorbei sind, nur `expired`. Rate Limit 120 Abrufe je Link in 10 Minuten. Der Token (122 Bit Zufall) liegt im Klartext, damit derselbe Link mehrfach geteilt werden kann – in einer Tabelle ohne jede API-Berechtigung; er öffnet keine Crew und keinen Plan. Die Plan-ID taugt nicht als öffentlicher Schlüssel, weil sie in allen App-Adressen steht |
 | Punkte | Nur per Trigger beim Abschließen; nicht direkt schreibbar; Unique-Index, Tageslimit, Audit-Eintrag |
 | Rate Limits | Pro Person und Aktion in der Datenbank, für die Einladungsvorschau ohne Konto pro Link (Crews, Einladungen, Abstimmungen, Stimmen, Nachrichten, Pläne, Meldungen, Assistent, Ortsimport) |
 | Secrets | Im Frontend nur der öffentliche anon-Key; KI-Schlüssel nur als Secret der Edge Function |
@@ -343,7 +349,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Geprüft | Wie |
 |---|---|
 | Migrationen und Demo-Daten | Mit der echten Supabase CLI (2.120) per `supabase db push --include-seed` gegen Postgres 16 eingespielt, als nicht privilegierte Rolle `postgres` |
-| Datenbanklogik und Berechtigungen | 338 pgTAP-Prüfungen, als `postgres` und auf einer Datenbank mit Bestandsdaten |
+| Datenbanklogik und Berechtigungen | 411 pgTAP-Prüfungen, als `postgres` und auf einer Datenbank mit Bestandsdaten |
 | Auth | Original-Binary von Supabase Auth (GoTrue 2.197) inklusive echter Bestätigungs- und Reset-E-Mails über SMTP |
 | API | Original-Binary von PostgREST 14 |
 | Frontend | TypeScript-Prüfung ohne Fehler; Bundle mit esbuild gegen die Original-Quellen von supabase-js 2.117, react-router 6.30 und TanStack Query 5.90 |
@@ -361,6 +367,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Safari, Firefox, echte Mobilgeräte | Getestet nur in Chromium mit Geräte-Viewports |
 | Lasttests | Keine |
 | Installation und Offline auf echten Geräten | Die Journey stellt das Installations-Angebot und die Badging-API nach (Headless-Chromium hat beides nicht) und prüft Service Worker, Cache-Inhalt und Offline-Start in Chromium. Installation unter Android/iOS und der Zähler am Icon sind nicht auf Geräten geprüft |
+| Messenger-Vorschau auf Vercel | `api/share.js` ist mit Unit-Tests und in der Journey gegen die lokale Datenbank geprüft, aber nicht auf Vercel selbst gelaufen (kein Deployment). Wie WhatsApp, Signal und Telegram die Vorschau tatsächlich darstellen, ist ungeprüft |
 | Barrierefreiheit jenseits von axe-core | Automatisch geprüft sind WCAG-Regeln, die axe erkennt, und die Tastatur-Anmeldung. Screenreader (VoiceOver, TalkBack) und Tastaturwege durch die übrigen Abläufe nicht |
 
 ---

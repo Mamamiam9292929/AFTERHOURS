@@ -34,6 +34,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium } from "playwright";
+import { handleShare } from "../../api/share.js";
 
 const APP = (process.env.APP_URL ?? "http://127.0.0.1:5173").replace(/\/$/, "");
 const MAILPIT = (process.env.MAILPIT_URL ?? "http://127.0.0.1:54324").replace(/\/$/, "");
@@ -660,12 +661,17 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
 
 await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   const { page, context } = carol;
+  // W2: Die Planseite holt den Teilen-Link vorab; erst danach teilen, sonst ginge der direkte Plan-Link raus.
+  const shareToken = page.waitForResponse((r) => r.url().includes("/rpc/plan_share_token") && r.ok());
   await page.goto(`${APP}/plans/${ids.plan}`);
   await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  await shareToken;
   await stubShare(page);
   await page.getByRole("button", { name: "Plan teilen" }).click();
   const shared = (await sharedData(page))[0];
-  check(shared?.url?.endsWith(`/plans/${ids.plan}`), "Plan teilen: Link führt zum Plan");
+  check(/\/s\/[0-9a-f]{32}$/.test(shared?.url ?? ""), `Plan teilen: Link mit Vorschau (/s/<token>) statt Plan-ID (${shared?.url})`);
+  check(!(shared?.url ?? "").includes(ids.plan), "Plan teilen: der Link verrät die Plan-ID nicht");
+  ids.shareUrl = shared?.url;
   check(/^Strike District Bowling – .+\. Bist du dabei\?$/.test(shared?.text ?? ""), `Plan teilen: Titel, Zeitpunkt, Frage („${shared?.text}“)`);
   check(!/Alice|Bob|Carol|@/.test(JSON.stringify(shared ?? {})), "Plan teilen: keine Namen oder E-Mail-Adressen im geteilten Text");
   await shot(carol, "16a-plan-teilen");
@@ -676,7 +682,55 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   await toast(carol, "Text und Link kopiert");
   check(true, "Plan teilen ohne Web Share API: Text und Link werden kopiert");
   const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
-  if (clip !== null) check(clip.startsWith("Strike District Bowling – ") && clip.trim().endsWith(`/plans/${ids.plan}`), "Zwischenablage enthält Text und Link");
+  if (clip !== null) check(clip.startsWith("Strike District Bowling – ") && clip.trim().endsWith(ids.shareUrl), "Zwischenablage enthält Text und Link");
+});
+
+await step("W2 – Geteilter Plan: Vorschau im Messenger und für Freunde ohne Konto", async () => {
+  if (!ids.shareUrl) throw new Error("kein Teilen-Link aus W8");
+  const sharePath = new URL(ids.shareUrl).pathname;
+
+  // Messenger lesen nur den <head>: Die Vercel-Funktion (api/share.js) gegen die echte lokale Datenbank.
+  if (ANON) {
+    const response = await handleShare(new Request(`${APP}${sharePath}`), { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON }, fetch);
+    const html = await response.text();
+    const head = html.slice(0, html.indexOf("</head>"));
+    check(head.includes('<meta property="og:title" content="Strike District Bowling · AFTERHOURS" />'), "Vorschau: Titel des Plans als og:title");
+    check(/<meta property="og:description" content="[^"]+ · \d+ (sind|ist) dabei\. Bist du dabei\?" \/>/.test(head), "Vorschau: Zeit und Zahl der Zusagen als og:description");
+    check(head.includes(`content="${APP}/og/plan.png"`), "Vorschau: absolutes Vorschaubild");
+    check(!/Alice|Bob|Carol|Demochaussee|@example/.test(head), "Vorschau: keine Namen, keine Adresse");
+    check(html.includes('<div id="root"></div>'), "Vorschau: Menschen bekommen die App");
+    const image = await fetch(`${APP}/og/plan.png`);
+    check(image.ok && image.headers.get("content-type") === "image/png", "Vorschaubild wird ausgeliefert");
+  }
+
+  // Freund ohne Konto: Karte mit Titel, Zeit, Zusagen – und der Weg in die App.
+  const guest = await newUser("Gast", "mobile");
+  try {
+    await guest.page.goto(ids.shareUrl);
+    await guest.page.getByRole("heading", { level: 1, name: "Bist du dabei?" }).waitFor();
+    const ticket = guest.page.getByRole("region", { name: "Strike District Bowling" });
+    await ticket.waitFor();
+    check(/(\d+\s*sind dabei|ist dabei)/.test(await ticket.innerText()), "Gast sieht, wie viele dabei sind");
+    check(!/Alice|Bob|Carol|Demochaussee/.test(await guest.page.locator("body").innerText()), "Gast sieht keine Namen und keine Adresse");
+    check(await guest.page.getByRole("link", { name: "Konto erstellen" }).isVisible(), "Gast: Konto erstellen");
+    await shot(guest, "16d-geteilter-plan-gast");
+    for (const viewport of ["tablet", "desktop"]) {
+      await guest.page.setViewportSize(VIEWPORTS[viewport]);
+      await shot({ ...guest, viewport }, "16d-geteilter-plan-gast");
+    }
+    await guest.page.goto(`${APP}/s/${"0".repeat(32)}`);
+    await guest.page.getByRole("heading", { level: 1, name: "Plan nicht gefunden" }).waitFor();
+    check(true, "unbekannter Teilen-Link: ehrliche Fehlerseite");
+  } finally {
+    users.splice(users.indexOf(guest), 1);
+    await guest.context.close();
+  }
+
+  // Mitglied der Crew: direkt zum Plan.
+  await bob.page.goto(ids.shareUrl);
+  await bob.page.waitForURL(new RegExp(`/plans/${ids.plan}$`));
+  await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  check(true, "Mitglied: Teilen-Link führt direkt zum Plan");
 });
 
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {
@@ -907,6 +961,13 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   await page.goto(`${APP}/admin`);
   await page.getByText("Kein Zugriff").waitFor();
   check(true, "Admin-Bereich ist gesperrt");
+  if (ids.shareUrl) {
+    // W2: Den Teilen-Link kann sie öffnen – sieht aber nur die Karte, nicht den Plan.
+    await page.goto(ids.shareUrl);
+    await page.getByRole("heading", { level: 1, name: "Noch nicht in der Crew" }).waitFor();
+    check(!page.url().includes(ids.plan), "Teilen-Link: Außenstehende bleiben auf der Karte");
+    await shot(mallory, "16e-geteilter-plan-aussen");
+  }
 
   if (!ANON) {
     console.log("   (SUPABASE_ANON_KEY nicht gesetzt – direkte API-Proben werden übersprungen)");
@@ -927,6 +988,13 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   check((await api(mallory, "POST", "rpc/cast_vote", { p_option_id: option, p_response: "yes" })).status === 403, "API: fremde Abstimmung – Stimme wird abgewiesen (403)");
   check((await api(mallory, "POST", "rpc/create_crew_invitation", { p_crew_id: ids.crew })).status === 403, "API: Einladung für fremde Crew wird abgewiesen (403)");
   check((await api(mallory, "POST", "rpc/set_plan_status", { p_plan_id: ids.plan, p_status: "cancelled" })).status === 403, "API: fremder Plan lässt sich nicht absagen (403)");
+  check((await api(mallory, "POST", "rpc/plan_share_token", { p_plan_id: ids.plan })).status === 403, "API: Teilen-Link für fremden Plan wird abgewiesen (403)");
+  if (ids.shareUrl) {
+    const preview = await api(mallory, "POST", "rpc/preview_shared_plan", { p_token: ids.shareUrl.split("/").pop() });
+    check(preview.status === 200 && preview.json?.plan_id === null, "API: Plan-Vorschau gibt Außenstehenden keine Plan-ID");
+  }
+  const anonShare = await api(null, "POST", "rpc/plan_share_token", { p_plan_id: ids.plan });
+  check([401, 403].includes(anonShare.status), `API: ohne Konto kein Teilen-Link (${anonShare.status})`);
   check((await api(mallory, "POST", "rpc/set_attendance", { p_plan_id: ids.plan, p_status: "going" })).status === 403, "API: Zusage zu fremdem Plan wird abgewiesen (403)");
   check((await api(mallory, "PATCH", `plans?id=eq.${ids.plan}`, { title: "Gekapert" })).status === 403, "API: direkte Änderung an plans ist verboten (403)");
   check((await api(mallory, "POST", "poll_votes", { poll_id: ids.poll, poll_option_id: option, user_id: "00000000-0000-0000-0000-000000000000", response: "yes" })).status === 403, "API: direkte Stimmabgabe an der RPC vorbei ist verboten (403)");

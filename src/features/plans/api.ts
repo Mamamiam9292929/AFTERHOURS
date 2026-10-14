@@ -329,3 +329,49 @@ export function useCancelRideRequest(planId: string) {
     if (error) throw error;
   });
 }
+
+/*
+ * W2 · Teilen-Karte: Ein Plan bekommt beim ersten Teilen einen eigenen Link /s/<token>. Messenger
+ * zeigen dazu eine Vorschau, Freunde ohne Konto eine Karte in der App, Mitglieder landen beim Plan.
+ * Der Token wird beim Öffnen der Planseite geholt, damit das Teilen-Menü ohne Wartezeit aufgeht.
+ */
+export function usePlanShareToken(planId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["plan-share-token", planId ?? "none"] as const,
+    enabled: Boolean(planId) && enabled,
+    staleTime: Infinity,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async (): Promise<string> => {
+      const { data, error } = await supabase.rpc("plan_share_token", { p_plan_id: planId });
+      if (error) throw error;
+      return data as string;
+    },
+  });
+}
+
+export type SharedPlanPreview =
+  | {
+      status: "valid";
+      plan: { title: string; starts_at: string; ends_at: string | null; status: PlanStatus; going_count: number };
+      /** Nur für Mitglieder der Crew – sonst null. */
+      plan_id: string | null;
+    }
+  | { status: "not_found" | "expired" };
+
+/** `viewer`: angemeldete Person oder null – die Antwort hängt davon ab (Plan-ID nur für Mitglieder). */
+export function useSharedPlanPreview(token: string | undefined, viewer: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["plan-share-preview", token ?? "none", viewer ?? "anon"] as const,
+    enabled: Boolean(token) && enabled,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async (): Promise<SharedPlanPreview> => {
+      const { data, error } = await supabase.rpc("preview_shared_plan", { p_token: token ?? "" });
+      if (error) throw error;
+      return data as SharedPlanPreview;
+    },
+  });
+}

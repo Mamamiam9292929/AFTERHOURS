@@ -19,7 +19,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | # | Idee | Nutzen | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
 | W1 | Einladungs-Landingpage: Wer einen Crew-Link öffnet und noch kein Konto hat, sieht Crew, Mitglieder und den nächsten Plan – Registrierung in einem Schritt | Jede Einladung ist der wichtigste Weg zu neuen Nutzern | M | – | Etappe 1 erledigt (#23): Landingpage `/invite/<token>` mit Einladungs-Ticket (Crew, Vornamen, nächster Abend) und Registrierung direkt darunter. Etappe 2 erledigt (#25): Onboarding für Eingeladene auf einen Schritt gekürzt, Beitritt mit demselben Tipp. Damit ist W1 abgeschlossen; Link-Vorschau in Messengern siehe W2 |
-| W2 | Teilen-Karten: Abstimmung/Plan als schöne Vorschau in WhatsApp & Co. (Open-Graph-Bild pro Plan, Text ohne private Daten) | Gruppenchats sind der Ort, an dem geplant wird – dort muss AFTERHOURS auffallen | M | Server-Rendering des Vorschaubilds (Edge Function) | Freigegeben |
+| W2 | Teilen-Karten: Abstimmung/Plan als schöne Vorschau in WhatsApp & Co. (Open-Graph-Bild pro Plan, Text ohne private Daten) | Gruppenchats sind der Ort, an dem geplant wird – dort muss AFTERHOURS auffallen | M | Server-Rendering des Vorschaubilds (Edge Function) | Etappe 1: PR offen – eigener Teilen-Link `/s/<token>` je Plan, Messenger-Vorschau (Titel, Zeit, Zusagen, Vorschaubild im Ticket-Stil) über die Vercel-Funktion `api/share.js`, Karte für Freunde ohne Konto und Außenstehende, Mitglieder direkt zum Plan. Etappe 2 offen: Vorschaubild je Plan mit Titel im Bild, Abstimmungen teilen mit Vorschau |
 | W3 | Abstimmen ohne Konto per Link (Gastname, später Konto übernehmen) | Senkt die Hürde für die Freunde, die noch nicht dabei sind | L | Missbrauchsschutz, Rate Limits | Freigegeben |
 | W4 | Installierbare App (PWA): Installations-Hinweis zum richtigen Zeitpunkt, Offline-Grundgerüst, App-Icon-Badges | „Runterladen" ohne App Store | S | – | Etappe 1 erledigt (#26): Hinweis auf Home (erst mit Crew, 30 Tage Ruhe nach „Nicht jetzt“, iOS-Anleitung), Service Worker mit Offline-Hülle, Offline-Streifen, Zähler am Icon. Etappe 2 offen: zuletzt geladene Pläne offline lesbar (nur auf dem Gerät, beim Abmelden gelöscht), Update-Hinweis „Neue Version – neu laden“ |
 | W5 | Erster Plan in 60 Sekunden: geführter Start nach der Registrierung (Crew → Freunde einladen → Abstimmung mit 3 Vorschlägen aus der eigenen Stadt) | Neue Nutzer erleben den Kernnutzen sofort | M | – | Freigegeben |
@@ -31,7 +31,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
 | # | Aufgabe | Nutzen | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
-| D0 | Redesign nach `docs/design/DESIGN.md` (Konzept von Benito abgesegnet): Plakat-Überschriften, Ticket als Held auf Home, Abstimm-Balken, Discover mit Bühne, neue Tab-Leiste. In Etappen: Home → Abstimmung → Discover → Rest | Der Wow-Effekt beim ersten Öffnen | M | – | Etappe 1 Home (#11) und Etappe 2 Abstimmung (#13) erledigt; Etappe 3 Discover (#15) erledigt; Etappe 4 Tab-Leiste, Crews- und Plans-Übersicht (#16) erledigt; Etappe 5a Plan-Detail (#17) erledigt; Etappe 5b Crew-Detail (#18) erledigt; Etappe 5c Profil als Stammkarte: PR offen – danach ist D0 abgeschlossen, Feinschliff läuft über D1–D6 |
+| D0 | Redesign nach `docs/design/DESIGN.md` (Konzept von Benito abgesegnet): Plakat-Überschriften, Ticket als Held auf Home, Abstimm-Balken, Discover mit Bühne, neue Tab-Leiste. In Etappen: Home → Abstimmung → Discover → Rest | Der Wow-Effekt beim ersten Öffnen | M | – | Etappe 1 Home (#11) und Etappe 2 Abstimmung (#13) erledigt; Etappe 3 Discover (#15) erledigt; Etappe 4 Tab-Leiste, Crews- und Plans-Übersicht (#16) erledigt; Etappe 5a Plan-Detail (#17) erledigt; Etappe 5b Crew-Detail (#18) erledigt; Etappe 5c Profil als Stammkarte (#19) erledigt – D0 ist abgeschlossen, Feinschliff läuft über D1–D7 |
 | D1 | Bewegung mit Sinn: Ticket „reißt ab", wenn ein Plan bestätigt wird; Stimmbalken wachsen; reduzierte Bewegung respektiert | Die entscheidenden Momente fühlen sich gut an | S | – | Freigegeben |
 | D2 | Discover visueller: größere Karten mit Kategorie-Farbwelten, Kartenansicht (P6), Fotos aus Commons (P7) | Stöbern macht Spaß statt Liste lesen | M | P6, P7 | Freigegeben |
 | D3 | Home als „Heute Abend"-Bühne: nächster Plan als großes Ticket, Live-Countdown, offene Abstimmungen mit einem Tipp beantworten | Ein Blick genügt | M | – | Freigegeben |
@@ -62,6 +62,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
 - Hosting/Domain für den Livebetrieb (Vercel + Supabase-Projekt in der EU)
 - Entwicklerkonten Apple/Google für die Store-Version (W7)
+- W2: Die Messenger-Vorschau braucht Vercel als Hoster (Funktion `api/share.js`). Bei Netlify/Cloudflare funktionieren geteilte Links, die Vorschau bleibt allgemein
 - Impressum, Datenschutzerklärung, Nutzungsbedingungen rechtlich prüfen lassen
 
 ## Offene Fragen an Benito
