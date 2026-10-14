@@ -37,6 +37,7 @@ const ResetPasswordPage = page(authPages, "ResetPasswordPage");
 
 const OnboardingPage = page(() => import("@/features/onboarding/OnboardingPage"), "OnboardingPage");
 const HomePage = page(() => import("@/features/home/HomePage"), "HomePage");
+const QuickStartPage = page(() => import("@/features/home/QuickStartPage"), "QuickStartPage");
 const DiscoverPage = page(() => import("@/features/discover/DiscoverPage"), "DiscoverPage");
 const ActivityDetailPage = page(() => import("@/features/discover/ActivityDetailPage"), "ActivityDetailPage");
 const CrewsPage = page(() => import("@/features/crews/CrewsPage"), "CrewsPage");
@@ -108,6 +109,7 @@ export const router = createBrowserRouter([
                 element: <AppLayout />,
                 children: [
                   { path: "/home", element: <HomePage /> },
+                  { path: "/start", element: <QuickStartPage /> },
                   { path: "/discover", element: <DiscoverPage /> },
                   { path: "/activities/:activityId", element: <ActivityDetailPage /> },
                   { path: "/crews", element: <CrewsPage /> },
