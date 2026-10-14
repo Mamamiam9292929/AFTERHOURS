@@ -25,11 +25,12 @@ export function planShare(plan: { id: string; title: string; starts_at: string }
   };
 }
 
-export function pollShare(poll: { id: string; title: string; ends_at: string }): ShareContent {
+/** W2 Etappe 2: wie beim Plan – mit Token auf /v/<token> (Vorschau), sonst direkt zur Abstimmung. */
+export function pollShare(poll: { id: string; title: string; ends_at: string }, shareToken?: string | null): ShareContent {
   return {
     title: poll.title,
     text: t.share.pollText(poll.title, formatDateTime(poll.ends_at)),
-    url: `${siteUrl()}/polls/${poll.id}`,
+    url: shareToken ? `${siteUrl()}/v/${shareToken}` : `${siteUrl()}/polls/${poll.id}`,
   };
 }
 

@@ -539,14 +539,19 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   await bob.page.goto(`${APP}/notifications`);
   await bob.page.getByText("Alice hat eine Abstimmung gestartet").waitFor();
   check(true, "Bob wurde über die neue Abstimmung benachrichtigt");
+  // W2 Etappe 2: Die Abstimmung holt den Teilen-Link vorab; erst danach teilen.
+  const pollShareToken = bob.page.waitForResponse((r) => r.url().includes("/rpc/poll_share_token") && r.ok());
   await bob.page.getByText("Alice hat eine Abstimmung gestartet").click();
   await bob.page.waitForURL(new RegExp(`/polls/${ids.poll}`));
+  await pollShareToken;
 
   // W8: Abstimmung in den Gruppenchat teilen – Titel, Frist, Link; keine Namen.
   await stubShare(bob.page);
   await bob.page.getByRole("button", { name: "Abstimmung teilen" }).click();
   const pollShared = (await sharedData(bob.page))[0];
-  check(pollShared?.url?.endsWith(`/polls/${ids.poll}`), "Abstimmung teilen: Link führt zur Abstimmung");
+  check(/\/v\/[0-9a-f]{32}$/.test(pollShared?.url ?? ""), `Abstimmung teilen: Link mit Vorschau (/v/<token>) statt ID (${pollShared?.url})`);
+  check(!(pollShared?.url ?? "").includes(ids.poll), "Abstimmung teilen: der Link verrät die ID nicht");
+  ids.pollShareUrl = pollShared?.url;
   check(/stimm mit ab, bis /.test(pollShared?.text ?? "") && !/Alice|Bob|Carol/.test(pollShared?.text ?? ""), `Abstimmung teilen: Text mit Frist, ohne Namen („${pollShared?.text}“)`);
   await unstubShare(bob.page);
 
@@ -585,6 +590,53 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
     const keys = votes.json.map((v) => `${v.user_id}:${v.poll_option_id}`);
     check(new Set(keys).size === keys.length && keys.length === 5, `in der Datenbank steht genau eine Stimme pro Person und Option (${keys.length})`);
   }
+});
+
+await step("W2 Etappe 2 – Geteilte Abstimmung: Vorschau im Messenger und für Freunde ohne Konto", async () => {
+  if (!ids.pollShareUrl) throw new Error("kein Teilen-Link aus Schritt 6");
+  const sharePath = new URL(ids.pollShareUrl).pathname;
+
+  // Messenger lesen nur den <head>: die Vercel-Funktion (api/share.js) gegen die echte lokale Datenbank.
+  if (ANON) {
+    const response = await handleShare(new Request(`${APP}${sharePath}`), { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON }, fetch);
+    const head = (await response.text()).split("</head>")[0];
+    check(head.includes(`<meta property="og:title" content="${ids.pollTitle} · AFTERHOURS" />`), "Vorschau: Frage als og:title");
+    check(/<meta property="og:description" content="3 Vorschläge · 3 haben abgestimmt · Abstimmen bis [^"]+\. Stimmst du mit ab\?" \/>/.test(head), "Vorschau: Vorschläge, Stimmen und Frist als og:description");
+    check(head.includes(`content="${APP}/og/poll.png"`) && head.includes(`content="${APP}${sharePath}"`), "Vorschau: eigenes Vorschaubild und eigener Link");
+    check(!/Alice|Bob|Carol|Strike|Lichtspielhaus|Grillen|U-Bahn|@example/.test(head), "Vorschau: keine Namen, keine Vorschläge, kein Treffpunkt");
+    const image = await fetch(`${APP}/og/poll.png`);
+    check(image.ok && image.headers.get("content-type") === "image/png", "Vorschaubild der Abstimmung wird ausgeliefert");
+  }
+
+  // Freund ohne Konto: Karte mit Frage, Frist, Zahlen – und der Weg in die App.
+  const guest = await newUser("Gast", "mobile");
+  try {
+    await guest.page.goto(ids.pollShareUrl);
+    await guest.page.getByRole("heading", { level: 1, name: "Stimmst du mit ab?" }).waitFor();
+    const card = guest.page.getByRole("region", { name: ids.pollTitle });
+    await card.waitFor();
+    const text = await card.innerText();
+    check(/3\s*Vorschläge/.test(text) && /3\s*haben abgestimmt/.test(text) && /Abstimmen bis/.test(text), `Gast sieht Vorschläge, Stimmen und Frist („${text.replace(/\s+/g, " ")}“)`);
+    check(!/Alice|Bob|Carol|Strike|Lichtspielhaus|Grillen|U-Bahn/.test(await guest.page.locator("body").innerText()), "Gast sieht keine Namen, keine Vorschläge, keinen Treffpunkt");
+    check(await guest.page.getByRole("link", { name: "Konto erstellen" }).isVisible(), "Gast: Konto erstellen");
+    await shot(guest, "11b-geteilte-abstimmung-gast");
+    for (const viewport of ["tablet", "desktop"]) {
+      await guest.page.setViewportSize(VIEWPORTS[viewport]);
+      await shot({ ...guest, viewport }, "11b-geteilte-abstimmung-gast");
+    }
+    await guest.page.goto(`${APP}/v/${"0".repeat(32)}`);
+    await guest.page.getByRole("heading", { level: 1, name: "Abstimmung nicht gefunden" }).waitFor();
+    check(true, "unbekannter Abstimmungs-Link: ehrliche Fehlerseite");
+  } finally {
+    users.splice(users.indexOf(guest), 1);
+    await guest.context.close();
+  }
+
+  // Mitglied der Crew: direkt zur Abstimmung.
+  await carol.page.goto(ids.pollShareUrl);
+  await carol.page.waitForURL(new RegExp(`/polls/${ids.poll}$`));
+  await carol.page.getByRole("heading", { name: ids.pollTitle }).waitFor();
+  check(true, "Mitglied: Abstimmungs-Link führt direkt zur Abstimmung");
 });
 
 await step("Schritt 7 – Abstimmung beenden, Ergebnis", async () => {
@@ -1046,6 +1098,14 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
     check(/\d+\s*(waren|war) dabei|Keine Zusage/.test(await page.getByRole("region").innerText()), "vergangener Plan: Zusagen in der Vergangenheit");
     await shot(mallory, "16e-geteilter-plan-aussen");
   }
+  if (ids.pollShareUrl) {
+    // W2 Etappe 2: dasselbe für die geteilte Abstimmung – inzwischen entschieden.
+    await page.goto(ids.pollShareUrl);
+    await page.getByRole("heading", { level: 1, name: "Noch nicht in der Crew" }).waitFor();
+    check(!page.url().includes(ids.poll), "Abstimmungs-Link: Außenstehende bleiben auf der Karte");
+    check(/Entschieden/.test(await page.getByRole("region").innerText()), "beendete Abstimmung: als entschieden markiert");
+    await shot(mallory, "16f-geteilte-abstimmung-aussen");
+  }
 
   if (!ANON) {
     console.log("   (SUPABASE_ANON_KEY nicht gesetzt – direkte API-Proben werden übersprungen)");
@@ -1071,6 +1131,12 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
     const preview = await api(mallory, "POST", "rpc/preview_shared_plan", { p_token: ids.shareUrl.split("/").pop() });
     check(preview.status === 200 && preview.json?.plan_id === null, "API: Plan-Vorschau gibt Außenstehenden keine Plan-ID");
   }
+  check((await api(mallory, "POST", "rpc/poll_share_token", { p_poll_id: ids.poll })).status === 403, "API: Teilen-Link für fremde Abstimmung wird abgewiesen (403)");
+  if (ids.pollShareUrl) {
+    const preview = await api(mallory, "POST", "rpc/preview_shared_poll", { p_token: ids.pollShareUrl.split("/").pop() });
+    check(preview.status === 200 && preview.json?.poll_id === null && preview.json?.poll?.status === "closed", "API: Abstimmungs-Vorschau gibt Außenstehenden keine ID");
+  }
+  check([401, 403].includes((await api(null, "POST", "rpc/poll_share_token", { p_poll_id: ids.poll })).status), "API: ohne Konto kein Abstimmungs-Link");
   const anonShare = await api(null, "POST", "rpc/plan_share_token", { p_plan_id: ids.plan });
   check([401, 403].includes(anonShare.status), `API: ohne Konto kein Teilen-Link (${anonShare.status})`);
   check((await api(mallory, "POST", "rpc/set_attendance", { p_plan_id: ids.plan, p_status: "going" })).status === 403, "API: Zusage zu fremdem Plan wird abgewiesen (403)");

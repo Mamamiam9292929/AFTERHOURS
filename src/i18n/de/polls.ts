@@ -134,4 +134,34 @@ export const polls = {
     notFoundTitle: "Diese Abstimmung gibt es nicht",
     notFoundBody: "Sie wurde gelöscht oder du bist nicht mehr in der Crew.",
   },
+  /** W2 Etappe 2 · Geteilte Abstimmung (/v/<token>): Karte für Freunde ohne Konto bzw. außerhalb der Crew. */
+  shared: {
+    pageTitle: (title: string) => `${title} – geteilte Abstimmung`,
+    kicker: "Eine Abstimmung mit AFTERHOURS",
+    stubLabel: "Bis",
+    open: "Läuft",
+    closed: "Entschieden",
+    until: (when: string) => `Abstimmen bis ${when}`,
+    closedOn: (when: string) => `Frist war ${when}`,
+    options: (n: number) => (n === 1 ? "Vorschlag" : "Vorschläge"),
+    /** Steht neben der Zahl; ohne Stimme allein. */
+    voters: (n: number, open: boolean) =>
+      n === 0 ? (open ? "Noch keine Stimme" : "Keine Stimme") : open ? (n === 1 ? "hat abgestimmt" : "haben abgestimmt") : n === 1 ? "hat mitgestimmt" : "haben mitgestimmt",
+    guestTitle: "Stimmst du mit ab?",
+    guestIntro: "Deine Freunde stimmen mit AFTERHOURS ab, was sie unternehmen. Mitstimmen kannst du, sobald du in ihrer Crew bist – frag im Gruppenchat nach dem Einladungslink.",
+    guestClosedTitle: "Schon entschieden",
+    guestClosedIntro: "Deine Freunde haben mit AFTERHOURS abgestimmt. Was daraus wird, sieht die Crew in der App – frag im Gruppenchat nach dem Einladungslink.",
+    register: "Konto erstellen",
+    hasAccount: "Schon ein Konto?",
+    toLogin: "Anmelden",
+    outsiderTitle: "Noch nicht in der Crew",
+    outsiderIntro: "Diese Abstimmung gehört zu einer Crew, in der du noch nicht bist. Frag nach dem Einladungslink – danach siehst du die Vorschläge und kannst mitstimmen.",
+    toHome: "Zu deiner Übersicht",
+    privacy: "Der Link zeigt nur die Frage, die Frist und wie viele mitmachen. Was zur Wahl steht und wer abgestimmt hat, sieht nur die Crew.",
+    status: {
+      not_found: { title: "Abstimmung nicht gefunden", body: "Der Link ist unvollständig oder falsch. Frag im Gruppenchat nach einem neuen." },
+      expired: { title: "Diese Abstimmung ist vorbei", body: "Geteilte Abstimmungen sind bis drei Tage nach ihrem Ende zu sehen." },
+    },
+    toStart: "Zu AFTERHOURS",
+  },
 };

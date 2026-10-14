@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { describeSharedPlan, escapeHtml, formatWhen, injectMeta, shareMetaTags } from "../../api/_lib/share-card.js";
+import { describeSharedPlan, describeSharedPoll, escapeHtml, formatWhen, injectMeta, shareMetaTags } from "../../api/_lib/share-card.js";
 import { handleShare } from "../../api/share.js";
 
 const TOKEN = "0123456789abcdef0123456789abcdef";
@@ -98,4 +98,45 @@ test("Handler: Datenbank weg oder Rate Limit → allgemeine Vorschau; Hülle weg
   const fetchImpl = fakeFetch([["https://app.test/index.html", "fail"], ["https://db.test/", 200, valid({})]]);
   const html = await (await handleShare(new Request(`https://app.test/s/${TOKEN}`), env, fetchImpl)).text();
   assert.ok(html.includes("og:title") && html.includes(`href="https://afterhours.test/s/${TOKEN}"`));
+});
+
+// ---- W2 Etappe 2 · Abstimmungen (/v/<token>) ---------------------------------------------------------
+const validPoll = (poll) => ({ status: "valid", poll_id: null, poll: { title: "Was machen wir am Samstag?", ends_at: "2026-10-16T18:00:00Z", status: "open", option_count: 3, voter_count: 2, ...poll } });
+
+test("Abstimmung: Texte je nach Stand", () => {
+  assert.deepEqual(describeSharedPoll(validPoll({})), {
+    title: "Was machen wir am Samstag? · AFTERHOURS",
+    description: "3 Vorschläge · 2 haben abgestimmt · Abstimmen bis Freitag, 16. Oktober · 20:00 Uhr. Stimmst du mit ab?",
+  });
+  assert.match(describeSharedPoll(validPoll({ option_count: 1, voter_count: 1 })).description, /^1 Vorschlag · 1 hat abgestimmt · /);
+  assert.match(describeSharedPoll(validPoll({ voter_count: 0 })).description, /· Noch keine Stimme ·/);
+  assert.match(describeSharedPoll(validPoll({ status: "closed", voter_count: 4 })).description, /^Entschieden – 4 haben abgestimmt\./);
+  for (const preview of [{ status: "not_found" }, { status: "expired" }, null, { status: "valid" }, valid({})]) {
+    assert.equal(describeSharedPoll(preview).title, "AFTERHOURS", `allgemeine Vorschau für ${JSON.stringify(preview)}`);
+  }
+});
+
+test("Handler: Abstimmung über ?kind=poll – eigene Funktion, eigener Link, eigenes Bild", async () => {
+  const fetchImpl = fakeFetch([["https://app.test/index.html", 200, shell], ["https://db.test/rest/v1/rpc/preview_shared_poll", 200, validPoll({})]]);
+  const html = await (await handleShare(new Request(`https://app.test/api/share?kind=poll&token=${TOKEN}`), env, fetchImpl)).text();
+  assert.ok(html.includes('<meta property="og:title" content="Was machen wir am Samstag? · AFTERHOURS" />'));
+  assert.ok(html.includes(`<meta property="og:url" content="https://afterhours.test/v/${TOKEN}" />`));
+  assert.ok(html.includes('content="https://afterhours.test/og/poll.png"'));
+  assert.ok(html.includes('content="AFTERHOURS – eine Abstimmung eurer Crew"'));
+  assert.ok(!fetchImpl.calls.some((c) => c.url.includes("preview_shared_plan")), "fragt nicht nach einem Plan");
+});
+
+test("Handler: Abstimmung auch aus dem Pfad /v/<token>; Plan-Pfad bleibt Plan", async () => {
+  const pollFetch = fakeFetch([["https://app.test/index.html", 200, shell], ["https://db.test/rest/v1/rpc/preview_shared_poll", 200, validPoll({})]]);
+  await handleShare(new Request(`https://app.test/v/${TOKEN}`), env, pollFetch);
+  assert.ok(pollFetch.calls.some((c) => c.url.endsWith("/rpc/preview_shared_poll")));
+  const planFetch = fakeFetch([["https://app.test/index.html", 200, shell], ["https://db.test/rest/v1/rpc/preview_shared_plan", 200, valid({})]]);
+  const html = await (await handleShare(new Request(`https://app.test/s/${TOKEN}`), env, planFetch)).text();
+  assert.ok(html.includes('content="https://afterhours.test/og/plan.png"') && html.includes(`/s/${TOKEN}"`));
+});
+
+test("Handler: Abstimmungs-Vorschau escaped die Frage", async () => {
+  const fetchImpl = fakeFetch([["https://app.test/index.html", 200, shell], ["https://db.test/", 200, validPoll({ title: `"><script>x</script>` })]]);
+  const html = await (await handleShare(new Request(`https://app.test/v/${TOKEN}`), env, fetchImpl)).text();
+  assert.ok(!html.includes("<script>x</script>"));
 });

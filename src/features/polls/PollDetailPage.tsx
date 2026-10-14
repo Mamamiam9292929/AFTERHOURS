@@ -23,7 +23,7 @@ import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { addDays, formatAgo, formatDateTime, formatPlainDate, formatPlainTime, formatRelative, today, zonedToUtc } from "@/lib/time";
 import type { PollOption, VoteResponse } from "@/lib/types";
-import { useClosePoll, usePoll, usePolls, useRemindPoll, useStartRunoff, useVote } from "./api";
+import { useClosePoll, usePoll, usePollShareToken, usePolls, useRemindPoll, useStartRunoff, useVote } from "./api";
 import { ParticipationBar } from "./PollCard";
 import { summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
 
@@ -322,6 +322,8 @@ export function PollDetailPage() {
   const [planOption, setPlanOption] = useState<PollOption | null>(null);
   const [runoffOpen, setRunoffOpen] = useState(false);
   const poll = pollQuery.data;
+  // W2 Etappe 2: Teilen-Link vorab holen – das Teilen-Menü muss direkt auf den Tipp hin aufgehen.
+  const shareToken = usePollShareToken(poll?.id, poll?.status === "open");
   useDocumentTitle(poll?.title);
 
   // Läuft die Frist ab, während die Seite offen ist: einmal neu laden – dabei wird das Ergebnis festgestellt.
@@ -373,7 +375,7 @@ export function PollDetailPage() {
           </span>
         }
         back={crew ? { to: `/crews/${crew.id}`, label: t.polls.detail.backToCrew(`${crew.emoji} ${crew.name}`) } : { to: "/plans", label: t.polls.detail.back }}
-        actions={!summary.isOver ? <ShareButton label={t.share.poll} content={() => pollShare(poll)} /> : undefined}
+        actions={!summary.isOver ? <ShareButton label={t.share.poll} content={() => pollShare(poll, shareToken.data)} /> : undefined}
         lead={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {summary.isOver ? (

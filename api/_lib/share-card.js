@@ -1,8 +1,9 @@
-// W2 · Teilen-Karten: Bausteine für die Messenger-Vorschau eines geteilten Plans (/s/<token>).
+// W2 · Teilen-Karten: Bausteine für die Messenger-Vorschau eines geteilten Plans (/s/<token>) bzw. einer
+// geteilten Abstimmung (/v/<token>, Etappe 2).
 // Reine Funktionen ohne Netz – getestet in tests/unit/share-card.test.mjs.
 //
 // Die Texte stehen ausnahmsweise hier statt in src/i18n: Sie entstehen auf dem Server, bevor die
-// App lädt, und gehen nur an Messenger-Vorschauen. Inhalt wie in der App (t.plans.shared).
+// App lädt, und gehen nur an Messenger-Vorschauen. Inhalt wie in der App (t.plans.shared, t.polls.shared).
 
 export const SHARE_TOKEN = /^[0-9a-f]{32}$/;
 
@@ -10,6 +11,15 @@ export const BRAND = {
   title: "AFTERHOURS",
   description: "Mit deiner Crew abstimmen, Orte entdecken und Pläne festmachen. Weniger planen. Mehr erleben.",
   imageAlt: "AFTERHOURS – ein Ticket für euren nächsten Abend",
+};
+
+/**
+ * Die beiden Arten geteilter Links: Pfad in der App, Datenbankfunktion für die Vorschau, Vorschaubild.
+ * Die Tokens sehen gleich aus (32 Hex-Zeichen), liegen aber in getrennten Tabellen.
+ */
+export const SHARE_KINDS = {
+  plan: { path: "s", rpc: "preview_shared_plan", image: "/og/plan.png", imageAlt: BRAND.imageAlt },
+  poll: { path: "v", rpc: "preview_shared_poll", image: "/og/poll.png", imageAlt: "AFTERHOURS – eine Abstimmung eurer Crew" },
 };
 
 const TIME_ZONE = "Europe/Berlin";
@@ -43,6 +53,29 @@ export function describeSharedPlan(preview) {
   return { title, description: `${when} · ${goingText(Number(plan.going_count) || 0)}. Bist du dabei?` };
 }
 
+function countText(n, one, many) {
+  return n === 1 ? `1 ${one}` : `${n} ${many}`;
+}
+
+/**
+ * W2 Etappe 2 · Titel und Beschreibung der Vorschau einer Abstimmung. Nur, was preview_shared_poll
+ * liefert: Frage, Frist, offen/entschieden, Zahl der Vorschläge und der Personen, die abgestimmt haben.
+ */
+export function describeSharedPoll(preview) {
+  if (!preview || preview.status !== "valid" || !preview.poll) {
+    return { title: BRAND.title, description: BRAND.description };
+  }
+  const { poll } = preview;
+  const title = `${poll.title} · AFTERHOURS`;
+  const options = countText(Number(poll.option_count) || 0, "Vorschlag", "Vorschläge");
+  const voters = Number(poll.voter_count) || 0;
+  if (poll.status !== "open") {
+    return { title, description: `Entschieden – ${voters === 1 ? "1 hat" : `${voters} haben`} abgestimmt. Wie es weitergeht, sieht die Crew in AFTERHOURS.` };
+  }
+  const votersText = voters === 0 ? "Noch keine Stimme" : voters === 1 ? "1 hat abgestimmt" : `${voters} haben abgestimmt`;
+  return { title, description: `${options} · ${votersText} · Abstimmen bis ${formatWhen(poll.ends_at)}. Stimmst du mit ab?` };
+}
+
 export function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -53,7 +86,7 @@ export function escapeHtml(value) {
 }
 
 /** Open-Graph- und Twitter-Tags; `image` muss eine absolute Adresse sein (Messenger verlangen das). */
-export function shareMetaTags({ title, description, url, image }) {
+export function shareMetaTags({ title, description, url, image, imageAlt = BRAND.imageAlt }) {
   const e = escapeHtml;
   return [
     `<title>${e(title)}</title>`,
@@ -68,7 +101,7 @@ export function shareMetaTags({ title, description, url, image }) {
     `<meta property="og:image:type" content="image/png" />`,
     `<meta property="og:image:width" content="1200" />`,
     `<meta property="og:image:height" content="630" />`,
-    `<meta property="og:image:alt" content="${e(BRAND.imageAlt)}" />`,
+    `<meta property="og:image:alt" content="${e(imageAlt)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="robots" content="noindex" />`,
   ].join("\n    ");
@@ -76,7 +109,7 @@ export function shareMetaTags({ title, description, url, image }) {
 
 /**
  * Ersetzt Titel, Beschreibung und die allgemeinen Vorschau-Tags der App-Hülle (W6, index.html) durch die
- * Vorschau-Tags des Plans – Messenger nehmen sonst oft das erste og:title. Der Rest bleibt unverändert.
+ * Vorschau-Tags des Plans bzw. der Abstimmung – Messenger nehmen sonst oft das erste og:title. Der Rest bleibt unverändert.
  */
 export function injectMeta(html, tags) {
   const stripped = html
