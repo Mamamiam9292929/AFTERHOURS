@@ -104,7 +104,8 @@ export function OnboardingPage() {
         favorite_categories: categories,
         onboarded_at: new Date().toISOString(),
       });
-      setTarget(consumeNext() ?? "/home");
+      // W5: Wer nicht über einen Link kam, startet geführt – Crew, Freunde, erste Abstimmung.
+      setTarget(consumeNext() ?? "/start");
     } catch (error) {
       setFinishing(false);
       setFormError(errorMessage(error));

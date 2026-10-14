@@ -372,7 +372,8 @@ await step("Schritt 1 – Registrierung, E-Mail-Bestätigung, Onboarding (Alice)
 
 await step("Schritt 2 – Crew erstellen", async () => {
   const { page } = alice;
-  await page.getByRole("link", { name: "Crew erstellen" }).first().click();
+  check(await page.getByRole("link", { name: "Erster Plan in 60 Sekunden" }).isVisible(), "Home bietet neuen Nutzern den geführten Start an (W5)");
+  await page.getByRole("link", { name: "Nur Crew erstellen" }).click();
   await dialog(alice).getByLabel("Name der Crew").fill("Weekend Crew");
   await dialog(alice).getByRole("radio", { name: "🎳" }).click();
   await dialog(alice).getByRole("button", { name: "Crew erstellen" }).click();
@@ -1154,6 +1155,60 @@ await step("Abmelden, Passwort zurücksetzen, neu anmelden (Alice)", async () =>
   await login(alice, "Noch-geheimer-2031!");
   await page.waitForURL(/\/home/);
   check(true, "Anmeldung mit dem neuen Passwort");
+});
+
+await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana)", async () => {
+  const dana = await newUser("Dana", "mobile");
+  const { page, context } = dana;
+  await register(dana);
+  const started = Date.now();
+  await onboard(dana, { full: true });
+  await page.waitForURL(/\/start$/);
+  await page.getByRole("heading", { level: 1, name: "Wie heißt eure Crew?" }).waitFor();
+  check(true, "ohne Einladungslink geht es nach dem Onboarding in den geführten Start");
+  await shot(dana, "37-start-crew");
+
+  await page.getByLabel("Name der Crew").fill("Freitagsrunde");
+  await page.getByRole("radio", { name: "🎳" }).click();
+  await page.getByRole("button", { name: "Crew gründen" }).click();
+  await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
+  check(/\/start\?crew=[0-9a-f-]{36}$/.test(page.url()), "Schritt 1: Crew gegründet, der Stand steht in der Adresse");
+  await page.reload();
+  await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
+  check(true, "Neuladen bleibt in Schritt 2");
+
+  await stubShare(page);
+  await page.getByRole("button", { name: "Einladungslink teilen" }).click();
+  await page.getByLabel("Dein Einladungslink").waitFor();
+  const shared = (await sharedData(page))[0];
+  check(/\/join\/[A-Za-z0-9_-]{20,}$/.test(shared?.url ?? ""), "Schritt 2: Einladungslink geht ins Teilen-Menü des Handys");
+  check(Boolean(shared?.text?.includes("Freitagsrunde")) && !/@/.test(shared?.text ?? ""), "Teilen-Text nennt die Crew, keine E-Mail-Adressen");
+  check((await page.getByLabel("Dein Einladungslink").inputValue()) === shared?.url, "angezeigter Link ist der geteilte");
+  await shot(dana, "38-start-einladen");
+
+  await page.getByRole("button", { name: "Weiter zur Abstimmung" }).click();
+  await page.getByRole("heading", { level: 1, name: /^Was macht ihr am (Freitag|Samstag)\?$/ }).waitFor();
+  const ideas = page.getByRole("region", { name: "Vorschläge" });
+  const cards = ideas.locator("button[aria-pressed]");
+  await cards.first().waitFor({ timeout: 45_000 });
+  const count = await cards.count();
+  check(count >= 1 && count <= 3, `Schritt 3: bis zu drei echte Orte aus der eigenen Stadt (${count})`);
+  await shot(dana, "39-start-abstimmung");
+  if (count > 1) {
+    await cards.last().click();
+    check((await cards.last().getAttribute("aria-pressed")) === "false", "Vorschlag lässt sich mit einem Tipp abwählen");
+  }
+  const names = [];
+  for (const card of await ideas.locator('button[aria-pressed="true"]').all()) names.push((await card.locator("span.truncate").first().innerText()).trim());
+  await page.getByRole("button", { name: /^Abstimmung mit \d+ Vorschl/ }).click();
+  await page.waitForURL(/\/polls\/[0-9a-f-]{36}/);
+  await page.getByRole("heading", { level: 1, name: /^Was machen wir am (Freitag|Samstag)\?$/ }).waitFor();
+  for (const name of names) await page.getByText(name, { exact: true }).first().waitFor();
+  check(names.length === Math.max(count - 1, 1), `Abstimmung enthält genau die gewählten Orte (${names.join(", ")})`);
+  check(true, `erste Abstimmung steht ${Math.round((Date.now() - started) / 1000)} s nach der E-Mail-Bestätigung (inkl. Onboarding)`);
+  await shot(dana, "40-start-fertig");
+  users.splice(users.indexOf(dana), 1);
+  await context.close();
 });
 
 await step("W4 – Installierbar, offline lesbar, neue Version, Zähler am App-Icon (Bob)", async () => {
