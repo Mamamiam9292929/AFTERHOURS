@@ -146,6 +146,7 @@ export const errors = {
     invalid_input: "Eine Eingabe ist ungültig. Bitte prüfe deine Angaben.",
     share_not_found: "Diesen Link gibt es nicht (mehr). Frag im Gruppenchat nach einem neuen.",
     guests_not_allowed: "Bei dieser Abstimmung können Gäste gerade nicht mitstimmen.",
+    guest_join_off: "Die Crew nimmt über diese Abstimmung gerade keine Gäste auf. Frag im Gruppenchat nach dem Einladungslink.",
     guest_limit: "Bei dieser Abstimmung haben schon 30 Gäste mitgestimmt – mehr gehen nicht.",
     already_member: "Du bist in dieser Crew – stimm direkt in der App ab.",
     guest_not_found: "Diese Gast-Stimme gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.",

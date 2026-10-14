@@ -651,6 +651,8 @@ await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () =>
   await toggle.click();
   await toast(alice, "Gäste können jetzt über den geteilten Link mitstimmen.");
   check(await alice.page.getByText("Gäste stimmen mit", { exact: true }).isVisible(), "Abstimmung zeigt „Gäste stimmen mit“");
+  const joinToggle = alice.page.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ });
+  check((await joinToggle.getAttribute("aria-checked")) === "false", "W3 Etappe 3: Beitritt für Gäste ist standardmäßig aus");
 
   if (ANON) {
     const response = await handleShare(new Request(ids.pollShareUrl), { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON }, fetch);
@@ -800,6 +802,87 @@ await step("W3 Etappe 2 – Wer als Gast abgestimmt hat und beitritt, übernimmt
     check(guess.status === 400 && guess.json?.message === "guest_not_found", `API: geratenes Geheimnis findet keinen Gast (${guess.status} ${guess.json?.message})`);
   } finally {
     for (const user of [frida, erik]) {
+      users.splice(users.indexOf(user), 1);
+      await user.context.close();
+    }
+  }
+});
+
+await step("W3 Etappe 3 – Gäste treten vom Stimmzettel aus der Crew bei", async () => {
+  if (!ANON) {
+    console.log("   (übersprungen: SUPABASE_ANON_KEY fehlt)");
+    return;
+  }
+  // Eigene kleine Crew: Greta (Owner) lässt Gäste mitstimmen und beitreten, Hanna kommt als Gast.
+  const greta = await newUser("Greta", "desktop");
+  const hanna = await newUser("Hanna", "mobile");
+  try {
+    await register(greta);
+    await onboard(greta);
+    const crew = await api(greta, "POST", "rpc/create_crew", { p_name: "Hof Crew", p_emoji: "🎲" });
+    const poll = await api(greta, "POST", "rpc/create_poll", {
+      p_crew_id: crew.json,
+      p_title: "Spieleabend oder Karaoke?",
+      p_ends_at: new Date(Date.now() + 2 * 24 * 3600_000).toISOString(),
+      p_options: [{ title: "Spieleabend" }, { title: "Karaoke" }],
+    });
+    check(crew.status === 200 && poll.status === 200, "Greta gründet die Hof Crew und startet eine Abstimmung");
+    const pollToken = (await api(greta, "POST", "rpc/poll_share_token", { p_poll_id: poll.json })).json;
+
+    // Freischalten in der App: erst Gäste, dann der Beitritt.
+    await greta.page.goto(`${APP}/polls/${poll.json}`);
+    await greta.page.getByRole("heading", { name: "Spieleabend oder Karaoke?" }).waitFor();
+    check((await greta.page.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ }).count()) === 0, "Beitritt erst wählbar, wenn Gäste mitstimmen");
+    await greta.page.getByRole("switch", { name: /Gäste dürfen mitstimmen/ }).click();
+    await toast(greta, "Gäste können jetzt über den geteilten Link mitstimmen.");
+    await greta.page.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ }).click();
+    await toast(greta, "Gäste können der Crew jetzt nach dem Abstimmen beitreten.");
+    check((await greta.page.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ }).getAttribute("aria-checked")) === "true", "Owner schaltet den Beitritt frei");
+    await shot(greta, "12e-gaeste-beitreten-schalter");
+
+    // Hanna stimmt ohne Konto ab – erst danach erscheint der Beitritt.
+    await hanna.page.goto(`${APP}/v/${pollToken}`);
+    await hanna.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
+    check((await hanna.page.getByTestId("guest-join").count()) === 0, "vor dem Abstimmen kein Beitritt");
+    await answer(hanna, "Spieleabend", "Bin dabei").click();
+    await hanna.page.getByLabel("Dein Name").fill("Hanna");
+    await hanna.page.getByRole("button", { name: "Abstimmen" }).click();
+    await hanna.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Hanna" }).waitFor();
+    const joinCard = hanna.page.getByRole("region", { name: "Komm in die Crew, Hanna" });
+    await joinCard.waitFor();
+    check(!/Hof Crew|Greta/.test(await hanna.page.locator("body").innerText()), "Stimmzettel verrät vor dem Beitritt weder Crew-Namen noch Mitglieder");
+    await shot(hanna, "12f-gast-crew-beitreten");
+    for (const viewport of ["tablet", "desktop"]) {
+      await hanna.page.setViewportSize(VIEWPORTS[viewport]);
+      await shot({ ...hanna, viewport }, "12f-gast-crew-beitreten");
+    }
+    await hanna.page.setViewportSize(VIEWPORTS.mobile);
+
+    // Ein Tipp: persönliche Einladung, Konto anlegen, beitreten.
+    await joinCard.getByRole("button", { name: "Crew beitreten" }).click();
+    await hanna.page.waitForURL(/\/invite\/[0-9a-f]{64}$/);
+    check(/Hof Crew/.test(await hanna.page.locator("body").innerText()), "die Einladung zeigt jetzt die Crew");
+    const inviteToken = hanna.page.url().split("/invite/")[1];
+    await register(hanna, { here: true });
+    await hanna.page.getByRole("heading", { name: "Fast drin" }).waitFor();
+    await hanna.page.getByRole("button", { name: "Hof Crew beitreten" }).click();
+    await hanna.page.waitForURL(new RegExp(`/crews/${crew.json}`));
+    check(true, "Hanna ist mit dem Link aus dem Stimmzettel in der Crew");
+
+    // Danach wartet auf der Abstimmung die Übernahme der Gast-Stimme (Etappe 2).
+    await hanna.page.goto(`${APP}/v/${pollToken}`);
+    await hanna.page.waitForURL(new RegExp(`/polls/${poll.json}`));
+    await hanna.page.getByRole("region", { name: "Du hast hier schon als Gast abgestimmt" }).waitFor();
+    check(true, "nach dem Beitritt: Stimme übernehmen");
+
+    // Der persönliche Link gilt nur einmal; die Crew-Einladungsliste zeigt ihn nicht.
+    const reuse = await api(greta, "POST", "rpc/preview_public_invitation", { p_token: inviteToken });
+    check(reuse.json?.status === "exhausted", `Gast-Link ist verbraucht (${reuse.json?.status})`);
+    // Ohne Abstimmen kein Link (pgTAP prüft Freigabe, Widerruf und Rollen).
+    const attack = await api(null, "POST", "rpc/guest_join_shared_poll", { p_token: pollToken, p_secret: "a".repeat(64) });
+    check(attack.status === 400 && attack.json?.message === "guest_not_found", `API: ohne eigene Gast-Stimme kein Link (${attack.status} ${attack.json?.message})`);
+  } finally {
+    for (const user of [greta, hanna]) {
       users.splice(users.indexOf(user), 1);
       await user.context.close();
     }

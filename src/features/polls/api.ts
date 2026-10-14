@@ -166,6 +166,21 @@ export function useSetPollGuests(pollId: string) {
   });
 }
 
+/** W3 Etappe 3: Gäste, die abgestimmt haben, dürfen der Crew beitreten (nur Owner/Admin). */
+export function useSetPollGuestJoin(pollId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (allowed: boolean) => {
+      const { error } = await supabase.rpc("set_poll_guest_join", { p_poll_id: pollId, p_allowed: allowed });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: qk.poll(pollId) });
+      void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+    },
+  });
+}
+
 export function useRemovePollGuest(pollId: string) {
   const client = useQueryClient();
   return useMutation({
@@ -285,7 +300,7 @@ export interface BallotOption {
 export type SharedPollBallot =
   | {
       status: "valid";
-      poll: { title: string; ends_at: string; open: boolean };
+      poll: { title: string; ends_at: string; open: boolean; can_join?: boolean };
       options: BallotOption[];
       me: { name: string; votes: Record<string, VoteResponse> } | null;
     }
@@ -316,6 +331,20 @@ export function useGuestVote(token: string, secret: string | null) {
     onSettled: () => {
       void client.invalidateQueries({ queryKey: ["poll-guest-ballot", token] });
       void client.invalidateQueries({ queryKey: ["poll-share-preview", token] });
+    },
+  });
+}
+
+/**
+ * W3 Etappe 3 · Persönlichen Einladungslink holen (einmal gültig, 7 Tage). Nur für Gäste, die mit
+ * diesem Gerät schon abgestimmt haben; der Link führt auf die normale Einladung (/invite/<token>).
+ */
+export function useGuestJoin(token: string, secret: string | null) {
+  return useMutation({
+    mutationFn: async (): Promise<{ token: string; expires_at: string }> => {
+      const { data, error } = await supabase.rpc("guest_join_shared_poll", { p_token: token, p_secret: secret });
+      if (error) throw error;
+      return data as { token: string; expires_at: string };
     },
   });
 }

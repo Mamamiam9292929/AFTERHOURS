@@ -145,6 +145,8 @@ export function useCrewInvitations(crewId: string, enabled: boolean) {
         .from("crew_invitations")
         .select("id, crew_id, invited_by, expires_at, revoked_at, max_uses, use_count, created_at")
         .eq("crew_id", crewId)
+        // W3 Etappe 3: persönliche Gast-Links aus Abstimmungen verwaltet die Abstimmung selbst.
+        .is("via_poll_id", null)
         .order("created_at", { ascending: false })
         .limit(30);
       if (error) throw error;

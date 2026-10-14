@@ -33,6 +33,7 @@ import {
   usePolls,
   useRemindPoll,
   useRemovePollGuest,
+  useSetPollGuestJoin,
   useSetPollGuests,
   useStartRunoff,
   useVote,
@@ -320,9 +321,10 @@ function RunoffDialog({ poll, open, onClose }: { poll: PollWithDetails; open: bo
 }
 
 /** W3: Schalter „Gäste dürfen mitstimmen“ und die Liste der Gäste – für Ersteller:in und Owner/Admin. */
-function GuestSettings({ poll, guests }: { poll: PollWithDetails; guests: PollGuest[] }) {
+function GuestSettings({ poll, guests, crewAdmin }: { poll: PollWithDetails; guests: PollGuest[]; crewAdmin: boolean }) {
   const toast = useToast();
   const setGuests = useSetPollGuests(poll.id);
+  const setJoin = useSetPollGuestJoin(poll.id);
   const removeGuest = useRemovePollGuest(poll.id);
   const [removing, setRemoving] = useState<PollGuest | null>(null);
 
@@ -341,7 +343,26 @@ function GuestSettings({ poll, guests }: { poll: PollWithDetails; guests: PollGu
             })
           }
         />
+        {poll.guests_allowed && crewAdmin && (
+          <div className="border-t border-line">
+            <SwitchRow
+              label={t.polls.detail.guests.joinToggle}
+              description={t.polls.detail.guests.joinToggleBody}
+              checked={poll.guest_join_by != null}
+              disabled={setJoin.isPending}
+              onChange={(allowed) =>
+                setJoin.mutate(allowed, {
+                  onSuccess: () => toast.success(allowed ? t.polls.detail.guests.joinOn : t.polls.detail.guests.joinOff),
+                  onError: (error) => toast.error(error),
+                })
+              }
+            />
+          </div>
+        )}
       </div>
+      {poll.guests_allowed && !crewAdmin && poll.guest_join_by == null && (
+        <p className="mt-2 text-[13px] leading-snug text-faint">{t.polls.detail.guests.joinAdminOnly}</p>
+      )}
       {(poll.guests_allowed || guests.length > 0) && (
         <ul className="mt-3 space-y-1.5 text-[15px]" aria-label={t.polls.detail.guests.title}>
           {guests.length === 0 && <li className="text-sm text-muted">{t.polls.detail.guests.none}</li>}
@@ -652,7 +673,7 @@ export function PollDetailPage() {
           {!summary.isOver && <p className="text-[13px] text-faint">{t.polls.status.endsAt(formatDateTime(poll.ends_at))}</p>}
           <p className="text-[13px] text-faint">{poll.created_by === user.id ? t.polls.detail.createdByYou : t.polls.detail.createdBy(people.lookup(poll.created_by)?.display_name ?? t.states.formerMember)}</p>
 
-          {canManage && !summary.isOver && <GuestSettings poll={poll} guests={guests} />}
+          {canManage && !summary.isOver && <GuestSettings poll={poll} guests={guests} crewAdmin={canManageCrew(myRole(crew, user.id))} />}
 
           {canManage && !summary.isOver && (
             <Section title={t.nav.settings} className="mt-0">
