@@ -40,7 +40,7 @@
 | Echte Orte | Jede Stadt in Deutschland: Beim ersten Aufruf importiert die Edge Function `places` die Orte aus OpenStreetMap (Restaurants, Cafés, Bars, Kinos, Bowling, Minigolf, Bäder, Escape Rooms, Lasertag, Kart, Klettern, Theater, Museen, Zoos …), danach liegen sie 30 Tage in der Datenbank. Quelle und Stand stehen bei jedem Ort, Öffnungszeiten werden übersetzt oder im Original gezeigt |
 | Discover | Freie Stadtwahl, Kategorien, Suche (serverseitig über alle Orte der Stadt), Filter (Preis, Entfernung ab Stadtmitte, Gruppengröße, Dauer, drinnen/draußen, Alter, jetzt geöffnet), Detailseite mit Öffnungszeiten, Karte (erst nach Klick), Meldefunktion |
 | Abstimmungen | 1–10 Optionen aus Orten oder eigenen Vorschlägen, Termin je Option, Budget, Treffpunkt, Mindestteilnehmer, Frist; Antworten „Bin dabei / Vielleicht / Bin nicht dabei“, änderbar bis zum Ende; Zwischenstand, Beteiligung, Erinnerung; „Abstimmung teilen“ (W8); Ergebnis, Gleichstand, Stichwahl; automatisches Ende nach Fristablauf |
-| Pläne | Zusage direkt auf Home (D6): Unter jedem Ticket in „Deine Antwort fehlt“ stehen „Bin dabei / Vielleicht / Kann nicht“ – gleiche RPC `set_attendance` wie auf der Planseite, danach wandert der Plan mit der Farbe der Antwort weiter. Aus einer Abstimmung oder direkt; Status Vorschlag → Bestätigt → Reservierung ausstehend → Gebucht → Abgeschlossen bzw. Abgesagt; Zu- und Absagen; Kosten pro Person und gesamt; Bearbeiten mit Benachrichtigung bei wesentlichen Änderungen; „Plan teilen“ (W8): Teilen-Menü des Geräts (Web Share API), sonst Text und Link in die Zwischenablage – geteilt werden nur Titel, Zeitpunkt und Link, keine Namen, Adressen oder Treffpunkte |
+| Pläne | Zusage direkt auf Home (D6): Unter jedem Ticket in „Deine Antwort fehlt“ stehen „Bin dabei / Vielleicht / Kann nicht“ – gleiche RPC `set_attendance` wie auf der Planseite, danach wandert der Plan mit der Farbe der Antwort weiter. Aus einer Abstimmung oder direkt; Status Vorschlag → Bestätigt → Reservierung ausstehend → Gebucht → Abgeschlossen bzw. Abgesagt; Zu- und Absagen; Kosten pro Person und gesamt; Bearbeiten mit Benachrichtigung bei wesentlichen Änderungen; „Plan teilen“ (W8): Teilen-Menü des Geräts (Web Share API), sonst Text und Link in die Zwischenablage – geteilt werden nur Titel, Zeitpunkt und Link, keine Namen, Adressen oder Treffpunkte. „In den Kalender“ (P2 Etappe 1) unter „Wann?“ bei anstehenden Plänen: lädt eine iCalendar-Datei (`src/lib/ics.ts`, RFC 5545), die im Browser entsteht – Titel, Beginn, Ende nur wenn bekannt (sonst kein erfundenes), Adresse, Treffpunkt, Link zum Plan, Status (Vorschlag = vorläufig); keine Namen, Teilnehmer oder E-Mail-Adressen. Feste UID je Plan, damit ein erneuter Import den Termin ersetzt |
 | Reservierung | Dokumentierter Ablauf: Entwurf → ausdrückliche Freigabe → Ergebnis eintragen. Die App reserviert nicht selbst (siehe unten) |
 | Fahrgemeinschaften | Fahrt anbieten, Mitfahrt anfragen, Zusage durch die fahrende Person, Platzkontrolle |
 | Rewards | Punkte-Ledger: 30 Punkte fürs Organisieren, 10 fürs Dabeisein, vergeben beim Abschließen eines Plans – serverseitig, einmalig, mit Tageslimit |
@@ -65,7 +65,8 @@
 | Automatische Buchung, KI-Telefonagent | Datenmodell kennt die Kanäle `online` und `phone_agent`; es gibt keine Anbindung. Die App behauptet nie, etwas gebucht zu haben |
 | Push-Mitteilungen | Nicht vorhanden; die Benachrichtigungstabelle ist die Grundlage dafür |
 | Partnerportal, Anlegen einzelner Orte im Admin | Rechte und Tabellen stehen, die Oberfläche fehlt |
-| Google-/Apple-Anmeldung, Kalender-Export | Nicht vorhanden |
+| Google-/Apple-Anmeldung | Nicht vorhanden |
+| Kalender-Abo | Nur Einzeldatei je Plan (P2 Etappe 1). Ein Abo-Link, der Änderungen von selbst in den Kalender bringt, fehlt noch (P2 Etappe 2) |
 
 ---
 
@@ -362,6 +363,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Eigene E-Mail-Vorlagen | Getestet mit den Standardvorlagen von Supabase Auth |
 | Safari, Firefox, echte Mobilgeräte | Getestet nur in Chromium mit Geräte-Viewports |
 | Lasttests | Keine |
+| Kalenderdatei (.ics) | Die Journey prüft Aufbau, Maskierung, Zeilenlänge und Inhalt der Datei. Der Import in Apple-, Google- und Outlook-Kalender ist nicht auf echten Geräten geprüft; ein Plan ohne Ende erscheint dort je nach Kalender als Termin ohne Dauer |
 | Offline lesbare Pläne, Update-Hinweis | Die Journey prüft Speichern, Lesen ohne Netz, Löschen beim Abmelden und den Update-Hinweis (alter Build nachgestellt) in Chromium. Echte Funklöcher („Netz da, aber nichts kommt an“) zeigen weiter Ladezustände, bis die Anfrage scheitert – der Gerätespeicher springt nur ein, wenn der Browser „offline“ meldet |
 | Installation und Offline auf echten Geräten | Die Journey stellt das Installations-Angebot und die Badging-API nach (Headless-Chromium hat beides nicht) und prüft Service Worker, Cache-Inhalt und Offline-Start in Chromium. Installation unter Android/iOS und der Zähler am Icon sind nicht auf Geräten geprüft |
 | Barrierefreiheit jenseits von axe-core | Automatisch geprüft sind WCAG-Regeln, die axe erkennt, und die Tastatur-Anmeldung. Screenreader (VoiceOver, TalkBack) und Tastaturwege durch die übrigen Abläufe nicht |

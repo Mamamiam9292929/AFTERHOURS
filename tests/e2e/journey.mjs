@@ -678,6 +678,26 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   check(true, "Plan teilen ohne Web Share API: Text und Link werden kopiert");
   const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
   if (clip !== null) check(clip.startsWith("Strike District Bowling – ") && clip.trim().endsWith(`/plans/${ids.plan}`), "Zwischenablage enthält Text und Link");
+
+  // P2 Etappe 1: Plan als Kalenderdatei – entsteht im Browser, ohne Namen oder E-Mail-Adressen.
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "In den Kalender" }).click()]);
+  check(download.suggestedFilename() === "strike-district-bowling.ics", `Kalenderdatei heißt nach dem Plan (${download.suggestedFilename()})`);
+  const ics = fs.readFileSync(await download.path(), "utf8");
+  const startsAt = DB_URL
+    ? execFileSync("psql", [DB_URL, "-tAc", `select to_char(starts_at at time zone 'UTC', 'YYYYMMDD"T"HH24MISS"Z"') from public.plans where id = '${ids.plan}'`], { encoding: "utf8" }).trim()
+    : null;
+  check(ics.startsWith("BEGIN:VCALENDAR\r\n") && ics.includes("\r\nBEGIN:VEVENT\r\n") && ics.endsWith("END:VCALENDAR\r\n"), "Kalenderdatei ist gültiges iCalendar mit CRLF");
+  check(ics.includes(`UID:plan-${ids.plan}@afterhours`) && ics.includes("SUMMARY:Strike District Bowling"), "Kalenderdatei: feste UID und Titel");
+  check(ics.includes("LOCATION:Demochaussee 220\\, 10365 Berlin"), "Kalenderdatei: Adresse mit maskiertem Komma");
+  check(startsAt ? ics.includes(`\r\nDTSTART:${startsAt}\r\n`) : /\r\nDTSTART:\d{8}T\d{6}Z\r\n/.test(ics), `Kalenderdatei: Beginn in UTC${startsAt ? ` (${startsAt})` : ""}`);
+  check(ics.split("\r\n").every((line) => Buffer.byteLength(line) <= 75), "Kalenderdatei: Zeilen höchstens 75 Byte");
+  check(!/Alice|Bob|Carol|ATTENDEE|ORGANIZER|@(?!afterhours)/.test(ics), "Kalenderdatei: keine Namen, Teilnehmer oder E-Mail-Adressen");
+  await toast(carol, "Kalenderdatei geladen");
+
+  // Ticket-Countdown und „Beginnt in …“ zählen dieselben Kalendertage.
+  const countdown = /in (\d+) tagen/i.exec(await page.locator(".ticket-feature").innerText())?.[1];
+  const startsIn = /Beginnt in (\d+) Tagen/.exec(await page.locator("main").innerText())?.[1];
+  if (countdown && startsIn) check(countdown === startsIn, `Countdown und „Beginnt in …“ stimmen überein (${countdown} = ${startsIn})`);
 });
 
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {
