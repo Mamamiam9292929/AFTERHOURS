@@ -148,6 +148,7 @@ export const errors = {
     guests_not_allowed: "Bei dieser Abstimmung können Gäste gerade nicht mitstimmen.",
     guest_limit: "Bei dieser Abstimmung haben schon 30 Gäste mitgestimmt – mehr gehen nicht.",
     already_member: "Du bist in dieser Crew – stimm direkt in der App ab.",
+    guest_not_found: "Diese Gast-Stimme gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.",
     // Supabase Auth
     invalid_credentials: "E-Mail-Adresse oder Passwort stimmen nicht.",
     email_not_confirmed: "Bitte bestätige zuerst deine E-Mail-Adresse. Der Link steckt in der E-Mail, die wir dir geschickt haben.",

@@ -134,6 +134,19 @@ export const polls = {
     guestLabel: (name: string) => `${name} (Gast)`,
     guestVoters: (n: number) => (n === 1 ? "+ 1 Gast hat mitgestimmt" : `+ ${n} Gäste haben mitgestimmt`),
     guestsBadge: "Gäste stimmen mit",
+    guestClaim: {
+      title: "Du hast hier schon als Gast abgestimmt",
+      body: (name: string, votes: number) =>
+        `Als „${name}“ hast du ${votes === 1 ? "1 Antwort" : `${votes} Antworten`} gegeben. Übernimm sie, dann zählen sie als deine – und nicht doppelt.`,
+      conflicts: (n: number) =>
+        n === 1 ? "Zu 1 Vorschlag hast du schon selbst geantwortet – dort bleibt deine Antwort." : `Zu ${n} Vorschlägen hast du schon selbst geantwortet – dort bleibt deine Antwort.`,
+      claim: "Stimmen übernehmen",
+      discard: "Gast-Stimme löschen",
+      claimed: (n: number) => (n === 1 ? "1 Antwort übernommen." : n === 0 ? "Deine eigenen Antworten bleiben – die Gast-Stimme ist gelöscht." : `${n} Antworten übernommen.`),
+      discarded: "Gast-Stimme gelöscht.",
+      discardTitle: "Gast-Stimme löschen?",
+      discardBody: "Deine Antworten als Gast werden gelöscht und zählen nicht mehr. Deine Antworten als Mitglied bleiben.",
+    },
     planDialog: {
       title: "Plan festmachen",
       body: "Prüfe die Angaben. Die Crew wird benachrichtigt und kann zusagen.",
@@ -200,7 +213,7 @@ export const polls = {
       saved: "Gespeichert. Die Crew sieht deine Stimme.",
       privacy: "Die Crew sieht deinen Namen und deine Antworten. Auf diesem Gerät merken wir uns nur einen Zufallsschlüssel, damit du deine Antwort ändern kannst – kein Konto, keine E-Mail.",
       ctaTitle: "Beim nächsten Mal von Anfang an dabei?",
-      ctaBody: "Mit einem Konto planst du mit, schlägst selbst etwas vor und siehst, wann es losgeht.",
+      ctaBody: "Mit einem Konto planst du mit, schlägst selbst etwas vor und siehst, wann es losgeht. Trittst du der Crew bei, nimmst du deine Stimme auf diesem Gerät mit.",
       dateOpen: "Termin offen",
     },
   },

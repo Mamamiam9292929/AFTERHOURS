@@ -1,6 +1,6 @@
 import { ShareButton } from "@/components/ui/ShareButton";
 import { pollShare } from "@/lib/share";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconVote } from "@/components/icons";
 import { PageHeader, PosterTitle, Section } from "@/components/layout/Page";
@@ -23,7 +23,20 @@ import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { addDays, formatAgo, formatDateTime, formatPlainDate, formatPlainTime, formatRelative, today, zonedToUtc } from "@/lib/time";
 import type { PollGuest, PollOption, VoteResponse } from "@/lib/types";
-import { useClosePoll, usePoll, usePollShareToken, usePolls, useRemindPoll, useRemovePollGuest, useSetPollGuests, useStartRunoff, useVote } from "./api";
+import {
+  storedGuestSecret,
+  useClaimGuest,
+  useClosePoll,
+  useGuestClaimPreview,
+  usePoll,
+  usePollShareToken,
+  usePolls,
+  useRemindPoll,
+  useRemovePollGuest,
+  useSetPollGuests,
+  useStartRunoff,
+  useVote,
+} from "./api";
 import { ParticipationBar } from "./PollCard";
 import { GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
 
@@ -365,6 +378,66 @@ function GuestSettings({ poll, guests }: { poll: PollWithDetails; guests: PollGu
   );
 }
 
+/**
+ * W3 Etappe 2 · Wer hier als Gast abgestimmt hat (Geheimnis noch auf diesem Gerät) und jetzt Mitglied ist,
+ * übernimmt die Antworten mit einem Tipp – oder löscht die Gast-Stimme. Ohne Gast-Stimme erscheint nichts.
+ */
+function GuestClaimCard({ pollId, token }: { pollId: string; token: string }) {
+  const toast = useToast();
+  const secret = useMemo(() => storedGuestSecret(token), [token]);
+  const preview = useGuestClaimPreview(pollId, secret);
+  const claim = useClaimGuest(pollId, token, secret);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [done, setDone] = useState(false);
+  const found = preview.data?.status === "found" ? preview.data : null;
+  if (!secret || !found || done) return null;
+
+  function run(keep: boolean) {
+    claim.mutate(keep, {
+      onSuccess: (result) => {
+        setDone(true);
+        setConfirmDiscard(false);
+        toast.success(keep ? t.polls.detail.guestClaim.claimed(result.claimed) : t.polls.detail.guestClaim.discarded);
+      },
+      // Beim Löschen steht der Fehler im Dialog; beim Übernehmen als Meldung (die Karte kann danach verschwinden).
+      onError: (error) => {
+        if (keep) toast.error(error);
+      },
+    });
+  }
+
+  return (
+    <section aria-labelledby="guest-claim-title" className="mb-6 rounded-card border border-lime/60 bg-lime/10 p-5" data-testid="guest-claim">
+      <h2 id="guest-claim-title" className="text-[17px] font-bold text-fg">
+        {t.polls.detail.guestClaim.title}
+      </h2>
+      <p className="mt-1.5 max-w-prose text-[15px] leading-snug text-muted">
+        {t.polls.detail.guestClaim.body(found.name, found.votes)}
+        {found.conflicts > 0 && <span className="mt-1 block">{t.polls.detail.guestClaim.conflicts(found.conflicts)}</span>}
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-2.5">
+        <Button onClick={() => run(true)} loading={claim.isPending && claim.variables === true} disabled={claim.isPending}>
+          {t.polls.detail.guestClaim.claim}
+        </Button>
+        <Button variant="ghost" onClick={() => setConfirmDiscard(true)} disabled={claim.isPending}>
+          {t.polls.detail.guestClaim.discard}
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={confirmDiscard}
+        title={t.polls.detail.guestClaim.discardTitle}
+        description={t.polls.detail.guestClaim.discardBody}
+        confirmLabel={t.polls.detail.guestClaim.discard}
+        destructive
+        loading={claim.isPending}
+        error={claim.isError ? errorMessage(claim.error) : null}
+        onConfirm={() => run(false)}
+        onClose={() => setConfirmDiscard(false)}
+      />
+    </section>
+  );
+}
+
 export function PollDetailPage() {
   const { pollId } = useParams();
   const user = useUser();
@@ -462,6 +535,7 @@ export function PollDetailPage() {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
+          {!summary.isOver && shareToken.data && <GuestClaimCard pollId={poll.id} token={shareToken.data} />}
           {closed && (
             <div className={cn("mb-6 rounded-card border p-5", winner ? "border-lime bg-lime/10" : "border-line bg-surface")}>
               <p className="text-sm font-semibold text-muted">{t.polls.detail.result.title}</p>

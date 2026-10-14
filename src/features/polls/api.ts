@@ -319,3 +319,59 @@ export function useGuestVote(token: string, secret: string | null) {
     },
   });
 }
+
+/*
+ * W3 Etappe 2 · Gast-Stimmen ins eigene Konto übernehmen. Wer als Gast abgestimmt hat und jetzt Mitglied
+ * der Crew ist, hat das Geheimnis noch auf diesem Gerät. Nur lesen – hier wird nie ein neues erzeugt.
+ */
+export function storedGuestSecret(token: string): string | null {
+  try {
+    const stored = localStorage.getItem(guestKey(token));
+    return stored && /^[0-9a-f]{64}$/.test(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+export function forgetGuestSecret(token: string) {
+  try {
+    localStorage.removeItem(guestKey(token));
+  } catch {
+    // nichts zu tun
+  }
+}
+
+export type GuestClaimPreview = { status: "none" } | { status: "found"; name: string; votes: number; conflicts: number };
+
+export function useGuestClaimPreview(pollId: string, secret: string | null) {
+  return useQuery({
+    queryKey: ["poll-guest-claim", pollId, secret ? "secret" : "none"] as const,
+    enabled: Boolean(secret),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async (): Promise<GuestClaimPreview> => {
+      const { data, error } = await supabase.rpc("poll_guest_claim_preview", { p_poll_id: pollId, p_secret: secret });
+      if (error) throw error;
+      return data as GuestClaimPreview;
+    },
+  });
+}
+
+/** `keep`: true übernimmt die Antworten, false löscht die Gast-Stimme. */
+export function useClaimGuest(pollId: string, token: string, secret: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (keep: boolean): Promise<{ claimed: number; kept: number }> => {
+      const { data, error } = await supabase.rpc("claim_poll_guest", { p_poll_id: pollId, p_secret: secret, p_keep: keep });
+      if (error) throw error;
+      return data as { claimed: number; kept: number };
+    },
+    onSuccess: () => forgetGuestSecret(token),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: ["poll-guest-claim", pollId] });
+      void client.invalidateQueries({ queryKey: qk.poll(pollId) });
+      void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+    },
+  });
+}
