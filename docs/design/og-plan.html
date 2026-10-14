@@ -1,0 +1,81 @@
+<!doctype html>
+<!--
+  W2 · Vorschaubild für geteilte Pläne (public/og/plan.png, 1200 × 630).
+  Neu erzeugen: Datei im Browser mit 1200 × 630 öffnen (Schriften liegen in public/fonts) und als PNG
+  speichern – oder per Playwright: page.set_viewport_size(1200, 630); page.screenshot(path=…).
+  Das Bild ist für alle Pläne gleich; Titel und Zeit stehen im Text der Vorschau.
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: "Big Shoulders Display"; src: url("../../public/fonts/BigShouldersDisplay-ExtraBold.woff2") format("woff2"); font-weight: 800; }
+  @font-face { font-family: "Figtree"; src: url("../../public/fonts/Figtree-Variable.woff2") format("woff2"); font-weight: 300 900; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    position: relative;
+    background: #1c1e20;
+    color: #f3f4f1;
+    font-family: "Figtree", sans-serif;
+  }
+  .glow { position: absolute; right: -180px; top: -220px; width: 760px; height: 760px; border-radius: 50%;
+          background: radial-gradient(circle, rgb(197 248 42 / 0.22), rgb(197 248 42 / 0) 65%); }
+  .grain { position: absolute; inset: 0; opacity: .06;
+           background-image: radial-gradient(#fff 0.6px, transparent 0.6px); background-size: 4px 4px; }
+  .logo { position: absolute; left: 72px; top: 60px; display: flex; align-items: center; gap: 16px; }
+  .logo span { font-family: "Big Shoulders Display"; font-weight: 800; font-size: 40px; letter-spacing: .04em; }
+  .poster { position: absolute; left: 72px; bottom: 70px; font-family: "Big Shoulders Display"; font-weight: 800;
+            font-size: 150px; line-height: .86; text-transform: uppercase; letter-spacing: .005em; }
+  .poster em { font-style: normal; color: #c5f82a; display: block; }
+  .claim { position: absolute; left: 76px; bottom: 34px; font-size: 22px; color: #a9aeaa; font-weight: 500; }
+  .ticket-wrap { position: absolute; right: 70px; top: 128px; transform: rotate(-4deg);
+                 filter: drop-shadow(0 24px 34px rgb(0 0 0 / .5)); }
+  .ticket { width: 470px; height: 300px; display: grid; grid-template-columns: 130px 1fr; border-radius: 26px; overflow: hidden;
+            -webkit-mask: radial-gradient(circle 20px at 130px 0, transparent 19.5px, #000 20px) top / 100% 51% no-repeat,
+                          radial-gradient(circle 20px at 130px 100%, transparent 19.5px, #000 20px) bottom / 100% 51% no-repeat; }
+  .stub { background: #c5f82a; color: #141a00; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+          border-right: 3px dashed rgb(20 26 0 / .35); }
+  .stub b { font-family: "Big Shoulders Display"; font-weight: 800; font-size: 92px; line-height: .85; }
+  .stub small { font-size: 17px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .barcode { margin-top: 14px; width: 74px; height: 30px;
+             background: repeating-linear-gradient(90deg, #141a00 0 3px, transparent 3px 5px, #141a00 5px 6px, transparent 6px 9px); }
+  .main { background: #25282b; padding: 34px 34px 30px; display: flex; flex-direction: column; justify-content: space-between; }
+  .badge { align-self: flex-start; border-radius: 999px; background: rgb(197 248 42 / .14); color: #c5f82a; font-weight: 700; font-size: 17px; padding: 6px 14px; }
+  .title { font-family: "Big Shoulders Display"; font-weight: 800; font-size: 60px; line-height: .9; text-transform: uppercase; }
+  .row { display: flex; align-items: center; justify-content: space-between; border-top: 2px dashed #363b40; padding-top: 18px; }
+  .dots { display: flex; }
+  .dots i { width: 38px; height: 38px; border-radius: 50%; border: 3px solid #25282b; margin-left: -10px; }
+  .dots i:first-child { margin-left: 0; }
+  .going { font-size: 19px; color: #a9aeaa; font-weight: 600; }
+  .going b { font-family: "Big Shoulders Display"; font-size: 44px; color: #f3f4f1; margin-right: 6px; vertical-align: -4px; }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="grain"></div>
+  <div class="logo">
+    <svg viewBox="0 0 48 48" width="52" height="52" aria-hidden="true">
+      <rect width="48" height="48" rx="12" fill="#c5f82a" />
+      <path d="M11.5 37 21.2 11h5.6L36.5 37h-6.1L24 18.6 17.6 37z" fill="#141a00" />
+      <circle cx="24" cy="33.2" r="3.4" fill="#141a00" />
+    </svg>
+    <span>AFTERHOURS</span>
+  </div>
+  <div class="ticket-wrap">
+    <div class="ticket">
+      <div class="stub"><small>Einlass</small><b>1</b><small>Person</small><div class="barcode"></div></div>
+      <div class="main">
+        <span class="badge">Ein Plan für eure Crew</span>
+        <p class="title">Euer nächster<br />Abend</p>
+        <div class="row">
+          <div class="dots"><i style="background:#c5f82a"></i><i style="background:#f2c14e"></i><i style="background:#a9aeaa"></i><i style="background:#4d5359"></i></div>
+          <span class="going"><b>+1</b>mit dir?</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="poster">Bist du<em>dabei?</em></p>
+  <p class="claim">Weniger planen. Mehr erleben.</p>
+</body>
+</html>

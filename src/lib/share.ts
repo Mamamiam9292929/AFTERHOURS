@@ -5,7 +5,7 @@ import { formatDateLong, formatDateTime, formatTime } from "@/lib/time";
 
 /**
  * W8 · Teilen in den Gruppenchat. Der Text enthält nur Titel, Zeitpunkt und Link – keine Namen,
- * Adressen oder Treffpunkte. Der Link führt in die App; sehen kann den Plan nur, wer in der Crew ist.
+ * Adressen oder Treffpunkte. Der Link führt in die App; den Plan selbst sieht nur, wer in der Crew ist.
  */
 export interface ShareContent {
   title: string;
@@ -13,11 +13,15 @@ export interface ShareContent {
   url: string;
 }
 
-export function planShare(plan: { id: string; title: string; starts_at: string }): ShareContent {
+/**
+ * W2: Mit Teilen-Token führt der Link auf /s/<token> – dort gibt es eine Vorschau für Messenger und
+ * Freunde ohne Konto. Ohne Token (noch nicht geladen, Fehler) bleibt es beim direkten Link zum Plan.
+ */
+export function planShare(plan: { id: string; title: string; starts_at: string }, shareToken?: string | null): ShareContent {
   return {
     title: plan.title,
     text: t.share.planText(plan.title, `${formatDateLong(plan.starts_at)}, ${formatTime(plan.starts_at)}`),
-    url: `${siteUrl()}/plans/${plan.id}`,
+    url: shareToken ? `${siteUrl()}/s/${shareToken}` : `${siteUrl()}/plans/${plan.id}`,
   };
 }
 

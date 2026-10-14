@@ -23,7 +23,7 @@ import { downloadPlanIcs } from "@/lib/ics";
 import { mapProvider } from "@/lib/maps";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
-import { estimateCosts, hasStarted, usePlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
+import { estimateCosts, hasStarted, usePlan, usePlanShareToken, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { BookingPanel } from "./BookingPanel";
 import { PlanForm } from "./PlanForm";
 import { FeatureTicket } from "./PlanTicket";
@@ -79,6 +79,8 @@ export function PlanDetailPage() {
   const setAttendance = useSetAttendance(planId ?? "");
   const setStatus = useSetPlanStatus(planId ?? "");
   const update = useUpdatePlan(planId ?? "");
+  // W2: Teilen-Link vorab holen – das Teilen-Menü muss direkt auf den Tipp hin aufgehen.
+  const shareToken = usePlanShareToken(plan?.id, Boolean(plan) && plan?.status !== "cancelled");
   const [editOpen, setEditOpen] = useState(false);
   const [confirming, setConfirming] = useState<Extract<PlanStatus, "cancelled" | "completed"> | null>(null);
   useDocumentTitle(plan?.title);
@@ -130,8 +132,8 @@ export function PlanDetailPage() {
           <IconBack className="size-4 shrink-0" aria-hidden />
           <span className="truncate">{crew ? `${crew.emoji} ${crew.name}` : t.plans.detail.back}</span>
         </Link>
-        {/* W8: Plan in den Gruppenchat teilen – nicht mehr bei abgesagten Plänen. */}
-        {plan.status !== "cancelled" && <ShareButton label={t.share.plan} content={() => planShare(plan)} className="shrink-0" />}
+        {/* W8/W2: Plan in den Gruppenchat teilen – mit Vorschau-Link, nicht mehr bei abgesagten Plänen. */}
+        {plan.status !== "cancelled" && <ShareButton label={t.share.plan} content={() => planShare(plan, shareToken.data)} className="shrink-0" />}
       </div>
       <div className="max-w-3xl">
         <FeatureTicket plan={plan} crew={crew} userId={user.id} lookup={people.lookup} now={now} hero />

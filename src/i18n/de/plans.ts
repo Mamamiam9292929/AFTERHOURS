@@ -216,4 +216,25 @@ export const plans = {
     myStatus: (status: string) => `Deine Anfrage: ${status}`,
     safety: "Mitfahrten kommen nur zustande, wenn beide Seiten zustimmen. Haltet euch an die Verkehrsregeln – niemand fährt unter Alkohol- oder Drogeneinfluss.",
   },
+  /** W2 · Geteilter Plan (/s/<token>): Karte für Freunde ohne Konto bzw. außerhalb der Crew. */
+  shared: {
+    pageTitle: (title: string) => `${title} – geteilter Plan`,
+    kicker: "Ein Abend mit AFTERHOURS",
+    going: (n: number, over: boolean) =>
+      over ? (n === 0 ? "Keine Zusage" : n === 1 ? "war dabei" : "waren dabei") : n === 0 ? "Noch keine Zusage" : n === 1 ? "ist dabei" : "sind dabei",
+    guestTitle: "Bist du dabei?",
+    guestIntro: "Deine Freunde planen diesen Abend mit AFTERHOURS. Zusagen kannst du, sobald du in ihrer Crew bist – frag im Gruppenchat nach dem Einladungslink.",
+    register: "Konto erstellen",
+    hasAccount: "Schon ein Konto?",
+    toLogin: "Anmelden",
+    outsiderTitle: "Noch nicht in der Crew",
+    outsiderIntro: "Dieser Plan gehört zu einer Crew, in der du noch nicht bist. Frag nach dem Einladungslink – danach siehst du alles und kannst zusagen.",
+    toHome: "Zu deiner Übersicht",
+    privacy: "Der Link zeigt nur Titel, Zeit und wie viele dabei sind. Wer dabei ist und wo es hingeht, sieht nur die Crew.",
+    status: {
+      not_found: { title: "Plan nicht gefunden", body: "Der Link ist unvollständig oder falsch. Frag im Gruppenchat nach einem neuen." },
+      expired: { title: "Dieser Abend ist vorbei", body: "Geteilte Pläne sind bis drei Tage nach dem Abend zu sehen." },
+    },
+    toStart: "Zu AFTERHOURS",
+  },
 };
