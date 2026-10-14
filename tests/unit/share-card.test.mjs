@@ -111,6 +111,8 @@ test("Abstimmung: Texte je nach Stand", () => {
   assert.match(describeSharedPoll(validPoll({ option_count: 1, voter_count: 1 })).description, /^1 Vorschlag · 1 hat abgestimmt · /);
   assert.match(describeSharedPoll(validPoll({ voter_count: 0 })).description, /· Noch keine Stimme ·/);
   assert.match(describeSharedPoll(validPoll({ status: "closed", voter_count: 4 })).description, /^Entschieden – 4 haben abgestimmt\./);
+  assert.match(describeSharedPoll(validPoll({ guests: true })).description, /Stimmst du mit ab\? Geht auch ohne Konto\.$/, "W3: Gäste dürfen mitstimmen");
+  assert.match(describeSharedPoll(validPoll({ guests: false })).description, /Stimmst du mit ab\?$/);
   for (const preview of [{ status: "not_found" }, { status: "expired" }, null, { status: "valid" }, valid({})]) {
     assert.equal(describeSharedPoll(preview).title, "AFTERHOURS", `allgemeine Vorschau für ${JSON.stringify(preview)}`);
   }

@@ -22,8 +22,9 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname in ('public', 'app_private') and has_function_privilege('anon', p.oid, 'execute')
      and p.oid not in ('public.preview_public_invitation(text)'::regprocedure, 'public.preview_shared_plan(text)'::regprocedure,
-                       'public.preview_shared_poll(text)'::regprocedure)),
-  0, 'anon darf keine Funktion ausführen – Ausnahmen: Einladungsvorschau (W1), Plan- und Abstimmungs-Vorschau (W2)');
+                       'public.preview_shared_poll(text)'::regprocedure, 'public.shared_poll_ballot(text, text)'::regprocedure,
+                       'public.guest_vote_shared_poll(text, text, text, jsonb)'::regprocedure)),
+  0, 'anon darf keine Funktion ausführen – Ausnahmen: Einladungsvorschau (W1), Plan- und Abstimmungs-Vorschau (W2), Stimmzettel und Abstimmen als Gast (W3)');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace

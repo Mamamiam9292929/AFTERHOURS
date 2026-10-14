@@ -639,6 +639,88 @@ await step("W2 Etappe 2 – Geteilte Abstimmung: Vorschau im Messenger und für 
   check(true, "Mitglied: Abstimmungs-Link führt direkt zur Abstimmung");
 });
 
+await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () => {
+  if (!ids.pollShareUrl) throw new Error("kein Teilen-Link aus Schritt 6");
+  // Nur wer die Abstimmung gestartet hat (oder Owner/Admin ist), schaltet Gäste frei.
+  await bob.page.goto(`${APP}/polls/${ids.poll}`);
+  await bob.page.getByRole("heading", { name: ids.pollTitle }).waitFor();
+  check((await bob.page.getByRole("switch", { name: /Gäste dürfen mitstimmen/ }).count()) === 0, "einfache Mitglieder sehen den Gäste-Schalter nicht");
+  await alice.page.goto(`${APP}/polls/${ids.poll}`);
+  const toggle = alice.page.getByRole("switch", { name: /Gäste dürfen mitstimmen/ });
+  check((await toggle.getAttribute("aria-checked")) === "false", "Gäste sind standardmäßig nicht zugelassen");
+  await toggle.click();
+  await toast(alice, "Gäste können jetzt über den geteilten Link mitstimmen.");
+  check(await alice.page.getByText("Gäste stimmen mit", { exact: true }).isVisible(), "Abstimmung zeigt „Gäste stimmen mit“");
+
+  if (ANON) {
+    const response = await handleShare(new Request(ids.pollShareUrl), { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON }, fetch);
+    const head = (await response.text()).split("</head>")[0];
+    check(/Stimmst du mit ab\? Geht auch ohne Konto\./.test(head), "Vorschau im Messenger: „Geht auch ohne Konto.“");
+  }
+
+  const guest = await newUser("Dana", "mobile");
+  try {
+    await guest.page.goto(ids.pollShareUrl);
+    await guest.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
+    check((await guest.page.getByRole("radiogroup").count()) === 3, "Gast sieht alle drei Vorschläge zum Abstimmen");
+    const body = await guest.page.locator("body").innerText();
+    check(/Strike District Bowling/.test(body) && /3 dabei/.test(body), "Gast sieht Vorschläge im Wortlaut und den Stand");
+    check(!/Alice|Carol|U-Bahn|example\.test/.test(body), "Gast sieht keine Namen der Crew und keinen Treffpunkt");
+    await guest.page.getByRole("button", { name: "Abstimmen" }).click();
+    check(await guest.page.getByText("Gib deinen Namen ein (mindestens 2 Zeichen).").isVisible(), "ohne Namen keine Stimme");
+    check(await guest.page.getByText("Beantworte mindestens einen Vorschlag.").isVisible(), "ohne Antwort keine Stimme");
+    await answer(guest, "Grillen bei Bob", "Bin dabei").click();
+    await answer(guest, "Lichtspielhaus Nord", "Vielleicht").click();
+    await guest.page.getByLabel("Dein Name").fill("Dana");
+    await shot(guest, "11c-gast-stimmzettel");
+    await guest.page.getByRole("button", { name: "Abstimmen" }).click();
+    await guest.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Dana" }).waitFor();
+    check(await guest.page.getByText("Gespeichert. Die Crew sieht deine Stimme.").isVisible(), "Gast: Bestätigung nach dem Abstimmen");
+    check(await guest.page.getByRole("link", { name: "Konto erstellen" }).isVisible(), "Gast: danach der Weg zum eigenen Konto");
+    // Neu laden: dasselbe Gerät erkennt den Gast wieder (Geheimnis im Browser), Antworten bleiben änderbar.
+    await guest.page.reload();
+    await guest.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Dana" }).waitFor();
+    check((await answer(guest, "Grillen bei Bob", "Bin dabei").getAttribute("aria-checked")) === "true", "Gast sieht nach dem Neuladen seine Antworten");
+    await shot(guest, "11d-gast-abgestimmt");
+    for (const viewport of ["tablet", "desktop"]) {
+      await guest.page.setViewportSize(VIEWPORTS[viewport]);
+      await shot({ ...guest, viewport }, "11d-gast-abgestimmt");
+    }
+  } finally {
+    users.splice(users.indexOf(guest), 1);
+    await guest.context.close();
+  }
+
+  // Die Crew sieht die Gast-Stimme: im Balken, in der Beteiligung und in der Gästeliste.
+  await alice.page.reload();
+  await optionCard(alice, "Grillen bei Bob").getByText("1 Zusage").waitFor();
+  check(true, "Gast-Zusage zählt im Balken mit");
+  check(await alice.page.getByText("+ 1 Gast hat mitgestimmt").isVisible(), "Beteiligung nennt den Gast");
+  check(await alice.page.getByText("Dana (Gast)").first().isVisible(), "Gast steht mit „(Gast)“ in der Liste");
+  await shot(alice, "12b-abstimmung-mit-gast");
+  await alice.page.goto(`${APP}/notifications`);
+  await alice.page.getByText("Dana (Gast) hat abgestimmt").waitFor();
+  check(true, "Erstellerin wird über die Gast-Stimme benachrichtigt");
+
+  // Gast entfernen (z. B. Spaß-Stimme): Name und Antworten sind weg, der Stand wie vorher.
+  await alice.page.goto(`${APP}/polls/${ids.poll}`);
+  await alice.page.getByRole("button", { name: "Dana entfernen" }).click();
+  await dialog(alice).getByRole("button", { name: "Entfernen" }).click();
+  await toast(alice, "Gast entfernt.");
+  await optionCard(alice, "Grillen bei Bob").getByText("0 Zusagen").waitFor();
+  check(true, "entfernter Gast zählt nicht mehr");
+  check((await alice.page.getByText("+ 1 Gast hat mitgestimmt").count()) === 0, "Beteiligung ohne Gast");
+
+  if (ANON) {
+    const tokenValue = ids.pollShareUrl.split("/").pop();
+    const ballot = await api(null, "POST", "rpc/shared_poll_ballot", { p_token: tokenValue });
+    check(ballot.status === 200 && ballot.json?.status === "valid" && !JSON.stringify(ballot.json).match(/[0-9a-f]{8}-[0-9a-f]{4}-/), "API: Stimmzettel ohne Konto ohne IDs");
+    const bad = await api(null, "POST", "rpc/guest_vote_shared_poll", { p_token: tokenValue, p_secret: "kurz", p_name: "X", p_votes: { 1: "yes" } });
+    check(bad.status === 400, `API: Gast-Stimme mit ungültigen Angaben wird abgewiesen (${bad.status})`);
+    check((await api(null, "GET", "poll_guests?select=*")).status >= 400, "API: Gäste ohne Konto nicht lesbar");
+  }
+});
+
 await step("Schritt 7 – Abstimmung beenden, Ergebnis", async () => {
   const { page } = alice;
   check((await bob.page.getByRole("button", { name: "Abstimmung beenden" }).count()) === 0, "nur die Erstellerin sieht „Abstimmung beenden“");
@@ -1137,6 +1219,8 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
     check(preview.status === 200 && preview.json?.poll_id === null && preview.json?.poll?.status === "closed", "API: Abstimmungs-Vorschau gibt Außenstehenden keine ID");
   }
   check([401, 403].includes((await api(null, "POST", "rpc/poll_share_token", { p_poll_id: ids.poll })).status), "API: ohne Konto kein Abstimmungs-Link");
+  check((await rows("poll_guests")).length === 0 && (await rows("poll_guest_votes")).length === 0, "API: keine fremden Gäste oder Gast-Stimmen lesbar");
+  check((await api(mallory, "POST", "rpc/set_poll_guests", { p_poll_id: ids.poll, p_allowed: true })).status === 403, "API: Gäste für fremde Abstimmung freischalten wird abgewiesen (403)");
   const anonShare = await api(null, "POST", "rpc/plan_share_token", { p_plan_id: ids.plan });
   check([401, 403].includes(anonShare.status), `API: ohne Konto kein Teilen-Link (${anonShare.status})`);
   check((await api(mallory, "POST", "rpc/set_attendance", { p_plan_id: ids.plan, p_status: "going" })).status === 403, "API: Zusage zu fremdem Plan wird abgewiesen (403)");

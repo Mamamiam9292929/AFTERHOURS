@@ -59,7 +59,8 @@ function countText(n, one, many) {
 
 /**
  * W2 Etappe 2 · Titel und Beschreibung der Vorschau einer Abstimmung. Nur, was preview_shared_poll
- * liefert: Frage, Frist, offen/entschieden, Zahl der Vorschläge und der Personen, die abgestimmt haben.
+ * liefert: Frage, Frist, offen/entschieden, Zahl der Vorschläge und der Personen, die abgestimmt haben
+ * (Gäste eingeschlossen), und ob Gäste ohne Konto mitstimmen dürfen (W3).
  */
 export function describeSharedPoll(preview) {
   if (!preview || preview.status !== "valid" || !preview.poll) {
@@ -73,7 +74,9 @@ export function describeSharedPoll(preview) {
     return { title, description: `Entschieden – ${voters === 1 ? "1 hat" : `${voters} haben`} abgestimmt. Wie es weitergeht, sieht die Crew in AFTERHOURS.` };
   }
   const votersText = voters === 0 ? "Noch keine Stimme" : voters === 1 ? "1 hat abgestimmt" : `${voters} haben abgestimmt`;
-  return { title, description: `${options} · ${votersText} · Abstimmen bis ${formatWhen(poll.ends_at)}. Stimmst du mit ab?` };
+  // W3: Hat die Crew Gäste zugelassen, geht Mitstimmen ohne Konto – das gehört in die Einladung.
+  const ask = poll.guests === true ? "Stimmst du mit ab? Geht auch ohne Konto." : "Stimmst du mit ab?";
+  return { title, description: `${options} · ${votersText} · Abstimmen bis ${formatWhen(poll.ends_at)}. ${ask}` };
 }
 
 export function escapeHtml(value) {

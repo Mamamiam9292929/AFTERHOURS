@@ -7,7 +7,9 @@ import type { PollVote, VoteResponse } from "@/lib/types";
 import type { PollWithDetails } from "./logic";
 
 // Der FK-Hinweis ist nötig, weil polls und poll_options doppelt verbunden sind (poll_id und winning_option_id).
-const POLL_SELECT = "*, options:poll_options!poll_options_poll_id_fkey(*), votes:poll_votes(*)";
+// W3: Gäste nur mit Name und Zeitpunkt – den Hash ihres Geheimnisses gibt die Datenbank ohnehin nicht heraus.
+const POLL_SELECT =
+  "*, options:poll_options!poll_options_poll_id_fkey(*), votes:poll_votes(*), guests:poll_guests(id, display_name, created_at), guest_votes:poll_guest_votes(*)";
 
 /**
  * Stellt für Abstimmungen, deren Frist abgelaufen ist, das Ergebnis fest. Jedes Mitglied darf das
@@ -42,6 +44,7 @@ export function usePoll(pollId: string | undefined) {
     pollId ? `poll:${pollId}` : null,
     [
       { table: "poll_votes", filter: `poll_id=eq.${pollId}` },
+      { table: "poll_guest_votes", filter: `poll_id=eq.${pollId}` },
       { table: "polls", filter: `id=eq.${pollId}` },
     ],
     () => void client.invalidateQueries({ queryKey: qk.poll(pollId ?? "none") }),
@@ -148,6 +151,35 @@ function usePollAction<TInput, TResult>(fn: (input: TInput) => Promise<TResult>)
   });
 }
 
+/** W3: Gäste ohne Konto per Teilen-Link mitstimmen lassen (Ersteller:in, Owner/Admin). */
+export function useSetPollGuests(pollId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (allowed: boolean) => {
+      const { error } = await supabase.rpc("set_poll_guests", { p_poll_id: pollId, p_allowed: allowed });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: qk.poll(pollId) });
+      void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+    },
+  });
+}
+
+export function useRemovePollGuest(pollId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (guestId: string) => {
+      const { error } = await supabase.rpc("remove_poll_guest", { p_guest_id: guestId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: qk.poll(pollId) });
+      void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+    },
+  });
+}
+
 export function useClosePoll() {
   return usePollAction(async (pollId: string) => {
     const { error } = await supabase.rpc("close_poll", { p_poll_id: pollId });
@@ -195,7 +227,7 @@ export function usePollShareToken(pollId: string | undefined, enabled = true) {
 export type SharedPollPreview =
   | {
       status: "valid";
-      poll: { title: string; ends_at: string; status: "open" | "closed"; option_count: number; voter_count: number };
+      poll: { title: string; ends_at: string; status: "open" | "closed"; option_count: number; voter_count: number; guests?: boolean };
       /** Nur für Mitglieder der Crew – sonst null. */
       poll_id: string | null;
     }
@@ -213,6 +245,77 @@ export function useSharedPollPreview(token: string | undefined, viewer: string |
       const { data, error } = await supabase.rpc("preview_shared_poll", { p_token: token ?? "" });
       if (error) throw error;
       return data as SharedPollPreview;
+    },
+  });
+}
+
+/*
+ * W3 Etappe 1 · Mitstimmen ohne Konto. Ein Gast ist ein zufälliges Geheimnis (64 Hex-Zeichen), das nur auf
+ * diesem Gerät liegt – je Teilen-Link eins. Die Datenbank speichert davon nur den Hash.
+ */
+const guestKey = (token: string) => `afterhours.guest.${token}`;
+
+export function guestSecret(token: string): string {
+  try {
+    const stored = localStorage.getItem(guestKey(token));
+    if (stored && /^[0-9a-f]{64}$/.test(stored)) return stored;
+  } catch {
+    // Privates Fenster o. Ä.: Geheimnis gilt dann nur für diesen Besuch.
+  }
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const secret = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  try {
+    localStorage.setItem(guestKey(token), secret);
+  } catch {
+    // siehe oben
+  }
+  return secret;
+}
+
+export interface BallotOption {
+  key: number;
+  title: string;
+  proposed_date: string | null;
+  proposed_time: string | null;
+  yes: number;
+  maybe: number;
+  no: number;
+}
+
+export type SharedPollBallot =
+  | {
+      status: "valid";
+      poll: { title: string; ends_at: string; open: boolean };
+      options: BallotOption[];
+      me: { name: string; votes: Record<string, VoteResponse> } | null;
+    }
+  | { status: "not_found" | "expired" | "guests_off" };
+
+export function useSharedPollBallot(token: string | undefined, secret: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["poll-guest-ballot", token ?? "none"] as const,
+    enabled: Boolean(token && secret) && enabled,
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async (): Promise<SharedPollBallot> => {
+      const { data, error } = await supabase.rpc("shared_poll_ballot", { p_token: token ?? "", p_secret: secret });
+      if (error) throw error;
+      return data as SharedPollBallot;
+    },
+  });
+}
+
+export function useGuestVote(token: string, secret: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { name: string; votes: Record<string, VoteResponse | null> }) => {
+      const { error } = await supabase.rpc("guest_vote_shared_poll", { p_token: token, p_secret: secret, p_name: input.name, p_votes: input.votes });
+      if (error) throw error;
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: ["poll-guest-ballot", token] });
+      void client.invalidateQueries({ queryKey: ["poll-share-preview", token] });
     },
   });
 }

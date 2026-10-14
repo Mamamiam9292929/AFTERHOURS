@@ -148,6 +148,8 @@ export interface Poll {
   closed_by: string | null;
   last_reminded_at: string | null;
   created_at: string;
+  /** W3: Freunde ohne Konto dürfen über den Teilen-Link mitstimmen. */
+  guests_allowed: boolean;
 }
 
 export interface PollOption {
@@ -166,6 +168,22 @@ export interface PollVote {
   poll_id: string;
   poll_option_id: string;
   user_id: string;
+  response: VoteResponse;
+  updated_at: string;
+}
+
+/** W3: Gast ohne Konto – für die Crew nur Name und Zeitpunkt. */
+export interface PollGuest {
+  id: string;
+  display_name: string;
+  created_at: string;
+}
+
+export interface PollGuestVote {
+  id: string;
+  poll_id: string;
+  poll_option_id: string;
+  guest_id: string;
   response: VoteResponse;
   updated_at: string;
 }

@@ -6,7 +6,7 @@ import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconVote
 import { PageHeader, PosterTitle, Section } from "@/components/layout/Page";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { Chip } from "@/components/ui/Controls";
+import { Chip, SwitchRow } from "@/components/ui/Controls";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { Badge, EmptyState, ErrorState, PageSpinner } from "@/components/ui/Feedback";
 import { FormMessage, TextAreaField, TextField } from "@/components/ui/Field";
@@ -22,10 +22,10 @@ import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { addDays, formatAgo, formatDateTime, formatPlainDate, formatPlainTime, formatRelative, today, zonedToUtc } from "@/lib/time";
-import type { PollOption, VoteResponse } from "@/lib/types";
-import { useClosePoll, usePoll, usePollShareToken, usePolls, useRemindPoll, useStartRunoff, useVote } from "./api";
+import type { PollGuest, PollOption, VoteResponse } from "@/lib/types";
+import { useClosePoll, usePoll, usePollShareToken, usePolls, useRemindPoll, useRemovePollGuest, useSetPollGuests, useStartRunoff, useVote } from "./api";
 import { ParticipationBar } from "./PollCard";
-import { summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
+import { GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
 
 const RESPONSES: VoteResponse[] = ["yes", "maybe", "no"];
 
@@ -48,7 +48,8 @@ interface OptionCardProps {
 function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action }: OptionCardProps) {
   const { option } = tally;
   const overBudget = poll.budget_cents != null && option.estimated_price_cents != null && option.estimated_price_cents > poll.budget_cents;
-  const names = (ids: string[]) => ids.map((id) => lookup(id)?.display_name ?? t.states.formerMember).join(", ");
+  const names = (ids: string[]) =>
+    ids.map((id) => (isGuestId(id) ? t.polls.guestLabel(lookup(id)?.display_name ?? "?") : (lookup(id)?.display_name ?? t.states.formerMember))).join(", ");
 
   const meta = [optionWhen(option), option.estimated_price_cents != null ? t.polls.detail.priceEstimate(formatEuro(option.estimated_price_cents)) : t.polls.detail.priceOpen];
   const leadingOpen = tally.leading && poll.status === "open";
@@ -305,6 +306,65 @@ function RunoffDialog({ poll, open, onClose }: { poll: PollWithDetails; open: bo
   );
 }
 
+/** W3: Schalter „Gäste dürfen mitstimmen“ und die Liste der Gäste – für Ersteller:in und Owner/Admin. */
+function GuestSettings({ poll, guests }: { poll: PollWithDetails; guests: PollGuest[] }) {
+  const toast = useToast();
+  const setGuests = useSetPollGuests(poll.id);
+  const removeGuest = useRemovePollGuest(poll.id);
+  const [removing, setRemoving] = useState<PollGuest | null>(null);
+
+  return (
+    <Section title={t.polls.detail.guests.title} className="mt-0">
+      <div className="rounded-card border border-line bg-surface px-4 py-1.5">
+        <SwitchRow
+          label={t.polls.detail.guests.toggle}
+          description={t.polls.detail.guests.toggleBody}
+          checked={poll.guests_allowed}
+          disabled={setGuests.isPending}
+          onChange={(allowed) =>
+            setGuests.mutate(allowed, {
+              onSuccess: () => toast.success(allowed ? t.polls.detail.guests.on : t.polls.detail.guests.off),
+              onError: (error) => toast.error(error),
+            })
+          }
+        />
+      </div>
+      {(poll.guests_allowed || guests.length > 0) && (
+        <ul className="mt-3 space-y-1.5 text-[15px]" aria-label={t.polls.detail.guests.title}>
+          {guests.length === 0 && <li className="text-sm text-muted">{t.polls.detail.guests.none}</li>}
+          {guests.map((guest) => (
+            <li key={guest.id} className="flex items-center justify-between gap-3">
+              <span className="min-w-0 truncate text-fg">{t.polls.guestLabel(guest.display_name)}</span>
+              <Button variant="ghost" size="sm" onClick={() => setRemoving(guest)} aria-label={t.polls.detail.guests.remove(guest.display_name)}>
+                {t.polls.detail.guests.removeConfirm}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ConfirmDialog
+        open={Boolean(removing)}
+        onClose={() => setRemoving(null)}
+        title={t.polls.detail.guests.removeTitle(removing?.display_name ?? "")}
+        description={t.polls.detail.guests.removeBody}
+        confirmLabel={t.polls.detail.guests.removeConfirm}
+        destructive
+        loading={removeGuest.isPending}
+        error={removeGuest.isError ? errorMessage(removeGuest.error) : null}
+        onConfirm={() =>
+          removing &&
+          removeGuest.mutate(removing.id, {
+            onSuccess: () => {
+              setRemoving(null);
+              toast.success(t.polls.detail.guests.removed);
+            },
+          })
+        }
+      />
+    </Section>
+  );
+}
+
 export function PollDetailPage() {
   const { pollId } = useParams();
   const user = useUser();
@@ -361,6 +421,11 @@ export function PollDetailPage() {
   const runoff = allPolls.data?.find((p) => p.parent_poll_id === poll.id);
   const openMembers = memberIds.filter((id) => !summary.voterIds.includes(id));
   const votedCount = memberIds.length - openMembers.length;
+  // W3: Gäste erscheinen in Balken und „Wer hat wie geantwortet?“ unter ihrem Namen mit „(Gast)“.
+  const guests = poll.guests ?? [];
+  const guestNames = new Map(guests.map((g) => [GUEST_PREFIX + g.id, g.display_name]));
+  const lookup = (id: string | null | undefined) =>
+    id && isGuestId(id) ? { id, display_name: guestNames.get(id) ?? "?", avatar_url: null } : people.lookup(id);
 
   function castVote(optionId: string, response: VoteResponse | null) {
     vote.mutate({ optionId, response }, { onError: (error) => toast.error(error) });
@@ -389,6 +454,7 @@ export function PollDetailPage() {
               </span>
             )}
             {poll.parent_poll_id && <Badge tone="outline">{t.polls.runoffBadge}</Badge>}
+            {poll.guests_allowed && !summary.isOver && <Badge tone="outline">{t.polls.guestsBadge}</Badge>}
             <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.participation(votedCount, memberIds.length)}</span>
           </span>
         }
@@ -455,7 +521,7 @@ export function PollDetailPage() {
                 disabled={summary.isOver}
                 isWinner={winner?.id === tally.option.id}
                 onVote={(response) => castVote(tally.option.id, response)}
-                lookup={people.lookup}
+                lookup={lookup}
                 action={
                   closed && poll.is_tie && canManage && !plan && !runoff && tally.leading ? (
                     <Button variant="secondary" size="sm" onClick={() => setPlanOption(tally.option)}>
@@ -472,6 +538,7 @@ export function PollDetailPage() {
         <aside className="space-y-6 lg:sticky lg:top-10 lg:self-start">
           <div className="rounded-card border border-line bg-surface p-4">
             <ParticipationBar voted={votedCount} total={memberIds.length} />
+            {summary.guestVoterCount > 0 && <p className="mt-2 text-sm font-semibold text-fg">{t.polls.guestVoters(summary.guestVoterCount)}</p>}
             <p className="mt-3 text-sm text-muted">
               {openMembers.length === 0 ? (
                 t.polls.detail.everyoneVoted
@@ -510,6 +577,8 @@ export function PollDetailPage() {
 
           {!summary.isOver && <p className="text-[13px] text-faint">{t.polls.status.endsAt(formatDateTime(poll.ends_at))}</p>}
           <p className="text-[13px] text-faint">{poll.created_by === user.id ? t.polls.detail.createdByYou : t.polls.detail.createdBy(people.lookup(poll.created_by)?.display_name ?? t.states.formerMember)}</p>
+
+          {canManage && !summary.isOver && <GuestSettings poll={poll} guests={guests} />}
 
           {canManage && !summary.isOver && (
             <Section title={t.nav.settings} className="mt-0">
