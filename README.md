@@ -32,6 +32,7 @@
 | Bereich | Umfang |
 |---|---|
 | Konto | Registrierung mit E-Mail und Passwort, E-Mail-Bestätigung, Anmeldung, Passwort zurücksetzen und ändern, Abmelden, Datenexport (JSON), Konto löschen (serverseitig) |
+| Öffentliche Startseite (W6) | Wer `/` ohne Konto öffnet, sieht statt der Anmeldung die Startseite (`src/features/landing/LandingPage.tsx`, eigener Chunk): Plakat-Überschrift, was die App kann, „So wird aus einer Frage ein Abend“ in drei Schritten, sechs Funktionen, Datenschutz in einfachen Worten, Schluss-Ticket „Wer fragt diesmal in der Gruppe? – Du.“. „Crew gründen“ führt zur Registrierung (danach Onboarding und geführter Start), „Anmelden“ zur Anmeldung; das Logo auf Anmelde- und Registrierungsseite führt zurück. Die Bilder sind echte Bausteine der App (großes Ticket, Stimmbalken) mit erfundenem Inhalt, beide sichtbar als „Beispiel“ markiert; das Datum im Beispiel ist immer der kommende Samstag. Keine Nutzerzahlen, Bewertungen oder Preise. Angemeldete leitet `/` direkt zu `/home`; geschützte Adressen führen ohne Konto weiter zur Anmeldung |
 | Onboarding | Anzeigename, Profilbild, Stadt, Interessen, Lieblingsaktivitäten, Budget, Entfernung, Benachrichtigungen – alles außer dem Namen optional. Wer über einen gültigen Einladungslink kommt, hat nur einen Schritt (W1 Etappe 2): die Einladung als kleines Ticket, darunter Name, Bild, Stadt und „<Crew> beitreten“ – Profil speichern und Beitritt mit einem Tipp; „Erst mal ohne Crew weiter“ speichert nur das Profil. Der Rest lässt sich in den Einstellungen nachtragen |
 | Geführter Start (W5) | Wer sich ohne Einladungslink registriert, landet nach dem Onboarding auf `/start` (auf Home: „Erster Plan in 60 Sekunden“): 1. Crew gründen (Name, Symbol) → 2. Einladungslink teilen (7 Tage, 20 Personen, Teilen-Menü des Geräts oder Kopieren; überspringbar) → 3. Abstimmung „Was machen wir am Samstag?“ mit bis zu drei Orten aus der eigenen Stadt (dieselbe Auswahl wie „Ideen für euch“ auf Home: Interessen, Budget, echte bzw. als Demo markierte Orte – nichts erfunden), Freitag oder Samstag, Uhrzeit, Frist bis zum Vorabend 20 Uhr. Jeder Vorschlag lässt sich abwählen. Der Schritt steht in der Adresse (`?crew=<id>&step=poll`), Neuladen bleibt im Schritt; „Später“ führt nach Home. Etappe 2: Unter „Eigene Vorschläge“ lassen sich im selben Schritt freie Vorschläge eintippen („Grillen bei Bob“, 2–80 Zeichen, keine Dubletten) und weitere Orte über die Ortssuche (derselbe Dialog wie beim Erstellen einer Abstimmung) hinzufügen – zusammen höchstens 10. Steht im Profil keine Stadt, nimmt Schritt 3 die zuletzt in Discover gewählte (nur im Browser gespeichert, `afterhours.discover.city`) und sagt das dazu; ins Profil geschrieben wird sie nicht. Eigene Vorschläge gehen beim Neuladen verloren. Geschrieben wird nur über die bestehenden RPCs (`create_crew`, `create_crew_invitation`, `create_poll`) |
 | Crews | Anlegen, umbenennen, löschen, verlassen; Rollen Owner/Admin/Mitglied; Mitglieder entfernen; Crew übergeben; automatische Nachfolge, wenn der Owner geht |
@@ -230,7 +231,7 @@ Supabase API ──► Auth        Registrierung, Sitzungen, E-Mails
              ──► Edge Function „assistant“ (optional, hält den KI-Schlüssel)
 ```
 
-**Warum eine SPA statt Next.js?** Die App liegt vollständig hinter der Anmeldung und braucht keine Suchmaschinen-Seiten. Mit Supabase als Backend sitzt jede Berechtigungsprüfung in der Datenbank; ein zusätzlicher Server wäre eine zweite Stelle, an der Regeln auseinanderlaufen können. Eine SPA lässt sich zudem statisch hosten und später als native App verpacken.
+**Warum eine SPA statt Next.js?** Die App liegt bis auf Startseite, Einladungs- und Datenschutzseite hinter der Anmeldung und braucht kaum Suchmaschinen-Seiten. Mit Supabase als Backend sitzt jede Berechtigungsprüfung in der Datenbank; ein zusätzlicher Server wäre eine zweite Stelle, an der Regeln auseinanderlaufen können. Eine SPA lässt sich zudem statisch hosten und später als native App verpacken.
 
 **Grundsatz der Datenebene:** Das Frontend ist nicht vertrauenswürdig. Es darf lesen, was die RLS-Policies erlauben, und schreibt fast ausschließlich über RPC-Funktionen, die die aufrufende Person über `auth.uid()` ermitteln, Rolle und Mitgliedschaft prüfen, Eingaben bereinigen und Rate Limits anwenden.
 
@@ -363,6 +364,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Eigene E-Mail-Vorlagen | Getestet mit den Standardvorlagen von Supabase Auth |
 | Safari, Firefox, echte Mobilgeräte | Getestet nur in Chromium mit Geräte-Viewports |
 | Lasttests | Keine |
+| Öffentliche Startseite (W6) | Die Journey prüft sie auf Smartphone, Tablet und Desktop (Inhalt, „Beispiel“-Kennzeichnung, keine Zahlen-/Bewertungsbehauptungen, Wege zu Registrierung und Anmeldung, Weiterleitung Angemeldeter, axe-core). Ohne Hosting gibt es keine öffentliche Adresse; Suchmaschinen und Link-Vorschauen sehen nur die leere SPA-Hülle (kein Server-Rendering). Ein Impressum fehlt (rechtlich, siehe Abschnitt 12) |
 | Kalenderdatei (.ics) | Die Journey prüft Aufbau, Maskierung, Zeilenlänge und Inhalt der Datei. Der Import in Apple-, Google- und Outlook-Kalender ist nicht auf echten Geräten geprüft; ein Plan ohne Ende erscheint dort je nach Kalender als Termin ohne Dauer |
 | Offline lesbare Pläne, Update-Hinweis | Die Journey prüft Speichern, Lesen ohne Netz, Löschen beim Abmelden und den Update-Hinweis (alter Build nachgestellt) in Chromium. Echte Funklöcher („Netz da, aber nichts kommt an“) zeigen weiter Ladezustände, bis die Anfrage scheitert – der Gerätespeicher springt nur ein, wenn der Browser „offline“ meldet |
 | Installation und Offline auf echten Geräten | Die Journey stellt das Installations-Angebot und die Badging-API nach (Headless-Chromium hat beides nicht) und prüft Service Worker, Cache-Inhalt und Offline-Start in Chromium. Installation unter Android/iOS und der Zähler am Icon sind nicht auf Geräten geprüft |
@@ -372,7 +374,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 
 ## 12. Vor dem Produktivstart
 
-- Datenschutzerklärung, Impressum und Nutzungsbedingungen rechtlich erstellen lassen; `/privacy` ersetzen oder ergänzen.
+- Datenschutzerklärung, Impressum und Nutzungsbedingungen rechtlich erstellen lassen; `/privacy` ersetzen oder ergänzen. Die öffentliche Startseite (W6) verlinkt bisher nur `/privacy`; ein Impressum-Link gehört in ihren Fuß, sobald die Angaben feststehen.
 - Mindestalter und Einwilligung klären. Die Registrierung fragt „mindestens 16 Jahre“ ab (Art. 8 DSGVO, deutsche Schwelle); eine Altersprüfung ist das nicht.
 - Auftragsverarbeitungsvertrag mit Supabase und dem E-Mail-Dienst abschließen, EU-Region wählen.
 - Eigenen SMTP-Dienst einrichten; Absenderdomain mit SPF/DKIM.
