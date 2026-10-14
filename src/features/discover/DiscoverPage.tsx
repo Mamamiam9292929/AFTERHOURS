@@ -15,26 +15,11 @@ import { dayPhase, formatDateWithYear } from "@/lib/time";
 import { ActivityCard } from "./ActivityCard";
 import { applyFilters, countActiveFilters, EMPTY_FILTERS, useActivitySearch, usePlaceRegion, type ActivityFilters } from "./api";
 import { CityField } from "./CityField";
+import { rememberCity, rememberedCity } from "./rememberedCity";
 import { pickStage, StageCard } from "./StageCard";
 
 const numberOrNull = (value: string) => (value === "" ? null : Number(value));
 
-// Zuletzt gewählte Stadt – nur eine Bequemlichkeit in diesem Browser.
-const CITY_KEY = "afterhours.discover.city";
-function rememberedCity(): string | null {
-  try {
-    return window.localStorage.getItem(CITY_KEY);
-  } catch {
-    return null;
-  }
-}
-function rememberCity(city: string) {
-  try {
-    window.localStorage.setItem(CITY_KEY, city);
-  } catch {
-    // Speicher gesperrt (privater Modus o. Ä.) – dann eben ohne.
-  }
-}
 const SUGGESTED_CITIES = ["Berlin", "Hamburg", "München", "Köln", "Frankfurt am Main", "Leipzig"];
 
 export function DiscoverPage() {
