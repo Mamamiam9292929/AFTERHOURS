@@ -52,6 +52,7 @@ const PlansPage = page(() => import("@/features/plans/PlansPage"), "PlansPage");
 const PlanCreatePage = page(() => import("@/features/plans/PlanCreatePage"), "PlanCreatePage");
 const PlanDetailPage = page(() => import("@/features/plans/PlanDetailPage"), "PlanDetailPage");
 const SharedPlanPage = page(() => import("@/features/plans/SharedPlanPage"), "SharedPlanPage");
+const SharedPollPage = page(() => import("@/features/polls/SharedPollPage"), "SharedPollPage");
 const RewardsPage = page(() => import("@/features/rewards/RewardsPage"), "RewardsPage");
 const NotificationsPage = page(() => import("@/features/notifications/NotificationsPage"), "NotificationsPage");
 const ProfilePage = page(() => import("@/features/profile/ProfilePage"), "ProfilePage");
@@ -111,6 +112,8 @@ export const router = createBrowserRouter([
       { path: "/invite/:token", element: <InviteLandingPage /> },
       // W2: geteilter Plan – Mitglieder leitet die Seite zum Plan weiter, alle anderen sehen die Karte.
       { path: "/s/:token", element: <SharedPlanPage /> },
+      // W2 Etappe 2: geteilte Abstimmung – Mitglieder leitet die Seite zur Abstimmung weiter.
+      { path: "/v/:token", element: <SharedPollPage /> },
       {
         element: <RequireAuth />,
         children: [

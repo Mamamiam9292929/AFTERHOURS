@@ -170,3 +170,49 @@ export function useStartRunoff() {
     return data as string;
   });
 }
+
+/*
+ * W2 Etappe 2 · Teilen-Karte: Eine Abstimmung bekommt beim ersten Teilen einen eigenen Link /v/<token>.
+ * Messenger zeigen dazu eine Vorschau, Freunde ohne Konto eine Karte in der App, Mitglieder landen bei
+ * der Abstimmung. Der Token wird beim Öffnen der Abstimmung geholt, damit das Teilen-Menü sofort aufgeht.
+ */
+export function usePollShareToken(pollId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["poll-share-token", pollId ?? "none"] as const,
+    enabled: Boolean(pollId) && enabled,
+    staleTime: Infinity,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async (): Promise<string> => {
+      const { data, error } = await supabase.rpc("poll_share_token", { p_poll_id: pollId });
+      if (error) throw error;
+      return data as string;
+    },
+  });
+}
+
+export type SharedPollPreview =
+  | {
+      status: "valid";
+      poll: { title: string; ends_at: string; status: "open" | "closed"; option_count: number; voter_count: number };
+      /** Nur für Mitglieder der Crew – sonst null. */
+      poll_id: string | null;
+    }
+  | { status: "not_found" | "expired" };
+
+/** `viewer`: angemeldete Person oder null – die Antwort hängt davon ab (ID nur für Mitglieder). */
+export function useSharedPollPreview(token: string | undefined, viewer: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["poll-share-preview", token ?? "none", viewer ?? "anon"] as const,
+    enabled: Boolean(token) && enabled,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async (): Promise<SharedPollPreview> => {
+      const { data, error } = await supabase.rpc("preview_shared_poll", { p_token: token ?? "" });
+      if (error) throw error;
+      return data as SharedPollPreview;
+    },
+  });
+}

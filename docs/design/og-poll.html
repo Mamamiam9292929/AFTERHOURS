@@ -1,0 +1,76 @@
+<!doctype html>
+<!--
+  W2 Etappe 2 · Vorschaubild für geteilte Abstimmungen (public/og/poll.png, 1200 × 630).
+  Neu erzeugen: Datei im Browser mit 1200 × 630 öffnen (Schriften liegen in public/fonts) und als PNG
+  speichern – oder per Playwright: page.set_viewport_size(1200, 630); page.screenshot(path=…).
+  Das Bild ist für alle Abstimmungen gleich; Frage und Frist stehen im Text der Vorschau. Die Vorschläge
+  sind bewusst neutral („Vorschlag 1“ …) und die Karte ist als „Beispiel“ markiert – was wirklich zur
+  Wahl steht und wie es steht, sieht nur die Crew.
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: "Big Shoulders Display"; src: url("../../public/fonts/BigShouldersDisplay-ExtraBold.woff2") format("woff2"); font-weight: 800; }
+  @font-face { font-family: "Figtree"; src: url("../../public/fonts/Figtree-Variable.woff2") format("woff2"); font-weight: 300 900; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    position: relative;
+    background: #1c1e20;
+    color: #f3f4f1;
+    font-family: "Figtree", sans-serif;
+  }
+  .glow { position: absolute; right: -180px; top: -220px; width: 760px; height: 760px; border-radius: 50%;
+          background: radial-gradient(circle, rgb(197 248 42 / 0.22), rgb(197 248 42 / 0) 65%); }
+  .grain { position: absolute; inset: 0; opacity: .06;
+           background-image: radial-gradient(#fff 0.6px, transparent 0.6px); background-size: 4px 4px; }
+  .logo { position: absolute; left: 72px; top: 60px; display: flex; align-items: center; gap: 16px; }
+  .logo span { font-family: "Big Shoulders Display"; font-weight: 800; font-size: 40px; letter-spacing: .04em; }
+  .poster { position: absolute; left: 72px; bottom: 70px; font-family: "Big Shoulders Display"; font-weight: 800;
+            font-size: 150px; line-height: .86; text-transform: uppercase; letter-spacing: .005em; }
+  .poster em { font-style: normal; color: #c5f82a; }
+  .claim { position: absolute; left: 76px; bottom: 34px; font-size: 22px; color: #a9aeaa; font-weight: 500; }
+  .card-wrap { position: absolute; right: 70px; top: 112px; transform: rotate(-3deg);
+               filter: drop-shadow(0 24px 34px rgb(0 0 0 / .5)); }
+  .card { width: 500px; border-radius: 26px; background: #25282b; padding: 30px 32px 28px; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; }
+  .badge { border-radius: 999px; background: #c5f82a; color: #141a00; font-weight: 800; font-size: 17px; padding: 6px 14px; }
+  .example { border: 2px solid #4d5359; border-radius: 999px; color: #a9aeaa; font-size: 15px; font-weight: 700; padding: 4px 12px; text-transform: uppercase; letter-spacing: .08em; }
+  .q { margin-top: 18px; font-family: "Big Shoulders Display"; font-weight: 800; font-size: 54px; line-height: .9; text-transform: uppercase; }
+  .q em { font-style: normal; color: #c5f82a; }
+  .opt { margin-top: 18px; }
+  .opt + .opt { margin-top: 14px; }
+  .opt-top { display: flex; justify-content: space-between; align-items: center; font-size: 20px; font-weight: 700; }
+  .opt-top b { font-family: "Big Shoulders Display"; font-size: 32px; }
+  .lead { margin-left: 10px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #c5f82a;
+          border: 2px solid #c5f82a; border-radius: 999px; padding: 2px 8px; vertical-align: 3px; }
+  .bar { margin-top: 8px; height: 14px; border-radius: 999px; background: #363b40; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #8fd11a, #c5f82a); }
+  .bar.dim i { background: #6b7176; }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="grain"></div>
+  <div class="logo">
+    <svg viewBox="0 0 48 48" width="52" height="52" aria-hidden="true">
+      <rect width="48" height="48" rx="12" fill="#c5f82a" />
+      <path d="M11.5 37 21.2 11h5.6L36.5 37h-6.1L24 18.6 17.6 37z" fill="#141a00" />
+      <circle cx="24" cy="33.2" r="3.4" fill="#141a00" />
+    </svg>
+    <span>AFTERHOURS</span>
+  </div>
+  <div class="card-wrap">
+    <div class="card">
+      <div class="card-head"><span class="badge">Abstimmung läuft</span><span class="example">Beispiel</span></div>
+      <p class="q">Was machen<br />wir <em>diesmal?</em></p>
+      <div class="opt"><div class="opt-top"><span>Vorschlag 1<span class="lead">Vorn</span></span><b>4</b></div><div class="bar"><i style="width:80%"></i></div></div>
+      <div class="opt"><div class="opt-top"><span>Vorschlag 2</span><b>2</b></div><div class="bar dim"><i style="width:40%"></i></div></div>
+      <div class="opt"><div class="opt-top"><span>Vorschlag 3</span><b>1</b></div><div class="bar dim"><i style="width:20%"></i></div></div>
+    </div>
+  </div>
+  <p class="poster">Stimmst<br />du <em>mit?</em></p>
+  <p class="claim">Weniger planen. Mehr erleben.</p>
+</body>
+</html>
