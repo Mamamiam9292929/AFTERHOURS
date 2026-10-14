@@ -13,7 +13,7 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
   }),
   poll_created: (actor, p) => ({ title: p.runoff ? `${actor} hat eine Stichwahl gestartet` : `${actor} hat eine Abstimmung gestartet`, body: str(p, "title") }),
   poll_reminder: (actor, p) => ({ title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") }),
-  poll_vote: (actor, p) => ({ title: `${actor} hat abgestimmt`, body: str(p, "title") }),
+  poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (Gast) hat abgestimmt` : `${actor} hat abgestimmt`, body: str(p, "title") }),
   poll_result: (_actor, p) => ({
     title: p.winner_title ? `Ergebnis: ${str(p, "winner_title")}` : p.is_tie ? "Abstimmung endet mit Gleichstand" : "Abstimmung ohne Zusagen beendet",
     body: str(p, "title"),

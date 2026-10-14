@@ -143,6 +143,11 @@ export const errors = {
     no_seats_left: "So viele Plätze sind nicht mehr frei.",
     invalid_report: "Bitte beschreibe kurz, was nicht stimmt (mindestens 5 Zeichen).",
     confirmation_required: "Bitte bestätige die Löschung.",
+    invalid_input: "Eine Eingabe ist ungültig. Bitte prüfe deine Angaben.",
+    share_not_found: "Diesen Link gibt es nicht (mehr). Frag im Gruppenchat nach einem neuen.",
+    guests_not_allowed: "Bei dieser Abstimmung können Gäste gerade nicht mitstimmen.",
+    guest_limit: "Bei dieser Abstimmung haben schon 30 Gäste mitgestimmt – mehr gehen nicht.",
+    already_member: "Du bist in dieser Crew – stimm direkt in der App ab.",
     // Supabase Auth
     invalid_credentials: "E-Mail-Adresse oder Passwort stimmen nicht.",
     email_not_confirmed: "Bitte bestätige zuerst deine E-Mail-Adresse. Der Link steckt in der E-Mail, die wir dir geschickt haben.",

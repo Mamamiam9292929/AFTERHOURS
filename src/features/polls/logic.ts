@@ -1,16 +1,23 @@
-import type { Poll, PollOption, PollVote, VoteResponse } from "@/lib/types";
+import type { Poll, PollGuest, PollGuestVote, PollOption, PollVote, VoteResponse } from "@/lib/types";
 
 export interface PollWithDetails extends Poll {
   options: PollOption[];
   votes: PollVote[];
+  /** W3: Gäste ohne Konto und ihre Antworten (fehlen in älteren Offline-Ständen). */
+  guests?: PollGuest[];
+  guest_votes?: PollGuestVote[];
 }
+
+/** Gäste stehen in den Listen der Antworten als „guest:<id>“ neben den Konto-IDs. */
+export const GUEST_PREFIX = "guest:";
+export const isGuestId = (id: string) => id.startsWith(GUEST_PREFIX);
 
 export interface OptionTally {
   option: PollOption;
   yes: string[];
   maybe: string[];
   no: string[];
-  /** Anteil der Zusagen an allen Mitgliedern (0–1) – Breite des Balkens. */
+  /** Anteil der Zusagen an allen Mitgliedern und Gästen (0–1) – Breite des Balkens. */
   yesShare: number;
   mine: VoteResponse | null;
   leading: boolean;
@@ -18,8 +25,10 @@ export interface OptionTally {
 
 export interface PollSummary {
   tallies: OptionTally[];
-  /** Personen, die mindestens eine Antwort gespeichert haben. */
+  /** Personen mit Konto, die mindestens eine Antwort gespeichert haben. */
   voterIds: string[];
+  /** W3: Gäste ohne Konto, die mindestens eine Antwort gespeichert haben. */
+  guestVoterCount: number;
   memberCount: number;
   participation: number;
   /** Optionen mit den meisten Zusagen; leer, wenn noch niemand zugesagt hat. */
@@ -39,16 +48,22 @@ export function isPollOver(poll: Pick<Poll, "status" | "ends_at">, now: Date = n
 
 /**
  * Wertet eine Abstimmung aus. Gezählt werden ausschließlich gespeicherte Antworten; es zählt die
- * Zahl der Zusagen ("Bin dabei"). Dieselbe Regel wendet die Datenbank beim Schließen an.
+ * Zahl der Zusagen ("Bin dabei") von Crew und Gästen (W3). Dieselbe Regel wendet die Datenbank beim Schließen an.
  */
 export function summarizePoll(poll: PollWithDetails, memberIds: string[], userId: string, now: Date = new Date()): PollSummary {
-  const memberCount = Math.max(memberIds.length, 1);
+  const guestVotes = poll.guest_votes ?? [];
+  const guestVoterCount = new Set(guestVotes.map((v) => v.guest_id)).size;
+  const memberCount = Math.max(memberIds.length + guestVoterCount, 1);
   const options = [...poll.options].sort((a, b) => a.position - b.position);
-  const byOption = new Map<string, PollVote[]>();
-  for (const vote of poll.votes) {
-    const list = byOption.get(vote.poll_option_id) ?? [];
+  const byOption = new Map<string, { user_id: string; response: VoteResponse }[]>();
+  const all = [
+    ...poll.votes.map((v) => ({ option: v.poll_option_id, user_id: v.user_id, response: v.response })),
+    ...guestVotes.map((v) => ({ option: v.poll_option_id, user_id: GUEST_PREFIX + v.guest_id, response: v.response })),
+  ];
+  for (const vote of all) {
+    const list = byOption.get(vote.option) ?? [];
     list.push(vote);
-    byOption.set(vote.poll_option_id, list);
+    byOption.set(vote.option, list);
   }
 
   const raw = options.map((option) => {
@@ -64,6 +79,7 @@ export function summarizePoll(poll: PollWithDetails, memberIds: string[], userId
   return {
     tallies: raw.map((r) => ({ ...r, yesShare: r.yes.length / memberCount, leading: leadingOptionIds.includes(r.option.id) })),
     voterIds,
+    guestVoterCount,
     memberCount: memberIds.length,
     participation: Math.min(1, voterIds.filter((id) => memberIds.includes(id)).length / memberCount),
     leadingOptionIds,
