@@ -57,6 +57,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | P11 | Englische Oberfläche | Gemischte Freundeskreise, Expats | M | – | Freigegeben |
 | P12 | Anmeldung mit Google und Apple | Weniger Hürden bei der Registrierung | S | Entwicklerkonten bei Google/Apple, Schlüssel als Secret | Freigegeben |
 | P13 | Live-Standort nur während eines Plans (Opt-in, verfällt automatisch) | Treffpunkt finden, ohne Dauertracking | L | Datenschutz-Konzept, Einwilligung, Aufbewahrung | Freigegeben |
+| O1 | OSM-Import robuster: Ersatzserver für Overpass bei Zeitüberschreitung oder 429 (z. B. weiterer öffentlicher Mirror, per `OVERPASS_URLS` einstellbar), Fehlschläge des Imports zählen und in einer Tabelle mitschreiben. Akzeptanz: Test mit ausgefallenem Hauptserver importiert über den Ersatz; Fehlerquote abfragbar | Neue Städte laden auch, wenn ein OSM-Server hängt; Grundlage für die Entscheidung über einen eigenen Dienst | S | – | Freigegeben |
 
 ## Für Benito (braucht Konto, Geld oder eine Entscheidung)
 
@@ -65,7 +66,11 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 - W2: Die Messenger-Vorschau braucht Vercel als Hoster (Funktion `api/share.js`). Bei Netlify/Cloudflare funktionieren geteilte Links, die Vorschau bleibt allgemein
 - Impressum, Datenschutzerklärung, Nutzungsbedingungen rechtlich prüfen lassen (die öffentliche Startseite W6 braucht einen Impressum-Link, sobald die Angaben feststehen)
 
+## Entscheidungen
+
+- 14.10.2026 – Öffentlicher Start (Benito): Jede Person kann sich registrieren, nicht nur per Einladung. Passt zum bisherigen Stand (öffentliche Startseite W6, `enable_signup = true` mit E-Mail-Bestätigung); keine Einladungssperre bauen.
+- 14.10.2026 – OSM-Dienste (Claude, Benito hatte keine Präferenz): vorerst kein eigener Overpass-/Nominatim-Dienst. Jede Stadt wird nur einmal importiert und 30 Tage zwischengespeichert – selbst ganz Deutschland wären nur wenige tausend Abfragen pro Monat, weit unter den Nutzungsregeln der öffentlichen Server. Risiko ist Ausfall, nicht Last; dafür O1. Eigener Dienst oder kommerzieller Anbieter erst, wenn Importe trotz Ersatzserver regelmäßig scheitern (Ziel: über 2 % fehlgeschlagene Importe in einer Woche)
+
 ## Offene Fragen an Benito
 
-- Soll die App öffentlich (jede Person kann sich registrieren) oder zunächst nur auf Einladung starten?
-- Ab wann eigener Overpass-/Nominatim-Dienst statt der öffentlichen OSM-Server?
+- Keine
