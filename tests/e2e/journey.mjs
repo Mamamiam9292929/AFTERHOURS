@@ -530,6 +530,8 @@ await step("Schritt 5 – Abstimmung für Samstag starten", async () => {
 });
 
 const answer = (user, option, label) => user.page.getByRole("radiogroup", { name: `Deine Antwort für ${option}` }).getByRole("radio", { name: label, exact: true });
+const answered = (user, option, label) =>
+  user.page.getByRole("radiogroup", { name: `Deine Antwort für ${option}` }).getByRole("radio", { name: label, exact: true, checked: true });
 const optionCard = (user, option) => user.page.getByRole("listitem").filter({ has: user.page.getByRole("heading", { name: option }) });
 
 await step("Schritt 6 – Die Crew stimmt ab", async () => {
@@ -785,8 +787,11 @@ await step("W3 Etappe 2 – Wer als Gast abgestimmt hat und beitritt, übernimmt
     await card.getByRole("button", { name: "Stimmen übernehmen" }).click();
     await toast(erik, "2 Antworten übernommen.");
     await card.waitFor({ state: "detached" });
-    check((await answer(erik, "Kickern", "Bin dabei").getAttribute("aria-checked")) === "true", "die Zusage ist jetzt Eriks eigene Antwort");
-    check((await answer(erik, "Tischtennis", "Vielleicht").getAttribute("aria-checked")) === "true", "„Vielleicht“ ebenso");
+    // Die eigenen Antworten kommen mit dem nächsten Laden der Abstimmung – darauf warten statt sofort zu lesen.
+    await answered(erik, "Kickern", "Bin dabei").waitFor();
+    check(true, "die Zusage ist jetzt Eriks eigene Antwort");
+    await answered(erik, "Tischtennis", "Vielleicht").waitFor();
+    check(true, "„Vielleicht“ ebenso");
     await optionCard(erik, "Kickern").getByText("1 Zusage").waitFor();
     check(true, "keine doppelte Stimme: weiter 1 Zusage");
     check((await erik.page.getByText(/Gast hat mitgestimmt|Gäste haben mitgestimmt/).count()) === 0, "Erik zählt nicht mehr als Gast");
