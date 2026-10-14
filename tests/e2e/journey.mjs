@@ -842,7 +842,8 @@ await step("W3 Etappe 3 – Gäste treten vom Stimmzettel aus der Crew bei", asy
     await toast(greta, "Gäste können jetzt über den geteilten Link mitstimmen.");
     await greta.page.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ }).click();
     await toast(greta, "Gäste können der Crew jetzt nach dem Abstimmen beitreten.");
-    check((await greta.page.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ }).getAttribute("aria-checked")) === "true", "Owner schaltet den Beitritt frei");
+    await greta.page.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/, checked: true }).waitFor();
+    check(true, "Owner schaltet den Beitritt frei");
     await shot(greta, "12e-gaeste-beitreten-schalter");
 
     // Hanna stimmt ohne Konto ab – erst danach erscheint der Beitritt.
