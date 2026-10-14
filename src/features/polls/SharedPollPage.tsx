@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { IconVote } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Badge, ErrorState, PageSpinner } from "@/components/ui/Feedback";
@@ -13,7 +13,7 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { errorMessage } from "@/lib/errors";
 import { formatDateTime, formatPlainDate, formatPlainTime, ticketDate } from "@/lib/time";
 import type { VoteResponse } from "@/lib/types";
-import { type BallotOption, guestSecret, type SharedPollPreview, useGuestVote, useSharedPollBallot, useSharedPollPreview } from "./api";
+import { type BallotOption, guestSecret, type SharedPollPreview, useGuestJoin, useGuestVote, useSharedPollBallot, useSharedPollPreview } from "./api";
 
 type Valid = Extract<SharedPollPreview, { status: "valid" }>;
 
@@ -303,7 +303,9 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
         )}
       </form>
 
-      {!signedIn && (me || !open) && (
+      {me && loaded.poll.can_join ? (
+        <GuestJoinCard token={token} secret={secret} name={me.name} />
+      ) : !signedIn && (me || !open) && (
         <div className="mt-8 rounded-card border border-dashed border-line-strong p-5">
           <p className="text-[17px] font-bold text-fg">{t.polls.shared.ballot.ctaTitle}</p>
           <p className="mt-1.5 text-[15px] leading-snug text-muted">{t.polls.shared.ballot.ctaBody}</p>
@@ -319,5 +321,38 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
         </div>
       )}
     </AuthLayout>
+  );
+}
+
+/**
+ * W3 Etappe 3 · Die Crew erlaubt Gästen den Beitritt: Wer abgestimmt hat, holt sich hier einen
+ * persönlichen Einladungslink und landet auf der normalen Einladung – Konto anlegen oder anmelden,
+ * beitreten, Stimme übernehmen. Ohne Abstimmen erscheint die Karte nicht.
+ */
+function GuestJoinCard({ token, secret, name }: { token: string; secret: string; name: string }) {
+  const navigate = useNavigate();
+  const join = useGuestJoin(token, secret);
+  return (
+    <section aria-labelledby="guest-join-title" className="mt-8 rounded-card border border-lime/60 bg-lime/10 p-5" data-testid="guest-join">
+      <h2 id="guest-join-title" className="text-[17px] font-bold text-fg">
+        {t.polls.shared.join.title(name)}
+      </h2>
+      <p className="mt-1.5 text-[15px] leading-snug text-muted">{t.polls.shared.join.body}</p>
+      {join.isError && (
+        <div className="mt-3">
+          <FormMessage>{errorMessage(join.error)}</FormMessage>
+        </div>
+      )}
+      <Button
+        size="lg"
+        block
+        className="mt-4"
+        loading={join.isPending}
+        onClick={() => join.mutate(undefined, { onSuccess: (result) => navigate(`/invite/${result.token}`) })}
+      >
+        {t.polls.shared.join.cta}
+      </Button>
+      <p className="mt-3 text-[13px] leading-snug text-muted">{t.polls.shared.join.privacy}</p>
+    </section>
   );
 }
