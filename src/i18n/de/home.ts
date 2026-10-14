@@ -10,6 +10,12 @@ export const home = {
     done: "AFTERHOURS ist installiert.",
   },
   offline: "Offline – Inhalte laden, sobald du wieder Netz hast.",
+  // W4 Etappe 2: ohne Netz zeigt die App den zuletzt geladenen Stand von diesem Gerät.
+  offlineSaved: (when: string) => `Offline – gespeicherter Stand von ${when}.`,
+  update: {
+    body: "Neue Version von AFTERHOURS ist da.",
+    action: "Neu laden",
+  },
   greeting: { morning: "Guten Morgen", day: "Hi", evening: "Guten Abend", night: "Noch wach" },
   /** Plakat-Überschrift: `key` wird in Lime gesetzt. */
   question: {

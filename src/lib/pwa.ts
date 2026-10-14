@@ -13,6 +13,8 @@ interface InstallPromptEvent extends Event {
 
 let deferred: InstallPromptEvent | null = null;
 let installed = false;
+let updateReady = false;
+let lastUpdateCheck = 0;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((listener) => listener());
 
@@ -34,6 +36,58 @@ export function setupPwa(): void {
   if (import.meta.env.PROD && "serviceWorker" in navigator) {
     window.addEventListener("load", () => void registerServiceWorker(), { once: true });
   }
+  if (import.meta.env.PROD) {
+    // Installierte Apps bleiben tagelang offen. Kommt die App zurück in den Vordergrund (und alle 30
+    // Minuten), schaut sie nach, ob es eine neue Version gibt.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void checkForUpdate();
+    });
+    window.setInterval(() => void checkForUpdate(), UPDATE_INTERVAL_MS);
+  }
+}
+
+const UPDATE_INTERVAL_MS = 30 * 60_000;
+const UPDATE_MIN_GAP_MS = 60_000;
+const ENTRY = /<script[^>]+type="module"[^>]+src="(\/assets\/[^"]+\.js)"|<script[^>]+src="(\/assets\/[^"]+\.js)"[^>]+type="module"/;
+
+/** Pfad des Start-Skripts, mit dem diese Seite geladen wurde (Dateiname enthält den Build-Hash). */
+function currentEntry(): string | null {
+  const script = document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/"]');
+  return script ? new URL(script.src, location.href).pathname : null;
+}
+
+/**
+ * Neue Version? Die aktuelle index.html (am Service Worker vorbei, ohne Browser-Cache) nennt ein anderes
+ * Start-Skript als die laufende Seite. Ohne Netz, im Hintergrund oder kurz nach der letzten Prüfung: nichts.
+ */
+export async function checkForUpdate(): Promise<void> {
+  if (updateReady || !navigator.onLine || document.visibilityState !== "visible") return;
+  if (Date.now() - lastUpdateCheck < UPDATE_MIN_GAP_MS) return;
+  lastUpdateCheck = Date.now();
+  const running = currentEntry();
+  if (!running) return;
+  try {
+    const response = await fetch("/", { cache: "no-store", headers: { accept: "text/html" } });
+    if (!response.ok || !(response.headers.get("content-type") ?? "").includes("text/html")) return;
+    const match = ENTRY.exec(await response.text());
+    const latest = match?.[1] ?? match?.[2];
+    if (latest && latest !== running) {
+      updateReady = true;
+      emit();
+      void navigator.serviceWorker?.getRegistration().then((registration) => registration?.update()).catch(() => undefined);
+    }
+  } catch {
+    /* Netz weg oder Server nicht erreichbar – beim nächsten Mal wieder. */
+  }
+}
+
+/** Gibt es eine neuere Version der App als die, die gerade läuft? */
+export function useUpdateReady(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => updateReady,
+    () => false,
+  );
 }
 
 async function registerServiceWorker(): Promise<void> {

@@ -1,5 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { clearOfflineCache, startOfflineCache } from "@/lib/offline";
 import { queryClient } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
 import { forgetNext } from "./next";
@@ -25,17 +26,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     void supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
+      // W4: gespeicherten Offline-Stand dieser Person bereitstellen, bevor die Seiten rendern.
+      if (data.session) startOfflineCache(queryClient, data.session.user.id);
       setSession(data.session);
       setLoading(false);
     });
     const { data: subscription } = supabase.auth.onAuthStateChange((event, next) => {
+      if (next) startOfflineCache(queryClient, next.user.id);
       setSession(next);
       setLoading(false);
       if (event === "PASSWORD_RECOVERY") setRecovery(true);
       if (event === "USER_UPDATED") setRecovery(false);
       if (event === "SIGNED_OUT") {
         setRecovery(false);
-        // Keine Daten der vorherigen Person im Speicher behalten.
+        // Keine Daten der vorherigen Person im Speicher behalten – auch nicht auf dem Gerät.
+        clearOfflineCache();
         queryClient.clear();
       }
     });
@@ -53,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recovery,
       signOut: async () => {
         forgetNext();
+        clearOfflineCache();
         await supabase.auth.signOut();
         queryClient.clear();
         forgetNext();

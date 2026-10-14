@@ -1156,7 +1156,7 @@ await step("Abmelden, Passwort zurücksetzen, neu anmelden (Alice)", async () =>
   check(true, "Anmeldung mit dem neuen Passwort");
 });
 
-await step("W4 – Installierbar, offline, Zähler am App-Icon (Bob)", async () => {
+await step("W4 – Installierbar, offline lesbar, neue Version, Zähler am App-Icon (Bob)", async () => {
   const app = await newUser("Bob", "mobile", { serviceWorkers: "allow" });
   const { page, context } = app;
   // Badging-API und Installations-Angebot gibt es im Headless-Chromium nicht – beides wird nachgestellt.
@@ -1226,15 +1226,58 @@ await step("W4 – Installierbar, offline, Zähler am App-Icon (Bob)", async () 
   check(cached.some((url) => url.endsWith("/index.html")) && cached.some((url) => /\/assets\/.+\.js$/.test(url)), `App-Hülle und Skripte liegen im Cache (${cached.length} Dateien)`);
   check(!cached.some((url) => /\/(rest|auth)\/v1\//.test(url)), "keine API-Antworten (Nutzerdaten) im Cache");
 
+  // W4 Etappe 2: Was Bob gesehen hat, bleibt auf dem Gerät – nur Pläne, Crews, Namen, Orte, Abstimmungen.
+  const storedKeys = () => page.evaluate(() => JSON.parse(localStorage.getItem("afterhours.offline") ?? "null")?.entries.map((e) => e.key) ?? []);
+  if (ids.plan) {
+    await page.goto(`${APP}/plans/${ids.plan}`);
+    await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+    await page.waitForFunction((id) => (JSON.parse(localStorage.getItem("afterhours.offline") ?? "null")?.entries ?? []).some((e) => e.key[0] === "plans" && e.key[1] === id), ids.plan);
+  }
+  const keys = await storedKeys();
+  check(keys.some((key) => key.length === 1 && key[0] === "plans"), "Planliste liegt für offline auf dem Gerät");
+  check(keys.every((key) => ["plans", "crews", "profile", "polls", "activities", "people"].includes(key[0]) && !["invitations", "messages", "bookings", "rides", "search"].includes(key[2] ?? key[1])), `auf dem Gerät nur Pläne, Crews, Namen, Orte, Abstimmungen – keine Einladungslinks, Chats oder Einstellungen (${keys.map((k) => k[0]).join(", ")})`);
+
   await context.setOffline(true);
-  await page.reload();
-  await page.getByText("Offline – Inhalte laden, sobald du wieder Netz hast.").waitFor();
-  check(true, "ohne Netz öffnet sich die App aus dem Cache und sagt ehrlich, dass sie offline ist");
+  await page.goto(`${APP}/home`);
+  await page.getByText(/^Offline – gespeicherter Stand von .+ Uhr\.$/).waitFor();
+  await page.getByRole("heading", { level: 1 }).waitFor();
+  check(true, "ohne Netz öffnet sich die App aus dem Cache und nennt die Uhrzeit des gespeicherten Stands");
   await shot(app, "34-offline");
+  if (ids.plan) {
+    await page.goto(`${APP}/plans/${ids.plan}`);
+    await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+    check(await page.getByText(/^Offline – gespeicherter Stand/).isVisible(), "Plan ist offline lesbar (Titel, Zeit, Ort aus dem Gerätespeicher)");
+    await shot(app, "35-plan-offline");
+  }
   await context.setOffline(false);
-  await page.getByText("Offline – Inhalte laden").waitFor({ state: "detached" });
+  await page.getByText(/^Offline –/).waitFor({ state: "detached" });
+  await page.goto(`${APP}/home`);
   await homeReady();
   check(true, "wieder online: Hinweis verschwindet, Home lädt");
+
+  // Neue Version: Die laufende Seite vergleicht ihr Start-Skript mit dem der aktuellen index.html.
+  const versionCheck = () => page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  const updateBar = page.getByText("Neue Version von AFTERHOURS ist da.");
+  await versionCheck();
+  await page.waitForTimeout(800);
+  check((await updateBar.count()) === 0, "ohne neuen Build kein Update-Hinweis");
+  await page.reload();
+  await homeReady();
+  // Die Seite tut so, als stamme sie aus einem älteren Build (ein Modul-Skript läuft nach dem Laden nicht erneut).
+  await page.evaluate(() => document.querySelector('script[type="module"][src*="/assets/"]')?.setAttribute("src", "/assets/index-alter-build.js"));
+  await versionCheck();
+  await updateBar.waitFor();
+  check(true, "neuer Build auf dem Server: Hinweis „Neue Version“ erscheint");
+  await shot(app, "36-neue-version");
+  await Promise.all([page.waitForEvent("load"), page.getByRole("button", { name: "Neu laden" }).click()]);
+  await homeReady();
+  check((await updateBar.count()) === 0, "„Neu laden“ startet die neue Version, der Hinweis ist weg");
+
+  // Abmelden räumt den gespeicherten Stand vom Gerät.
+  await page.goto(`${APP}/profile`);
+  await page.getByRole("button", { name: "Abmelden" }).click();
+  await page.waitForURL(/\/login/);
+  check((await page.evaluate(() => localStorage.getItem("afterhours.offline"))) === null, "Abmelden löscht den gespeicherten Stand vom Gerät");
   users.splice(users.indexOf(app), 1);
   await context.close();
 });
