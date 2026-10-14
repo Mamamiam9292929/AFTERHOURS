@@ -1,0 +1,25 @@
+{
+  "_hinweis": "W7 Etappe 1 · Store-Texte (Deutsch) für App Store und Google Play. Nur Funktionen, die es in der App wirklich gibt – keine Nutzerzahlen, Bewertungen, Preise oder Versprechen. Längen prüft tests/unit/store-texts.test.mjs. Einträge unter 'offen' brauchen eine Entscheidung von Benito.",
+  "app_store": {
+    "name": "AFTERHOURS",
+    "untertitel": "Abende mit der Crew planen",
+    "werbetext": "Abstimmen, Ort finden, Plan festmachen – an einer Stelle statt in fünf Chats. Freunde kommen per Link dazu, abstimmen geht sogar ohne Konto.",
+    "stichwoerter": "Freunde,Gruppe,Abstimmung,Umfrage,Treffen,Abend,Ausgehen,Bowling,Kino,Bar,Termin,Planer,Crew",
+    "beschreibung": "beschreibung.txt",
+    "kategorie": "Soziale Netze",
+    "zweitkategorie": "Lifestyle"
+  },
+  "google_play": {
+    "titel": "AFTERHOURS: Crew-Abende planen",
+    "kurzbeschreibung": "Mit Freunden abstimmen, Orte finden, Pläne festmachen – ohne Chat-Chaos.",
+    "beschreibung": "beschreibung.txt",
+    "kategorie": "Soziale Netzwerke"
+  },
+  "offen": [
+    "App-ID / Bundle-ID (z. B. de.<domain>.app) – hängt an der Domain, lässt sich nach der Veröffentlichung nicht mehr ändern",
+    "Datenschutz-URL, Support-URL und Kontakt-E-Mail – brauchen Hosting und Domain",
+    "Altersfreigabe (Fragebogen in beiden Stores) – die App verlangt ab 16 Jahren; rechtlich prüfen",
+    "Angaben zum Datenschutz in den Stores (Apple „App-Datenschutz“, Google „Datensicherheit“) – Entwurf in store/datenschutz-angaben.md, nicht rechtlich geprüft",
+    "Preis: kostenlos oder Bezahlmodell (Frage 9 in #42) – die Texte nennen deshalb keinen Preis"
+  ]
+}

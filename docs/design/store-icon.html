@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  W7 · App-Icon für die Stores, gleiche Form wie public/icons/favicon.svg – aber randlos quadratisch:
+  Apple und Google runden die Ecken selbst ab. Gerendert von scripts/store-graphics.mjs in zwei Größen:
+    store/grafik/app-store-icon-1024.png  1024 × 1024, ohne Transparenz (Apple)
+    store/grafik/play-icon-512.png         512 × 512, 32-Bit-PNG (Google)
+  Das „A“ füllt gut die Hälfte der Fläche und bleibt so auch unter Googles runder Maske vollständig sichtbar.
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; }
+  html, body { width: 100vw; height: 100vh; overflow: hidden; background: #c5f82a; }
+  svg { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+  <svg viewBox="0 0 48 48" aria-hidden="true">
+    <rect width="48" height="48" fill="#c5f82a" />
+    <path d="M11.5 37 21.2 11h5.6L36.5 37h-6.1L24 18.6 17.6 37z" fill="#141a00" />
+    <circle cx="24" cy="33.2" r="3.4" fill="#141a00" />
+  </svg>
+</body>
+</html>

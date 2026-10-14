@@ -70,6 +70,7 @@
 | Partnerportal, Anlegen einzelner Orte im Admin | Rechte und Tabellen stehen, die Oberfläche fehlt |
 | Google-/Apple-Anmeldung | Nicht vorhanden |
 | Kalender-Abo | Nur Einzeldatei je Plan (P2 Etappe 1). Ein Abo-Link, der Änderungen von selbst in den Kalender bringt, fehlt noch (P2 Etappe 2) |
+| App Store / Google Play (W7) | Etappe 1: Store-Unterlagen in `store/` – Texte (`texte.de.json`, `beschreibung.txt`; Längen und Ehrlichkeit per Unit-Test geprüft), Entwurf der Datenschutz-Angaben (`datenschutz-angaben.md`, nicht rechtlich geprüft), Grafiken in `store/grafik/` (Icon 1024 für Apple, Icon 512 und Vorstellungsgrafik 1024 × 500 für Google; Quellen `docs/design/store-*.html`, neu erzeugen mit `node scripts/store-graphics.mjs`) und Store-Screenshots aus der Journey (`store-ios-*.png` 1290 × 2796, `store-play-*.png` 1080 × 1920, auf dem Screenshot-Branch). Es gibt noch **keine** native App: Das Capacitor-Projekt (Etappe 2) braucht npm-Zugriff für die Pakete, das Einreichen Entwicklerkonten, App-ID, Datenschutz- und Support-URL (Für Benito) |
 
 ---
 
@@ -156,7 +157,7 @@ Das Frontend ist eine statische Single-Page-App. `npm run build` erzeugt `dist/`
 
 Nach dem ersten Deployment die Domain in Supabase unter *Site URL* und *Redirect URLs* nachtragen ([Abschnitt 3](#3-supabase-projekt-einrichten-gehostet)). Nutzt du eine eigene Supabase-Domain, ergänze sie in der `connect-src`-Zeile der Content-Security-Policy (`vercel.json` bzw. `public/_headers`).
 
-**Als App auf dem Homescreen**: Manifest, Icons und Service Worker (`public/sw.js`) sind vorhanden. `sw.js` muss mit `Cache-Control: no-cache` ausgeliefert werden (steht in `vercel.json` und `public/_headers`), damit Updates sofort greifen. Der Service Worker speichert nur die App selbst (HTML-Hülle, `/assets/`, `/fonts/`, `/icons/`, höchstens 150 Dateien) – nie Antworten von Supabase. Für die App-Stores lässt sich die SPA später mit Capacitor verpacken.
+**Als App auf dem Homescreen**: Manifest, Icons und Service Worker (`public/sw.js`) sind vorhanden. `sw.js` muss mit `Cache-Control: no-cache` ausgeliefert werden (steht in `vercel.json` und `public/_headers`), damit Updates sofort greifen. Der Service Worker speichert nur die App selbst (HTML-Hülle, `/assets/`, `/fonts/`, `/icons/`, höchstens 150 Dateien) – nie Antworten von Supabase. Für die App-Stores lässt sich die SPA später mit Capacitor verpacken; Texte, Grafiken und Screenshots dafür liegen in `store/` (W7 Etappe 1, siehe Abschnitt 1).
 
 ---
 
@@ -190,7 +191,7 @@ Den `service_role`-Key setzt Supabase in Edge Functions automatisch; nur die Fun
 ```bash
 npm run typecheck      # TypeScript
 npm run test:db        # 539 pgTAP-Prüfungen der Datenbank (supabase test db)
-npm run test:unit      # Messenger-Vorschau (api/share.js), ohne Netz
+npm run test:unit      # Messenger-Vorschau (api/share.js), Startseiten-Vorschau, Store-Unterlagen – ohne Netz
 deno test supabase/functions/places/osm_test.ts   # OSM-Umwandlung und Öffnungszeiten
 npm run test:e2e       # komplette Nutzerjourney im Browser (Playwright)
 npm run build && npm run size   # Build-Größe gegen scripts/bundle-budget.json
@@ -204,7 +205,9 @@ npm run build && npm run size   # Build-Größe gegen scripts/bundle-budget.json
 
 **Messenger-Vorschau (`tests/unit/share-card.test.mjs`)** – `node --test`, ohne Netz: Datum in Berliner Zeit, Texte je Planstatus und je Stand einer Abstimmung, Wahl der Datenbankfunktion und des Vorschaubilds nach `/s/` bzw. `/v/`, HTML-Escaping (ein Plantitel kann kein Markup einschleusen), Einbau in `index.html`, Verhalten bei ungültigem Token, Datenbankfehler, Rate Limit und fehlender App-Hülle. Läuft in der CI im Job „TypeScript und Build“. Die Journey ruft dieselbe Funktion zusätzlich gegen die lokale Datenbank auf und prüft die Seiten `/s/<token>` und `/v/<token>` als Gast, Mitglied und Außenstehende.
 
-**End-to-End (`tests/e2e/journey.mjs`)** – vier Konten auf Smartphone, Tablet und Desktop spielen die Journey aus dem Konzept durch (Schritte 1–11), dazu Gleichstand/Stichwahl, Fristablauf, direkter Plan, Admin, Import echter Orte, Widerruf, Einstellungen, Kontolöschung, Passwort-Reset und Fehlerzustände. Ein Außenstehender greift zusätzlich direkt auf die API zu; alle Versuche müssen scheitern. Vor dem ersten Lauf: `npx playwright install chromium`.
+**Store-Unterlagen (`tests/unit/store-texts.test.mjs`)** – Texte in `store/` halten die Längen von App Store Connect und Play Console ein (Name/Titel 30, Untertitel 30, Werbetext 170, Stichwörter 100, Kurzbeschreibung 80, Beschreibung 4.000 Zeichen), Stichwörter ohne Dubletten, keine Zahlen-, Preis- oder Bewertungsbehauptungen und keine Funktionen, die es nicht gibt (Push, Google-/Apple-Anmeldung, Live-Standort); Grafiken haben die verlangten Maße und Farbtiefen (Apple-Icon ohne Transparenz, Google-Icon als 32-Bit-PNG).
+
+**End-to-End (`tests/e2e/journey.mjs`)** – vier Konten auf Smartphone, Tablet und Desktop spielen die Journey aus dem Konzept durch (Schritte 1–11), dazu Gleichstand/Stichwahl, Fristablauf, direkter Plan, Admin, Import echter Orte, Widerruf, Einstellungen, Kontolöschung, Passwort-Reset und Fehlerzustände. Nach Schritt 9 entstehen aus Bobs Sitzung die Store-Screenshots (W7): Home, Plan, Abstimmung, Discover und Crew je für Apple (430 × 932 bei 3-facher Dichte = 1290 × 2796) und Google (360 × 640 × 3 = 1080 × 1920), mit Prüfung von Maß, Transparenz und Überlauf. Ein Außenstehender greift zusätzlich direkt auf die API zu; alle Versuche müssen scheitern. Vor dem ersten Lauf: `npx playwright install chromium`.
 
 ```bash
 # App und lokale Supabase-Umgebung laufen; dann:
@@ -381,6 +384,7 @@ Entwickelt wurde in einer Umgebung ohne Zugriff auf die npm-Registry und ohne Do
 | Messenger-Vorschau auf Vercel | Pläne (`/s/`) und Abstimmungen (`/v/`): `api/share.js` ist mit Unit-Tests und in der Journey gegen die lokale Datenbank geprüft, aber nicht auf Vercel selbst gelaufen (kein Deployment). Wie WhatsApp, Signal und Telegram die Vorschau tatsächlich darstellen, ist ungeprüft |
 | Mitstimmen ohne Konto (W3) | pgTAP (84 Prüfungen, Etappe 2: 33 weitere) und Journey (Gast auf dem Smartphone, Wiedererkennen nach Neuladen, Anzeige bei der Crew, Benachrichtigung, Entfernen, API-Proben; Etappe 2: Gast stimmt ab, registriert sich über den Einladungslink, tritt bei und übernimmt seine Stimmen) in Chromium. Wer die Abstimmung auf einem anderen Gerät als dem Gast-Gerät öffnet, sieht keine Übernahme (das Geheimnis liegt nur dort) – seine Gast-Stimme zählt dann weiter zusätzlich, bis jemand den Gast entfernt. Ob Gäste die Funktion für Spaß-Stimmen missbrauchen, zeigt erst der echte Betrieb; ein Gast, der den Browser-Speicher löscht, kann ein zweites Mal abstimmen (bis 30 Gäste) |
 | Crew-Beitritt vom Stimmzettel (W3 Etappe 3) | pgTAP (Freigabe, Link, Widerruf, Rollen, Kaskade) und Journey (Owner schaltet in der App frei, Gast stimmt auf dem Smartphone ab, tritt mit einem Tipp über die persönliche Einladung bei und findet die Übernahme; Link danach verbraucht; API-Probe ohne Gast-Stimme) in Chromium. Wer den Abstimmungs-Link hat und Gäste erlaubt sind, kann unter beliebigem Namen abstimmen und sich so eine Einladung holen – deshalb nur nach ausdrücklicher Freigabe durch Owner/Admin, und neue Mitglieder sieht die Crew wie bei jeder Einladung |
+| Store-Unterlagen (W7 Etappe 1) | Längen, Maße und Farbtiefen per Unit-Test, Screenshots per Journey (Maße, keine Transparenz, kein Überlauf auf 360 und 430 px). Hochgeladen in App Store Connect oder Play Console wurde nichts (keine Konten); ob die Stores Texte und Bilder ohne Rückfrage annehmen, ist ungeprüft. Die Screenshots zeigen Testkonten (Alice, Bob, Carol) und Demo-Orte mit „Beispieldaten“-Schild – vor dem Einreichen bewusst auswählen |
 | Barrierefreiheit jenseits von axe-core | Automatisch geprüft sind WCAG-Regeln, die axe erkennt, und die Tastatur-Anmeldung. Screenreader (VoiceOver, TalkBack) und Tastaturwege durch die übrigen Abläufe nicht |
 
 ---

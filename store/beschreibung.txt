@@ -1,0 +1,29 @@
+Wer fragt diesmal in der Gruppe? Du – und dann geht es schnell.
+
+AFTERHOURS ist die App für Freundesgruppen, die öfter etwas zusammen machen wollen, statt sich in Gruppenchats zu verlieren. Abstimmen, Ort finden, Plan festmachen – an einer Stelle. Wer dabei ist, siehst du auf einen Blick.
+
+SO WIRD AUS EINER FRAGE EIN ABEND
+
+1. Crew gründen: Name, Symbol, fertig. Den Einladungslink schickst du in euren Gruppenchat. Wer drauftippt, ist mit einem Tipp dabei.
+2. Abstimmen: bis zu zehn Vorschläge – echte Orte aus deiner Stadt oder „Grillen bei Bob“. Jeder antwortet mit „Bin dabei“, „Vielleicht“ oder „Bin nicht dabei“.
+3. Plan steht: Aus dem Ergebnis wird ein Plan mit Zeit, Ort, Treffpunkt, Kosten pro Person und allen Zusagen – als Ticket für die ganze Crew.
+
+WAS DRIN IST
+
+• Echte Orte in jeder Stadt in Deutschland: Restaurants, Bars, Cafés, Bowling, Kinos, Escape Rooms, Klettern, Museen und mehr aus OpenStreetMap – mit Quelle und Stand. Was nicht bekannt ist, steht als unbekannt da. Keine erfundenen Bewertungen.
+• Abstimmungen mit Frist, Zwischenstand, Erinnerung, Gleichstand und Stichwahl.
+• Mitstimmen ohne Konto: Freunde, die noch nicht dabei sind, stimmen per Link mit – wenn ihr das erlaubt. Später nehmen sie ihre Stimme ins eigene Konto mit.
+• Zusagen mit einem Tipp: Dein Ticket zeigt deine Antwort in Farbe – grün dabei, gelb vielleicht, rot abgesagt.
+• Ab in den Gruppenchat: Plan oder Abstimmung teilen, mit Vorschau im Messenger. Geteilt werden Titel, Zeit und Link – keine Namen oder Adressen.
+• In den Kalender: Steht der Plan, landet er mit Ort und Treffpunkt in deinem Kalender.
+• Fahrgemeinschaften: Wer fährt, wer fährt mit – mit Platzkontrolle.
+• Reservierung festhalten: Wer reserviert, trägt das Ergebnis ein, damit alle Bescheid wissen. Die App behauptet nie, etwas gebucht zu haben, das nicht gebucht ist.
+• Crew-Chat, Benachrichtigungen pro Crew abschaltbar, Punkte fürs Organisieren und Dabeisein.
+
+DEINE DATEN BLEIBEN BEI DIR
+
+Standortfreigabe ist aus, bis du sie selbst einschaltest. Budget und Entfernung siehst nur du. Keine Werbung. Export und Löschen deines Kontos gehen jederzeit in den Einstellungen.
+
+AFTERHOURS kannst du ab 16 Jahren nutzen.
+
+Kartendaten und Orte: © OpenStreetMap-Mitwirkende, verfügbar unter der Open Database License.
