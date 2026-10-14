@@ -861,7 +861,8 @@ await step("W3 Etappe 3 – Gäste treten vom Stimmzettel aus der Crew bei", asy
     // Ein Tipp: persönliche Einladung, Konto anlegen, beitreten.
     await joinCard.getByRole("button", { name: "Crew beitreten" }).click();
     await hanna.page.waitForURL(/\/invite\/[0-9a-f]{64}$/);
-    check(/Hof Crew/.test(await hanna.page.locator("body").innerText()), "die Einladung zeigt jetzt die Crew");
+    await hanna.page.getByText(/Hof Crew/).first().waitFor();
+    check(true, "die Einladung zeigt jetzt die Crew");
     const inviteToken = hanna.page.url().split("/invite/")[1];
     await register(hanna, { here: true });
     await hanna.page.getByRole("heading", { name: "Fast drin" }).waitFor();

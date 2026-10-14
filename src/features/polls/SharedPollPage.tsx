@@ -352,7 +352,7 @@ function GuestJoinCard({ token, secret, name }: { token: string; secret: string;
       >
         {t.polls.shared.join.cta}
       </Button>
-      <p className="mt-3 text-[13px] leading-snug text-faint">{t.polls.shared.join.privacy}</p>
+      <p className="mt-3 text-[13px] leading-snug text-muted">{t.polls.shared.join.privacy}</p>
     </section>
   );
 }
