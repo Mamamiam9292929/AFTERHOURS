@@ -76,17 +76,25 @@ function save(): void {
   timer = null;
   if (!client || !userId) return;
   const owner = userId;
-  const picked = client
-    .getQueryCache()
-    .getAll()
-    .filter((query: Query) => query.state.status === "success" && query.state.data !== undefined)
-    .map((query) => ({ query, rank: priority(query.queryKey, owner) }))
-    .filter((item): item is { query: Query; rank: number } => item.rank !== null)
-    .sort((a, b) => a.rank - b.rank);
+  const now = Date.now();
+  // Zusammenführen statt überschreiben: Wer die App direkt auf einer Planseite öffnet, lädt die Liste
+  // nicht – der gespeicherte Stand der Liste bleibt trotzdem erhalten.
+  const merged = new Map<string, Entry>();
+  const stored = read();
+  if (stored?.userId === owner) {
+    for (const entry of stored.entries) if (now - entry.updatedAt <= MAX_AGE_MS) merged.set(JSON.stringify(entry.key), entry);
+  }
+  for (const query of client.getQueryCache().getAll() as Query[]) {
+    if (query.state.status !== "success" || query.state.data === undefined) continue;
+    merged.set(JSON.stringify(query.queryKey), { key: query.queryKey, updatedAt: query.state.dataUpdatedAt, data: query.state.data });
+  }
+  const picked = [...merged.values()]
+    .map((entry) => ({ entry, rank: priority(entry.key, owner) }))
+    .filter((item): item is { entry: Entry; rank: number } => item.rank !== null)
+    .sort((a, b) => a.rank - b.rank || b.entry.updatedAt - a.entry.updatedAt);
   const entries: Entry[] = [];
   let size = 0;
-  for (const { query } of picked) {
-    const entry = { key: query.queryKey, updatedAt: query.state.dataUpdatedAt, data: query.state.data };
+  for (const { entry } of picked) {
     const length = JSON.stringify(entry, replacer).length;
     if (size + length > MAX_CHARS) continue;
     size += length;
