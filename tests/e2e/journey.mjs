@@ -851,6 +851,7 @@ await step("W3 Etappe 3 – Gäste treten vom Stimmzettel aus der Crew bei", asy
     const joinCard = hanna.page.getByRole("region", { name: "Komm in die Crew, Hanna" });
     await joinCard.waitFor();
     check(!/Hof Crew|Greta/.test(await hanna.page.locator("body").innerText()), "Stimmzettel verrät vor dem Beitritt weder Crew-Namen noch Mitglieder");
+    await joinCard.scrollIntoViewIfNeeded();
     await shot(hanna, "12f-gast-crew-beitreten");
     for (const viewport of ["tablet", "desktop"]) {
       await hanna.page.setViewportSize(VIEWPORTS[viewport]);
