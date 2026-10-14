@@ -64,6 +64,7 @@ export const auth = {
     failedBody: "Bestätigungslinks sind nur begrenzt gültig und lassen sich einmal verwenden. Melde dich an – falls dein Konto noch nicht bestätigt ist, kannst du dort einen neuen Link anfordern.",
     toLogin: "Zur Anmeldung",
   },
+  toStart: "AFTERHOURS – zur Startseite",
   signOut: "Abmelden",
   signedOut: "Du bist abgemeldet.",
 };

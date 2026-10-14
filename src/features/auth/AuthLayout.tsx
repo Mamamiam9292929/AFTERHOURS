@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { IconCheck } from "@/components/icons";
 import { Logo } from "@/components/ui/Logo";
 import { t } from "@/i18n";
@@ -13,7 +14,9 @@ export function AuthLayout({ title, intro, hero, children, footer }: { title: st
     <div className="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       <aside className="relative hidden overflow-hidden bg-nav lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
         <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full bg-lime/10 blur-3xl" />
-        <Logo />
+        <Link to="/" className="relative self-start rounded-control" aria-label={t.auth.toStart}>
+          <Logo />
+        </Link>
         <div className="relative space-y-8">
           <h2 className="display text-[52px] text-fg xl:text-[68px]">
             {t.auth.brand.headline.map((line) => (
@@ -39,7 +42,9 @@ export function AuthLayout({ title, intro, hero, children, footer }: { title: st
 
       <main className="flex flex-col px-5 pb-10 pt-safe sm:px-8">
         <div className="pt-6 lg:hidden">
-          <Logo compact />
+          <Link to="/" className="inline-flex rounded-control" aria-label={t.auth.toStart}>
+            <Logo compact />
+          </Link>
         </div>
         <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-10">
           {hero && <div className="mb-10">{hero}</div>}

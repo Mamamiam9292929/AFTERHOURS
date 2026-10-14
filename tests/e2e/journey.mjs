@@ -305,6 +305,35 @@ const carol = await newUser("Carol", "tablet");
 const mallory = await newUser("Mallory", "mobile");
 const ids = {};
 
+await step("W6 – Öffentliche Startseite ohne Anmeldung", async () => {
+  for (const user of [alice, bob, carol]) {
+    const { page } = user;
+    await page.goto(`${APP}/`);
+    await page.getByRole("heading", { level: 1, name: /Kein Chat-Chaos/ }).waitFor();
+    check(new URL(page.url()).pathname === "/", `„/“ ohne Konto zeigt die Startseite statt der Anmeldung (${user.viewport})`);
+    check((await page.getByText("Beispiel", { exact: true }).count()) >= 2, `Beispiel-Ticket und -Abstimmung sind als „Beispiel“ markiert (${user.viewport})`);
+    await shot(user, "00-startseite");
+    if (SHOTS && user !== carol) await page.screenshot({ path: path.join(SHOTS, `00-startseite-ganz-${user.viewport}.png`), fullPage: true });
+  }
+  const text = await bob.page.locator("main").innerText();
+  check(!/\d[\d.]*\s*(Nutzer|Crews|Downloads|Bewertungen)|★|Sterne|kostenlos|gratis/i.test(text), "Startseite behauptet keine Nutzerzahlen, Bewertungen oder Preise");
+  check(await bob.page.getByRole("link", { name: "Datenschutz" }).isVisible(), "Startseite verlinkt den Datenschutz");
+
+  // Smartphone: „Crew gründen“ führt zur Registrierung, das Logo dort zurück zur Startseite.
+  await bob.page.getByRole("link", { name: "Crew gründen" }).first().click();
+  await bob.page.waitForURL(/\/register$/);
+  await bob.page.getByRole("heading", { level: 1, name: "Konto erstellen" }).waitFor();
+  check(true, "„Crew gründen“ führt zur Registrierung");
+  await bob.page.getByRole("link", { name: "AFTERHOURS – zur Startseite" }).click();
+  await bob.page.waitForURL((url) => url.pathname === "/");
+  check(true, "Logo auf der Registrierung führt zurück zur Startseite");
+
+  // Desktop: „Anmelden“ oben rechts.
+  await alice.page.getByRole("link", { name: "Anmelden", exact: true }).first().click();
+  await alice.page.waitForURL(/\/login$/);
+  check(true, "„Anmelden“ auf der Startseite führt zur Anmeldung");
+});
+
 await step("Schutz ohne Anmeldung", async () => {
   await alice.page.goto(`${APP}/plans`);
   await alice.page.waitForURL(/\/login/);
@@ -363,7 +392,10 @@ await step("Schritt 1 – Registrierung, E-Mail-Bestätigung, Onboarding (Alice)
   // Alice wollte ursprünglich zu /plans (siehe oben) – dorthin geht es nach Anmeldung und Onboarding.
   await alice.page.waitForURL(/\/plans/);
   check(true, "nach dem Onboarding geht es zum ursprünglich aufgerufenen Ziel");
-  await alice.page.goto(`${APP}/home`);
+  // W6: Mit Konto führt „/“ direkt zu Home statt zur Startseite.
+  await alice.page.goto(`${APP}/`);
+  await alice.page.waitForURL(/\/home$/);
+  check(true, "„/“ führt Angemeldete direkt zu Home");
   await alice.page.getByRole("heading", { level: 1 }).waitFor();
   await alice.page.getByText("In drei Schritten zum ersten Plan").waitFor();
   check(true, "Home zeigt neuen Nutzern den Einstieg");
@@ -1194,7 +1226,11 @@ await step("Abmelden, Passwort zurücksetzen, neu anmelden (Alice)", async () =>
 await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana)", async () => {
   const dana = await newUser("Dana", "mobile");
   const { page, context } = dana;
-  await register(dana);
+  // W6: Dana kommt über die öffentliche Startseite.
+  await page.goto(`${APP}/`);
+  await page.getByRole("link", { name: "Crew gründen" }).first().click();
+  await page.waitForURL(/\/register$/);
+  await register(dana, { here: true });
   const started = Date.now();
   await onboard(dana, { full: true });
   await page.waitForURL(/\/start$/);
