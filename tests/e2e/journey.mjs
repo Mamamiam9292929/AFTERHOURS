@@ -881,6 +881,8 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await dialog(carol).getByRole("button", { name: "Plan absagen" }).click();
   await toast(carol, "Plan abgesagt.");
   await page.getByText("Abgesagt").first().waitFor();
+  // „Abgesagt“ steht auch als Gruppe in der Teilnehmerliste – auf den neuen Planstatus warten, nicht nur auf das Wort.
+  await page.getByRole("button", { name: "Plan bearbeiten" }).waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
   check((await page.getByRole("button", { name: "Plan bearbeiten" }).count()) === 0, "abgesagter Plan lässt sich nicht mehr bearbeiten");
   await alice.page.goto(`${APP}/notifications`);
   await alice.page.getByText("Carol hat einen Plan abgesagt").waitFor();
