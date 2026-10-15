@@ -1263,6 +1263,8 @@ await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async
   check((await b.getByRole("button", { name: "„Bowlingbahn“ löschen" }).count()) === 0, "fremde Ausgaben kann Bob nicht löschen");
 
   // P3 Etappe 2 – ungleich aufteilen: Pizza 30 €, Bob hatte die große für 18 €, Alice bekommt den Rest.
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByText("Du bekommst noch 10 €").waitFor();
   await page.getByRole("button", { name: "Ausgabe eintragen" }).click();
   const pizza = dialog(alice);
   await pizza.getByLabel("Wofür?").fill("Pizza");
