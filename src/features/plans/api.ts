@@ -367,15 +367,34 @@ function useExpenseAction<TInput>(planId: string, fn: (input: TInput) => Promise
   });
 }
 
+/** Neue Ausgabe. Ohne `shares` teilt der Server gleichmäßig auf `splitWith`, mit `shares` gilt je Person ihr Betrag (P3 Etappe 2). */
+export interface AddExpenseInput {
+  description: string;
+  amountCents: number;
+  paidBy: string;
+  splitWith: string[];
+  /** Beträge in Cent, gleiche Reihenfolge wie `splitWith`; Summe = `amountCents`. */
+  shares?: number[];
+}
+
 export function useAddExpense(planId: string) {
-  return useExpenseAction(planId, async (input: { description: string; amountCents: number; paidBy: string; splitWith: string[] }) => {
-    const { error } = await supabase.rpc("add_plan_expense", {
-      p_plan_id: planId,
-      p_description: input.description,
-      p_amount_cents: input.amountCents,
-      p_paid_by: input.paidBy,
-      p_split_with: input.splitWith,
-    });
+  return useExpenseAction(planId, async (input: AddExpenseInput) => {
+    const { error } = input.shares
+      ? await supabase.rpc("add_plan_expense_custom", {
+          p_plan_id: planId,
+          p_description: input.description,
+          p_amount_cents: input.amountCents,
+          p_paid_by: input.paidBy,
+          p_user_ids: input.splitWith,
+          p_amounts: input.shares,
+        })
+      : await supabase.rpc("add_plan_expense", {
+          p_plan_id: planId,
+          p_description: input.description,
+          p_amount_cents: input.amountCents,
+          p_paid_by: input.paidBy,
+          p_split_with: input.splitWith,
+        });
     if (error) throw error;
   });
 }
