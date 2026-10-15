@@ -1340,6 +1340,7 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
 
   await page.goto(`${APP}/polls/new?crew=${ids.crew}`);
   await page.getByRole("tab", { name: "Wann könnt ihr?" }).click();
+  await page.getByLabel(/^Termin \d+$/).first().waitFor();
   check((await page.getByLabel("Frage an die Crew").inputValue()) === "Wann könnt ihr?", "Termin-Abstimmung: Titelvorschlag „Wann könnt ihr?“");
   check((await page.getByLabel(/^Termin \d+$/).count()) === 3, "drei Termine sind vorgeschlagen (nächstes Wochenende und der Freitag danach)");
   check((await page.getByLabel("Budget pro Person").count()) === 0, "keine Orts-Felder (Budget, Kosten) bei Terminen");

@@ -227,6 +227,8 @@ export function PollCreatePage() {
           value={kind}
           onChange={(value) => {
             setKind(value);
+            // Titelvorschlag sofort mitwechseln (nicht erst im Effekt), solange niemand selbst getippt hat.
+            if (!titleTouched.current) setTitle(value === "date" ? t.polls.create.dates.defaultTitle : suggestedTitle);
             setErrors({});
             setFormError(null);
           }}
