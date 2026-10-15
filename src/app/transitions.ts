@@ -11,6 +11,14 @@ type Navigate = AppRouter["navigate"];
  */
 export function smoothNavigation(router: AppRouter): void {
   if (typeof document === "undefined" || typeof document.startViewTransition !== "function") return;
+  // Startet eine neue Navigation, bevor der Übergang der vorigen läuft, bricht der Browser den alten ab
+  // („Transition was skipped“). Der Router wartet auf diesen Übergang, ohne den Abbruch abzufangen – das
+  // landete als unbehandelter Fehler in der Konsole. Der Seitenwechsel selbst klappt trotzdem; nur
+  // genau diesen Fall still schlucken, alles andere bleibt sichtbar.
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason as { name?: unknown; message?: unknown } | null;
+    if (reason?.name === "AbortError" && typeof reason.message === "string" && /transition was skipped/i.test(reason.message)) event.preventDefault();
+  });
   const navigate = router.navigate.bind(router) as (...args: unknown[]) => Promise<void>;
   const wrapped = (to: unknown, opts?: Record<string, unknown>) => {
     if (typeof to === "number" || to == null) return navigate(to, opts);
