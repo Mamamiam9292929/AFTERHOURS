@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { IconPin, IconPlus, IconTrash } from "@/components/icons";
 import { PageHeader, Section } from "@/components/layout/Page";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
-import { Chip } from "@/components/ui/Controls";
+import { Chip, Segmented } from "@/components/ui/Controls";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/Feedback";
 import { FormMessage, SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
@@ -17,7 +17,7 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { addDays, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
 import type { Activity } from "@/lib/types";
 import { ActivityPicker } from "./ActivityPicker";
-import { useCreatePoll, type PollOptionInput } from "./api";
+import { useCreateDatePoll, useCreatePoll, type PollOptionInput } from "./api";
 import { MAX_POLL_OPTIONS, usePollDraft } from "./draft";
 
 interface OptionRow {
@@ -31,6 +31,16 @@ interface OptionRow {
 }
 
 type EndPreset = "twoHours" | "tonight" | "tomorrow" | "custom";
+type PollKind = "place" | "date";
+
+/** P1: ein Termin der Termin-Abstimmung (Uhrzeit optional). */
+interface SlotRow {
+  key: string;
+  date: string;
+  time: string;
+}
+const MIN_DATE_SLOTS = 2;
+const MAX_DATE_SLOTS = 10;
 
 let rowCounter = 0;
 const newKey = () => `opt-${++rowCounter}`;
@@ -43,7 +53,13 @@ export function PollCreatePage() {
   const crews = useCrews();
   const draft = usePollDraft();
   const createPoll = useCreatePoll();
-
+  const createDatePoll = useCreateDatePoll();
+  const [kind, setKind] = useState<PollKind>(params.get("kind") === "date" ? "date" : "place");
+  // Vorschlag: nächstes Wochenende (Fr, Sa) und der Freitag danach, jeweils 19 Uhr.
+  const [slots, setSlots] = useState<SlotRow[]>(() => {
+    const friday = nextWeekday("fri", true);
+    return [friday, nextWeekday("sat", true), addDays(friday, 7)].map((date) => ({ key: newKey(), date, time: "19:00" }));
+  });
   const [crewId, setCrewId] = useState(params.get("crew") ?? "");
   const [sharedDate, setSharedDate] = useState(() => nextWeekday("sat", true));
   const [sharedTime, setSharedTime] = useState("19:00");
@@ -74,8 +90,8 @@ export function PollCreatePage() {
     return at ? t.polls.create.defaultTitle(t.weekdays[zonedParts(at).weekday]) : t.polls.create.pollTitlePlaceholder;
   }, [sharedDate]);
   useEffect(() => {
-    if (!titleTouched.current) setTitle(suggestedTitle);
-  }, [suggestedTitle]);
+    if (!titleTouched.current) setTitle(kind === "date" ? t.polls.create.dates.defaultTitle : suggestedTitle);
+  }, [suggestedTitle, kind]);
 
   const tonight = zonedToUtc(today(), "20:00");
   const tonightAvailable = Boolean(tonight && tonight.getTime() > Date.now() + 15 * 60_000);
@@ -99,8 +115,50 @@ export function PollCreatePage() {
   }
   const patchOption = (key: string, update: Partial<OptionRow>) => setOptions((rows) => rows.map((r) => (r.key === key ? { ...r, ...update } : r)));
 
+  const patchSlot = (key: string, update: Partial<SlotRow>) => setSlots((rows) => rows.map((r) => (r.key === key ? { ...r, ...update } : r)));
+  function addSlot() {
+    setSlots((rows) => {
+      if (rows.length >= MAX_DATE_SLOTS) return rows;
+      const last = rows[rows.length - 1];
+      return [...rows, { key: newKey(), date: last?.date ? addDays(last.date, 1) : nextWeekday("fri", true), time: last?.time ?? "19:00" }];
+    });
+  }
+
+  function submitDates() {
+    const next: Record<string, string | null> = {};
+    if (!crewId) next.crew = t.validation.required;
+    if (title.trim().length < 3) next.title = t.validation.minLength(3);
+    const seen = new Set<string>();
+    for (const row of slots) {
+      const at = row.date ? zonedToUtc(row.date, row.time || "23:59") : null;
+      if (!row.date || !at) next[`slot-${row.key}`] = t.validation.dateRequired;
+      else if (at.getTime() <= Date.now()) next[`slot-${row.key}`] = t.validation.dateInPast;
+      else if (seen.has(`${row.date} ${row.time}`)) next[`slot-${row.key}`] = t.polls.create.dates.duplicate;
+      seen.add(`${row.date} ${row.time}`);
+    }
+    if (slots.length < MIN_DATE_SLOTS) next.slots = t.polls.create.dates.tooFew;
+    const endsAt = resolveEnd();
+    if (!endsAt) next.ends = t.validation.dateRequired;
+    else if (endsAt.getTime() <= Date.now()) next.ends = t.validation.dateInPast;
+
+    setErrors(next);
+    setFormError(null);
+    if (Object.values(next).some(Boolean) || !endsAt) return;
+    createDatePoll.mutate(
+      { crewId, title: title.trim(), endsAt, slots: slots.map((row) => ({ date: row.date, time: row.time || null })), description: description.trim() || null },
+      {
+        onSuccess: (pollId) => {
+          toast.success(t.polls.create.started);
+          navigate(`/polls/${pollId}`, { replace: true });
+        },
+        onError: (error) => setFormError(errorMessage(error)),
+      },
+    );
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (kind === "date") return submitDates();
     const next: Record<string, string | null> = {};
     if (!crewId) next.crew = t.validation.required;
     if (title.trim().length < 3) next.title = t.validation.minLength(3);
@@ -161,8 +219,25 @@ export function PollCreatePage() {
 
   return (
     <>
-      <PageHeader title={t.polls.create.title} lead={t.polls.create.lead} back={{ to: "/plans", label: t.nav.plans }} />
+      <PageHeader title={t.polls.create.title} lead={kind === "date" ? t.polls.create.dates.lead : t.polls.create.lead} back={{ to: "/plans", label: t.nav.plans }} />
       <form onSubmit={submit} noValidate className="max-w-2xl">
+        {/* P1: Ort oder Termin – dieselbe Abstimmung, andere Optionen. */}
+        <Segmented<PollKind>
+          label={t.polls.create.kindLabel}
+          value={kind}
+          onChange={(value) => {
+            setKind(value);
+            // Titelvorschlag sofort mitwechseln (nicht erst im Effekt), solange niemand selbst getippt hat.
+            if (!titleTouched.current) setTitle(value === "date" ? t.polls.create.dates.defaultTitle : suggestedTitle);
+            setErrors({});
+            setFormError(null);
+          }}
+          options={[
+            { value: "place", label: t.polls.create.kinds.place },
+            { value: "date", label: t.polls.create.kinds.date },
+          ]}
+          className="mb-6"
+        />
         <div className="space-y-5">
           {crews.data.length > 1 && (
             <SelectField label={t.polls.create.crew} value={crewId} onChange={(e) => setCrewId(e.target.value)} error={errors.crew}>
@@ -187,6 +262,45 @@ export function PollCreatePage() {
           />
         </div>
 
+        {kind === "date" ? (
+          <Section title={t.polls.create.dates.title}>
+            <p className="-mt-1 mb-3 text-[13px] text-muted">{t.polls.create.dates.hint}</p>
+            <ol className="space-y-3">
+              {slots.map((row, index) => (
+                <li key={row.key} className="rounded-card border border-line bg-surface p-4">
+                  <div className="flex items-start gap-2">
+                    <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
+                      <TextField
+                        label={t.polls.create.dates.dateLabel(index + 1)}
+                        name={`slot-date-${index}`}
+                        type="date"
+                        min={today()}
+                        max={addDays(today(), 365)}
+                        value={row.date}
+                        onChange={(e) => patchSlot(row.key, { date: e.target.value })}
+                        error={errors[`slot-${row.key}`]}
+                      />
+                      <TextField label={t.polls.create.time} name={`slot-time-${index}`} type="time" value={row.time} onChange={(e) => patchSlot(row.key, { time: e.target.value })} optional />
+                    </div>
+                    <IconButton
+                      label={t.polls.create.dates.remove(index + 1)}
+                      onClick={() => setSlots((rows) => rows.filter((r) => r.key !== row.key))}
+                      disabled={slots.length <= MIN_DATE_SLOTS}
+                      className="mt-6"
+                    >
+                      <IconTrash className="size-[18px] text-muted" aria-hidden />
+                    </IconButton>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            {errors.slots && <FormMessage>{errors.slots}</FormMessage>}
+            <Button variant="secondary" className="mt-3" onClick={addSlot} disabled={slots.length >= MAX_DATE_SLOTS} icon={<IconPlus className="size-4" aria-hidden />}>
+              {t.polls.create.dates.add}
+            </Button>
+          </Section>
+        ) : (
+        <>
         <Section title={t.polls.create.whenTitle}>
           <div className="grid grid-cols-2 gap-4">
             <TextField label={t.polls.create.date} name="date" type="date" min={today()} value={sharedDate} onChange={(e) => setSharedDate(e.target.value)} optional />
@@ -262,6 +376,8 @@ export function PollCreatePage() {
             </Button>
           </div>
         </Section>
+        </>
+        )}
 
         <Section title={t.polls.create.endsTitle}>
           <div className="flex flex-wrap gap-2" role="group" aria-label={t.polls.create.endsTitle}>
@@ -290,18 +406,22 @@ export function PollCreatePage() {
 
         <Section title={t.polls.create.moreTitle}>
           <div className="space-y-5">
+            {kind === "place" && (
+            <>
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField label={t.polls.create.budget} name="budget" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} error={errors.budget} hint={t.polls.create.budgetHint} trailing={<span className="pr-3 text-muted">€</span>} optional />
               <TextField label={t.polls.create.minParticipants} name="min_participants" inputMode="numeric" value={minParticipants} onChange={(e) => setMinParticipants(e.target.value)} error={errors.min} hint={t.polls.create.minParticipantsHint} optional />
             </div>
             <TextField label={t.polls.create.meetingPoint} name="meeting_point" value={meetingPoint} onChange={(e) => setMeetingPoint(e.target.value)} placeholder={t.polls.create.meetingPointPlaceholder} maxLength={160} optional />
+            </>
+            )}
             <TextAreaField label={t.polls.create.description} name="description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={2} optional />
           </div>
         </Section>
 
         <div className="mt-8 space-y-4">
           {formError && <FormMessage>{formError}</FormMessage>}
-          <Button type="submit" size="lg" block loading={createPoll.isPending}>
+          <Button type="submit" size="lg" block loading={createPoll.isPending || createDatePoll.isPending}>
             {t.polls.create.submit}
           </Button>
         </div>

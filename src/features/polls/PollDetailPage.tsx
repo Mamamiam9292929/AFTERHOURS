@@ -65,7 +65,11 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action }:
   const names = (ids: string[]) =>
     ids.map((id) => (isGuestId(id) ? t.polls.detail.guestLabel(lookup(id)?.display_name ?? "?") : (lookup(id)?.display_name ?? t.states.formerMember))).join(", ");
 
-  const meta = [optionWhen(option), option.estimated_price_cents != null ? t.polls.detail.priceEstimate(formatEuro(option.estimated_price_cents)) : t.polls.detail.priceOpen];
+  // P1: Bei Termin-Abstimmungen ist der Titel schon das Datum – darunter nur die Uhrzeit, kein Preis.
+  const isDate = poll.kind === "date";
+  const meta = isDate
+    ? [option.proposed_time ? formatPlainTime(option.proposed_time) : t.polls.detail.timeOpen]
+    : [optionWhen(option), option.estimated_price_cents != null ? t.polls.detail.priceEstimate(formatEuro(option.estimated_price_cents)) : t.polls.detail.priceOpen];
   const leadingOpen = tally.leading && poll.status === "open";
 
   return (
@@ -92,7 +96,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action }:
         </div>
         <p className="mt-1.5 text-sm text-muted">
           {meta.join(" · ")}
-          {overBudget && <span className="ml-2 font-semibold text-amber">{t.polls.detail.overBudget}</span>}
+          {overBudget && !isDate && <span className="ml-2 font-semibold text-amber">{t.polls.detail.overBudget}</span>}
         </p>
 
         {/* Stand als Balken: Anteil der Zusagen an der Crew, eigene Zusage mit Lime-Rahmen. */}
@@ -196,7 +200,8 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
 
   useEffect(() => {
     if (!option) return;
-    setTitle(option.title);
+    // P1: Ein Plan heißt nicht „Samstag, 17. Oktober“ – bei Termin-Abstimmungen tippt man ein, was ansteht.
+    setTitle(poll.kind === "date" ? "" : option.title);
     setDate(option.proposed_date && option.proposed_date >= today() ? option.proposed_date : "");
     setTime(option.proposed_time?.slice(0, 5) ?? "19:00");
     setMeetingPoint(poll.meeting_point ?? "");
@@ -239,7 +244,17 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
   return (
     <Dialog open={Boolean(option)} onClose={onClose} title={t.polls.detail.planDialog.title} description={t.polls.detail.planDialog.body}>
       <form onSubmit={submit} noValidate className="space-y-4">
-        <TextField label={t.polls.detail.planDialog.planTitle} name="plan_title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} error={errors.title} required />
+        <TextField
+          label={t.polls.detail.planDialog.planTitle}
+          name="plan_title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={120}
+          error={errors.title}
+          hint={poll.kind === "date" ? t.polls.detail.planDialog.planTitleDateHint : undefined}
+          placeholder={poll.kind === "date" ? t.polls.detail.planDialog.planTitleDatePlaceholder : undefined}
+          required
+        />
         <div className="grid grid-cols-2 gap-3">
           <TextField label={t.polls.detail.planDialog.date} name="plan_date" type="date" min={today()} max={addDays(today(), 730)} value={date} onChange={(e) => setDate(e.target.value)} error={errors.when} required />
           <TextField label={t.polls.detail.planDialog.time} name="plan_time" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
@@ -547,6 +562,7 @@ export function PollDetailPage() {
                 {t.polls.status.endsIn(formatRelative(poll.ends_at, now))}
               </span>
             )}
+            {poll.kind === "date" && <Badge tone="outline">{t.polls.detail.dateBadge}</Badge>}
             {poll.parent_poll_id && <Badge tone="outline">{t.polls.runoffBadge}</Badge>}
             {poll.guests_allowed && !summary.isOver && <Badge tone="outline">{t.polls.detail.guestsBadge}</Badge>}
             <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.participation(votedCount, memberIds.length)}</span>
