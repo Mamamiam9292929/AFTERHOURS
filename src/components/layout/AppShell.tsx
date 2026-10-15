@@ -128,7 +128,7 @@ export function AppShell() {
       </main>
 
       {/* Smartphone/Tablet: untere Navigation */}
-      <nav aria-label={t.nav.main} className="vt-tabbar fixed inset-x-0 bottom-0 z-30 border-t border-line bg-nav pb-safe supports-[backdrop-filter]:bg-nav/85 supports-[backdrop-filter]:backdrop-blur-md lg:hidden">
+      <nav aria-label={t.nav.main} className="vt-tabbar fixed inset-x-0 bottom-0 z-30 border-t border-line bg-nav pb-safe supports-[backdrop-filter]:bg-nav/92 supports-[backdrop-filter]:backdrop-blur-md lg:hidden">
         <ul className="mx-auto grid max-w-xl grid-cols-5">
           {NAV.map(({ to, label, icon: Icon }) => {
             const isActive = active === to;
