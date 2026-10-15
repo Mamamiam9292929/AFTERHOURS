@@ -89,6 +89,33 @@ export interface CreatePollInput {
   minParticipants?: number | null;
 }
 
+/** P1: Termin-Abstimmung – Titel der Optionen setzt der Server („Freitag, 17. Oktober“). */
+export interface CreateDatePollInput {
+  crewId: string;
+  title: string;
+  endsAt: Date;
+  slots: { date: string; time: string | null }[];
+  description?: string | null;
+}
+
+export function useCreateDatePoll() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateDatePollInput): Promise<string> => {
+      const { data, error } = await supabase.rpc("create_date_poll", {
+        p_crew_id: input.crewId,
+        p_title: input.title,
+        p_ends_at: input.endsAt.toISOString(),
+        p_slots: input.slots,
+        p_description: input.description ?? null,
+      });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: () => void client.invalidateQueries({ queryKey: qk.polls }),
+  });
+}
+
 export function useCreatePoll() {
   const client = useQueryClient();
   return useMutation({

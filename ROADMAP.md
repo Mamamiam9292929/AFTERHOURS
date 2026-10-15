@@ -44,7 +44,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
 | # | Idee | Nutzen für die Crew | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
-| P1 | Termin-Abstimmung: mehrere Datumsoptionen unabhängig vom Ort („Wann könnt ihr?“) | Das häufigste Problem in Gruppen ist der Termin, nicht der Ort | M | – | Freigegeben |
+| P1 | Termin-Abstimmung: mehrere Datumsoptionen unabhängig vom Ort („Wann könnt ihr?“) | Das häufigste Problem in Gruppen ist der Termin, nicht der Ort | M | – | Etappe 1 erledigt (#52): „Wann könnt ihr?“ als eigene Art Abstimmung (`polls.kind = 'date'`, `create_date_poll`), 2–10 Termine, Titel vom Server („Samstag, 17. Oktober“), Plan aus dem Gewinner-Termin, Stichwahl erbt die Art. Etappe 2 offen: Termine auf dem Gast-Stimmzettel und in der Messenger-Vorschau eigens darstellen, „Termin finden“ direkt auf der Crew-Seite, danach „Wo?“-Abstimmung zum gewählten Termin mit einem Tipp |
 | P2 | Kalender-Export (.ics) für bestätigte Pläne, Abo-Link pro Person | Plan landet im eigenen Kalender, mit Änderungen | S | – | Etappe 1 erledigt (#32): „In den Kalender“ je Plan (Datei entsteht im Browser). Etappe 2 (Idee): persönlicher Abo-Link (Edge Function, widerrufbares Token, nur eigene Pläne), damit Änderungen von selbst ankommen |
 | P3 | Kosten aufteilen nach dem Abend: wer hat was ausgelegt, wer schuldet wem (nur Übersicht, keine Zahlung) | Löst den nervigsten Teil nach dem Treffen | M | – | Freigegeben |
 | P4 | Web-Push-Benachrichtigungen (neue Abstimmung, Plan bestätigt, Erinnerung am Tag) | Niemand verpasst eine Abstimmung | M | VAPID-Schlüssel (kostenlos), iOS nur als installierte Web-App | Freigegeben |
