@@ -115,6 +115,10 @@ export const polls = {
       runoffExists: "Die Stichwahl läuft.",
       toRunoff: "Zur Stichwahl",
       waitingForOrganizer: "Wer die Abstimmung gestartet hat, kann jetzt den Plan daraus machen.",
+      /** P1 Etappe 2: nach dem Termin die Frage nach dem Ort – neue Abstimmung mit dem Gewinner-Termin. */
+      whereTitle: "Und wo?",
+      whereBody: (when: string) => `Der Termin steht: ${when}. Stimmt jetzt ab, wo es hingeht – der Termin ist schon eingetragen.`,
+      whereCta: "Ort abstimmen",
     },
     manage: {
       close: "Abstimmung beenden",
@@ -195,7 +199,9 @@ export const polls = {
     closed: "Entschieden",
     until: (when: string) => `Abstimmen bis ${when}`,
     closedOn: (when: string) => `Frist war ${when}`,
-    options: (n: number) => (n === 1 ? "Vorschlag" : "Vorschläge"),
+    options: (n: number, kind: "place" | "date" = "place") => (kind === "date" ? (n === 1 ? "Termin" : "Termine") : n === 1 ? "Vorschlag" : "Vorschläge"),
+    /** P1 Etappe 2: Termine einer geteilten Termin-Abstimmung auf der Karte. */
+    datesLabel: "Zur Wahl",
     /** Steht neben der Zahl; ohne Stimme allein. */
     voters: (n: number, open: boolean) =>
       n === 0 ? (open ? "Noch keine Stimme" : "Keine Stimme") : open ? (n === 1 ? "hat abgestimmt" : "haben abgestimmt") : n === 1 ? "hat mitgestimmt" : "haben mitgestimmt",
@@ -210,6 +216,7 @@ export const polls = {
     outsiderIntro: "Diese Abstimmung gehört zu einer Crew, in der du noch nicht bist. Frag nach dem Einladungslink – danach siehst du die Vorschläge und kannst mitstimmen.",
     toHome: "Zu deiner Übersicht",
     privacy: "Der Link zeigt nur die Frage, die Frist und wie viele mitmachen. Was zur Wahl steht und wer abgestimmt hat, sieht nur die Crew.",
+    privacyDates: "Der Link zeigt nur die Frage, die Termine, die Frist und wie viele mitmachen. Wer abgestimmt hat, sieht nur die Crew.",
     status: {
       not_found: { title: "Abstimmung nicht gefunden", body: "Der Link ist unvollständig oder falsch. Frag im Gruppenchat nach einem neuen." },
       expired: { title: "Diese Abstimmung ist vorbei", body: "Geteilte Abstimmungen sind bis drei Tage nach ihrem Ende zu sehen." },
@@ -237,6 +244,13 @@ export const polls = {
       ctaTitle: "Beim nächsten Mal von Anfang an dabei?",
       ctaBody: "Mit einem Konto planst du mit, schlägst selbst etwas vor und siehst, wann es losgeht. Trittst du der Crew bei, nimmst du deine Stimme auf diesem Gerät mit.",
       dateOpen: "Termin offen",
+      /** P1 Etappe 2: Termin-Abstimmung auf dem Stimmzettel. */
+      dates: {
+        intro: "Ohne Konto – nur mit deinem Namen. Sag bei jedem Termin, ob du kannst.",
+        options: "Wann kannst du?",
+        timeOpen: "Uhrzeit offen",
+        noAnswer: "Beantworte mindestens einen Termin.",
+      },
     },
     join: {
       title: (name: string) => `Komm in die Crew, ${name}`,

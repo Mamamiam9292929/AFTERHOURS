@@ -151,7 +151,7 @@ export interface Poll {
   /** W3: Freunde ohne Konto dürfen über den Teilen-Link mitstimmen. */
   guests_allowed: boolean;
   /** P1: „place“ = Abstimmung über Orte/Vorschläge, „date“ = Termin-Abstimmung „Wann könnt ihr?“. */
-  kind: "place" | "date";
+  kind: PollKind;
   /** W3 Etappe 3: Wer (Owner/Admin) „Gäste dürfen der Crew beitreten“ eingeschaltet hat – null = aus. */
   guest_join_by: string | null;
 }
@@ -310,3 +310,6 @@ export interface AuditLogEntry {
   meta: Record<string, unknown>;
   created_at: string;
 }
+
+/** P1: Abstimmung über Orte/Vorschläge („Was machen wir?“) oder über Termine („Wann könnt ihr?“). */
+export type PollKind = "place" | "date";

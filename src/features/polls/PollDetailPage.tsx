@@ -474,6 +474,26 @@ function GuestClaimCard({ pollId, token }: { pollId: string; token: string }) {
   );
 }
 
+/**
+ * P1 Etappe 2 · Nach „Wann könnt ihr?“ kommt „Und wo?“: Eine neue Abstimmung über Orte, in der der
+ * Gewinner-Termin schon eingetragen ist. Jedes Mitglied darf sie starten (wie jede Abstimmung).
+ */
+function WhereNext({ poll, winner }: { poll: PollWithDetails; winner: PollOption }) {
+  if (!winner.proposed_date || winner.proposed_date < today()) return null;
+  const query = new URLSearchParams({ crew: poll.crew_id, date: winner.proposed_date });
+  if (winner.proposed_time) query.set("time", winner.proposed_time.slice(0, 5));
+  const when = winner.proposed_time ? `${winner.title}, ${formatPlainTime(winner.proposed_time)}` : winner.title;
+  return (
+    <div className="mt-5 border-t border-dashed border-lime/40 pt-4" data-testid="poll-where">
+      <p className="text-[17px] font-bold text-fg">{t.polls.detail.result.whereTitle}</p>
+      <p className="mt-1 max-w-prose text-[15px] leading-snug text-muted">{t.polls.detail.result.whereBody(when)}</p>
+      <ButtonLink to={`/polls/new?${query.toString()}`} variant="secondary" className="mt-3" icon={<IconPin className="size-4" aria-hidden />}>
+        {t.polls.detail.result.whereCta}
+      </ButtonLink>
+    </div>
+  );
+}
+
 export function PollDetailPage() {
   const { pollId } = useParams();
   const user = useUser();
@@ -620,6 +640,7 @@ export function PollDetailPage() {
                   </ButtonLink>
                 )}
               </div>
+              {poll.kind === "date" && winner && !runoff && <WhereNext poll={poll} winner={winner} />}
             </div>
           )}
 
