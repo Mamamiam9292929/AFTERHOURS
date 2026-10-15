@@ -112,7 +112,7 @@ export function PlanDetailPage() {
   const organizer = plan.created_by === user.id ? t.plans.detail.organizerYou : t.plans.detail.organizer(people.lookup(plan.created_by)?.display_name ?? t.states.formerMember);
 
   const expensesSection = (
-    <Section title={t.plans.expenses.title}>
+    <Section id="kosten" title={t.plans.expenses.title}>
       <ExpensesPanel plan={plan} userId={user.id} memberIds={crew?.members.map((m) => m.user_id) ?? []} canManageCrew={canManageCrew(myRole(crew, user.id))} lookup={people.lookup} />
     </Section>
   );

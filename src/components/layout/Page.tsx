@@ -65,9 +65,10 @@ export function PosterLine({ lead = "", keyword, tail = "" }: { lead?: string; k
 }
 
 /** Abschnitt mit Überschrift und optionalem Link rechts. */
-export function Section({ title, action, children, className }: { title: string; action?: ReactNode; children: ReactNode; className?: string }) {
+export function Section({ id, title, action, children, className }: { id?: string; title: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cn("mt-9 first:mt-0", className)}>
+    // Mit `id` als Sprungziel (z. B. /plans/<id>#kosten): Abstand für die feste Kopfleiste auf dem Handy.
+    <section id={id} className={cn("mt-9 first:mt-0", id && "scroll-mt-20 lg:scroll-mt-6", className)}>
       <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="text-[17px] font-bold text-fg">{title}</h2>
         {action}

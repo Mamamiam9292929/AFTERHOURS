@@ -1314,6 +1314,30 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     check(true, "Crew-Kopf zählt abgeschlossene Pläne als gemeinsame Abende");
   }
   await shot(alice, "21-crew");
+
+  // P3 Etappe 3 – Offene Beträge der Crew: Alice bekommt aus dem Plan noch 28 € (Schritt P3).
+  const balancesCard = alice.page.getByTestId("crew-balances");
+  await balancesCard.getByText("Du bekommst insgesamt 28 €").waitFor();
+  check(await balancesCard.getByText("bei 1 Abend offen").isVisible(), "Crew-Seite: offene Beträge über alle Abende (1 Abend)");
+  const openRow = balancesCard.getByRole("link", { name: /Du bekommst 28 €/ });
+  check((await openRow.count()) === 1, "Crew-Seite: der Abend steht mit eigenem Betrag in der Liste");
+  await balancesCard.scrollIntoViewIfNeeded();
+  await noOverflow(alice, "Offene Beträge");
+  await shot(alice, "21b-crew-kosten");
+  await openRow.click();
+  await alice.page.waitForURL(`**/plans/${ids.plan}#kosten`);
+  const costsHeading = alice.page.getByRole("heading", { name: "Kosten teilen" });
+  await costsHeading.waitFor();
+  await alice.page.getByText("Du bekommst noch 28 €").waitFor();
+  await alice.page.waitForFunction(() => {
+    const top = document.getElementById("kosten")?.getBoundingClientRect().top;
+    return top != null && top >= -2 && top < window.innerHeight - 40;
+  }, null, { timeout: 5000 });
+  check(true, "Tipp auf den Abend springt direkt zu „Kosten teilen“");
+  await bob.page.goto(`${APP}/crews/${ids.crew}`);
+  await bob.page.getByTestId("crew-balances").getByText("Du gibst insgesamt 28 €").waitFor();
+  check(true, "Bob sieht auf der Crew-Seite: gibt insgesamt 28 €");
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });
@@ -1618,6 +1642,8 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   check(add.status === 403, `API: Außenstehende tragen keine Ausgabe in fremde Pläne ein (${add.status})`);
   const read = await api(mallory, "GET", `plan_expenses?plan_id=eq.${ids.plan}&select=id`);
   check(read.status === 200 && Array.isArray(read.json) && read.json.length === 0, "API: Außenstehende lesen keine Ausgaben");
+  const balances = await api(mallory, "POST", "rpc/crew_open_balances", { p_crew_id: ids.crew });
+  check(balances.status === 403, `API: Außenstehende lesen keine offenen Beträge der Crew (${balances.status})`);
   const settle = await api(mallory, "POST", "rpc/record_plan_settlement", { p_plan_id: ids.plan, p_from: null, p_to: null, p_amount_cents: 100 });
   check(settle.status === 403, `API: Außenstehende tragen keine Rückzahlung ein (${settle.status})`);
   if (ids.shareUrl) {

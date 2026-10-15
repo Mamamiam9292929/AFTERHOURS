@@ -27,6 +27,9 @@ export const qk = {
   crew: (crewId: string) => ["crews", crewId] as const,
   crewInvitations: (crewId: string) => ["crews", crewId, "invitations"] as const,
   crewMessages: (crewId: string) => ["crews", crewId, "messages"] as const,
+  /** P3 Etappe 3: offene Beträge je Plan; Präfix `crewBalancesAll` invalidiert alle Crews. */
+  crewBalancesAll: ["crew-balances"] as const,
+  crewBalances: (crewId: string) => ["crew-balances", crewId] as const,
   invitationPreview: (token: string) => ["invitation", token] as const,
   activities: ["activities"] as const,
   activity: (id: string) => ["activities", id] as const,

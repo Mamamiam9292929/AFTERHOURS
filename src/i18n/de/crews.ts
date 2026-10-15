@@ -50,6 +50,22 @@ export const crews = {
     notFoundTitle: "Diese Crew gibt es nicht",
     notFoundBody: "Sie wurde gelöscht oder du bist kein Mitglied mehr.",
   },
+  /** P3 Etappe 3 · Offene Beträge aller Abende der Crew (nur Übersicht, ausgeglichen wird je Plan). */
+  balances: {
+    title: "Offene Beträge",
+    yourTotal: "Dein Stand über alle Abende",
+    totalGets: (amount: string) => `Du bekommst insgesamt ${amount}`,
+    totalOwes: (amount: string) => `Du gibst insgesamt ${amount}`,
+    totalEven: "Bei dir ist alles ausgeglichen",
+    othersOnly: "Offen ist nur noch etwas zwischen anderen.",
+    planCount: (n: number) => (n === 1 ? "bei 1 Abend offen" : `bei ${n} Abenden offen`),
+    gets: (amount: string) => `Du bekommst ${amount}`,
+    owes: (amount: string) => `Du gibst ${amount}`,
+    others: (n: number) => (n === 1 ? "1 Überweisung zwischen anderen" : `${n} Überweisungen zwischen anderen`),
+    unknownPlan: "Früherer Abend",
+    open: (title: string, state: string) => `${title}: ${state} – Kosten ansehen`,
+    hint: "Ausgeglichen wird je Abend: Tipp auf den Abend und dort bei „Wer gibt wem?“ auf „Erledigt“.",
+  },
   chat: {
     empty: "Noch keine Nachrichten. Schreib die erste.",
     placeholder: "Nachricht an die Crew",
