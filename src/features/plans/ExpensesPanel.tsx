@@ -121,11 +121,12 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
               {list.map((e) => {
                 const amount = formatEuro(e.amount_cents);
                 const myShare = e.kind === "expense" ? e.shares.find((s) => s.user_id === userId)?.amount_cents : undefined;
-                const people = e.shares.map((s) => s.user_id);
+                // „für dich, Alice und Carol“ – ich zuerst.
+                const people = [...e.shares.map((s) => s.user_id)].sort((a, b) => Number(b === userId) - Number(a === userId));
                 const title = e.kind === "expense" ? (e.description ?? "") : tx.settlementTitle;
                 const detail =
                   e.kind === "expense"
-                    ? `${tx.entryPaid(name(e.paid_by), amount)} · ${people.length <= 4 ? tx.entrySplitNames(people.map((id) => (id === userId ? tx.youDative : name(id))).join(", ")) : tx.entrySplit(people.length)}`
+                    ? `${tx.entryPaid(name(e.paid_by), amount)} · ${people.length <= 4 ? tx.entrySplitNames(listNames(people.map((id) => (id === userId ? tx.youAccusative : name(id))))) : tx.entrySplit(people.length)}`
                     : tx.settlementEntry(name(e.paid_by), people[0] === userId ? tx.youDative : name(people[0] ?? ""), amount);
                 return (
                   <li key={e.id} className="flex items-start gap-3 rounded-card border border-line bg-surface px-4 py-3">
@@ -133,12 +134,10 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                     <div className="min-w-0 flex-1">
                       <p className={cn("font-semibold", e.kind === "expense" ? "text-fg" : "text-muted")}>{title}</p>
                       <p className="mt-0.5 text-sm text-muted">{detail}</p>
+                      {myShare != null && <p className="mt-1 text-sm font-semibold text-fg">{tx.yourShareValue(formatEuro(myShare))}</p>}
                       <p className="mt-0.5 text-[13px] text-faint">{formatDateTime(e.created_at)}</p>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="display text-[22px] leading-none text-fg">{amount}</p>
-                      {myShare != null && <p className="mt-1 text-[13px] text-muted">{t.plans.expenses.yourShare}: {formatEuro(myShare)}</p>}
-                    </div>
+                    <p className="display shrink-0 pt-0.5 text-[22px] leading-none text-fg">{amount}</p>
                     {canDelete(e) && (
                       <IconButton label={tx.delete(title)} className="-my-1 -mr-2 size-10 text-muted" onClick={() => setDeleting(e)}>
                         <IconTrash className="size-4" aria-hidden />
@@ -216,6 +215,12 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
       />
     </div>
   );
+}
+
+/** „Alice“, „Alice und Bob“, „dich, Alice und Carol“ */
+function listNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} ${tx.and} ${names[names.length - 1]}`;
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "lime" | "amber" }) {
