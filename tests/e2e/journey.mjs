@@ -1597,9 +1597,16 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
       `select fallback_used::text || '|' || (attempts -> 0 ->> 'result') || '|' || (attempts -> 1 ->> 'result') from public.place_sync_runs where city = 'leipzig' and outcome = 'ready' order by id desc limit 1`,
     ], { encoding: "utf8" }).trim();
     check(run === "true|timeout|ok", `Ersatzserver: Leipzig nach Ausfall des Hauptservers importiert und protokolliert (${run})`);
+    // O2: Auch Nominatim ist in der CI ausgefallen (Stellvertreter auf 8090); Photon hat die Stadt gefunden.
+    const geo = execFileSync("psql", [DB_URL, "-tAc",
+      `select geocode_fallback::text || '|' || (geocode_attempts -> 0 ->> 'result') || '|' || (geocode_attempts -> -1 ->> 'result') from public.place_sync_runs where city = 'leipzig' and outcome = 'ready' order by id desc limit 1`,
+    ], { encoding: "utf8" }).trim();
+    check(geo === "true|busy|ok", `Stadtsuche mit Ersatz: Leipzig nach Ausfall von Nominatim über Photon gefunden (${geo})`);
     await page.goto(`${APP}/admin`);
     const card = page.getByRole("region", { name: "Orte-Import aus OpenStreetMap" });
     await card.getByText("über Ersatzserver").waitFor();
+    check(await card.getByText("Stadt über Ersatz gefunden").isVisible(), "Admin sieht die Ersatz-Stadtsuche");
+    check(await card.getByText(/^Gescheitert bei der Stadtsuche: \d+ · bei Overpass: \d+$/).isVisible(), "Admin sieht Fehlschläge getrennt nach Stadtsuche und Overpass");
     check(await card.getByText(/von \d+ Versuchen erfolgreich/).first().isVisible(), "Admin sieht Importe, Fehlerquote und Server");
     await shot(alice, "35-admin-osm-import");
   }
