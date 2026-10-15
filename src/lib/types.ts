@@ -41,7 +41,8 @@ export type NotificationType =
   | "crew_member_joined" | "crew_member_removed" | "crew_role_changed"
   | "poll_created" | "poll_reminder" | "poll_vote" | "poll_result"
   | "plan_created" | "plan_changed" | "plan_cancelled" | "plan_attendance"
-  | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned";
+  | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned"
+  | "plan_expense" | "plan_settlement";
 
 export interface UserSettings {
   user_id: string;
@@ -254,6 +255,26 @@ export interface RideOffer {
   note: string | null;
   status: RideOfferStatus;
   created_at: string;
+}
+
+/** P3 · Ausgabe oder Rückzahlung zu einem Plan; Anteile rechnet der Server. */
+export interface PlanExpense {
+  id: string;
+  plan_id: string;
+  kind: "expense" | "settlement";
+  /** null bei Rückzahlungen */
+  description: string | null;
+  amount_cents: number;
+  paid_by: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface PlanExpenseShare {
+  expense_id: string;
+  plan_id: string;
+  user_id: string;
+  amount_cents: number;
 }
 
 export interface RideRequest {

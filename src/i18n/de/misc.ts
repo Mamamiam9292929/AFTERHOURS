@@ -1,3 +1,4 @@
+import { formatEuro } from "@/lib/format";
 import type { NotificationType } from "@/lib/types";
 
 type Payload = Record<string, unknown>;
@@ -35,6 +36,15 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
   },
   ride_request: (actor, p) => ({ title: `${actor} möchte bei dir mitfahren`, body: str(p, "title") }),
   ride_confirmed: (actor, p) => ({ title: p.accepted ? `${actor} nimmt dich mit` : `${actor} kann dich nicht mitnehmen`, body: str(p, "title") }),
+  // P3: Ausgabe, an der du beteiligt bist (oder die als von dir bezahlt eingetragen wurde), und Rückzahlungen.
+  plan_expense: (actor, p) => ({
+    title: p.you_paid ? `${actor} hat eingetragen, dass du „${str(p, "description")}“ bezahlt hast` : `${actor} hat „${str(p, "description")}“ eingetragen`,
+    body: [typeof p.share_cents === "number" ? `Dein Anteil: ${formatEuro(p.share_cents)}` : typeof p.amount_cents === "number" ? formatEuro(p.amount_cents) : "", str(p, "title")].filter(Boolean).join(" · "),
+  }),
+  plan_settlement: (actor, p) => {
+    const amount = typeof p.amount_cents === "number" ? formatEuro(p.amount_cents) : "";
+    return { title: p.direction === "received" ? `${actor} hat deine Rückzahlung von ${amount} bestätigt` : `${actor} hat dir ${amount} zurückgegeben`, body: str(p, "title") };
+  },
   reward_earned: (_actor, p) => ({
     title: `+${typeof p.points === "number" ? p.points : ""} Punkte`,
     body: `${p.reason === "plan_organized" ? "Für die Organisation" : "Für deine Teilnahme"}: ${str(p, "title")}`,
@@ -140,6 +150,7 @@ export const settings = {
       plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten und Absagen." },
       bookings: { title: "Reservierungen", body: "Wenn sich der Stand einer Reservierung ändert." },
       rides: { title: "Mitfahrten", body: "Anfragen und Zusagen für Fahrgemeinschaften." },
+      costs: { title: "Kosten teilen", body: "Neue Ausgaben, an denen du beteiligt bist, und Rückzahlungen." },
       crew: { title: "Crew", body: "Neue Mitglieder und Änderungen deiner Rolle." },
       rewards: { title: "Rewards", body: "Wenn du Punkte erhältst." },
     },
