@@ -246,6 +246,29 @@ export const admin = {
     target: (type: string) => `Betrifft: ${type}`,
   },
   audit: { empty: "Noch keine Einträge.", actor: "Auslöser", system: "System" },
+  placeSync: {
+    title: "Orte-Import aus OpenStreetMap",
+    period: (days: number) => `Letzte ${days} Tage`,
+    empty: "Noch keine Importe in diesem Zeitraum. Sobald jemand in Discover eine neue Stadt wählt, erscheint sie hier.",
+    runs: "Importe",
+    failed: "fehlgeschlagen",
+    rate: "Fehlerquote",
+    fallback: "über Ersatzserver",
+    rateValue: (pct: string) => `${pct} %`,
+    overThreshold: (threshold: number) =>
+      `Mehr als ${threshold} % der Importe sind gescheitert. Laut Entscheidung vom 14.10.2026 ist das der Punkt, an dem ein eigener OSM-Dienst oder ein kommerzieller Anbieter zu prüfen ist.`,
+    lastFailure: (when: string) => `Letzter Fehlschlag: ${when}`,
+    errorsTitle: "Fehler nach Art",
+    endpointsTitle: "Server",
+    endpointLine: (ok: number, attempts: number) => `${ok} von ${attempts} Versuchen erfolgreich`,
+    errors: {
+      osm_busy: "OSM überlastet",
+      osm_unavailable: "OSM nicht erreichbar",
+      database_error: "Datenbank",
+      internal_error: "Interner Fehler",
+      unknown: "Unbekannt",
+    } as Record<string, string>,
+  },
 };
 
 export const assistant = {

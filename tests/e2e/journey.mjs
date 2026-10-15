@@ -1530,6 +1530,24 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
   await page.getByText("bowling_alley 4", { exact: true }).waitFor();
   check(true, "echter Ort lässt sich in eine Abstimmung übernehmen");
 
+  // O1: Der erste Overpass-Server der CI ist absichtlich ausgefallen (osm-stub mit OSM_STUB_DOWN=1);
+  // Leipzig kam also über den Ersatzserver. Das Protokoll hält beide Versuche fest.
+  if (DB_URL) {
+    const run = execFileSync("psql", [DB_URL, "-tAc",
+      `select fallback_used::text || '|' || (attempts -> 0 ->> 'result') || '|' || (attempts -> 1 ->> 'result') from public.place_sync_runs where city = 'leipzig' and outcome = 'ready' order by id desc limit 1`,
+    ], { encoding: "utf8" }).trim();
+    check(run === "true|timeout|ok", `Ersatzserver: Leipzig nach Ausfall des Hauptservers importiert und protokolliert (${run})`);
+    await page.goto(`${APP}/admin`);
+    const card = page.getByRole("region", { name: "Orte-Import aus OpenStreetMap" });
+    await card.getByText("über Ersatzserver").waitFor();
+    check(await card.getByText(/von \d+ Versuchen erfolgreich/).first().isVisible(), "Admin sieht Importe, Fehlerquote und Server");
+    await shot(alice, "35-admin-osm-import");
+  }
+  const api3 = await api(bob, "POST", "rpc/record_place_sync_run", { p_city: "Leipzig", p_region: null, p_outcome: "failed", p_error: "osm_busy", p_attempts: [], p_duration_ms: 0 });
+  check([401, 403, 404].includes(api3.status), "API: Nutzer können keine Import-Fehlschläge vortäuschen");
+  const api4 = await api(bob, "POST", "rpc/admin_place_sync_health", {});
+  check(api4.status === 403 || api4.status === 401, "API: Fehlerquote nur für Admins");
+
   const api1 = await api(bob, "POST", "rpc/ingest_place_batch", { p_region: "00000000-0000-0000-0000-000000000000", p_started: new Date().toISOString(), p_places: [] });
   check([401, 403, 404].includes(api1.status), "API: Nutzer können selbst keine Orte schreiben");
   const api2 = await api(bob, "POST", "activities", { name: "Fake", category: "bar", city: "Leipzig", data_source: "provider" });

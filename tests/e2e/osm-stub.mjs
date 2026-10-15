@@ -18,12 +18,16 @@
  *   - Weitere bekannte Städte (Berlin, Hamburg, München, Köln, Frankfurt) liefern keine Orte, damit
  *     dort die Demo-Orte sichtbar bleiben, auf die sich die übrigen Schritte stützen.
  *   - Alles andere (z. B. "Atlantis") gibt es nicht.
+ * Ersatzserver (Roadmap O1): Mit OSM_STUB_DOWN=1 spielt der Stellvertreter einen ausgefallenen
+ * Overpass-Server (504 auf /api/interpreter). Die CI startet ihn so auf Port 8090 und trägt ihn in
+ * OVERPASS_URLS vor dem funktionierenden ein – jeder Import muss also über den Ersatz laufen.
  * Ohne Abhängigkeiten, nur Node.js.
  */
 import http from "node:http";
 
 const PORT = Number(process.env.OSM_STUB_PORT ?? 8089);
 const HOST = process.env.OSM_STUB_HOST ?? "0.0.0.0";
+const DOWN = process.env.OSM_STUB_DOWN === "1";
 
 const CITIES = [
   { keys: ["leipzig"], name: "Leipzig", osm_type: "relation", osm_id: 62649, lat: 51.3406321, lon: 12.3747329 },
@@ -96,6 +100,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (url.pathname === "/api/interpreter") {
+    if (DOWN) return send(res, 504, { error: "gateway_timeout" });
     const query = new URLSearchParams(body).get("data") ?? "";
     const match = query.match(/area\(id:(\d+)\)/);
     const elements = match && Number(match[1]) === areaId(LEIPZIG) ? leipzigElements() : [];
