@@ -77,3 +77,45 @@ export function splitEvenly(cents: number, count: number): number[] {
   const rest = cents % count;
   return Array.from({ length: count }, (_, i) => base + (i < rest ? 1 : 0));
 }
+
+/**
+ * P3 Etappe 2 · Ungleich aufteilen (Vorschau und Prüfung im Formular).
+ * `entries` sind die eingetippten Beträge je Person in Cent, `null` für ein leeres Feld. Leere Felder
+ * teilen sich, was vom Gesamtbetrag übrig ist, gleichmäßig (Rest-Cent an die Ersten). Jeder Anteil
+ * muss mindestens 1 Cent sein, und alle zusammen ergeben genau den Betrag – das prüft auch der Server.
+ */
+export type CustomSplitStatus = "ok" | "over" | "open" | "nothing_left" | "zero";
+
+export interface CustomSplit {
+  status: CustomSplitStatus;
+  /** Anteile in der Reihenfolge von `entries`, nur bei `ok`. */
+  shares: number[] | null;
+  /** Summe der eingetragenen Beträge. */
+  entered: number;
+  /** Gesamtbetrag minus eingetragen: was noch offen ist (negativ = zu viel). */
+  rest: number;
+  /** Was die leeren Felder bekommen (gleiche Reihenfolge wie die leeren Felder). */
+  fill: number[];
+}
+
+export function splitCustom(totalCents: number, entries: readonly (number | null)[]): CustomSplit {
+  const entered = entries.reduce<number>((sum, cents) => sum + (cents ?? 0), 0);
+  const rest = totalCents - entered;
+  const empty = entries.filter((cents) => cents == null).length;
+  const fill = empty > 0 && rest >= empty ? splitEvenly(rest, empty) : [];
+  const result = (status: CustomSplitStatus, shares: number[] | null = null): CustomSplit => ({ status, shares, entered, rest, fill });
+
+  if (entries.some((cents) => cents != null && cents < 1)) return result("zero");
+  if (rest < 0) return result("over");
+  if (empty === 0) return rest === 0 ? result("ok", entries.map((cents) => cents ?? 0)) : result("open");
+  if (rest < empty) return result("nothing_left");
+  let next = 0;
+  return result("ok", entries.map((cents) => cents ?? fill[next++] ?? 0));
+}
+
+/** Ungleich aufgeteilt? Gleichmäßige Einträge unterscheiden sich höchstens um einen Rest-Cent. */
+export function isCustomSplit(shares: readonly ShareLike[]): boolean {
+  if (shares.length < 2) return false;
+  const amounts = shares.map((share) => share.amount_cents);
+  return Math.max(...amounts) - Math.min(...amounts) > 1;
+}

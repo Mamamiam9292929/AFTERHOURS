@@ -2,18 +2,18 @@ import { useId, useMemo, useState, type FormEvent } from "react";
 import { IconCheck, IconForward, IconPlus, IconTrash } from "@/components/icons";
 import { Avatar, type Person } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
-import { Chip } from "@/components/ui/Controls";
+import { Chip, SwitchRow } from "@/components/ui/Controls";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorState, Notice, Skeleton } from "@/components/ui/Feedback";
-import { FormMessage, SelectField, TextField } from "@/components/ui/Field";
+import { controlClass, FormMessage, SelectField, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
-import { formatEuro, parseEuroInput } from "@/lib/format";
-import { balances, settle, splitEvenly, type Transfer } from "@/lib/settle";
+import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
+import { balances, isCustomSplit, settle, splitCustom, splitEvenly, type Transfer } from "@/lib/settle";
 import { formatDateTime } from "@/lib/time";
-import { useAddExpense, useDeleteExpense, usePlanExpenses, useRecordSettlement, type PlanExpenseWithShares, type PlanWithParticipants } from "./api";
+import { useAddExpense, useDeleteExpense, usePlanExpenses, useRecordSettlement, type AddExpenseInput, type PlanExpenseWithShares, type PlanWithParticipants } from "./api";
 
 const tx = t.plans.expenses;
 
@@ -124,9 +124,19 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                 // „für dich, Alice und Carol“ – ich zuerst.
                 const people = e.shares.map((s) => s.user_id).sort((a, b) => Number(b === userId) - Number(a === userId) || name(a).localeCompare(name(b), "de"));
                 const title = e.kind === "expense" ? (e.description ?? "") : tx.settlementTitle;
+                // Ungleich aufgeteilt (P3 Etappe 2): Betrag je Person in Klammern – „für dich (12 €) und Bob (18 €)“.
+                const custom = e.kind === "expense" && isCustomSplit(e.shares);
+                const shareOf = (id: string) => formatEuro(e.shares.find((s) => s.user_id === id)?.amount_cents ?? 0);
+                const label = (id: string) => (id === userId ? tx.youAccusative : name(id));
+                const split =
+                  people.length > 4
+                    ? custom
+                      ? tx.entrySplitCustom(people.length)
+                      : tx.entrySplit(people.length)
+                    : tx.entrySplitNames(listNames(people.map((id) => (custom ? tx.nameWithAmount(label(id), shareOf(id)) : label(id)))));
                 const detail =
                   e.kind === "expense"
-                    ? `${tx.entryPaid(name(e.paid_by), amount)} · ${people.length <= 4 ? tx.entrySplitNames(listNames(people.map((id) => (id === userId ? tx.youAccusative : name(id))))) : tx.entrySplit(people.length)}`
+                    ? `${tx.entryPaid(name(e.paid_by), amount)} · ${split}`
                     : tx.settlementEntry(name(e.paid_by), people[0] === userId ? tx.youDative : name(people[0] ?? ""), amount);
                 return (
                   <li key={e.id} className="flex items-start gap-3 rounded-card border border-line bg-surface px-4 py-3">
@@ -238,7 +248,7 @@ interface ExpenseFormProps {
   memberIds: string[];
   name: (id: string) => string;
   pending: boolean;
-  onSubmit: (values: { description: string; amountCents: number; paidBy: string; splitWith: string[] }, fail: (message: string) => void) => void;
+  onSubmit: (values: AddExpenseInput, fail: (message: string) => void) => void;
 }
 
 function ExpenseForm({ plan, userId, memberIds, name, pending, onSubmit }: ExpenseFormProps) {
@@ -253,16 +263,46 @@ function ExpenseForm({ plan, userId, memberIds, name, pending, onSubmit }: Expen
     return new Set(going.length > 0 ? [...going, userId] : members);
   });
   const [error, setError] = useState<string | null>(null);
+  // P3 Etappe 2: Beträge je Person. Eingaben bleiben erhalten, wenn jemand ab- und wieder angewählt wird.
+  const [custom, setCustom] = useState(false);
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
   const groupId = useId();
 
   const cents = parseEuroInput(amount);
-  const shares = typeof cents === "number" && cents > 0 ? splitEvenly(cents, split.size) : [];
+  const total = typeof cents === "number" && cents > 0 ? cents : null;
+  const selected = members.filter((id) => split.has(id));
+  const shares = total != null ? splitEvenly(total, split.size) : [];
   const preview =
     shares.length === 0
       ? null
       : shares[0] === shares[shares.length - 1]
         ? tx.perPerson(formatEuro(shares[0] ?? 0), shares.length)
         : tx.perPersonRange(formatEuro(shares[shares.length - 1] ?? 0), formatEuro(shares[0] ?? 0), shares.length);
+
+  const entries = selected.map((id) => parseEuroInput(amounts[id] ?? ""));
+  const badInput = entries.some((value) => value === undefined);
+  const customSplit = total != null && !badInput ? splitCustom(total, entries as (number | null)[]) : null;
+  // Leere Felder zeigen als Platzhalter, was sie bekommen würden.
+  const placeholders = new Map<string, string>();
+  if (customSplit && customSplit.fill.length > 0) {
+    let next = 0;
+    selected.forEach((id, index) => {
+      if (entries[index] == null) placeholders.set(id, centsToInput(customSplit.fill[next++] ?? 0));
+    });
+  }
+  const customStatus: { text: string; tone: "muted" | "lime" | "amber" } = (() => {
+    if (badInput) return { text: tx.invalidShareInput, tone: "amber" };
+    if (total == null || customSplit == null) return { text: tx.customNeedsTotal, tone: "muted" };
+    const { status, rest, entered, fill } = customSplit;
+    if (status === "zero") return { text: tx.customZero, tone: "amber" };
+    if (status === "over") return { text: tx.customOver(formatEuro(-rest), formatEuro(entered), formatEuro(total)), tone: "amber" };
+    if (status === "open") return { text: tx.customOpen(formatEuro(rest)), tone: "amber" };
+    if (status === "nothing_left") return { text: tx.customNothingLeft, tone: "amber" };
+    if (fill.length === 0) return { text: tx.customOk(formatEuro(total)), tone: "lime" };
+    const min = fill[fill.length - 1] ?? 0;
+    const max = fill[0] ?? 0;
+    return { text: min === max ? tx.customFill(formatEuro(max), fill.length) : tx.customFillRange(formatEuro(min), formatEuro(max), fill.length), tone: "muted" };
+  })();
 
   function toggle(id: string) {
     setSplit((previous) => {
@@ -279,8 +319,13 @@ function ExpenseForm({ plan, userId, memberIds, name, pending, onSubmit }: Expen
     if (text.length < 2) return setError(tx.invalidDescription);
     if (typeof cents !== "number" || cents < 1 || cents > 1_000_000) return setError(tx.invalidAmount);
     if (split.size === 0) return setError(tx.invalidSplit);
+    if (custom) {
+      if (customSplit?.status !== "ok" || !customSplit.shares) return setError(customStatus.text);
+      setError(null);
+      return onSubmit({ description: text, amountCents: cents, paidBy, splitWith: selected, shares: customSplit.shares }, setError);
+    }
     setError(null);
-    onSubmit({ description: text, amountCents: cents, paidBy, splitWith: members.filter((id) => split.has(id)) }, setError);
+    onSubmit({ description: text, amountCents: cents, paidBy, splitWith: selected }, setError);
   }
 
   return (
@@ -296,7 +341,7 @@ function ExpenseForm({ plan, userId, memberIds, name, pending, onSubmit }: Expen
           ))}
         </SelectField>
       </div>
-      <div role="group" aria-labelledby={`${groupId}-label`} aria-describedby={`${groupId}-hint`} className="space-y-1.5">
+      <div role="group" aria-labelledby={`${groupId}-label`} aria-describedby={custom ? undefined : `${groupId}-hint`} className="space-y-1.5">
         <p id={`${groupId}-label`} className="text-sm font-medium text-fg">
           {tx.splitWith}
         </p>
@@ -307,10 +352,60 @@ function ExpenseForm({ plan, userId, memberIds, name, pending, onSubmit }: Expen
             </Chip>
           ))}
         </div>
-        <p id={`${groupId}-hint`} aria-live="polite" className="text-[13px] leading-snug text-muted">
-          {preview ?? tx.splitHint}
-        </p>
+        {!custom && (
+          <p id={`${groupId}-hint`} aria-live="polite" className="text-[13px] leading-snug text-muted">
+            {preview ?? tx.splitHint}
+          </p>
+        )}
       </div>
+      <div className="border-t border-line">
+        <SwitchRow label={tx.customToggle} description={tx.customToggleHint} checked={custom} onChange={setCustom} />
+      </div>
+      {custom && selected.length > 0 && (
+        // Ein Feld je ausgewählter Person; die Summenzeile darunter sagt sofort, ob es aufgeht.
+        <div className="space-y-2">
+          <ul className="divide-y divide-line rounded-card border border-line bg-surface">
+            {selected.map((id) => {
+              const inputId = `${groupId}-share-${id}`;
+              return (
+                <li key={id} className="flex items-center gap-3 py-1.5 pr-1.5 pl-4">
+                  <label htmlFor={inputId} className="min-w-0 flex-1 truncate text-[15px] font-medium text-fg">
+                    <span className="sr-only">{tx.shareFor(id === userId ? tx.youAccusative : name(id))}</span>
+                    <span aria-hidden>{id === userId ? tx.me : name(id)}</span>
+                  </label>
+                  <div className="relative w-32 shrink-0">
+                    <input
+                      id={inputId}
+                      name={`expense_share_${id}`}
+                      value={amounts[id] ?? ""}
+                      onChange={(e) => {
+                        setAmounts((previous) => ({ ...previous, [id]: e.target.value }));
+                        setError(null);
+                      }}
+                      placeholder={placeholders.get(id) ?? "0,00"}
+                      inputMode="decimal"
+                      autoComplete="off"
+                      aria-describedby={`${groupId}-status`}
+                      aria-invalid={parseEuroInput(amounts[id] ?? "") === undefined}
+                      className={cn(controlClass, "h-11 pr-8 text-right tabular-nums")}
+                    />
+                    <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted">
+                      €
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p
+            id={`${groupId}-status`}
+            aria-live="polite"
+            className={cn("text-[13px] leading-snug font-medium", customStatus.tone === "lime" ? "text-lime" : customStatus.tone === "amber" ? "text-amber" : "text-muted")}
+          >
+            {customStatus.text}
+          </p>
+        </div>
+      )}
       {error && <FormMessage>{error}</FormMessage>}
       <Button type="submit" block loading={pending}>
         {tx.submit}

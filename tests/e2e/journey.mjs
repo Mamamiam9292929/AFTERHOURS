@@ -1261,6 +1261,39 @@ await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async
   await b.getByText("Du gibst noch 10 €").waitFor();
   check(true, "nach dem Löschen rechnet die App neu (24 € Anteil an der Bahn − 14 € zurückgegeben = 10 €)");
   check((await b.getByRole("button", { name: "„Bowlingbahn“ löschen" }).count()) === 0, "fremde Ausgaben kann Bob nicht löschen");
+
+  // P3 Etappe 2 – ungleich aufteilen: Pizza 30 €, Bob hatte die große für 18 €, Alice bekommt den Rest.
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByText("Du bekommst noch 10 €").waitFor();
+  await page.getByRole("button", { name: "Ausgabe eintragen" }).click();
+  const pizza = dialog(alice);
+  await pizza.getByLabel("Wofür?").fill("Pizza");
+  await pizza.getByLabel("Betrag in Euro").fill("30");
+  await pizza.getByRole("switch", { name: /Beträge je Person/ }).click();
+  await pizza.getByLabel("Betrag für Bob").fill("18");
+  await pizza.getByText("Das leere Feld bekommt den Rest: 12 €").waitFor();
+  check((await pizza.getByLabel("Betrag für dich").getAttribute("placeholder")) === "12", "leeres Feld zeigt als Platzhalter, was es bekommt (12)");
+  await pizza.getByLabel("Betrag für dich").fill("10");
+  await pizza.getByText("Noch 2 € offen").waitFor();
+  check(true, "Summenzeile sagt, was noch offen ist (2 €)");
+  await pizza.getByLabel("Betrag für dich").fill("14");
+  await pizza.getByText("2 € zu viel – zusammen 32 € statt 30 €").waitFor();
+  await pizza.getByRole("button", { name: "Eintragen" }).click();
+  await pizza.getByRole("alert").filter({ hasText: "2 € zu viel" }).waitFor();
+  check(await pizza.getByLabel("Betrag für dich").isVisible(), "zu viel: Formular bleibt offen mit Fehlermeldung, nichts wird gesendet");
+  await pizza.getByLabel("Betrag für dich").fill("12");
+  await pizza.getByText("Passt auf den Cent: zusammen 30 €").waitFor();
+  check(true, "Summenzeile bestätigt: passt auf den Cent");
+  await noOverflow(alice, "Ausgabe eintragen");
+  await shot(alice, "17c-kosten-ungleich");
+  await pizza.getByRole("button", { name: "Eintragen" }).click();
+  await toast(alice, "Ausgabe eingetragen.");
+  await page.getByText("für dich (12 €) und Bob (18 €)").waitFor();
+  check(true, "Eintrag zeigt die Beträge je Person: „für dich (12 €) und Bob (18 €)“");
+  check(await page.getByText("Du bekommst noch 28 €").isVisible(), "Alice bekommt jetzt 28 € (10 € + Bobs 18 €)");
+  await b.reload();
+  await b.getByText("Du gibst noch 28 €").waitFor();
+  check(true, "Bob sieht seinen ungleichen Anteil im Stand: gibt 28 €");
 });
 
 await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
