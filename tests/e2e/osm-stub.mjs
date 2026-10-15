@@ -21,6 +21,10 @@
  * Ersatzserver (Roadmap O1): Mit OSM_STUB_DOWN=1 spielt der Stellvertreter einen ausgefallenen
  * Overpass-Server (504 auf /api/interpreter). Die CI startet ihn so auf Port 8090 und trägt ihn in
  * OVERPASS_URLS vor dem funktionierenden ein – jeder Import muss also über den Ersatz laufen.
+ * Stadtsuche mit Ersatz (Roadmap O2): Ausgefallen antwortet er auch auf /search (Nominatim) mit 503.
+ * Die CI trägt ihn als NOMINATIM_URL ein und den funktionierenden als PHOTON_URL – jede neue Stadt
+ * wird also über Photon (/api, GeoJSON) gefunden. Photon liefert hier dieselben Relationen wie
+ * Nominatim, damit die Overpass-Abfrage dieselbe bleibt.
  * Ohne Abhängigkeiten, nur Node.js.
  */
 import http from "node:http";
@@ -90,6 +94,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/health") return send(res, 200, { ok: true });
 
   if (url.pathname === "/search") {
+    if (DOWN) return send(res, 503, { error: "service_unavailable" });
     const q = (url.searchParams.get("q") ?? "").trim().toLocaleLowerCase("de");
     const city = CITIES.find((c) => c.keys.includes(q));
     if (!city) return send(res, 200, []);
@@ -97,6 +102,20 @@ const server = http.createServer(async (req, res) => {
       place_id: city.osm_id, osm_type: city.osm_type, osm_id: city.osm_id, lat: String(city.lat), lon: String(city.lon),
       name: city.name, display_name: `${city.name}, Deutschland`, category: "boundary", type: "administrative",
     }]);
+  }
+
+  if (url.pathname === "/api") {
+    if (DOWN) return send(res, 503, { error: "service_unavailable" });
+    const q = (url.searchParams.get("q") ?? "").trim().toLocaleLowerCase("de");
+    const city = CITIES.find((c) => c.keys.includes(q));
+    const features = city ? [{
+      type: "Feature", geometry: { type: "Point", coordinates: [city.lon, city.lat] },
+      properties: {
+        osm_type: city.osm_type[0].toUpperCase(), osm_id: city.osm_id, osm_key: "place", osm_value: "city",
+        countrycode: "DE", name: city.name, type: "city",
+      },
+    }] : [];
+    return send(res, 200, { type: "FeatureCollection", features });
   }
 
   if (url.pathname === "/api/interpreter") {

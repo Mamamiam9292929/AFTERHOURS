@@ -52,6 +52,10 @@ interface PlaceSyncHealth {
   last_failure_at: string | null;
   errors: Record<string, number>;
   endpoints: { host: string; attempts: number; ok: number }[];
+  /** O2 – fehlen, solange die Migration noch nicht eingespielt ist. */
+  stages?: { geocode: number; overpass: number };
+  geocode_fallback_runs?: number;
+  geocoders?: { host: string; attempts: number; ok: number }[];
 }
 
 const percentFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
@@ -79,12 +83,13 @@ function PlaceSyncHealthCard() {
         {health.data && health.data.runs === 0 && <p className="text-[15px] text-muted">{tx.empty}</p>}
         {health.data && health.data.runs > 0 && (
           <>
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {[
                 { label: tx.runs, value: formatNumber(health.data.runs) },
                 { label: tx.failed, value: formatNumber(health.data.failed) },
                 { label: tx.rate, value: tx.rateValue(percentFormat.format(health.data.failure_rate ?? 0)) },
                 { label: tx.fallback, value: formatNumber(health.data.fallback_runs) },
+                ...(health.data.geocode_fallback_runs === undefined ? [] : [{ label: tx.geocodeFallback, value: formatNumber(health.data.geocode_fallback_runs) }]),
               ].map((item) => (
                 <div key={item.label}>
                   <dd className="font-display text-[32px] font-extrabold leading-none text-fg">{item.value}</dd>
@@ -98,6 +103,7 @@ function PlaceSyncHealthCard() {
               </Notice>
             )}
             {health.data.last_failure_at && <p className="mt-3 text-[13px] text-muted">{tx.lastFailure(formatDateTime(health.data.last_failure_at))}</p>}
+            {health.data.stages && <p className="mt-3 text-[13px] text-muted">{tx.stages(health.data.stages.geocode, health.data.stages.overpass)}</p>}
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {Object.keys(health.data.errors).length > 0 && (
                 <div>
@@ -116,6 +122,18 @@ function PlaceSyncHealthCard() {
                     {health.data.endpoints.map((endpoint) => (
                       <li key={endpoint.host}>
                         <span className="font-mono text-fg">{endpoint.host}</span> – {tx.endpointLine(endpoint.ok, endpoint.attempts)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {health.data.geocoders && health.data.geocoders.length > 0 && (
+                <div>
+                  <h3 className="text-[13px] font-semibold text-fg">{tx.geocodersTitle}</h3>
+                  <ul className="mt-1 space-y-1 text-[13px] text-muted">
+                    {health.data.geocoders.map((geocoder) => (
+                      <li key={geocoder.host}>
+                        <span className="font-mono text-fg">{geocoder.host === "db" ? tx.geocoderDb : geocoder.host}</span> – {tx.endpointLine(geocoder.ok, geocoder.attempts)}
                       </li>
                     ))}
                   </ul>

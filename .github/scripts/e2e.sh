@@ -43,7 +43,8 @@ setup() {
   gateway=$(docker network inspect "$network" -f '{{(index .IPAM.Config 0).Gateway}}')
   echo "Docker-Netz $network, Gateway $gateway"
   cat >"$LOGS/functions.env" <<EOF
-NOMINATIM_URL=http://$gateway:8089
+NOMINATIM_URL=http://$gateway:8090
+PHOTON_URL=http://$gateway:8089
 OVERPASS_URLS=http://$gateway:8090/api/interpreter,http://$gateway:8089/api/interpreter
 OSM_CONTACT=ci@afterhours.invalid
 EOF

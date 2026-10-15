@@ -259,7 +259,11 @@ export const admin = {
       `Mehr als ${threshold} % der Importe sind gescheitert. Laut Entscheidung vom 14.10.2026 ist das der Punkt, an dem ein eigener OSM-Dienst oder ein kommerzieller Anbieter zu prüfen ist.`,
     lastFailure: (when: string) => `Letzter Fehlschlag: ${when}`,
     errorsTitle: "Fehler nach Art",
-    endpointsTitle: "Server",
+    endpointsTitle: "Overpass-Server",
+    geocodeFallback: "Stadt über Ersatz gefunden",
+    stages: (geocode: number, overpass: number) => `Gescheitert bei der Stadtsuche: ${geocode} · bei Overpass: ${overpass}`,
+    geocodersTitle: "Stadtsuche",
+    geocoderDb: "gespeicherte Stadt",
     endpointLine: (ok: number, attempts: number) => `${ok} von ${attempts} Versuchen erfolgreich`,
     errors: {
       osm_busy: "OSM überlastet",
