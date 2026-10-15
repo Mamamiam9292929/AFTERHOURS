@@ -1430,9 +1430,9 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   await shot(alice, "36c-termin-und-wo");
   await where.getByRole("link", { name: "Ort abstimmen" }).click();
   await page.waitForURL(new RegExp(`/polls/new\\?crew=[0-9a-f-]{36}&date=${d2}$`));
-  await page.getByLabel("Datum", { exact: true }).waitFor();
-  check((await page.getByLabel("Datum", { exact: true }).inputValue()) === d2, "„Und wo?“: Datum des Gewinner-Termins ist eingetragen");
-  check((await page.getByLabel("Uhrzeit", { exact: true }).inputValue()) === "", "„Und wo?“: Termin ohne Uhrzeit bleibt ohne Uhrzeit");
+  await page.getByLabel(/^Datum/).waitFor();
+  check((await page.getByLabel(/^Datum/).inputValue()) === d2, "„Und wo?“: Datum des Gewinner-Termins ist eingetragen");
+  check((await page.getByLabel(/^Uhrzeit/).inputValue()) === "", "„Und wo?“: Termin ohne Uhrzeit bleibt ohne Uhrzeit");
   const weekday = new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long" }).format(new Date(`${d2}T12:00:00Z`));
   check((await page.getByLabel("Frage an die Crew").inputValue()) === `Was machen wir am ${weekday}?`, `„Und wo?“: Frage passt zum Tag (${weekday})`);
   check((await page.getByRole("tab", { name: "Was machen wir?" }).getAttribute("aria-selected")) === "true", "„Und wo?“ ist eine Abstimmung über Orte");
