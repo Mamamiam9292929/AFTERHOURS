@@ -122,7 +122,7 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                 const amount = formatEuro(e.amount_cents);
                 const myShare = e.kind === "expense" ? e.shares.find((s) => s.user_id === userId)?.amount_cents : undefined;
                 // „für dich, Alice und Carol“ – ich zuerst.
-                const people = [...e.shares.map((s) => s.user_id)].sort((a, b) => Number(b === userId) - Number(a === userId));
+                const people = e.shares.map((s) => s.user_id).sort((a, b) => Number(b === userId) - Number(a === userId) || name(a).localeCompare(name(b), "de"));
                 const title = e.kind === "expense" ? (e.description ?? "") : tx.settlementTitle;
                 const detail =
                   e.kind === "expense"
