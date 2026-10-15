@@ -12,12 +12,18 @@
  * Nutzungsregeln der OSM-Dienste: Nominatim höchstens 1 Anfrage/Sekunde mit erkennbarer Kennung,
  * Overpass für moderate Last. Deshalb werden Städte nur einmal importiert und 30 Tage zwischengespeichert.
  * Für den Produktivbetrieb mit vielen Nutzern: eigene Overpass-Instanz oder kommerziellen Anbieter
- * über OVERPASS_URL / NOMINATIM_URL eintragen.
+ * über OVERPASS_URLS / NOMINATIM_URL eintragen.
+ *
+ * Ersatzserver (Roadmap O1): Hängt ein Overpass-Server, fragt overpass.ts den nächsten. Jeder Import,
+ * der OSM erreicht hat oder daran gescheitert ist, landet mit allen Versuchen in `place_sync_runs`
+ * (record_place_sync_run); Admins sehen die Fehlerquote über admin_place_sync_health.
  *
  * Secrets / Umgebung (alle optional):
  *   OSM_CONTACT    E-Mail oder Website für die Kennung gegenüber OSM (Pflicht laut Nominatim-Regeln
  *                  im Produktivbetrieb), z. B. "kontakt@example.de"
- *   OVERPASS_URL   Standard: https://overpass-api.de/api/interpreter
+ *   OVERPASS_URLS  Komma-getrennte Liste, der Reihe nach gefragt (höchstens 4). Standard:
+ *                  overpass-api.de, dann overpass.private.coffee (beide öffentlich, siehe overpass.ts)
+ *   OVERPASS_URL   ein einzelner Server (älter, gilt nur ohne OVERPASS_URLS)
  *   NOMINATIM_URL  Standard: https://nominatim.openstreetmap.org
  *   ALLOWED_ORIGIN Standard: *
  * Deploy: supabase functions deploy places
@@ -25,6 +31,7 @@
  * Datenlizenz: © OpenStreetMap-Mitwirkende, ODbL 1.0 – die App nennt die Quelle bei jedem Ort.
  */
 import { buildOverpassQuery, selectPlaces, type OsmElement, type SearchArea } from "./osm.ts";
+import { OverpassError, overpassEndpoints, queryOverpass, type Attempt } from "./overpass.ts";
 
 const BATCH_SIZE = 1000;
 
@@ -92,22 +99,25 @@ async function geocode(city: string): Promise<GeocodeResult> {
   return { name: hit.name.trim().slice(0, 80), osmType, osmId: hit.osm_id, lat: Number(hit.lat), lon: Number(hit.lon) };
 }
 
-async function overpass(area: SearchArea): Promise<OsmElement[]> {
-  const url = Deno.env.get("OVERPASS_URL") ?? "https://overpass-api.de/api/interpreter";
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "User-Agent": userAgent(), "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-    body: new URLSearchParams({ data: buildOverpassQuery(area) }),
-    signal: AbortSignal.timeout(120_000),
-  }).catch(() => null);
-  if (!response) throw new Failure("osm_unavailable", 502);
-  if (response.status === 429 || response.status === 504) throw new Failure("osm_busy", 503);
-  if (!response.ok) throw new Failure("osm_unavailable", 502);
-  const data = (await response.json().catch(() => null)) as { elements?: OsmElement[]; remark?: string } | null;
-  if (!data || !Array.isArray(data.elements)) throw new Failure("osm_unavailable", 502);
-  // Overpass meldet Zeitüberschreitungen mit Status 200 und einem Hinweis statt Daten.
-  if (data.remark && /error|timed out|out of memory/i.test(data.remark)) throw new Failure("osm_busy", 503);
-  return data.elements;
+async function overpass(area: SearchArea, attempts: Attempt[]): Promise<OsmElement[]> {
+  try {
+    const result = await queryOverpass(overpassEndpoints(Deno.env), {
+      buildQuery: (timeoutSeconds) => buildOverpassQuery(area, timeoutSeconds),
+      parse: (data) => {
+        const elements = (data as { elements?: unknown }).elements;
+        return Array.isArray(elements) ? (elements as OsmElement[]) : null;
+      },
+      userAgent: userAgent(),
+    });
+    attempts.push(...result.attempts);
+    return result.data;
+  } catch (error) {
+    if (error instanceof OverpassError) {
+      attempts.push(...error.attempts);
+      throw new Failure(error.code, error.code === "osm_busy" ? 503 : 502);
+    }
+    throw error;
+  }
 }
 
 function userIdFromToken(authorization: string): string | null {
@@ -145,31 +155,48 @@ Deno.serve(async (req) => {
   if (city.length < 2 || city.length > 80) return json({ error: "invalid_city" }, 400, origin);
 
   let region: { id: string; started_at?: string } | null = null;
+  // Import-Protokoll (O1): nur Importe, die OSM tatsächlich gefragt haben.
+  let contactedOsm = false;
+  let syncStarted = 0;
+  const attempts: Attempt[] = [];
+  const record = (outcome: "ready" | "failed", error: string | null) =>
+    contactedOsm
+      ? rpc(supabaseUrl, serviceHeaders, "record_place_sync_run", {
+        p_city: city, p_region: region?.id ?? null, p_outcome: outcome, p_error: error,
+        p_attempts: attempts, p_duration_ms: Math.round(Date.now() - syncStarted),
+      }).catch(() => undefined)
+      : Promise.resolve(undefined);
   try {
     // 1. Nötig? Und darf diese Person gerade einen Import auslösen?
     const check = (await rpc(supabaseUrl, userHeaders, "request_place_sync", { p_city: city })) as { action: string };
     if (check.action !== "sync") return json({ status: check.action, region: check }, 200, origin);
 
     // 2.–3. Stadt finden und sperren.
+    contactedOsm = true;
+    syncStarted = Date.now();
     const place = await geocode(city);
     const begin = (await rpc(supabaseUrl, serviceHeaders, "begin_place_sync", {
       p_query: city, p_name: place.name, p_osm_type: place.osmType, p_osm_id: place.osmId,
       p_latitude: place.lat, p_longitude: place.lon, p_user: userIdFromToken(authorization),
     })) as { action: string; id: string; name: string; started_at?: string };
-    if (begin.action !== "sync") return json({ status: begin.action, region: begin }, 200, origin);
+    if (begin.action !== "sync") {
+      contactedOsm = false; // ein anderer Import lief schon – zählt dort
+      return json({ status: begin.action, region: begin }, 200, origin);
+    }
     region = begin;
 
     // 4. Orte abfragen. Kleine Orte (nur als Punkt erfasst) werden im Umkreis von 4 km gesucht.
     const area: SearchArea = place.osmType === "node"
       ? { kind: "around", lat: place.lat, lon: place.lon, radiusM: 4000 }
       : { kind: "area", osmType: place.osmType, osmId: place.osmId };
-    const places = selectPlaces(await overpass(area), begin.name);
+    const places = selectPlaces(await overpass(area, attempts), begin.name);
 
     // 5. Schreiben und abschließen.
     for (let i = 0; i < places.length; i += BATCH_SIZE) {
       await rpc(supabaseUrl, serviceHeaders, "ingest_place_batch", { p_region: begin.id, p_started: begin.started_at, p_places: places.slice(i, i + BATCH_SIZE) });
     }
     const done = await rpc(supabaseUrl, serviceHeaders, "complete_place_sync", { p_region: begin.id, p_started: begin.started_at });
+    await record("ready", null);
     return json({ status: "ready", region: done }, 200, origin);
   } catch (error) {
     const failure = error instanceof Failure ? error : new Failure("internal_error", 500);
@@ -177,6 +204,8 @@ Deno.serve(async (req) => {
     if (region?.started_at) {
       await rpc(supabaseUrl, serviceHeaders, "fail_place_sync", { p_region: region.id, p_started: region.started_at, p_error: failure.code }).catch(() => undefined);
     }
+    // Eine unbekannte Stadt ist kein Ausfall von OSM.
+    if (failure.code !== "city_not_found") await record("failed", failure.code);
     return json({ error: failure.code }, failure.status, origin);
   }
 });

@@ -166,9 +166,23 @@ export function startOfflineCache(queryClient: QueryClient, owner: string): void
     }
     if (timer === null) timer = setTimeout(save, SAVE_DELAY_MS);
   });
+  // Wird die Seite verlassen (neu laden, App schließen, in den Hintergrund), bevor die Verzögerung
+  // abgelaufen ist, sofort speichern – sonst ginge der zuletzt geladene Stand verloren.
+  const flush = () => {
+    if (timer === null) return;
+    clearTimeout(timer);
+    save();
+  };
+  const flushWhenHidden = () => {
+    if (document.visibilityState === "hidden") flush();
+  };
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", flushWhenHidden);
   unsubscribe = () => {
     unsubscribeCache();
     window.removeEventListener("offline", restore);
+    window.removeEventListener("pagehide", flush);
+    document.removeEventListener("visibilitychange", flushWhenHidden);
   };
 }
 

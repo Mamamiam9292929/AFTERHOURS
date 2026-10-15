@@ -25,6 +25,9 @@ setup() {
   # 1. OSM-Stellvertreter auf dem Host (für die Edge Function im Docker-Netz erreichbar).
   nohup node tests/e2e/osm-stub.mjs >"$LOGS/osm-stub.log" 2>&1 &
   wait_for "OSM-Stellvertreter" 15 curl -sf http://127.0.0.1:8089/health
+  # O1: zweiter Stellvertreter als ausgefallener Overpass-Hauptserver (antwortet mit 504).
+  OSM_STUB_PORT=8090 OSM_STUB_DOWN=1 nohup node tests/e2e/osm-stub.mjs >"$LOGS/osm-stub-down.log" 2>&1 &
+  wait_for "OSM-Stellvertreter (ausgefallen)" 15 curl -sf http://127.0.0.1:8090/health
 
   # 2. Supabase ohne Dienste, die die Journey nicht braucht.
   supabase start -x studio,imgproxy,storage-api,logflare,vector,supavisor,postgres-meta
@@ -41,7 +44,7 @@ setup() {
   echo "Docker-Netz $network, Gateway $gateway"
   cat >"$LOGS/functions.env" <<EOF
 NOMINATIM_URL=http://$gateway:8089
-OVERPASS_URL=http://$gateway:8089/api/interpreter
+OVERPASS_URLS=http://$gateway:8090/api/interpreter,http://$gateway:8089/api/interpreter
 OSM_CONTACT=ci@afterhours.invalid
 EOF
   nohup supabase functions serve --env-file "$LOGS/functions.env" >"$LOGS/functions.log" 2>&1 &
@@ -57,7 +60,7 @@ EOF
 }
 
 logs() {
-  for file in functions.log osm-stub.log preview.log; do
+  for file in functions.log osm-stub.log osm-stub-down.log preview.log; do
     [ -f "$LOGS/$file" ] || continue
     msg=$(tail -n 40 "$LOGS/$file" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
     echo "::error title=Protokoll $file::$msg"

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { IconInfo } from "@/components/icons";
+import { IconInfo, IconWarning } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Controls";
@@ -38,6 +38,94 @@ function Overview() {
         </div>
       ))}
     </dl>
+  );
+}
+
+interface PlaceSyncHealth {
+  days: number;
+  runs: number;
+  failed: number;
+  failure_rate: number | null;
+  threshold: number;
+  over_threshold: boolean;
+  fallback_runs: number;
+  last_failure_at: string | null;
+  errors: Record<string, number>;
+  endpoints: { host: string; attempts: number; ok: number }[];
+}
+
+const percentFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
+
+/** Roadmap O1: Wie oft scheitert der Import neuer Städte, und springt der Ersatzserver ein? */
+function PlaceSyncHealthCard() {
+  const health = useQuery({
+    queryKey: [...qk.admin, "place-sync-health"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("admin_place_sync_health", { p_days: 7 });
+      if (error) throw error;
+      return data as PlaceSyncHealth;
+    },
+  });
+  const tx = t.admin.placeSync;
+  return (
+    <section aria-labelledby="place-sync-title" className="mt-6 rounded-card border border-line bg-surface p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="place-sync-title" className="font-display text-[22px] font-extrabold uppercase leading-none text-fg">{tx.title}</h2>
+        <p className="text-[13px] text-muted">{tx.period(health.data?.days ?? 7)}</p>
+      </div>
+      <div className="mt-4">
+        {health.isPending && <ListSkeleton rows={1} height="h-16" />}
+        {health.isError && <ErrorState error={health.error} onRetry={() => void health.refetch()} />}
+        {health.data && health.data.runs === 0 && <p className="text-[15px] text-muted">{tx.empty}</p>}
+        {health.data && health.data.runs > 0 && (
+          <>
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: tx.runs, value: formatNumber(health.data.runs) },
+                { label: tx.failed, value: formatNumber(health.data.failed) },
+                { label: tx.rate, value: tx.rateValue(percentFormat.format(health.data.failure_rate ?? 0)) },
+                { label: tx.fallback, value: formatNumber(health.data.fallback_runs) },
+              ].map((item) => (
+                <div key={item.label}>
+                  <dd className="font-display text-[32px] font-extrabold leading-none text-fg">{item.value}</dd>
+                  <dt className="mt-1 text-[13px] text-muted">{item.label}</dt>
+                </div>
+              ))}
+            </dl>
+            {health.data.over_threshold && (
+              <Notice tone="amber" icon={<IconWarning aria-hidden />} className="mt-4">
+                {tx.overThreshold(health.data.threshold)}
+              </Notice>
+            )}
+            {health.data.last_failure_at && <p className="mt-3 text-[13px] text-muted">{tx.lastFailure(formatDateTime(health.data.last_failure_at))}</p>}
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {Object.keys(health.data.errors).length > 0 && (
+                <div>
+                  <h3 className="text-[13px] font-semibold text-fg">{tx.errorsTitle}</h3>
+                  <ul className="mt-1 space-y-1 text-[13px] text-muted">
+                    {Object.entries(health.data.errors).map(([code, n]) => (
+                      <li key={code}>{tx.errors[code] ?? code}: {formatNumber(n)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {health.data.endpoints.length > 0 && (
+                <div>
+                  <h3 className="text-[13px] font-semibold text-fg">{tx.endpointsTitle}</h3>
+                  <ul className="mt-1 space-y-1 text-[13px] text-muted">
+                    {health.data.endpoints.map((endpoint) => (
+                      <li key={endpoint.host}>
+                        <span className="font-mono text-fg">{endpoint.host}</span> – {tx.endpointLine(endpoint.ok, endpoint.attempts)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -213,7 +301,12 @@ export function AdminPage() {
         ]}
       />
       <div className="mt-6" role="tabpanel">
-        {tab === "overview" && <Overview />}
+        {tab === "overview" && (
+          <>
+            <Overview />
+            <PlaceSyncHealthCard />
+          </>
+        )}
         {tab === "activities" && <Activities />}
         {tab === "reports" && <Reports />}
         {tab === "audit" && <AuditLog />}
