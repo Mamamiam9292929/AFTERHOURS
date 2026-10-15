@@ -57,7 +57,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | P11 | Englische Oberfläche | Gemischte Freundeskreise, Expats | M | – | Freigegeben |
 | P12 | Anmeldung mit Google und Apple | Weniger Hürden bei der Registrierung | S | Entwicklerkonten bei Google/Apple, Schlüssel als Secret | Freigegeben |
 | P13 | Live-Standort nur während eines Plans (Opt-in, verfällt automatisch) | Treffpunkt finden, ohne Dauertracking | L | Datenschutz-Konzept, Einwilligung, Aufbewahrung | Freigegeben |
-| O1 | OSM-Import robuster: Ersatzserver für Overpass bei Zeitüberschreitung oder 429 (z. B. weiterer öffentlicher Mirror, per `OVERPASS_URLS` einstellbar), Fehlschläge des Imports zählen und in einer Tabelle mitschreiben. Akzeptanz: Test mit ausgefallenem Hauptserver importiert über den Ersatz; Fehlerquote abfragbar | Neue Städte laden auch, wenn ein OSM-Server hängt; Grundlage für die Entscheidung über einen eigenen Dienst | S | – | Freigegeben |
+| O1 | OSM-Import robuster: Ersatzserver für Overpass bei Zeitüberschreitung oder 429 (z. B. weiterer öffentlicher Mirror, per `OVERPASS_URLS` einstellbar), Fehlschläge des Imports zählen und in einer Tabelle mitschreiben. Akzeptanz: Test mit ausgefallenem Hauptserver importiert über den Ersatz; Fehlerquote abfragbar | Neue Städte laden auch, wenn ein OSM-Server hängt; Grundlage für die Entscheidung über einen eigenen Dienst | S | – | PR offen |
 
 ## Für Benito (braucht Konto, Geld oder eine Entscheidung)
 
