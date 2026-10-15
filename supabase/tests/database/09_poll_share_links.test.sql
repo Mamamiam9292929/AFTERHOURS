@@ -69,7 +69,7 @@ select is((tests.var('preview')::jsonb #>> '{poll,option_count}')::int, 3, 'Zahl
 select is((tests.var('preview')::jsonb #>> '{poll,voter_count}')::int, 2, 'Zahl der Personen, die abgestimmt haben (nicht der Stimmen)');
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(tests.var('preview')::jsonb -> 'poll') k),
-  array['ends_at', 'guests', 'option_count', 'status', 'title', 'voter_count'], 'von der Abstimmung nur Frage, Frist, Stand, zwei Zahlen und ob Gäste mitstimmen dürfen (W3)');
+  array['ends_at', 'guests', 'kind', 'option_count', 'status', 'title', 'voter_count'], 'von der Abstimmung nur Frage, Frist, Stand, zwei Zahlen, ob Gäste mitstimmen dürfen (W3) und die Art (P1)');
 select is(tests.var('preview')::jsonb #>> '{poll,guests}', 'false', 'Gäste dürfen standardmäßig nicht mitstimmen');
 select ok(tests.var('preview')::jsonb -> 'poll_id' = 'null'::jsonb, 'ohne Konto keine Abstimmungs-ID');
 select ok(tests.var('preview') !~ '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', 'die Vorschau enthält keine einzige ID');

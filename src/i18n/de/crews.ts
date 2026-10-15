@@ -32,6 +32,8 @@ export const crews = {
     tabs: { overview: "Übersicht", chat: "Chat", members: "Mitglieder", settings: "Einstellungen", label: "Bereich" },
     invite: "Einladen",
     startPoll: "Abstimmung starten",
+    /** P1 Etappe 2: Termin-Abstimmung direkt aus der Crew. */
+    findDate: "Termin finden",
     createPlan: "Plan erstellen",
     activePolls: "Laufende Abstimmungen",
     upcomingPlans: "Anstehende Pläne",

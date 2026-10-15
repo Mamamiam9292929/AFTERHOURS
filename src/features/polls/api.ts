@@ -3,7 +3,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
-import type { PollVote, VoteResponse } from "@/lib/types";
+import type { PollKind, PollVote, VoteResponse } from "@/lib/types";
 import type { PollWithDetails } from "./logic";
 
 // Der FK-Hinweis ist nötig, weil polls und poll_options doppelt verbunden sind (poll_id und winning_option_id).
@@ -269,7 +269,17 @@ export function usePollShareToken(pollId: string | undefined, enabled = true) {
 export type SharedPollPreview =
   | {
       status: "valid";
-      poll: { title: string; ends_at: string; status: "open" | "closed"; option_count: number; voter_count: number; guests?: boolean };
+      poll: {
+        title: string;
+        ends_at: string;
+        status: "open" | "closed";
+        option_count: number;
+        voter_count: number;
+        guests?: boolean;
+        /** P1 Etappe 2: Art; bei Termin-Abstimmungen zusätzlich die Termine (Datum, Uhrzeit oder null). */
+        kind?: PollKind;
+        dates?: { date: string; time: string | null }[];
+      };
       /** Nur für Mitglieder der Crew – sonst null. */
       poll_id: string | null;
     }
@@ -327,7 +337,7 @@ export interface BallotOption {
 export type SharedPollBallot =
   | {
       status: "valid";
-      poll: { title: string; ends_at: string; open: boolean; can_join?: boolean };
+      poll: { title: string; ends_at: string; open: boolean; can_join?: boolean; kind?: PollKind };
       options: BallotOption[];
       me: { name: string; votes: Record<string, VoteResponse> } | null;
     }

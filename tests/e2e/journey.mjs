@@ -1338,9 +1338,13 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   const [d1, d2] = [berlinDate(10), berlinDate(11)];
   const [l1, l2] = [label(d1), label(d2)];
 
-  await page.goto(`${APP}/polls/new?crew=${ids.crew}`);
-  await page.getByRole("tab", { name: "Wann könnt ihr?" }).click();
+  // P1 Etappe 2: „Termin finden“ direkt auf der Crew-Seite öffnet die Termin-Abstimmung.
+  await page.goto(`${APP}/crews/${ids.crew}`);
+  await page.getByRole("link", { name: "Termin finden" }).click();
+  await page.waitForURL(/\/polls\/new\?crew=[0-9a-f-]{36}&kind=date/);
   await page.getByLabel(/^Termin \d+$/).first().waitFor();
+  check((await page.getByRole("tab", { name: "Wann könnt ihr?" }).getAttribute("aria-selected")) === "true", "Crew-Seite: „Termin finden“ öffnet direkt „Wann könnt ihr?“");
+  await page.getByRole("tab", { name: "Wann könnt ihr?" }).click();
   check((await page.getByLabel("Frage an die Crew").inputValue()) === "Wann könnt ihr?", "Termin-Abstimmung: Titelvorschlag „Wann könnt ihr?“");
   check((await page.getByLabel(/^Termin \d+$/).count()) === 3, "drei Termine sind vorgeschlagen (nächstes Wochenende und der Freitag danach)");
   check((await page.getByLabel("Budget pro Person").count()) === 0, "keine Orts-Felder (Budget, Kosten) bei Terminen");
@@ -1373,11 +1377,67 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   check(true, "Bob sagt, wann er kann – wie bei jeder Abstimmung");
   await shot(bob, "36-termin-abstimmung");
 
+  // P1 Etappe 2: Teilen – Messenger-Vorschau mit den Terminen, Stimmzettel für Gäste fragt „Wann kannst du?“.
+  const tokenLoaded = page.waitForResponse((r) => r.url().includes("/rpc/poll_share_token") && r.ok());
+  await page.reload();
+  await tokenLoaded;
+  await stubShare(page);
+  await page.getByRole("button", { name: "Abstimmung teilen" }).click();
+  const dateShareUrl = (await sharedData(page))[0]?.url ?? "";
+  await unstubShare(page);
+  check(/\/v\/[0-9a-f]{32}$/.test(dateShareUrl), `Termin-Abstimmung teilen: eigener Link (${dateShareUrl})`);
+  const short = (date) => `${["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][new Date(`${date}T12:00:00Z`).getUTCDay()]} ${date.slice(8, 10)}.${date.slice(5, 7)}.`;
+  if (ANON) {
+    const response = await handleShare(new Request(dateShareUrl), { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON }, fetch);
+    const head = (await response.text()).split("</head>")[0];
+    const expected = `2 Termine zur Wahl: ${short(d1)} 20:00, ${short(d2)} · 1 hat abgestimmt · Abstimmen bis `;
+    check(head.includes(`<meta property="og:description" content="${expected}`) && /Wann kannst du\?" \/>/.test(head), `Vorschau im Messenger zeigt die Termine und fragt „Wann kannst du?“ (${expected})`);
+    check(!/Alice|Bob|example\.test/.test(head), "Vorschau der Termine: keine Namen");
+  }
+  const guestsToggle = page.getByRole("switch", { name: /Gäste dürfen mitstimmen/ });
+  await guestsToggle.click();
+  await toast(alice, "Gäste können jetzt über den geteilten Link mitstimmen.");
+  const ida = await newUser("Ida", "mobile");
+  try {
+    await ida.page.goto(dateShareUrl);
+    await ida.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
+    check(await ida.page.getByText("Wann kannst du?", { exact: true }).isVisible(), "Gast-Stimmzettel fragt „Wann kannst du?“");
+    const dateList = ida.page.getByTestId("shared-poll-dates");
+    const dates = await dateList.innerText();
+    check(/20:00 Uhr/.test(dates) && (await dateList.getByRole("listitem").count()) === 2, `Karte zeigt beide Termine („${dates.replace(/\s+/g, " ")}“)`);
+    check(await ida.page.getByText(/Uhrzeit offen/).first().isVisible(), "Termin ohne Uhrzeit: „Uhrzeit offen“ statt doppeltem Datum");
+    await answer(ida, l2, "Bin dabei").click();
+    await answer(ida, l1, "Vielleicht").click();
+    await ida.page.getByLabel("Dein Name").fill("Ida");
+    await shot(ida, "36b-termin-stimmzettel-gast");
+    await ida.page.getByRole("button", { name: "Abstimmen" }).click();
+    await ida.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Ida" }).waitFor();
+    check(true, "Gast stimmt über Termine ab");
+  } finally {
+    users.splice(users.indexOf(ida), 1);
+    await ida.context.close();
+  }
+
   await page.reload();
   await page.getByRole("button", { name: "Abstimmung beenden" }).click();
   await dialog(alice).getByRole("button", { name: "Abstimmung beenden" }).click();
   await page.getByRole("heading", { name: `Es wird ${l2}` }).waitFor();
   check(true, "der Termin mit den meisten Zusagen gewinnt");
+
+  // P1 Etappe 2: „Und wo?“ – Orts-Abstimmung mit dem Gewinner-Termin, ohne ihn neu einzutippen.
+  const where = page.getByTestId("poll-where");
+  await where.getByText("Und wo?").waitFor();
+  await shot(alice, "36c-termin-und-wo");
+  await where.getByRole("link", { name: "Ort abstimmen" }).click();
+  await page.waitForURL(new RegExp(`/polls/new\\?crew=[0-9a-f-]{36}&date=${d2}$`));
+  await page.getByLabel("Datum", { exact: true }).waitFor();
+  check((await page.getByLabel("Datum", { exact: true }).inputValue()) === d2, "„Und wo?“: Datum des Gewinner-Termins ist eingetragen");
+  check((await page.getByLabel("Uhrzeit", { exact: true }).inputValue()) === "", "„Und wo?“: Termin ohne Uhrzeit bleibt ohne Uhrzeit");
+  const weekday = new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long" }).format(new Date(`${d2}T12:00:00Z`));
+  check((await page.getByLabel("Frage an die Crew").inputValue()) === `Was machen wir am ${weekday}?`, `„Und wo?“: Frage passt zum Tag (${weekday})`);
+  check((await page.getByRole("tab", { name: "Was machen wir?" }).getAttribute("aria-selected")) === "true", "„Und wo?“ ist eine Abstimmung über Orte");
+  await page.goBack();
+  await page.getByRole("heading", { name: `Es wird ${l2}` }).waitFor();
   await page.getByRole("button", { name: "Plan erstellen" }).click();
   check((await dialog(alice).getByLabel("Titel").inputValue()) === "", "Plan aus Terminen: Titel ist leer statt des Datums");
   check((await dialog(alice).getByLabel("Datum").inputValue()) === d2, "Plan übernimmt das Datum des Gewinner-Termins");

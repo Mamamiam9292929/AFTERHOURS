@@ -15,7 +15,7 @@ import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { addDays, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
-import type { Activity } from "@/lib/types";
+import type { Activity, PollKind } from "@/lib/types";
 import { ActivityPicker } from "./ActivityPicker";
 import { useCreateDatePoll, useCreatePoll, type PollOptionInput } from "./api";
 import { MAX_POLL_OPTIONS, usePollDraft } from "./draft";
@@ -31,7 +31,6 @@ interface OptionRow {
 }
 
 type EndPreset = "twoHours" | "tonight" | "tomorrow" | "custom";
-type PollKind = "place" | "date";
 
 /** P1: ein Termin der Termin-Abstimmung (Uhrzeit optional). */
 interface SlotRow {
@@ -41,6 +40,17 @@ interface SlotRow {
 }
 const MIN_DATE_SLOTS = 2;
 const MAX_DATE_SLOTS = 10;
+
+/** Datum aus dem Link nur, wenn es gültig ist und nicht in der Vergangenheit liegt. */
+function linkedDate(value: string | null): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !zonedToUtc(value, "12:00")) return null;
+  return value >= today() ? value : null;
+}
+
+/** Uhrzeit aus dem Link; fehlt sie (Termin ohne Uhrzeit), bleibt sie offen statt erfunden. */
+function linkedTime(value: string | null): string {
+  return value && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : "";
+}
 
 let rowCounter = 0;
 const newKey = () => `opt-${++rowCounter}`;
@@ -61,8 +71,9 @@ export function PollCreatePage() {
     return [friday, nextWeekday("sat", true), addDays(friday, 7)].map((date) => ({ key: newKey(), date, time: "19:00" }));
   });
   const [crewId, setCrewId] = useState(params.get("crew") ?? "");
-  const [sharedDate, setSharedDate] = useState(() => nextWeekday("sat", true));
-  const [sharedTime, setSharedTime] = useState("19:00");
+  // P1 Etappe 2: „Und wo?“ nach einer Termin-Abstimmung bringt den Gewinner-Termin mit (?date=…&time=…).
+  const [sharedDate, setSharedDate] = useState(() => linkedDate(params.get("date")) ?? nextWeekday("sat", true));
+  const [sharedTime, setSharedTime] = useState(() => (linkedDate(params.get("date")) ? linkedTime(params.get("time")) : "19:00"));
   const [title, setTitle] = useState("");
   const titleTouched = useRef(false);
   const [options, setOptions] = useState<OptionRow[]>(() =>

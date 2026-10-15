@@ -94,7 +94,7 @@ export function SharedPollPage() {
       <ButtonLink to="/register" size="lg" block>
         {t.polls.shared.register}
       </ButtonLink>
-      <p className="mt-4 text-[13px] leading-snug text-faint">{t.polls.shared.privacy}</p>
+      <p className="mt-4 text-[13px] leading-snug text-faint">{result.poll.kind === "date" ? t.polls.shared.privacyDates : t.polls.shared.privacy}</p>
     </AuthLayout>
   );
 }
@@ -128,11 +128,12 @@ function SharedPollTicket({ data }: { data: Valid }) {
             <p className="mt-2 text-[15px] font-semibold text-fg">
               {open ? t.polls.shared.until(formatDateTime(poll.ends_at)) : t.polls.shared.closedOn(formatDateTime(poll.ends_at))}
             </p>
+            {poll.kind === "date" && poll.dates && poll.dates.length > 0 && <SlotList dates={poll.dates} />}
           </div>
           <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 border-t border-dashed border-line pt-4 text-[15px] font-semibold text-muted">
             <p className="flex items-baseline gap-1.5">
               <span className="font-display text-[34px] font-extrabold leading-none text-fg">{poll.option_count}</span>
-              {t.polls.shared.options(poll.option_count)}
+              {t.polls.shared.options(poll.option_count, poll.kind)}
             </p>
             <p className="flex items-baseline gap-1.5">
               {poll.voter_count > 0 && <span className="font-display text-[34px] font-extrabold leading-none text-lime">{poll.voter_count}</span>}
@@ -145,9 +146,28 @@ function SharedPollTicket({ data }: { data: Valid }) {
   );
 }
 
+/** P1 Etappe 2 · Termine einer Termin-Abstimmung als kleine Abrisse – sie verraten weder Namen noch Orte. */
+function SlotList({ dates }: { dates: { date: string; time: string | null }[] }) {
+  return (
+    <div className="mt-4">
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{t.polls.shared.datesLabel}</p>
+      <ul className="mt-2 flex flex-wrap gap-2" data-testid="shared-poll-dates">
+        {dates.map((slot) => (
+          <li key={`${slot.date}-${slot.time ?? ""}`} className="rounded-control border border-dashed border-line-strong bg-raised/60 px-3 py-1.5 text-[13px] font-semibold text-fg">
+            {formatPlainDate(slot.date)}
+            {slot.time && <span className="font-normal text-muted"> · {formatPlainTime(slot.time)}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 const RESPONSES: VoteResponse[] = ["yes", "maybe", "no"];
 
-function optionWhen(option: BallotOption): string {
+function optionWhen(option: BallotOption, isDate: boolean): string {
+  // P1: Bei Termin-Abstimmungen ist der Titel schon das Datum – darunter nur die Uhrzeit.
+  if (isDate) return option.proposed_time ? formatPlainTime(option.proposed_time) : t.polls.shared.ballot.dates.timeOpen;
   if (!option.proposed_date) return t.polls.shared.ballot.dateOpen;
   const date = formatPlainDate(option.proposed_date);
   return option.proposed_time ? `${date}, ${formatPlainTime(option.proposed_time)}` : date;
@@ -200,12 +220,13 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
   }
 
   const open = loaded.poll.open;
+  const isDate = (loaded.poll.kind ?? data.poll.kind) === "date";
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!loaded) return;
     const next = {
       name: name.trim().replace(/\s+/g, " ").length < 2 ? t.polls.shared.ballot.nameMissing : null,
-      answers: !me && !Object.values(answers).some(Boolean) ? t.polls.shared.ballot.noAnswer : null,
+      answers: !me && !Object.values(answers).some(Boolean) ? (isDate ? t.polls.shared.ballot.dates.noAnswer : t.polls.shared.ballot.noAnswer) : null,
     };
     setErrors(next);
     setSaved(false);
@@ -218,11 +239,11 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
     <AuthLayout
       hero={<SharedPollTicket data={data} />}
       title={!open ? t.polls.shared.ballot.closedTitle : me ? t.polls.shared.ballot.changeTitle(me.name) : t.polls.shared.ballot.title}
-      intro={!open ? t.polls.shared.ballot.closedIntro : me ? t.polls.shared.ballot.changeIntro : t.polls.shared.ballot.intro}
+      intro={!open ? t.polls.shared.ballot.closedIntro : me ? t.polls.shared.ballot.changeIntro : isDate ? t.polls.shared.ballot.dates.intro : t.polls.shared.ballot.intro}
     >
       <form onSubmit={submit} noValidate className="space-y-5">
         <fieldset className="space-y-3" aria-describedby={errors.answers ? "ballot-answers-error" : undefined}>
-          <legend className="mb-3 text-[15px] font-bold text-fg">{t.polls.shared.ballot.options}</legend>
+          <legend className="mb-3 text-[15px] font-bold text-fg">{isDate ? t.polls.shared.ballot.dates.options : t.polls.shared.ballot.options}</legend>
           {loaded.options.map((option) => {
             const key = String(option.key);
             const mine = answers[key] ?? null;
@@ -230,7 +251,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
               <div key={key} className={cn("rounded-card border bg-surface p-4", mine === "yes" ? "border-lime" : "border-line")}>
                 <p className="display break-words text-[24px] uppercase text-fg">{option.title}</p>
                 <p className="mt-1 text-sm text-muted">
-                  {optionWhen(option)} · {t.polls.shared.ballot.counts(option.yes, option.maybe)}
+                  {optionWhen(option, isDate)} · {t.polls.shared.ballot.counts(option.yes, option.maybe)}
                 </p>
                 {open && (
                   <div role="radiogroup" aria-label={t.polls.shared.ballot.answerFor(option.title)} className="mt-3 grid grid-cols-3 gap-2">
