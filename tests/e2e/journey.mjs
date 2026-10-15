@@ -652,7 +652,9 @@ await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () =>
   check((await toggle.getAttribute("aria-checked")) === "false", "Gäste sind standardmäßig nicht zugelassen");
   await toggle.click();
   await toast(alice, "Gäste können jetzt über den geteilten Link mitstimmen.");
-  check(await alice.page.getByText("Gäste stimmen mit", { exact: true }).isVisible(), "Abstimmung zeigt „Gäste stimmen mit“");
+  // Die Kennzeichnung erscheint erst nach dem Neuladen der Abstimmung – warten statt sofort prüfen.
+  await alice.page.getByText("Gäste stimmen mit", { exact: true }).waitFor();
+  check(true, "Abstimmung zeigt „Gäste stimmen mit“");
   const joinToggle = alice.page.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ });
   check((await joinToggle.getAttribute("aria-checked")) === "false", "W3 Etappe 3: Beitritt für Gäste ist standardmäßig aus");
 
@@ -1836,6 +1838,10 @@ await step("W4 – Installierbar, offline lesbar, neue Version, Zähler am App-I
     await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
     await page.waitForFunction((id) => (JSON.parse(localStorage.getItem("afterhours.offline") ?? "null")?.entries ?? []).some((e) => e.key[0] === "plans" && e.key[1] === id), ids.plan);
   }
+  // Die Planliste wird unabhängig vom einzelnen Plan gespeichert – kurz darauf warten statt sofort prüfen.
+  await page
+    .waitForFunction(() => (JSON.parse(localStorage.getItem("afterhours.offline") ?? "null")?.entries ?? []).some((e) => e.key.length === 1 && e.key[0] === "plans"), null, { timeout: 15_000 })
+    .catch(() => undefined);
   const keys = await storedKeys();
   check(keys.some((key) => key.length === 1 && key[0] === "plans"), "Planliste liegt für offline auf dem Gerät");
   check(keys.every((key) => ["plans", "crews", "profile", "polls", "activities", "people"].includes(key[0]) && !["invitations", "messages", "bookings", "rides", "search"].includes(key[2] ?? key[1])), `auf dem Gerät nur Pläne, Crews, Namen, Orte, Abstimmungen – keine Einladungslinks, Chats oder Einstellungen (${keys.map((k) => k[0]).join(", ")})`);
