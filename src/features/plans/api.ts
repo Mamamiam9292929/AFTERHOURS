@@ -3,7 +3,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
-import type { AttendanceStatus, BookingRequest, BookingStatus, Plan, PlanParticipant, PlanStatus, RideOffer, RideRequest } from "@/lib/types";
+import type { AttendanceStatus, BookingRequest, BookingStatus, Plan, PlanExpense, PlanExpenseShare, PlanParticipant, PlanStatus, RideOffer, RideRequest } from "@/lib/types";
 
 export interface PlanWithParticipants extends Plan {
   participants: PlanParticipant[];
@@ -326,6 +326,70 @@ export function useRespondRide(planId: string) {
 export function useCancelRideRequest(planId: string) {
   return useRideAction(planId, async (requestId: string) => {
     const { error } = await supabase.rpc("cancel_ride_request", { p_request_id: requestId });
+    if (error) throw error;
+  });
+}
+
+// ---- Kosten aufteilen (P3) ------------------------------------------------------------------------
+
+export interface PlanExpenseWithShares extends PlanExpense {
+  shares: Pick<PlanExpenseShare, "user_id" | "amount_cents">[];
+}
+
+export function usePlanExpenses(planId: string) {
+  const client = useQueryClient();
+  useRealtime(
+    `plan-expenses:${planId}`,
+    [{ table: "plan_expenses", filter: `plan_id=eq.${planId}` }],
+    () => void client.invalidateQueries({ queryKey: qk.planExpenses(planId) }),
+  );
+  return useQuery({
+    queryKey: qk.planExpenses(planId),
+    refetchInterval: 30_000,
+    queryFn: async (): Promise<PlanExpenseWithShares[]> => {
+      const { data, error } = await supabase
+        .from("plan_expenses")
+        .select("*, shares:plan_expense_shares(user_id, amount_cents)")
+        .eq("plan_id", planId)
+        .order("created_at", { ascending: false })
+        .limit(250);
+      if (error) throw error;
+      return data as unknown as PlanExpenseWithShares[];
+    },
+  });
+}
+
+function useExpenseAction<TInput>(planId: string, fn: (input: TInput) => Promise<void>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSettled: () => void client.invalidateQueries({ queryKey: qk.planExpenses(planId) }),
+  });
+}
+
+export function useAddExpense(planId: string) {
+  return useExpenseAction(planId, async (input: { description: string; amountCents: number; paidBy: string; splitWith: string[] }) => {
+    const { error } = await supabase.rpc("add_plan_expense", {
+      p_plan_id: planId,
+      p_description: input.description,
+      p_amount_cents: input.amountCents,
+      p_paid_by: input.paidBy,
+      p_split_with: input.splitWith,
+    });
+    if (error) throw error;
+  });
+}
+
+export function useRecordSettlement(planId: string) {
+  return useExpenseAction(planId, async (input: { from: string; to: string; cents: number }) => {
+    const { error } = await supabase.rpc("record_plan_settlement", { p_plan_id: planId, p_from: input.from, p_to: input.to, p_amount_cents: input.cents });
+    if (error) throw error;
+  });
+}
+
+export function useDeleteExpense(planId: string) {
+  return useExpenseAction(planId, async (expenseId: string) => {
+    const { error } = await supabase.rpc("delete_plan_expense", { p_expense_id: expenseId });
     if (error) throw error;
   });
 }

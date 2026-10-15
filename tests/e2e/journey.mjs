@@ -1188,6 +1188,81 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   check(true, "Carol (abgesagt) erhält keine Punkte");
 });
 
+await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async () => {
+  const { page } = alice;
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByRole("heading", { name: "Kosten teilen" }).waitFor();
+  check(await page.getByText("Wer hat etwas ausgelegt?").isVisible(), "Leerzustand erklärt, wofür der Bereich da ist");
+
+  // Alice hat die Bahn bezahlt; vorausgewählt sind die Zusagen (Alice, Bob) – Carol hat abgesagt.
+  await page.getByRole("button", { name: "Ausgabe eintragen" }).click();
+  const form = dialog(alice);
+  check((await form.getByRole("button", { name: "Du", exact: true }).getAttribute("aria-pressed")) === "true", "Vorauswahl: ich");
+  check((await form.getByRole("button", { name: "Bob", exact: true }).getAttribute("aria-pressed")) === "true", "Vorauswahl: Bob (zugesagt)");
+  check((await form.getByRole("button", { name: "Carol", exact: true }).getAttribute("aria-pressed")) === "false", "Carol (abgesagt) ist nicht vorausgewählt");
+  await form.getByRole("button", { name: "Eintragen" }).click();
+  await form.getByText("Wofür war das?").waitFor();
+  check(true, "Formular prüft die Beschreibung, bevor etwas gesendet wird");
+  await form.getByLabel("Wofür?").fill("Bowlingbahn");
+  await form.getByLabel("Betrag in Euro").fill("48");
+  await form.getByText("je 24 € bei 2 Personen").waitFor();
+  check(true, "Vorschau: je 24 € bei 2 Personen");
+  await form.getByRole("button", { name: "Eintragen" }).click();
+  await toast(alice, "Ausgabe eingetragen.");
+  await page.getByText("Bob gibt dir").waitFor();
+  check(await page.getByText("Du bekommst noch 24 €").isVisible(), "Alice sieht ihren Stand: bekommt 24 €");
+
+  // Bob hat Getränke für alle drei bezahlt – Carol wählt er dazu.
+  const b = bob.page;
+  await b.goto(`${APP}/plans/${ids.plan}`);
+  await b.getByText("Du gibst Alice").waitFor();
+  await b.getByRole("button", { name: "Ausgabe eintragen" }).click();
+  await dialog(bob).getByLabel("Wofür?").fill("Getränke");
+  await dialog(bob).getByLabel("Betrag in Euro").fill("15,00");
+  await dialog(bob).getByRole("button", { name: "Carol", exact: true }).click();
+  await dialog(bob).getByText("je 5 € bei 3 Personen").waitFor();
+  await dialog(bob).getByRole("button", { name: "Eintragen" }).click();
+  await toast(bob, "Ausgabe eingetragen.");
+  // Bob: −24 + 10 = −14, Carol −5, Alice +19 → zwei Überweisungen, beide an Alice.
+  const rowOf = (p, text) => p.locator("li").filter({ hasText: text });
+  await rowOf(b, "Du gibst Alice").filter({ hasText: "14 €" }).waitFor();
+  check(await rowOf(b, "Carol gibt Alice").filter({ hasText: "5 €" }).isVisible(), "vereinfacht: Carol gibt Alice 5 €");
+  check(await b.getByText("Du gibst noch 14 €").isVisible(), "Bob sieht seinen Stand: gibt 14 €");
+  check((await rowOf(b, "Carol gibt Alice").getByRole("button", { name: /erledigt/i }).count()) === 0, "„Erledigt“ nur für die eigenen Überweisungen");
+  await noOverflow(bob, "Kosten teilen");
+  await shot(bob, "17b-kosten");
+
+  // Bob hat Alice bar gegeben: „Erledigt“ trägt die Rückzahlung ein.
+  await b.getByRole("button", { name: "Du gibst Alice 14 €: als erledigt markieren" }).click();
+  await dialog(bob).getByRole("button", { name: "Erledigt" }).click();
+  await toast(bob, "Rückzahlung eingetragen.");
+  await b.getByText("Für dich ist alles ausgeglichen").waitFor();
+  check((await b.getByText("Du gibst Alice").count()) === 0, "nach der Rückzahlung: Bob schuldet nichts mehr");
+  check(await b.getByText("Du hast Alice 14 € zurückgegeben").isVisible(), "Rückzahlung steht in den Einträgen");
+
+  await page.reload();
+  await rowOf(page, "Carol gibt dir").filter({ hasText: "5 €" }).waitFor();
+  check(await page.getByText("Du bekommst noch 5 €").isVisible(), "Alice bekommt nur noch Carols 5 €");
+  check(await page.getByText("für dich, Bob und Carol").isVisible(), "Beteiligte in Alltagssprache: „für dich, Bob und Carol“");
+  await page.getByRole("heading", { name: "Kosten teilen" }).scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, -24));
+  await shot(alice, "17b-kosten");
+  await carol.page.goto(`${APP}/notifications`);
+  await carol.page.getByText("Bob hat „Getränke“ eingetragen").waitFor();
+  check(await carol.page.getByText(/Dein Anteil: 5\s€/).first().isVisible(), "Carol erfährt ihren Anteil an den Getränken");
+  await alice.page.goto(`${APP}/notifications`);
+  await alice.page.getByText("Bob hat dir 14 € zurückgegeben").waitFor();
+  check(true, "Alice erfährt von Bobs Rückzahlung");
+
+  // Löschen: Bob nimmt seine Getränke zurück – danach schuldet Carol niemandem etwas.
+  await b.getByRole("button", { name: "„Getränke“ löschen" }).click();
+  await dialog(bob).getByRole("button", { name: "Löschen" }).click();
+  await toast(bob, "Eintrag gelöscht.");
+  await b.getByText("Du gibst noch 10 €").waitFor();
+  check(true, "nach dem Löschen rechnet die App neu (24 € Anteil an der Bahn − 14 € zurückgegeben = 10 €)");
+  check((await b.getByRole("button", { name: "„Bowlingbahn“ löschen" }).count()) === 0, "fremde Ausgaben kann Bob nicht löschen");
+});
+
 await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await bob.page.goto(`${APP}/crews/${ids.crew}`);
   await bob.page.getByRole("tab", { name: "Chat" }).click();
@@ -1505,6 +1580,13 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   check((await api(mallory, "POST", "rpc/create_crew_invitation", { p_crew_id: ids.crew })).status === 403, "API: Einladung für fremde Crew wird abgewiesen (403)");
   check((await api(mallory, "POST", "rpc/set_plan_status", { p_plan_id: ids.plan, p_status: "cancelled" })).status === 403, "API: fremder Plan lässt sich nicht absagen (403)");
   check((await api(mallory, "POST", "rpc/plan_share_token", { p_plan_id: ids.plan })).status === 403, "API: Teilen-Link für fremden Plan wird abgewiesen (403)");
+  // P3: Ausgaben und Rückzahlungen fremder Pläne.
+  const add = await api(mallory, "POST", "rpc/add_plan_expense", { p_plan_id: ids.plan, p_description: "Fake", p_amount_cents: 100, p_paid_by: null, p_split_with: [] });
+  check(add.status === 403, `API: Außenstehende tragen keine Ausgabe in fremde Pläne ein (${add.status})`);
+  const read = await api(mallory, "GET", `plan_expenses?plan_id=eq.${ids.plan}&select=id`);
+  check(read.status === 200 && Array.isArray(read.json) && read.json.length === 0, "API: Außenstehende lesen keine Ausgaben");
+  const settle = await api(mallory, "POST", "rpc/record_plan_settlement", { p_plan_id: ids.plan, p_from: null, p_to: null, p_amount_cents: 100 });
+  check(settle.status === 403, `API: Außenstehende tragen keine Rückzahlung ein (${settle.status})`);
   if (ids.shareUrl) {
     const preview = await api(mallory, "POST", "rpc/preview_shared_plan", { p_token: ids.shareUrl.split("/").pop() });
     check(preview.status === 200 && preview.json?.plan_id === null, "API: Plan-Vorschau gibt Außenstehenden keine Plan-ID");
