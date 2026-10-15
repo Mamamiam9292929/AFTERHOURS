@@ -1,7 +1,7 @@
 // P3 · Kosten aufteilen: Salden und Überweisungen (src/lib/settle.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { balances, isCustomSplit, settle, splitCustom, splitEvenly } from "../../src/lib/settle.ts";
+import { balances, isCustomSplit, openPlans, settle, settleBalances, splitCustom, splitEvenly } from "../../src/lib/settle.ts";
 
 const expense = (paid_by, shares) => ({ paid_by, shares: Object.entries(shares).map(([user_id, amount_cents]) => ({ user_id, amount_cents })) });
 
@@ -127,4 +127,37 @@ test("ungleich erkennen: Rest-Cent zählt nicht als ungleich", () => {
   assert.equal(isCustomSplit(shares(334, 333, 333)), false);
   assert.equal(isCustomSplit(shares(1200, 1800)), true);
   assert.equal(isCustomSplit(shares(500)), false);
+});
+
+// ---- P3 Etappe 3: Salden vom Server je Plan --------------------------------------------------------
+
+test("settleBalances rechnet aus fertigen Salden wie settle aus Einträgen", () => {
+  const list = [expense("alice", { alice: 2400, bob: 2400 }), expense("bob", { alice: 500, bob: 500, carol: 500 })];
+  assert.deepEqual(settleBalances(balances(list)), settle(list));
+  assert.deepEqual(settleBalances(new Map([["alice", 0]])), []);
+});
+
+test("openPlans: eigener Stand je Abend und über alle Abende", () => {
+  const rows = [
+    { plan_id: "bowling", user_id: "alice", balance_cents: 2100 },
+    { plan_id: "bowling", user_id: "bob", balance_cents: -1800 },
+    { plan_id: "bowling", user_id: "carol", balance_cents: -300 },
+    { plan_id: "kino", user_id: "alice", balance_cents: -1500 },
+    { plan_id: "kino", user_id: "carol", balance_cents: 1500 },
+    { plan_id: "pizza", user_id: "bob", balance_cents: 700 },
+    { plan_id: "pizza", user_id: "carol", balance_cents: -700 },
+  ];
+  const { plans, total } = openPlans(rows, "alice");
+  assert.equal(total, 600);
+  assert.deepEqual(plans.map((p) => [p.planId, p.mine]), [["bowling", 2100], ["kino", -1500], ["pizza", 0]]);
+  assert.deepEqual(plans[0].transfers, [
+    { from: "bob", to: "alice", cents: 1800 },
+    { from: "carol", to: "alice", cents: 300 },
+  ]);
+  assert.deepEqual(plans[2].transfers, [{ from: "carol", to: "bob", cents: 700 }]);
+});
+
+test("openPlans: nichts offen, Nullzeilen werden ignoriert", () => {
+  assert.deepEqual(openPlans([], "alice"), { plans: [], total: 0 });
+  assert.deepEqual(openPlans([{ plan_id: "x", user_id: "alice", balance_cents: 0 }], "alice"), { plans: [], total: 0 });
 });

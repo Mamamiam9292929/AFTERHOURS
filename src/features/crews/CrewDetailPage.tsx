@@ -26,6 +26,7 @@ import {
   canManageCrew, invitationState, myRole, useCrew, useCrewInvitations, useCrewMessages, useDeleteCrew, useDeleteMessage, useLeaveCrew,
   useRemoveMember, useRevokeInvitation, useSendMessage, useSetMemberRole, useUpdateCrew, type CrewWithMembers,
 } from "./api";
+import { CrewBalances } from "./CrewBalances";
 import { CrewForm } from "./CrewForm";
 import { InviteDialog } from "./InviteDialog";
 
@@ -98,6 +99,7 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
           )}
         </Section>
       )}
+      <CrewBalances crewId={crew.id} userId={user.id} plans={crewPlans} />
       {past.length > 0 && (
         <Section title={t.crews.detail.pastPlans}>
           <div className="grid gap-5 lg:grid-cols-2">

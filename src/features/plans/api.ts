@@ -363,7 +363,10 @@ function useExpenseAction<TInput>(planId: string, fn: (input: TInput) => Promise
   const client = useQueryClient();
   return useMutation({
     mutationFn: fn,
-    onSettled: () => void client.invalidateQueries({ queryKey: qk.planExpenses(planId) }),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: qk.planExpenses(planId) });
+      void client.invalidateQueries({ queryKey: qk.crewBalancesAll });
+    },
   });
 }
 

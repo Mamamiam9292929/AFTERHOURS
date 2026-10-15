@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent } from "react";
 import { IconCheck, IconForward, IconPlus, IconTrash } from "@/components/icons";
 import { Avatar, type Person } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -49,6 +49,12 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
       transfers: settle(list),
     };
   }, [expenses.data, userId]);
+
+  // P3 Etappe 3: Von „Offene Beträge“ der Crew kommt man mit #kosten – nach dem Laden dorthin springen.
+  const loaded = expenses.isSuccess;
+  useEffect(() => {
+    if (loaded && window.location.hash === "#kosten") document.getElementById("kosten")?.scrollIntoView({ block: "start" });
+  }, [loaded]);
 
   if (expenses.isPending) return <Skeleton className="h-28" />;
   if (expenses.isError) return <ErrorState error={expenses.error} onRetry={() => void expenses.refetch()} />;

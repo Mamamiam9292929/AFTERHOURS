@@ -46,7 +46,12 @@ export function balances(expenses: readonly ExpenseLike[]): Map<string, number> 
  * alle Geräte dieselbe Liste zeigen.
  */
 export function settle(expenses: readonly ExpenseLike[]): Transfer[] {
-  const entries = [...balances(expenses)];
+  return settleBalances(balances(expenses));
+}
+
+/** Wie `settle`, aber aus fertigen Salden (P3 Etappe 3: der Server liefert sie je Plan). */
+export function settleBalances(balance: ReadonlyMap<string, number>): Transfer[] {
+  const entries = [...balance].filter(([, cents]) => cents !== 0);
   const byAmount = (a: [string, number], b: [string, number]) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
   const creditors = entries.filter(([, cents]) => cents > 0).sort(byAmount);
   const debtors = entries
@@ -118,4 +123,41 @@ export function isCustomSplit(shares: readonly ShareLike[]): boolean {
   if (shares.length < 2) return false;
   const amounts = shares.map((share) => share.amount_cents);
   return Math.max(...amounts) - Math.min(...amounts) > 1;
+}
+
+/**
+ * P3 Etappe 3 · Offene Beträge der ganzen Crew. Der Server liefert Salden je Plan und Person (nur
+ * offene). Daraus: je Plan die Salden und „Wer gibt wem?“, dazu der eigene Stand über alle Abende.
+ */
+export interface BalanceRow {
+  plan_id: string;
+  user_id: string;
+  balance_cents: number;
+}
+
+export interface OpenPlan {
+  planId: string;
+  /** Eigener Saldo bei diesem Plan: positiv = bekommst, negativ = gibst, 0 = nur andere offen. */
+  mine: number;
+  transfers: Transfer[];
+}
+
+export function openPlans(rows: readonly BalanceRow[], userId: string): { plans: OpenPlan[]; total: number } {
+  const byPlan = new Map<string, Map<string, number>>();
+  for (const row of rows) {
+    if (row.balance_cents === 0) continue;
+    const plan = byPlan.get(row.plan_id) ?? new Map<string, number>();
+    plan.set(row.user_id, (plan.get(row.user_id) ?? 0) + row.balance_cents);
+    byPlan.set(row.plan_id, plan);
+  }
+  const plans: OpenPlan[] = [];
+  let total = 0;
+  for (const [planId, balance] of byPlan) {
+    const transfers = settleBalances(balance);
+    if (transfers.length === 0) continue;
+    const mine = balance.get(userId) ?? 0;
+    total += mine;
+    plans.push({ planId, mine, transfers });
+  }
+  return { plans, total };
 }
