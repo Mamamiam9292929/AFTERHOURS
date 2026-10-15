@@ -1330,6 +1330,64 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await shot(alice, "31-benachrichtigungen");
 });
 
+await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async () => {
+  const { page } = alice;
+  // Zwei Termine in 10 und 11 Tagen (Berliner Zeit); Titel wie auf dem Server: „Sonntag, 25. Oktober“.
+  const berlinDate = (offsetDays) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + offsetDays * 86_400_000));
+  const label = (date) => new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00Z`));
+  const [d1, d2] = [berlinDate(10), berlinDate(11)];
+  const [l1, l2] = [label(d1), label(d2)];
+
+  await page.goto(`${APP}/polls/new?crew=${ids.crew}`);
+  await page.getByRole("tab", { name: "Wann könnt ihr?" }).click();
+  await page.getByLabel(/^Termin \d+$/).first().waitFor();
+  check((await page.getByLabel("Frage an die Crew").inputValue()) === "Wann könnt ihr?", "Termin-Abstimmung: Titelvorschlag „Wann könnt ihr?“");
+  check((await page.getByLabel(/^Termin \d+$/).count()) === 3, "drei Termine sind vorgeschlagen (nächstes Wochenende und der Freitag danach)");
+  check((await page.getByLabel("Budget pro Person").count()) === 0, "keine Orts-Felder (Budget, Kosten) bei Terminen");
+  await page.getByRole("button", { name: "Termin 3 entfernen" }).click();
+  check(await page.getByRole("button", { name: "Termin 2 entfernen" }).isDisabled(), "mindestens zwei Termine bleiben");
+  await page.getByLabel("Termin 1", { exact: true }).fill(d1);
+  await page.getByLabel("Uhrzeit").first().fill("20:00");
+  await page.getByLabel("Termin 2", { exact: true }).fill(d1);
+  await page.getByLabel("Uhrzeit").nth(1).fill("20:00");
+  await page.getByRole("button", { name: "in 2 Stunden" }).click();
+  await page.getByRole("button", { name: "Abstimmung starten" }).click();
+  await page.getByText("Diesen Termin gibt es schon.").waitFor();
+  check(true, "doppelter Termin wird vor dem Absenden erkannt");
+  await page.getByLabel("Termin 2", { exact: true }).fill(d2);
+  await page.getByLabel("Uhrzeit").nth(1).fill("");
+  await shot(alice, "36-termin-abstimmung-erstellen");
+  await page.getByRole("button", { name: "Abstimmung starten" }).click();
+  await page.waitForURL(/\/polls\/[0-9a-f-]{36}/);
+  const datePoll = idFromUrl(page);
+  await page.getByText("Termin-Abstimmung").waitFor();
+  check((await page.getByRole("radiogroup").count()) === 2, "zwei Termine zur Wahl");
+  await optionCard(alice, l1).getByText("20:00 Uhr").waitFor();
+  check(await optionCard(alice, l2).getByText("Uhrzeit offen").isVisible(), `Termine heißen wie das Datum (${l1}, ${l2}), ohne Uhrzeit „Uhrzeit offen“`);
+  check((await page.getByText("Preis offen").count()) === 0, "bei Terminen kein Preis");
+
+  await bob.page.goto(`${APP}/polls/${datePoll}`);
+  await answer(bob, l2, "Bin dabei").click();
+  await answer(bob, l1, "Bin nicht dabei").click();
+  await optionCard(bob, l2).getByText("1 Zusage").waitFor();
+  check(true, "Bob sagt, wann er kann – wie bei jeder Abstimmung");
+  await shot(bob, "36-termin-abstimmung");
+
+  await page.reload();
+  await page.getByRole("button", { name: "Abstimmung beenden" }).click();
+  await dialog(alice).getByRole("button", { name: "Abstimmung beenden" }).click();
+  await page.getByRole("heading", { name: `Es wird ${l2}` }).waitFor();
+  check(true, "der Termin mit den meisten Zusagen gewinnt");
+  await page.getByRole("button", { name: "Plan erstellen" }).click();
+  check((await dialog(alice).getByLabel("Titel").inputValue()) === "", "Plan aus Terminen: Titel ist leer statt des Datums");
+  check((await dialog(alice).getByLabel("Datum").inputValue()) === d2, "Plan übernimmt das Datum des Gewinner-Termins");
+  await dialog(alice).getByLabel("Titel").fill("Bowling");
+  await dialog(alice).getByRole("button", { name: "Plan erstellen" }).click();
+  await page.waitForURL(/\/plans\/[0-9a-f-]{36}/);
+  await page.getByRole("heading", { level: 1, name: "Bowling" }).waitFor();
+  check(true, "aus dem Gewinner-Termin wird ein Plan");
+});
+
 await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", async () => {
   const { page } = mallory;
   // W1 Etappe 2: Mallory hat den Link, registriert sich darüber, tritt aber nicht bei – sie bleibt außen vor.

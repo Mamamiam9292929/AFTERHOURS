@@ -118,6 +118,8 @@ export const errors = {
     ends_in_past: "Das Ende der Abstimmung muss in der Zukunft liegen.",
     ends_too_late: "Eine Abstimmung kann höchstens 90 Tage laufen.",
     invalid_options: "Eine Abstimmung braucht 1 bis 10 Optionen, jede mit Titel oder Ort.",
+    invalid_slots: "Eine Termin-Abstimmung braucht 2 bis 10 verschiedene Termine, höchstens ein Jahr im Voraus.",
+    slot_in_past: "Mindestens ein Termin liegt in der Vergangenheit.",
     unknown_activity: "Einer der gewählten Orte ist nicht mehr verfügbar.",
     too_many_open_polls: "In dieser Crew laufen schon 20 Abstimmungen. Beende eine, bevor du eine neue startest.",
     poll_closed: "Diese Abstimmung ist beendet.",
