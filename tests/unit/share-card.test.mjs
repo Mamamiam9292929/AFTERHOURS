@@ -118,6 +118,26 @@ test("Abstimmung: Texte je nach Stand", () => {
   }
 });
 
+test("P1 Etappe 2: Termin-Abstimmung zeigt die Termine und fragt „Wann kannst du?“", () => {
+  const dates = [
+    { date: "2026-10-23", time: "19:00" },
+    { date: "2026-10-24", time: null },
+    { date: "2026-10-30", time: "20:30" },
+  ];
+  assert.deepEqual(describeSharedPoll(validPoll({ kind: "date", title: "Wann könnt ihr?", dates })), {
+    title: "Wann könnt ihr? · AFTERHOURS",
+    description: "3 Termine zur Wahl: Fr 23.10. 19:00, Sa 24.10., Fr 30.10. 20:30 · 2 haben abgestimmt · Abstimmen bis Freitag, 16. Oktober · 20:00 Uhr. Wann kannst du?",
+  });
+  assert.match(describeSharedPoll(validPoll({ kind: "date", dates, guests: true })).description, /Wann kannst du\? Geht auch ohne Konto\.$/);
+  const many = Array.from({ length: 6 }, (_, i) => ({ date: `2026-11-0${i + 1}`, time: null }));
+  assert.match(describeSharedPoll(validPoll({ kind: "date", option_count: 6, dates: many })).description, /^6 Termine zur Wahl: So 01\.11\., Mo 02\.11\., Di 03\.11\., Mi 04\.11\. und 2 weitere · /);
+  assert.match(describeSharedPoll(validPoll({ kind: "date", option_count: 5, dates: many.slice(0, 5) })).description, /Mi 04\.11\. und 1 weiterer · /);
+  assert.match(describeSharedPoll(validPoll({ kind: "date", option_count: 2 })).description, /^2 Termine · /, "ohne Termine (alter Server): nur die Zahl");
+  assert.match(describeSharedPoll(validPoll({ kind: "date", dates: [{ date: "<script>", time: "x" }] })).description, /^3 Termine · /, "Unbrauchbares fällt weg");
+  assert.match(describeSharedPoll(validPoll({ kind: "date", dates, status: "closed" })).description, /^Entschieden – /);
+  assert.match(describeSharedPoll(validPoll({ kind: "place", dates })).description, /^3 Vorschläge · /, "Orts-Abstimmung: keine Termine");
+});
+
 test("Handler: Abstimmung über ?kind=poll – eigene Funktion, eigener Link, eigenes Bild", async () => {
   const fetchImpl = fakeFetch([["https://app.test/index.html", 200, shell], ["https://db.test/rest/v1/rpc/preview_shared_poll", 200, validPoll({})]]);
   const html = await (await handleShare(new Request(`https://app.test/api/share?kind=poll&token=${TOKEN}`), env, fetchImpl)).text();

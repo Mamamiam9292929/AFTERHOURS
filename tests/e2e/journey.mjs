@@ -1228,6 +1228,114 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   check(true, "Carol (abgesagt) erhält keine Punkte");
 });
 
+await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async () => {
+  const { page } = alice;
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByRole("heading", { name: "Kosten teilen" }).waitFor();
+  check(await page.getByText("Wer hat etwas ausgelegt?").isVisible(), "Leerzustand erklärt, wofür der Bereich da ist");
+
+  // Alice hat die Bahn bezahlt; vorausgewählt sind die Zusagen (Alice, Bob) – Carol hat abgesagt.
+  await page.getByRole("button", { name: "Ausgabe eintragen" }).click();
+  const form = dialog(alice);
+  check((await form.getByRole("button", { name: "Du", exact: true }).getAttribute("aria-pressed")) === "true", "Vorauswahl: ich");
+  check((await form.getByRole("button", { name: "Bob", exact: true }).getAttribute("aria-pressed")) === "true", "Vorauswahl: Bob (zugesagt)");
+  check((await form.getByRole("button", { name: "Carol", exact: true }).getAttribute("aria-pressed")) === "false", "Carol (abgesagt) ist nicht vorausgewählt");
+  await form.getByRole("button", { name: "Eintragen" }).click();
+  await form.getByText("Wofür war das?").waitFor();
+  check(true, "Formular prüft die Beschreibung, bevor etwas gesendet wird");
+  await form.getByLabel("Wofür?").fill("Bowlingbahn");
+  await form.getByLabel("Betrag in Euro").fill("48");
+  await form.getByText("je 24 € bei 2 Personen").waitFor();
+  check(true, "Vorschau: je 24 € bei 2 Personen");
+  await form.getByRole("button", { name: "Eintragen" }).click();
+  await toast(alice, "Ausgabe eingetragen.");
+  await page.getByText("Bob gibt dir").waitFor();
+  check(await page.getByText("Du bekommst noch 24 €").isVisible(), "Alice sieht ihren Stand: bekommt 24 €");
+
+  // Bob hat Getränke für alle drei bezahlt – Carol wählt er dazu.
+  const b = bob.page;
+  await b.goto(`${APP}/plans/${ids.plan}`);
+  await b.getByText("Du gibst Alice").waitFor();
+  await b.getByRole("button", { name: "Ausgabe eintragen" }).click();
+  await dialog(bob).getByLabel("Wofür?").fill("Getränke");
+  await dialog(bob).getByLabel("Betrag in Euro").fill("15,00");
+  await dialog(bob).getByRole("button", { name: "Carol", exact: true }).click();
+  await dialog(bob).getByText("je 5 € bei 3 Personen").waitFor();
+  await dialog(bob).getByRole("button", { name: "Eintragen" }).click();
+  await toast(bob, "Ausgabe eingetragen.");
+  // Bob: −24 + 10 = −14, Carol −5, Alice +19 → zwei Überweisungen, beide an Alice.
+  const rowOf = (p, text) => p.locator("li").filter({ hasText: text });
+  await rowOf(b, "Du gibst Alice").filter({ hasText: "14 €" }).waitFor();
+  check(await rowOf(b, "Carol gibt Alice").filter({ hasText: "5 €" }).isVisible(), "vereinfacht: Carol gibt Alice 5 €");
+  check(await b.getByText("Du gibst noch 14 €").isVisible(), "Bob sieht seinen Stand: gibt 14 €");
+  check((await rowOf(b, "Carol gibt Alice").getByRole("button", { name: /erledigt/i }).count()) === 0, "„Erledigt“ nur für die eigenen Überweisungen");
+  await noOverflow(bob, "Kosten teilen");
+  await shot(bob, "17b-kosten");
+
+  // Bob hat Alice bar gegeben: „Erledigt“ trägt die Rückzahlung ein.
+  await b.getByRole("button", { name: "Du gibst Alice 14 €: als erledigt markieren" }).click();
+  await dialog(bob).getByRole("button", { name: "Erledigt" }).click();
+  await toast(bob, "Rückzahlung eingetragen.");
+  await b.getByText("Für dich ist alles ausgeglichen").waitFor();
+  check((await b.getByText("Du gibst Alice").count()) === 0, "nach der Rückzahlung: Bob schuldet nichts mehr");
+  check(await b.getByText("Du hast Alice 14 € zurückgegeben").isVisible(), "Rückzahlung steht in den Einträgen");
+
+  await page.reload();
+  await rowOf(page, "Carol gibt dir").filter({ hasText: "5 €" }).waitFor();
+  check(await page.getByText("Du bekommst noch 5 €").isVisible(), "Alice bekommt nur noch Carols 5 €");
+  check(await page.getByText("für dich, Bob und Carol").isVisible(), "Beteiligte in Alltagssprache: „für dich, Bob und Carol“");
+  await page.getByRole("heading", { name: "Kosten teilen" }).scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, -24));
+  await shot(alice, "17b-kosten");
+  await carol.page.goto(`${APP}/notifications`);
+  await carol.page.getByText("Bob hat „Getränke“ eingetragen").waitFor();
+  check(await carol.page.getByText(/Dein Anteil: 5\s€/).first().isVisible(), "Carol erfährt ihren Anteil an den Getränken");
+  await alice.page.goto(`${APP}/notifications`);
+  await alice.page.getByText("Bob hat dir 14 € zurückgegeben").waitFor();
+  check(true, "Alice erfährt von Bobs Rückzahlung");
+
+  // Löschen: Bob nimmt seine Getränke zurück – danach schuldet Carol niemandem etwas.
+  await b.getByRole("button", { name: "„Getränke“ löschen" }).click();
+  await dialog(bob).getByRole("button", { name: "Löschen" }).click();
+  await toast(bob, "Eintrag gelöscht.");
+  await b.getByText("Du gibst noch 10 €").waitFor();
+  check(true, "nach dem Löschen rechnet die App neu (24 € Anteil an der Bahn − 14 € zurückgegeben = 10 €)");
+  check((await b.getByRole("button", { name: "„Bowlingbahn“ löschen" }).count()) === 0, "fremde Ausgaben kann Bob nicht löschen");
+
+  // P3 Etappe 2 – ungleich aufteilen: Pizza 30 €, Bob hatte die große für 18 €, Alice bekommt den Rest.
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByText("Du bekommst noch 10 €").waitFor();
+  await page.getByRole("button", { name: "Ausgabe eintragen" }).click();
+  const pizza = dialog(alice);
+  await pizza.getByLabel("Wofür?").fill("Pizza");
+  await pizza.getByLabel("Betrag in Euro").fill("30");
+  await pizza.getByRole("switch", { name: /Beträge je Person/ }).click();
+  await pizza.getByLabel("Betrag für Bob").fill("18");
+  await pizza.getByText("Das leere Feld bekommt den Rest: 12 €").waitFor();
+  check((await pizza.getByLabel("Betrag für dich").getAttribute("placeholder")) === "12", "leeres Feld zeigt als Platzhalter, was es bekommt (12)");
+  await pizza.getByLabel("Betrag für dich").fill("10");
+  await pizza.getByText("Noch 2 € offen").waitFor();
+  check(true, "Summenzeile sagt, was noch offen ist (2 €)");
+  await pizza.getByLabel("Betrag für dich").fill("14");
+  await pizza.getByText("2 € zu viel – zusammen 32 € statt 30 €").waitFor();
+  await pizza.getByRole("button", { name: "Eintragen" }).click();
+  await pizza.getByRole("alert").filter({ hasText: "2 € zu viel" }).waitFor();
+  check(await pizza.getByLabel("Betrag für dich").isVisible(), "zu viel: Formular bleibt offen mit Fehlermeldung, nichts wird gesendet");
+  await pizza.getByLabel("Betrag für dich").fill("12");
+  await pizza.getByText("Passt auf den Cent: zusammen 30 €").waitFor();
+  check(true, "Summenzeile bestätigt: passt auf den Cent");
+  await noOverflow(alice, "Ausgabe eintragen");
+  await shot(alice, "17c-kosten-ungleich");
+  await pizza.getByRole("button", { name: "Eintragen" }).click();
+  await toast(alice, "Ausgabe eingetragen.");
+  await page.getByText("für dich (12 €) und Bob (18 €)").waitFor();
+  check(true, "Eintrag zeigt die Beträge je Person: „für dich (12 €) und Bob (18 €)“");
+  check(await page.getByText("Du bekommst noch 28 €").isVisible(), "Alice bekommt jetzt 28 € (10 € + Bobs 18 €)");
+  await b.reload();
+  await b.getByText("Du gibst noch 28 €").waitFor();
+  check(true, "Bob sieht seinen ungleichen Anteil im Stand: gibt 28 €");
+});
+
 await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await bob.page.goto(`${APP}/crews/${ids.crew}`);
   await bob.page.getByRole("tab", { name: "Chat" }).click();
@@ -1246,6 +1354,30 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     check(true, "Crew-Kopf zählt abgeschlossene Pläne als gemeinsame Abende");
   }
   await shot(alice, "21-crew");
+
+  // P3 Etappe 3 – Offene Beträge der Crew: Alice bekommt aus dem Plan noch 28 € (Schritt P3).
+  const balancesCard = alice.page.getByTestId("crew-balances");
+  await balancesCard.getByText("Du bekommst insgesamt 28 €").waitFor();
+  check(await balancesCard.getByText("bei 1 Abend offen").isVisible(), "Crew-Seite: offene Beträge über alle Abende (1 Abend)");
+  const openRow = balancesCard.getByRole("link", { name: /Du bekommst 28 €/ });
+  check((await openRow.count()) === 1, "Crew-Seite: der Abend steht mit eigenem Betrag in der Liste");
+  await balancesCard.scrollIntoViewIfNeeded();
+  await noOverflow(alice, "Offene Beträge");
+  await shot(alice, "21b-crew-kosten");
+  await openRow.click();
+  await alice.page.waitForURL(`**/plans/${ids.plan}#kosten`);
+  const costsHeading = alice.page.getByRole("heading", { name: "Kosten teilen" });
+  await costsHeading.waitFor();
+  await alice.page.getByText("Du bekommst noch 28 €").waitFor();
+  await alice.page.waitForFunction(() => {
+    const top = document.getElementById("kosten")?.getBoundingClientRect().top;
+    return top != null && top >= -2 && top < window.innerHeight - 40;
+  }, null, { timeout: 5000 });
+  check(true, "Tipp auf den Abend springt direkt zu „Kosten teilen“");
+  await bob.page.goto(`${APP}/crews/${ids.crew}`);
+  await bob.page.getByTestId("crew-balances").getByText("Du gibst insgesamt 28 €").waitFor();
+  check(true, "Bob sieht auf der Crew-Seite: gibt insgesamt 28 €");
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });
@@ -1378,9 +1510,13 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   const [d1, d2] = [berlinDate(10), berlinDate(11)];
   const [l1, l2] = [label(d1), label(d2)];
 
-  await page.goto(`${APP}/polls/new?crew=${ids.crew}`);
-  await page.getByRole("tab", { name: "Wann könnt ihr?" }).click();
+  // P1 Etappe 2: „Termin finden“ direkt auf der Crew-Seite öffnet die Termin-Abstimmung.
+  await page.goto(`${APP}/crews/${ids.crew}`);
+  await page.getByRole("link", { name: "Termin finden" }).click();
+  await page.waitForURL(/\/polls\/new\?crew=[0-9a-f-]{36}&kind=date/);
   await page.getByLabel(/^Termin \d+$/).first().waitFor();
+  check((await page.getByRole("tab", { name: "Wann könnt ihr?" }).getAttribute("aria-selected")) === "true", "Crew-Seite: „Termin finden“ öffnet direkt „Wann könnt ihr?“");
+  await page.getByRole("tab", { name: "Wann könnt ihr?" }).click();
   check((await page.getByLabel("Frage an die Crew").inputValue()) === "Wann könnt ihr?", "Termin-Abstimmung: Titelvorschlag „Wann könnt ihr?“");
   check((await page.getByLabel(/^Termin \d+$/).count()) === 3, "drei Termine sind vorgeschlagen (nächstes Wochenende und der Freitag danach)");
   check((await page.getByLabel("Budget pro Person").count()) === 0, "keine Orts-Felder (Budget, Kosten) bei Terminen");
@@ -1413,11 +1549,67 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   check(true, "Bob sagt, wann er kann – wie bei jeder Abstimmung");
   await shot(bob, "36-termin-abstimmung");
 
+  // P1 Etappe 2: Teilen – Messenger-Vorschau mit den Terminen, Stimmzettel für Gäste fragt „Wann kannst du?“.
+  const tokenLoaded = page.waitForResponse((r) => r.url().includes("/rpc/poll_share_token") && r.ok());
+  await page.reload();
+  await tokenLoaded;
+  await stubShare(page);
+  await page.getByRole("button", { name: "Abstimmung teilen" }).click();
+  const dateShareUrl = (await sharedData(page))[0]?.url ?? "";
+  await unstubShare(page);
+  check(/\/v\/[0-9a-f]{32}$/.test(dateShareUrl), `Termin-Abstimmung teilen: eigener Link (${dateShareUrl})`);
+  const short = (date) => `${["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][new Date(`${date}T12:00:00Z`).getUTCDay()]} ${date.slice(8, 10)}.${date.slice(5, 7)}.`;
+  if (ANON) {
+    const response = await handleShare(new Request(dateShareUrl), { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON }, fetch);
+    const head = (await response.text()).split("</head>")[0];
+    const expected = `2 Termine zur Wahl: ${short(d1)} 20:00, ${short(d2)} · 1 hat abgestimmt · Abstimmen bis `;
+    check(head.includes(`<meta property="og:description" content="${expected}`) && /Wann kannst du\?" \/>/.test(head), `Vorschau im Messenger zeigt die Termine und fragt „Wann kannst du?“ (${expected})`);
+    check(!/Alice|Bob|example\.test/.test(head), "Vorschau der Termine: keine Namen");
+  }
+  const guestsToggle = page.getByRole("switch", { name: /Gäste dürfen mitstimmen/ });
+  await guestsToggle.click();
+  await toast(alice, "Gäste können jetzt über den geteilten Link mitstimmen.");
+  const ida = await newUser("Ida", "mobile");
+  try {
+    await ida.page.goto(dateShareUrl);
+    await ida.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
+    check(await ida.page.getByText("Wann kannst du?", { exact: true }).isVisible(), "Gast-Stimmzettel fragt „Wann kannst du?“");
+    const dateList = ida.page.getByTestId("shared-poll-dates");
+    const dates = await dateList.innerText();
+    check(/20:00 Uhr/.test(dates) && (await dateList.getByRole("listitem").count()) === 2, `Karte zeigt beide Termine („${dates.replace(/\s+/g, " ")}“)`);
+    check(await ida.page.getByText(/Uhrzeit offen/).first().isVisible(), "Termin ohne Uhrzeit: „Uhrzeit offen“ statt doppeltem Datum");
+    await answer(ida, l2, "Bin dabei").click();
+    await answer(ida, l1, "Vielleicht").click();
+    await ida.page.getByLabel("Dein Name").fill("Ida");
+    await shot(ida, "36b-termin-stimmzettel-gast");
+    await ida.page.getByRole("button", { name: "Abstimmen" }).click();
+    await ida.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Ida" }).waitFor();
+    check(true, "Gast stimmt über Termine ab");
+  } finally {
+    users.splice(users.indexOf(ida), 1);
+    await ida.context.close();
+  }
+
   await page.reload();
   await page.getByRole("button", { name: "Abstimmung beenden" }).click();
   await dialog(alice).getByRole("button", { name: "Abstimmung beenden" }).click();
   await page.getByRole("heading", { name: `Es wird ${l2}` }).waitFor();
   check(true, "der Termin mit den meisten Zusagen gewinnt");
+
+  // P1 Etappe 2: „Und wo?“ – Orts-Abstimmung mit dem Gewinner-Termin, ohne ihn neu einzutippen.
+  const where = page.getByTestId("poll-where");
+  await where.getByText("Und wo?").waitFor();
+  await shot(alice, "36c-termin-und-wo");
+  await where.getByRole("link", { name: "Ort abstimmen" }).click();
+  await page.waitForURL(new RegExp(`/polls/new\\?crew=[0-9a-f-]{36}&date=${d2}$`));
+  await page.getByLabel(/^Datum/).waitFor();
+  check((await page.getByLabel(/^Datum/).inputValue()) === d2, "„Und wo?“: Datum des Gewinner-Termins ist eingetragen");
+  check((await page.getByLabel(/^Uhrzeit/).inputValue()) === "", "„Und wo?“: Termin ohne Uhrzeit bleibt ohne Uhrzeit");
+  const weekday = new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long" }).format(new Date(`${d2}T12:00:00Z`));
+  check((await page.getByLabel("Frage an die Crew").inputValue()) === `Was machen wir am ${weekday}?`, `„Und wo?“: Frage passt zum Tag (${weekday})`);
+  check((await page.getByRole("tab", { name: "Was machen wir?" }).getAttribute("aria-selected")) === "true", "„Und wo?“ ist eine Abstimmung über Orte");
+  await page.goBack();
+  await page.getByRole("heading", { name: `Es wird ${l2}` }).waitFor();
   await page.getByRole("button", { name: "Plan erstellen" }).click();
   check((await dialog(alice).getByLabel("Titel").inputValue()) === "", "Plan aus Terminen: Titel ist leer statt des Datums");
   check((await dialog(alice).getByLabel("Datum").inputValue()) === d2, "Plan übernimmt das Datum des Gewinner-Termins");
@@ -1485,6 +1677,15 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   check((await api(mallory, "POST", "rpc/create_crew_invitation", { p_crew_id: ids.crew })).status === 403, "API: Einladung für fremde Crew wird abgewiesen (403)");
   check((await api(mallory, "POST", "rpc/set_plan_status", { p_plan_id: ids.plan, p_status: "cancelled" })).status === 403, "API: fremder Plan lässt sich nicht absagen (403)");
   check((await api(mallory, "POST", "rpc/plan_share_token", { p_plan_id: ids.plan })).status === 403, "API: Teilen-Link für fremden Plan wird abgewiesen (403)");
+  // P3: Ausgaben und Rückzahlungen fremder Pläne.
+  const add = await api(mallory, "POST", "rpc/add_plan_expense", { p_plan_id: ids.plan, p_description: "Fake", p_amount_cents: 100, p_paid_by: null, p_split_with: [] });
+  check(add.status === 403, `API: Außenstehende tragen keine Ausgabe in fremde Pläne ein (${add.status})`);
+  const read = await api(mallory, "GET", `plan_expenses?plan_id=eq.${ids.plan}&select=id`);
+  check(read.status === 200 && Array.isArray(read.json) && read.json.length === 0, "API: Außenstehende lesen keine Ausgaben");
+  const balances = await api(mallory, "POST", "rpc/crew_open_balances", { p_crew_id: ids.crew });
+  check(balances.status === 403, `API: Außenstehende lesen keine offenen Beträge der Crew (${balances.status})`);
+  const settle = await api(mallory, "POST", "rpc/record_plan_settlement", { p_plan_id: ids.plan, p_from: null, p_to: null, p_amount_cents: 100 });
+  check(settle.status === 403, `API: Außenstehende tragen keine Rückzahlung ein (${settle.status})`);
   if (ids.shareUrl) {
     const preview = await api(mallory, "POST", "rpc/preview_shared_plan", { p_token: ids.shareUrl.split("/").pop() });
     check(preview.status === 200 && preview.json?.plan_id === null, "API: Plan-Vorschau gibt Außenstehenden keine Plan-ID");

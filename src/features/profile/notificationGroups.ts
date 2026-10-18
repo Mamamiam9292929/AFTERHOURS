@@ -10,6 +10,7 @@ export const NOTIFICATION_GROUPS: { key: keyof typeof t.settings.notifications.g
   { key: "plans", types: ["plan_created", "plan_changed", "plan_cancelled"] },
   { key: "bookings", types: ["booking_status"] },
   { key: "rides", types: ["ride_request", "ride_confirmed"] },
+  { key: "costs", types: ["plan_expense", "plan_settlement"] },
   { key: "crew", types: ["crew_member_joined", "crew_role_changed", "crew_member_removed"] },
   { key: "rewards", types: ["reward_earned"] },
 ];

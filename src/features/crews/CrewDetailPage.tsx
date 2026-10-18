@@ -1,7 +1,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { IconCalendarPlus, IconMore, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
+import { IconCalendar, IconCalendarPlus, IconMore, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
 import { PageHeader, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
@@ -26,6 +26,7 @@ import {
   canManageCrew, invitationState, myRole, useCrew, useCrewInvitations, useCrewMessages, useDeleteCrew, useDeleteMessage, useLeaveCrew,
   useRemoveMember, useRevokeInvitation, useSendMessage, useSetMemberRole, useUpdateCrew, type CrewWithMembers,
 } from "./api";
+import { CrewBalances } from "./CrewBalances";
 import { CrewForm } from "./CrewForm";
 import { InviteDialog } from "./InviteDialog";
 
@@ -98,6 +99,7 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
           )}
         </Section>
       )}
+      <CrewBalances crewId={crew.id} userId={user.id} plans={crewPlans} />
       {past.length > 0 && (
         <Section title={t.crews.detail.pastPlans}>
           <div className="grid gap-5 lg:grid-cols-2">
@@ -486,6 +488,9 @@ export function CrewDetailPage() {
           <>
             <ButtonLink to={`/polls/new?crew=${crew.id}`} icon={<IconVote className="size-4" aria-hidden />}>
               {t.crews.detail.startPoll}
+            </ButtonLink>
+            <ButtonLink to={`/polls/new?crew=${crew.id}&kind=date`} variant="secondary" icon={<IconCalendar className="size-4" aria-hidden />}>
+              {t.crews.detail.findDate}
             </ButtonLink>
             <ButtonLink to={`/plans/new?crew=${crew.id}`} variant="secondary" icon={<IconCalendarPlus className="size-4" aria-hidden />}>
               {t.crews.detail.createPlan}

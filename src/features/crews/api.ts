@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
+import type { BalanceRow } from "@/lib/settle";
 import type { Crew, CrewInvitation, CrewMember, CrewMessage, CrewRole } from "@/lib/types";
 
 export interface CrewWithMembers extends Crew {
@@ -295,5 +296,17 @@ export function useDeleteMessage(crewId: string) {
       if (error) throw error;
     },
     onSuccess: () => void client.invalidateQueries({ queryKey: qk.crewMessages(crewId) }),
+  });
+}
+
+/** P3 Etappe 3 · Offene Beträge der Crew: Salden je Plan und Person, nur was noch offen ist (RPC). */
+export function useCrewBalances(crewId: string) {
+  return useQuery({
+    queryKey: qk.crewBalances(crewId),
+    queryFn: async (): Promise<BalanceRow[]> => {
+      const { data, error } = await supabase.rpc("crew_open_balances", { p_crew_id: crewId });
+      if (error) throw error;
+      return (data ?? []) as BalanceRow[];
+    },
   });
 }

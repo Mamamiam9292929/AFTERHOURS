@@ -2,7 +2,7 @@ import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttribu
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 
-const controlClass =
+export const controlClass =
   "block w-full rounded-control border border-line bg-surface px-3.5 text-fg placeholder:text-faint " +
   "transition-colors hover:border-line-strong focus:border-lime focus:outline-none focus-visible:outline-none " +
   "aria-[invalid=true]:border-danger disabled:opacity-50";

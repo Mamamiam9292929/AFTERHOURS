@@ -25,6 +25,7 @@ import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/tim
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
 import { estimateCosts, hasStarted, usePlan, usePlanShareToken, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { BookingPanel } from "./BookingPanel";
+import { ExpensesPanel } from "./ExpensesPanel";
 import { PlanForm } from "./PlanForm";
 import { FeatureTicket } from "./PlanTicket";
 import { RidesPanel } from "./RidesPanel";
@@ -109,6 +110,12 @@ export function PlanDetailPage() {
   const costs = estimateCosts(plan);
   const place = activity.data ?? null;
   const organizer = plan.created_by === user.id ? t.plans.detail.organizerYou : t.plans.detail.organizer(people.lookup(plan.created_by)?.display_name ?? t.states.formerMember);
+
+  const expensesSection = (
+    <Section id="kosten" title={t.plans.expenses.title}>
+      <ExpensesPanel plan={plan} userId={user.id} memberIds={crew?.members.map((m) => m.user_id) ?? []} canManageCrew={canManageCrew(myRole(crew, user.id))} lookup={people.lookup} />
+    </Section>
+  );
 
   function changeStatus(status: PlanStatus, message: string) {
     setStatus.mutate(status, {
@@ -279,6 +286,9 @@ export function PlanDetailPage() {
             </Section>
           )}
 
+          {/* P3: Nach dem Start steht das Abrechnen oben – davor ist es eher die Ausnahme (z. B. Tickets vorab). */}
+          {(started || locked) && expensesSection}
+
           <Section title={t.plans.detail.booking}>
             <BookingPanel plan={plan} activity={place} canManage={canManage && !locked} />
           </Section>
@@ -286,6 +296,8 @@ export function PlanDetailPage() {
           <Section title={t.plans.detail.rides}>
             <RidesPanel plan={plan} userId={user.id} locked={locked} lookup={people.lookup} />
           </Section>
+
+          {!(started || locked) && expensesSection}
 
           {plan.status === "completed" && <FollowUp plan={plan} city={place?.city ?? null} />}
         </div>

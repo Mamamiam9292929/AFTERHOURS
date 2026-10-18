@@ -68,15 +68,44 @@ export function describeSharedPoll(preview) {
   }
   const { poll } = preview;
   const title = `${poll.title} · AFTERHOURS`;
-  const options = countText(Number(poll.option_count) || 0, "Vorschlag", "Vorschläge");
+  const isDate = poll.kind === "date";
+  const options = isDate ? dateOptionsText(Number(poll.option_count) || 0, poll.dates) : countText(Number(poll.option_count) || 0, "Vorschlag", "Vorschläge");
   const voters = Number(poll.voter_count) || 0;
   if (poll.status !== "open") {
     return { title, description: `Entschieden – ${voters === 1 ? "1 hat" : `${voters} haben`} abgestimmt. Wie es weitergeht, sieht die Crew in AFTERHOURS.` };
   }
   const votersText = voters === 0 ? "Noch keine Stimme" : voters === 1 ? "1 hat abgestimmt" : `${voters} haben abgestimmt`;
   // W3: Hat die Crew Gäste zugelassen, geht Mitstimmen ohne Konto – das gehört in die Einladung.
-  const ask = poll.guests === true ? "Stimmst du mit ab? Geht auch ohne Konto." : "Stimmst du mit ab?";
+  const question = isDate ? "Wann kannst du?" : "Stimmst du mit ab?";
+  const ask = poll.guests === true ? `${question} Geht auch ohne Konto.` : question;
   return { title, description: `${options} · ${votersText} · Abstimmen bis ${formatWhen(poll.ends_at)}. ${ask}` };
+}
+
+const WEEKDAYS_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const MAX_LISTED_DATES = 4;
+
+/** P1 · „Fr 23.10. 19:00“ aus {date: "2026-10-23", time: "19:00" | null}; ungültig → null. */
+export function formatSlot(slot) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(slot?.date ?? ""));
+  if (!match) return null;
+  const [, y, m, d] = match;
+  const weekday = WEEKDAYS_SHORT[new Date(Date.UTC(Number(y), Number(m) - 1, Number(d))).getUTCDay()];
+  const time = typeof slot.time === "string" && /^\d{2}:\d{2}$/.test(slot.time) ? ` ${slot.time}` : "";
+  return `${weekday} ${d}.${m}.${time}`;
+}
+
+/**
+ * P1 Etappe 2 · Termin-Abstimmung: Die Termine selbst stehen in der Vorschau (sie enthalten weder Namen
+ * noch Orte) – „3 Termine zur Wahl: Fr 23.10. 19:00, Sa 24.10., …“. Mehr als vier werden gezählt.
+ */
+function dateOptionsText(count, dates) {
+  const slots = (Array.isArray(dates) ? dates : []).map(formatSlot).filter(Boolean);
+  const total = Math.max(count, slots.length);
+  const head = countText(total, "Termin", "Termine");
+  if (slots.length === 0) return head;
+  const listed = slots.slice(0, MAX_LISTED_DATES).join(", ");
+  const rest = total - Math.min(slots.length, MAX_LISTED_DATES);
+  return `${head} zur Wahl: ${listed}${rest > 0 ? ` und ${rest} ${rest === 1 ? "weiterer" : "weitere"}` : ""}`;
 }
 
 export function escapeHtml(value) {

@@ -41,7 +41,8 @@ export type NotificationType =
   | "crew_member_joined" | "crew_member_removed" | "crew_role_changed"
   | "poll_created" | "poll_reminder" | "poll_vote" | "poll_result"
   | "plan_created" | "plan_changed" | "plan_cancelled" | "plan_attendance"
-  | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned";
+  | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned"
+  | "plan_expense" | "plan_settlement";
 
 export interface UserSettings {
   user_id: string;
@@ -151,7 +152,7 @@ export interface Poll {
   /** W3: Freunde ohne Konto dürfen über den Teilen-Link mitstimmen. */
   guests_allowed: boolean;
   /** P1: „place“ = Abstimmung über Orte/Vorschläge, „date“ = Termin-Abstimmung „Wann könnt ihr?“. */
-  kind: "place" | "date";
+  kind: PollKind;
   /** W3 Etappe 3: Wer (Owner/Admin) „Gäste dürfen der Crew beitreten“ eingeschaltet hat – null = aus. */
   guest_join_by: string | null;
 }
@@ -256,6 +257,26 @@ export interface RideOffer {
   created_at: string;
 }
 
+/** P3 · Ausgabe oder Rückzahlung zu einem Plan; Anteile rechnet der Server. */
+export interface PlanExpense {
+  id: string;
+  plan_id: string;
+  kind: "expense" | "settlement";
+  /** null bei Rückzahlungen */
+  description: string | null;
+  amount_cents: number;
+  paid_by: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface PlanExpenseShare {
+  expense_id: string;
+  plan_id: string;
+  user_id: string;
+  amount_cents: number;
+}
+
 export interface RideRequest {
   id: string;
   ride_offer_id: string;
@@ -310,3 +331,6 @@ export interface AuditLogEntry {
   meta: Record<string, unknown>;
   created_at: string;
 }
+
+/** P1: Abstimmung über Orte/Vorschläge („Was machen wir?“) oder über Termine („Wann könnt ihr?“). */
+export type PollKind = "place" | "date";
