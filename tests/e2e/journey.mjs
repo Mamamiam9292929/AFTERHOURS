@@ -168,7 +168,9 @@ async function a11y(user, name) {
     await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 2000))]);
   });
   const result = await page.evaluate(() =>
-    window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] }),
+    // Fokuswächter von Headless UI (offene Dialoge) sind aria-hidden und leiten den Fokus nur zurück in den
+    // Dialog – axe meldet sie fälschlich als „aria-hidden-focus“; sie sind keine Bedienelemente.
+    window.axe.run({ include: [["html"]], exclude: [["[data-headlessui-focus-guard]"]] }, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] }),
   );
   a11yScans++;
   const screen = `${name}-${user.viewport}`;
