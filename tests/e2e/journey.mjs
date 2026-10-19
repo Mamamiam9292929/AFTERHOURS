@@ -2678,7 +2678,7 @@ await step("S5 – Abstimmung entscheidet sich selbst: klare Mehrheit → Plan s
   await page.getByRole("heading", { level: 1 }).waitFor();
   check(true, "„Zum Plan“ öffnet den automatisch angelegten Plan");
   // Aufräumen: der Rest der Journey kennt diesen Plan nicht.
-  psql(`delete from public.plans where id = '${plans[0].id}'`);
+  execFileSync("psql", [DB_URL, "-qc", `delete from public.plans where id = '${plans[0].id}'`]);
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
