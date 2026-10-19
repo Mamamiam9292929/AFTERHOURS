@@ -70,6 +70,57 @@ export function pickHour(hours: HourForecast[], hour: number): HourForecast | nu
   return [...hours].sort((a, b) => Math.abs(a.hour - hour) - Math.abs(b.hour - hour) || a.hour - b.hour)[0];
 }
 
+/**
+ * Wie „schlimm“ ein Wettercode für einen Abend ist – für die Zusammenfassung eines Tages ohne Uhrzeit.
+ * Gewitter vor Eisregen vor Schnee vor Regen vor Niesel vor Nebel vor Wolken vor Sonne; unbekannt zählt nicht.
+ */
+export function weatherSeverity(code: number | null): number {
+  if (code == null) return -1;
+  if (code >= 95 && code <= 99) return 9;
+  if (code === 56 || code === 57 || code === 66 || code === 67) return 8;
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 7;
+  if ((code >= 61 && code <= 65) || (code >= 80 && code <= 82)) return 6;
+  if (code >= 51 && code <= 55) return 5;
+  if (code === 45 || code === 48) return 4;
+  if (code === 3) return 3;
+  if (code === 1 || code === 2) return 2;
+  if (code === 0) return 1;
+  return -1;
+}
+
+/** Stunden, die für „den Tag“ eines Vorschlags ohne Uhrzeit zählen: 10 bis 22 Uhr. */
+export const DAY_HOURS = { from: 10, to: 22 } as const;
+
+export interface DaySummary {
+  temperature: number | null;
+  precipitation_probability: number | null;
+  weather_code: number | null;
+  wind_speed: number | null;
+}
+
+/**
+ * Vorschlag ohne Uhrzeit: höchste Temperatur, höchstes Regenrisiko, das ungünstigste Wetter und der
+ * stärkste Wind zwischen 10 und 22 Uhr. Fehlen diese Stunden, zählt der ganze Tag. Werte, die keine
+ * Stunde liefert, bleiben leer.
+ */
+export function summarizeDay(hours: HourForecast[]): DaySummary | null {
+  if (hours.length === 0) return null;
+  const daytime = hours.filter((h) => h.hour >= DAY_HOURS.from && h.hour <= DAY_HOURS.to);
+  const pool = daytime.length > 0 ? daytime : hours;
+  const max = (values: (number | null)[]) => {
+    const known = values.filter((v): v is number => v != null);
+    return known.length > 0 ? Math.max(...known) : null;
+  };
+  let code: number | null = null;
+  for (const h of pool) if (weatherSeverity(h.weather_code) > weatherSeverity(code)) code = h.weather_code;
+  return {
+    temperature: max(pool.map((h) => h.temperature)),
+    precipitation_probability: max(pool.map((h) => h.precipitation_probability)),
+    weather_code: code,
+    wind_speed: max(pool.map((h) => h.wind_speed)),
+  };
+}
+
 export async function fetchForecast(
   base: string,
   latitude: number,

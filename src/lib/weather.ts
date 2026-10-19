@@ -23,6 +23,27 @@ export type PlanWeather =
       source: string;
     };
 
+/** P5 Etappe 2: Wetter je Vorschlag einer laufenden Abstimmung (Edge Function `weather` mit `poll_id`). */
+export type PollOptionWeather =
+  | { option_id: string; status: "too_far"; available_from: string }
+  | { option_id: string; status: "unavailable" }
+  | {
+      option_id: string;
+      status: "ok";
+      /** hour: Stunde des Termins; day: Vorschlag ohne Uhrzeit, höchste Werte zwischen 10 und 22 Uhr. */
+      mode: "hour" | "day";
+      hour: number | null;
+      temperature: number | null;
+      precipitation_probability: number | null;
+      weather_code: number | null;
+      wind_speed: number | null;
+      setting: string | null;
+    };
+
+export type PollWeather =
+  | { status: "closed" }
+  | { status: "open"; options: PollOptionWeather[]; fetched_at: string | null; source: string };
+
 /** WMO-Wettercode → Art. Unbekannte Codes bleiben unbekannt statt geraten. */
 export function weatherKind(code: number | null | undefined): WeatherKind {
   if (code == null) return "unknown";

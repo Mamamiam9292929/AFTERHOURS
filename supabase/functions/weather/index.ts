@@ -1,5 +1,7 @@
 /**
- * AFTERHOURS – Edge Function "weather": Wettervorhersage für Beginn und Ort eines Plans (Roadmap P5).
+ * AFTERHOURS – Edge Function "weather": Wettervorhersage für Beginn und Ort eines Plans (Roadmap P5)
+ * und für die Vorschläge einer laufenden Abstimmung (P5 Etappe 2, POST {"poll_id": "<uuid>"}: je
+ * Vorschlag mit Ort und Termin, siehe poll.ts – Mitgliedschaft und Rate Limit prüft poll_weather).
  *
  * Ablauf (POST {"plan_id": "<uuid>"}):
  *   1. plan_weather (mit dem Token der anfragenden Person): Mitgliedschaft, Rate Limit, gerundeter Ort,
@@ -19,6 +21,7 @@
  * Deploy: supabase functions deploy weather
  */
 import { DEFAULT_OPEN_METEO_URL, fetchForecast, type HourForecast, pickHour, WeatherError } from "./forecast.ts";
+import { buildPollWeather, type PollWeatherInfo } from "./poll.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -80,15 +83,37 @@ Deno.serve(async (req) => {
   const serviceHeaders = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" };
 
   let planId = "";
+  let pollId = "";
   try {
     const body = await req.json();
     planId = typeof body?.plan_id === "string" ? body.plan_id.trim() : "";
+    pollId = typeof body?.poll_id === "string" ? body.poll_id.trim() : "";
   } catch {
     return json({ error: "invalid_request" }, 400, origin);
   }
-  if (!UUID.test(planId)) return json({ error: "invalid_request" }, 400, origin);
+  // Genau eins von beiden: ein Plan oder eine Abstimmung.
+  if (planId && pollId) return json({ error: "invalid_request" }, 400, origin);
+  if (!UUID.test(planId) && !UUID.test(pollId)) return json({ error: "invalid_request" }, 400, origin);
+
+  const openMeteo = Deno.env.get("OPEN_METEO_URL") || DEFAULT_OPEN_METEO_URL;
+  // Speichern ist Komfort: Scheitert es, bekommt die Person die Vorhersage trotzdem.
+  const store = async (latitude: number, longitude: number, day: string, hours: HourForecast[]) => {
+    const stored = await rpc(supabaseUrl, serviceHeaders, "store_weather_forecast", {
+      p_latitude: latitude, p_longitude: longitude, p_day: day, p_hourly: hours,
+    }).catch(() => null);
+    return typeof stored === "string" ? stored : new Date().toISOString();
+  };
 
   try {
+    if (pollId) {
+      const info = (await rpc(supabaseUrl, userHeaders, "poll_weather", { p_poll: pollId })) as PollWeatherInfo;
+      const result = await buildPollWeather(info, async (latitude, longitude, day) => {
+        const hours = await fetchForecast(openMeteo, latitude, longitude, day);
+        return { hours, fetchedAt: await store(latitude, longitude, day, hours) };
+      });
+      return json(result, 200, origin);
+    }
+
     const info = (await rpc(supabaseUrl, userHeaders, "plan_weather", { p_plan: planId })) as PlanWeather;
     if (info.status === "past" || info.status === "no_location") return json({ status: info.status }, 200, origin);
     if (info.status === "too_far") return json({ status: "too_far", available_from: info.available_from, setting: info.setting ?? null }, 200, origin);
@@ -97,12 +122,8 @@ Deno.serve(async (req) => {
     let hours = info.status === "cached" && Array.isArray(info.hourly) ? info.hourly : null;
     let fetchedAt = info.fetched_at ?? null;
     if (!hours) {
-      hours = await fetchForecast(Deno.env.get("OPEN_METEO_URL") || DEFAULT_OPEN_METEO_URL, Number(info.latitude), Number(info.longitude), info.day);
-      // Speichern ist Komfort: Scheitert es, bekommt die Person die Vorhersage trotzdem.
-      const stored = await rpc(supabaseUrl, serviceHeaders, "store_weather_forecast", {
-        p_latitude: info.latitude, p_longitude: info.longitude, p_day: info.day, p_hourly: hours,
-      }).catch(() => null);
-      fetchedAt = typeof stored === "string" ? stored : new Date().toISOString();
+      hours = await fetchForecast(openMeteo, Number(info.latitude), Number(info.longitude), info.day);
+      fetchedAt = await store(Number(info.latitude), Number(info.longitude), info.day, hours);
     }
 
     const at = pickHour(hours, info.hour);

@@ -91,6 +91,30 @@ export const polls = {
     timeOpen: "Uhrzeit offen",
     dateBadge: "Termin-Abstimmung",
     dateOpen: "Termin offen",
+    /** P5 Etappe 2: Wetter je Vorschlag einer laufenden Abstimmung. */
+    weather: {
+      label: (title: string) => `Wetter für ${title}`,
+      loading: "Wetter wird geladen …",
+      rain: (percent: number) => `${percent} % Regenrisiko`,
+      /** Vorschlag ohne Uhrzeit: höchste Werte zwischen 10 und 22 Uhr. */
+      dayLead: "Tagsüber",
+      dayTemperature: (value: string) => `bis ${value}`,
+      dayRain: (percent: number) => `bis ${percent} % Regenrisiko`,
+      tooFar: (date: string) => `Wetter ab ${date}`,
+      unavailable: "Wetter für diesen Tag gerade nicht abrufbar",
+      error: "Wetter gerade nicht abrufbar.",
+      retry: "Erneut versuchen",
+      hints: {
+        rain: "Draußen – Regen möglich",
+        thunder: "Draußen – Gewitter angesagt",
+        snow: "Draußen – Schnee oder Glätte möglich",
+        cold: "Draußen – kalt",
+      },
+      /** „Wetter: Vorhersage von <Open-Meteo>, Stand 07:12 Uhr. Kann sich noch ändern.“ */
+      sourceLead: "Wetter: Vorhersage von",
+      sourceLink: "Open-Meteo",
+      sourceTail: (time: string) => `, Stand ${time}. Kann sich noch ändern.`,
+    },
     priceEstimate: (price: string) => `ca. ${price} pro Person`,
     yourAnswer: "Deine Antwort",
     answerFor: (title: string) => `Deine Antwort für ${title}`,
