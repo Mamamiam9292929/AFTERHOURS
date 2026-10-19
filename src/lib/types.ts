@@ -199,6 +199,8 @@ export interface Plan {
   created_by: string | null;
   poll_id: string | null;
   activity_id: string | null;
+  /** P8: Serie, zu der der Plan gehört (wiederkehrender Plan), sonst null. */
+  series_id: string | null;
   title: string;
   starts_at: string;
   ends_at: string | null;

@@ -1553,6 +1553,85 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await shot(alice, "31-benachrichtigungen");
 });
 
+await step("P8 – Stammtisch: Plan wiederholt sich von selbst (Alice, Bob)", async () => {
+  if (!DB_URL) {
+    console.log("   (E2E_DB_URL nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const title = `Stammtisch ${RUN}`;
+  // In 5 Tagen um 20:00 Berliner Zeit; Alice organisiert.
+  const planId = psql(`insert into public.plans (crew_id, created_by, title, starts_at, address, status)
+    select '${ids.crew}', created_by, '${title}', ((now() at time zone 'Europe/Berlin')::date + 5 + time '20:00') at time zone 'Europe/Berlin', 'Eckkneipe, Hauptstr. 1', 'confirmed'
+    from public.plans where id = '${ids.plan}' returning id;
+    insert into public.plan_participants (plan_id, user_id)
+    select p.id, m.user_id from public.plans p join public.crew_members m on m.crew_id = p.crew_id where p.title = '${title}';`).split("\n")[0];
+  const dayLabel = (offset) => {
+    const d = new Date(Date.now() + offset * 86400_000);
+    return {
+      weekday: new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", weekday: "long" }).format(d),
+      long: new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", weekday: "long", day: "numeric", month: "long" }).format(d),
+    };
+  };
+  const first = dayLabel(5);
+  try {
+    // Alice stellt „Jeden <Wochentag>“ ein.
+    await alice.page.goto(`${APP}/plans/${planId}`);
+    const card = alice.page.getByRole("region", { name: "Regelmäßig" });
+    await card.waitFor();
+    check((await card.getByRole("button", { name: "Speichern" }).isDisabled()), "Wiederholen: ohne Änderung nichts zu speichern");
+    const options = await card.getByLabel("Wiederholen").locator("option").allInnerTexts();
+    check(options.includes(`Jeden ${first.weekday}`) && options.includes(`Jeden zweiten ${first.weekday}`) && options.includes("Nur dieses Mal"),
+      `Wiederholen bietet „Jeden ${first.weekday}“, „Jeden zweiten ${first.weekday}“ und „Nur dieses Mal“ (${options.join(" / ")})`);
+    await card.getByLabel("Wiederholen").selectOption("weekly");
+    await card.getByRole("button", { name: "Speichern" }).click();
+    await toast(alice, "Wiederholung gespeichert.");
+    await alice.page.getByTestId("repeat-line").filter({ hasText: `Jeden ${first.weekday}` }).waitFor();
+    check(true, "Planseite zeigt die Regel unter „Wann?“");
+    const next = dayLabel(12);
+    await card.getByText(`steht der nächste Termin am ${next.long} von selbst in der App`).waitFor();
+    check(true, `Karte nennt den nächsten Termin (${next.long})`);
+    await shot(alice, "33-plan-wiederholen");
+    check(psql(`select count(*) from public.plans where series_id is not null and title = '${title}'`) === "1", "solange der Abend ansteht, gibt es keinen zweiten Termin");
+
+    // Bob (Mitglied) sieht die Regel, stellt aber nichts ein.
+    await bob.page.goto(`${APP}/plans/${planId}`);
+    await bob.page.getByTestId("repeat-line").waitFor();
+    check((await bob.page.getByRole("region", { name: "Regelmäßig" }).count()) === 0, "Mitglieder ohne Verwaltungsrecht sehen keine Einstellung");
+    if (ANON) {
+      const probe = await api(bob, "POST", "rpc/set_plan_repeat", { p_plan_id: planId, p_rule: "none" });
+      check(probe.status === 403, `API: Bob kann die Wiederholung von Alices Plan nicht beenden (HTTP ${probe.status})`);
+    }
+
+    // Zeit vergehen lassen: Der Abend liegt zwei Stunden zurück. Öffnet Bob seine Pläne, steht der nächste da.
+    psql(`update public.plans set starts_at = now() - interval '2 hours' where id = '${planId}';
+          update public.plan_series s set last_on = ((now() - interval '2 hours') at time zone 'Europe/Berlin')::date
+          from public.plans p where p.id = '${planId}' and s.id = p.series_id;`);
+    await bob.page.goto(`${APP}/plans`);
+    let nextId = "";
+    for (let i = 0; i < 40 && !nextId; i++) {
+      nextId = psql(`select id from public.plans where title = '${title}' and id <> '${planId}' limit 1`);
+      if (!nextId) await new Promise((r) => setTimeout(r, 250));
+    }
+    check(Boolean(nextId), "nach dem Abend legt die App den nächsten Termin an");
+    check(psql(`select count(*) from public.plans where title = '${title}'`) === "2", "genau ein neuer Termin");
+    check(psql(`select status from public.plans where id = '${nextId}'`) === "proposed", "neuer Termin startet als Vorschlag");
+    check(psql(`select count(*) from public.plan_participants where plan_id = '${nextId}' and attendance_status <> 'invited'`) === "0", "niemand ist automatisch zugesagt");
+    await bob.page.getByText(title).first().waitFor();
+    check(true, "Plans-Übersicht zeigt den neuen Termin");
+    await bob.page.goto(`${APP}/notifications`);
+    await bob.page.getByText("Der nächste Termin steht – bist du dabei?").first().waitFor();
+    check(true, "Benachrichtigung zum neuen Termin");
+    await bob.page.goto(`${APP}/plans/${nextId}`);
+    await bob.page.getByTestId("repeat-line").waitFor();
+    await bob.page.getByText("Dieser Plan ist ein Vorschlag und noch nicht bestätigt.").waitFor();
+    await shot(bob, "33-plan-wiederkehrend");
+  } finally {
+    psql(`delete from public.plans where title = '${title}';
+          delete from public.plan_series s where s.crew_id = '${ids.crew}' and not exists (select 1 from public.plans p where p.series_id = s.id);`);
+  }
+});
+
 await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async () => {
   const { page } = alice;
   // Zwei Termine in 10 und 11 Tagen (Berliner Zeit); Titel wie auf dem Server: „Sonntag, 25. Oktober“.
