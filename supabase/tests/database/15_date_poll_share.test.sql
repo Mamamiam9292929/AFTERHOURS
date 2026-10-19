@@ -51,7 +51,7 @@ select ok(tests.var('preview') !~* '(Hinterhof|Weekend|Alice|Bob|example\.test)'
 select tests.set_var('place_preview', public.preview_shared_poll(tests.var('place_token'))::text);
 select is(tests.var('place_preview')::jsonb #>> '{poll,kind}', 'place', 'Orts-Abstimmung: Art „place“');
 select ok(not ((tests.var('place_preview')::jsonb -> 'poll') ? 'dates'), 'Orts-Abstimmung: keine Termine in der Vorschau');
-select ok(tests.var('place_preview') !~* '(Grillen|19:00)', 'Vorschläge und ihre Zeiten bleiben in der Crew');
+select ok((tests.var('place_preview')::jsonb #- '{poll,ends_at}')::text !~* '(Grillen|19:00)', 'Vorschläge und ihre Zeiten bleiben in der Crew'); -- ends_at ausgenommen: kann zufällig 19:00 enthalten
 
 -- ---- Angriff: unbekannter Token, abgelaufene Abstimmung -------------------------------------------
 select is(public.preview_shared_poll(repeat('e', 32)), '{"status": "not_found"}'::jsonb, 'geratener Token: nur not_found, keine Termine');
