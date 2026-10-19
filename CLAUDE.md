@@ -9,10 +9,11 @@ Vor jeder Arbeit `README.md` (Stand, Architektur, Sicherheit) und `ROADMAP.md` l
 Benito hat Claude die Weiterentwicklung vollständig übertragen: Claude entscheidet selbst über Prioritäten, neue Funktionen, Design und Ideen, und merged eigene PRs, sobald die CI grün ist.
 
 - Eine Aufgabe = ein Branch (`claude/<roadmap-id>-<kurzname>`) = ein Pull Request gegen `main`. Nie direkt auf `main` pushen; gemergt wird per PR (Squash), erst wenn alle Checks grün sind.
-- Priorität: 1. Fehler und Sicherheitslücken, 2. Fundament (Tests/CI), 2b. Redesign D0 (Benitos ausdrücklicher Wunsch), 3. was am meisten dazu beiträgt, dass Gruppen die App nutzen, weiterempfehlen und wiederkommen, 4. Design-Feinschliff.
+- Priorität: 1. Fehler und Sicherheitslücken, 2. Fundament (Tests/CI), 2b. AFTERHOURS 2.0: S1–S7 (Benitos ausdrücklicher Wunsch vom 19.10.), 3. was am meisten dazu beiträgt, dass Gruppen die App nutzen, weiterempfehlen und wiederkommen, 4. Design-Feinschliff.
 - `ROADMAP.md` ist die Arbeitsliste. Neue Ideen trägt Claude selbst ein (Nutzen, Aufwand, Akzeptanzkriterien) und darf sie direkt umsetzen.
 - Design-Richtung: `docs/design/DESIGN.md` mit Konzept-Screens. Neue Screens folgen dieser Richtung.
-- Design darf und soll laufend schöner werden – innerhalb der Marke: Anthrazit, fast schwarze Navigation, ein Lime-Akzent, Ticket-Motiv, Big Shoulders Display + Figtree. Keine generische KI-Optik, keine Platzhalter. Jede Design-Änderung mit Vorher/Nachher-Screenshots im PR.
+- **Design-Stopp seit 19.10.2026:** Benito lässt ein komplett neues Design entwerfen (ROADMAP „AFTERHOURS 2.0“, V2). Bis er die Entwürfe freigibt, wird am Aussehen der App nichts geändert – keine Design-Aufgaben (D1–D5), neue Funktionen nur mit schlichter Oberfläche aus den vorhandenen Bausteinen. Danach gilt die neue Richtung aus `docs/design/DESIGN.md`.
+- Keine generische KI-Optik, keine Platzhalter. Jede Design-Änderung mit Vorher/Nachher-Screenshots im PR.
 - Commits und PRs auf Deutsch. Commit-Nachrichten enden mit den Attributionszeilen, die die Sitzung vorgibt.
 
 ### Was Claude trotz Eigenverantwortung nicht tut
