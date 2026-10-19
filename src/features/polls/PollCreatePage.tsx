@@ -9,11 +9,13 @@ import { FormMessage, SelectField, TextAreaField, TextField } from "@/components
 import { useToast } from "@/components/ui/Toast";
 import { useCrews } from "@/features/crews/api";
 import { typicalPriceCents } from "@/features/discover/api";
+import { usePlans } from "@/features/plans/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
+import { suggestDateSlots, type SuggestedSlot } from "@/lib/slots";
 import { addDays, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
 import type { Activity, PollKind } from "@/lib/types";
 import { ActivityPicker } from "./ActivityPicker";
@@ -56,6 +58,15 @@ function linkedTime(value: string | null): string {
 let rowCounter = 0;
 const newKey = () => `opt-${++rowCounter}`;
 
+/** Vorschlag ohne Daten der Crew: nächstes Wochenende (Fr, Sa) und der Freitag danach, jeweils 19 Uhr. */
+function defaultSlots(): SlotRow[] {
+  const friday = nextWeekday("fri", true);
+  return [friday, nextWeekday("sat", true), addDays(friday, 7)].map((date) => ({ key: newKey(), date, time: "19:00" }));
+}
+
+const sameSlot = (row: SlotRow, slot: SuggestedSlot) => row.date === slot.date && row.time === slot.time;
+const bySlot = (a: SlotRow, b: SlotRow) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
+
 export function PollCreatePage() {
   useDocumentTitle(t.polls.create.title);
   const navigate = useNavigate();
@@ -72,12 +83,29 @@ export function PollCreatePage() {
   const datePoll = usePoll(whereId ?? undefined);
   const linkedWinner = upcomingDateWinner(datePoll.data);
   const [kind, setKind] = useState<PollKind>(params.get("kind") === "date" ? "date" : "place");
-  // Vorschlag: nächstes Wochenende (Fr, Sa) und der Freitag danach, jeweils 19 Uhr.
-  const [slots, setSlots] = useState<SlotRow[]>(() => {
-    const friday = nextWeekday("fri", true);
-    return [friday, nextWeekday("sat", true), addDays(friday, 7)].map((date) => ({ key: newKey(), date, time: "19:00" }));
-  });
+  const [slots, setSlots] = useState<SlotRow[]>(defaultSlots);
   const [crewId, setCrewId] = useState(params.get("crew") ?? "");
+  // P1 Etappe 3b: Hat die Crew eine Gewohnheit (Lieblingstag, übliche Uhrzeit), stehen deren nächste Termine
+  // statt des Wochenendes drin – aber nur, solange niemand die Termine selbst angefasst hat.
+  const plans = usePlans();
+  const suggestion = useMemo(
+    () => (plans.data && crewId ? suggestDateSlots(plans.data.filter((p) => p.crew_id === crewId)) : null),
+    [plans.data, crewId],
+  );
+  const suggestionKey = suggestion ? suggestion.slots.map((s) => `${s.date} ${s.time}`).join("|") : "";
+  const slotsTouched = useRef(false);
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    if (slotsTouched.current) return;
+    if (suggestion && suggestion.slots.length >= MIN_DATE_SLOTS) {
+      setSlots(suggestion.slots.map((slot) => ({ key: newKey(), date: slot.date, time: slot.time })));
+      setPrefilled(true);
+    } else if (prefilled) {
+      setSlots(defaultSlots());
+      setPrefilled(false);
+    }
+    // Nur neu vorbelegen, wenn sich die Vorschläge selbst ändern (andere Crew, Daten geladen).
+  }, [suggestionKey]);
   // P1 Etappe 2: „Und wo?“ nach einer Termin-Abstimmung bringt den Gewinner-Termin mit (?date=…&time=…).
   const [sharedDate, setSharedDate] = useState(() => linkedDate(params.get("date")) ?? nextWeekday("sat", true));
   const [sharedTime, setSharedTime] = useState(() => (linkedDate(params.get("date")) ? linkedTime(params.get("time")) : "19:00"));
@@ -133,8 +161,25 @@ export function PollCreatePage() {
   }
   const patchOption = (key: string, update: Partial<OptionRow>) => setOptions((rows) => rows.map((r) => (r.key === key ? { ...r, ...update } : r)));
 
-  const patchSlot = (key: string, update: Partial<SlotRow>) => setSlots((rows) => rows.map((r) => (r.key === key ? { ...r, ...update } : r)));
+  const patchSlot = (key: string, update: Partial<SlotRow>) => {
+    slotsTouched.current = true;
+    setSlots((rows) => rows.map((r) => (r.key === key ? { ...r, ...update } : r)));
+  };
+  function removeSlot(key: string) {
+    slotsTouched.current = true;
+    setSlots((rows) => rows.filter((r) => r.key !== key));
+  }
+  /** Vorschlag an- oder abwählen; mindestens zwei, höchstens zehn Termine bleiben. */
+  function toggleSuggested(slot: SuggestedSlot) {
+    slotsTouched.current = true;
+    setSlots((rows) => {
+      if (rows.some((r) => sameSlot(r, slot))) return rows.length > MIN_DATE_SLOTS ? rows.filter((r) => !sameSlot(r, slot)) : rows;
+      if (rows.length >= MAX_DATE_SLOTS) return rows;
+      return [...rows, { key: newKey(), date: slot.date, time: slot.time }].sort(bySlot);
+    });
+  }
   function addSlot() {
+    slotsTouched.current = true;
     setSlots((rows) => {
       if (rows.length >= MAX_DATE_SLOTS) return rows;
       const last = rows[rows.length - 1];
@@ -288,6 +333,33 @@ export function PollCreatePage() {
         {kind === "date" ? (
           <Section title={t.polls.create.dates.title}>
             <p className="-mt-1 mb-3 text-[13px] text-muted">{t.polls.create.dates.hint}</p>
+            {suggestion && (
+              <div className="mb-4 rounded-card border border-lime/40 bg-lime/10 p-4" data-testid="date-suggestions">
+                <p className="text-sm font-semibold text-lime">{t.polls.create.dates.suggest.title}</p>
+                <p className="mt-1 text-[13px] text-fg">
+                  {t.polls.create.dates.suggest.habit(
+                    suggestion.weekdayCount,
+                    suggestion.evenings,
+                    t.polls.create.dates.suggest.weekdays[suggestion.weekday] ?? "",
+                    suggestion.time,
+                    suggestion.timeCount >= 2,
+                  )}
+                </p>
+                <p className="mt-0.5 text-[13px] text-muted">{prefilled && !slotsTouched.current ? t.polls.create.dates.suggest.applied : t.polls.create.dates.suggest.pick}</p>
+                <ul className="mt-3 flex flex-wrap gap-2" aria-label={t.polls.create.dates.suggest.listLabel}>
+                  {suggestion.slots.map((slot) => {
+                    const [, month, day] = slot.date.split("-");
+                    return (
+                      <li key={`${slot.date} ${slot.time}`}>
+                        <Chip selected={slots.some((r) => sameSlot(r, slot))} onToggle={() => toggleSuggested(slot)}>
+                          {t.polls.create.dates.suggest.chip(t.polls.create.dates.suggest.short[slot.weekday] ?? "", `${day}.${month}.`, slot.time)}
+                        </Chip>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             <ol className="space-y-3">
               {slots.map((row, index) => (
                 <li key={row.key} className="rounded-card border border-line bg-surface p-4">
@@ -307,7 +379,7 @@ export function PollCreatePage() {
                     </div>
                     <IconButton
                       label={t.polls.create.dates.remove(index + 1)}
-                      onClick={() => setSlots((rows) => rows.filter((r) => r.key !== row.key))}
+                      onClick={() => removeSlot(row.key)}
                       disabled={slots.length <= MIN_DATE_SLOTS}
                       className="mt-6"
                     >
