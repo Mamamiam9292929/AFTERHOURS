@@ -1,9 +1,11 @@
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
 import type { PollKind, PollVote, VoteResponse } from "@/lib/types";
+import type { PollWeather } from "@/lib/weather";
 import type { PollWithDetails } from "./logic";
 
 // Der FK-Hinweis ist nötig, weil polls und poll_options doppelt verbunden sind (poll_id und winning_option_id).
@@ -438,6 +440,38 @@ export function useClaimGuest(pollId: string, token: string, secret: string | nu
       void client.invalidateQueries({ queryKey: ["poll-guest-claim", pollId] });
       void client.invalidateQueries({ queryKey: qk.poll(pollId) });
       void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+    },
+  });
+}
+
+/**
+ * P5 Etappe 2: Wetter je Vorschlag einer laufenden Abstimmung über die Edge Function `weather`
+ * (`poll_id`). Neue Vorschläge, Orte oder Termine sind eine neue Abfrage; Stimmen nicht – deshalb
+ * hängt der Schlüssel nur an Ort und Termin der Vorschläge, nicht an der Abstimmung selbst.
+ */
+export function usePollWeather(poll: Pick<PollWithDetails, "id" | "options"> | null | undefined, enabled = true) {
+  const signature = (poll?.options ?? [])
+    .map((o) => `${o.id}:${o.activity_id ?? ""}:${o.proposed_date ?? ""}:${o.proposed_time ?? ""}`)
+    .sort()
+    .join("|");
+  return useQuery({
+    queryKey: ["poll-weather", poll?.id ?? "none", signature] as const,
+    enabled: Boolean(poll?.id) && enabled,
+    staleTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+    queryFn: async (): Promise<PollWeather> => {
+      const { data, error } = await supabase.functions.invoke<PollWeather>("weather", { body: { poll_id: poll?.id } });
+      if (error) {
+        if (error instanceof FunctionsHttpError) {
+          const response = error.context as Response;
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw Object.assign(new Error(body?.error ?? "weather_unavailable"), { code: body?.error ? "P0001" : undefined, status: response.status });
+        }
+        throw error;
+      }
+      if (!data) throw new Error("weather_unavailable");
+      return data;
     },
   });
 }

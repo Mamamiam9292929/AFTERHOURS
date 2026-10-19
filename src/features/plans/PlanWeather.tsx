@@ -1,36 +1,12 @@
-import {
-  IconWarning,
-  IconWeatherClear,
-  IconWeatherCloudy,
-  IconWeatherDrizzle,
-  IconWeatherFog,
-  IconWeatherPartly,
-  IconWeatherRain,
-  IconWeatherSnow,
-  IconWeatherThunder,
-  IconWeatherUnknown,
-} from "@/components/icons";
+import { IconWarning, IconWeatherUnknown } from "@/components/icons";
 import { Fact } from "@/components/layout/Page";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/errors";
 import { formatDateLong, formatTime } from "@/lib/time";
-import { formatTemperature, outdoorHint, weatherKind, type WeatherKind } from "@/lib/weather";
+import { formatTemperature, outdoorHint, weatherKind } from "@/lib/weather";
 import type { PlanWithParticipants } from "./api";
 import { usePlanWeather } from "./api";
-
-const ICONS: Record<WeatherKind, typeof IconWeatherClear> = {
-  clear: IconWeatherClear,
-  partly: IconWeatherPartly,
-  cloudy: IconWeatherCloudy,
-  fog: IconWeatherFog,
-  drizzle: IconWeatherDrizzle,
-  rain: IconWeatherRain,
-  freezing: IconWeatherSnow,
-  snow: IconWeatherSnow,
-  showers: IconWeatherRain,
-  thunder: IconWeatherThunder,
-  unknown: IconWeatherUnknown,
-};
+import { WEATHER_ICONS } from "./weatherIcons";
 
 /**
  * P5: Wetter für Beginn und Ort des Plans – nur bei anstehenden Plänen mit Ort aus Discover.
@@ -82,7 +58,7 @@ export function PlanWeather({ plan }: { plan: PlanWithParticipants }) {
   if (data.status !== "ok") return null;
 
   const kind = weatherKind(data.weather_code);
-  const Icon = ICONS[kind];
+  const Icon = WEATHER_ICONS[kind];
   const hint = outdoorHint(data);
   const details = [
     t.plans.weather.at(data.hour),

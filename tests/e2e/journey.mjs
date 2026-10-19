@@ -595,6 +595,41 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   }
 });
 
+await step("P5 Etappe 2 – Wetter schon beim Abstimmen (Bob, Carol)", async () => {
+  // Der Open-Meteo-Stellvertreter liefert jeden Tag 14,2 °C, 70 % Regenrisiko, leichten Regen.
+  await bob.page.goto(`${APP}/polls/${ids.poll}`);
+  const bowling = optionCard(bob, "Strike District Bowling").getByTestId("poll-option-weather");
+  await bowling.waitFor();
+  check((await bowling.innerText()).replace(/\s+/g, " ").trim() === "14 °C · Regen · 70 % Regenrisiko", `Abstimmung: Wetter beim Vorschlag (${await bowling.innerText()})`);
+  await optionCard(bob, "Lichtspielhaus Nord").getByTestId("poll-option-weather").waitFor();
+  check(true, "Abstimmung: jeder Ort mit Termin bekommt sein Wetter");
+  check((await optionCard(bob, "Grillen bei Bob").getByTestId("poll-option-weather").count()) === 0, "Abstimmung: eigener Vorschlag ohne Ort bekommt kein (erfundenes) Wetter");
+  check((await bob.page.getByText(/^Draußen –/).count()) === 0, "Abstimmung: kein Draußen-Hinweis bei Orten drinnen");
+  check(await bob.page.getByText(/^Wetter: Vorhersage von Open-Meteo, Stand \d{2}:\d{2} Uhr/).isVisible(), "Abstimmung: Quelle und Stand der Vorhersage einmal unter den Vorschlägen");
+  check((await bob.page.getByRole("link", { name: "Open-Meteo" }).getAttribute("href")) === "https://open-meteo.com/", "Abstimmung: Quelle verlinkt");
+  await bowling.scrollIntoViewIfNeeded();
+  await shot(bob, "11b-abstimmung-wetter");
+
+  // Ein Ort und Tag wird einmal abgefragt – Alice, Bob und Carol teilen sich die Vorhersage, und Open-Meteo erfährt nur Ort und Tag.
+  const calls = (await (await fetch("http://127.0.0.1:8089/weather-calls")).json()).calls.filter((q) => q.includes("latitude=52.52") && q.includes("longitude=13.50"));
+  check(calls.length === 1, `Abstimmung: eine Abfrage bei Open-Meteo für Ort und Tag (${calls.length})`);
+  check(calls.every((q) => !/poll|plan|user|crew/i.test(q)), "Abstimmung: Open-Meteo erfährt nur Ort und Tag");
+
+  // Fehlerzustand: Ist die Function nicht erreichbar, steht das unter den Vorschlägen – mit „Erneut versuchen“.
+  const { page } = carol;
+  await page.route("**/functions/v1/weather", (route) => route.abort());
+  await page.goto(`${APP}/polls/${ids.poll}`);
+  await page.getByRole("heading", { name: ids.pollTitle }).waitFor();
+  const retry = page.getByRole("button", { name: "Erneut versuchen" });
+  await retry.waitFor();
+  check(await page.getByText(/Wetter gerade nicht abrufbar|Keine Verbindung/).first().isVisible(), "Abstimmung: Fehlerzustand statt erfundener Werte");
+  check((await page.getByTestId("poll-option-weather").count()) === 0, "Abstimmung: ohne Vorhersage keine Werte");
+  await page.unroute("**/functions/v1/weather");
+  await retry.click();
+  await optionCard(carol, "Strike District Bowling").getByTestId("poll-option-weather").waitFor();
+  check(true, "Abstimmung: „Erneut versuchen“ lädt das Wetter");
+});
+
 await step("W2 Etappe 2 – Geteilte Abstimmung: Vorschau im Messenger und für Freunde ohne Konto", async () => {
   if (!ids.pollShareUrl) throw new Error("kein Teilen-Link aus Schritt 6");
   const sharePath = new URL(ids.pollShareUrl).pathname;
