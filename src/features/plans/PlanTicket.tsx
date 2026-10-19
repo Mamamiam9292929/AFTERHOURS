@@ -38,7 +38,9 @@ export const ANSWER_TEXT: Record<AttendanceStatus, string> = {
   invited: "text-fg",
 };
 
-export function planStatusBadge(status: PlanStatus): ReactNode {
+export function planStatusBadge(status: PlanStatus, skipped = false): ReactNode {
+  // P8 Etappe 2: ein ausgesetzter Stammtisch-Termin ist keine Absage der Runde.
+  if (status === "cancelled" && skipped) return <Badge tone="neutral">{t.plans.repeat.badge}</Badge>;
   const tone = status === "confirmed" || status === "booked" ? "lime" : status === "booking_pending" ? "amber" : status === "cancelled" ? "danger" : "neutral";
   return <Badge tone={tone}>{t.enums.planStatus[status]}</Badge>;
 }
@@ -112,7 +114,7 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
         <div className="min-w-0">
           <div className="flex items-start justify-between gap-x-3 gap-y-2">
             <h3 className={cn("min-w-0 break-words text-[17px] font-bold leading-tight text-fg", plan.status === "cancelled" && "line-through")}>{plan.title}</h3>
-            <span className="shrink-0">{planStatusBadge(plan.status)}</span>
+            <span className="shrink-0">{planStatusBadge(plan.status, Boolean(plan.skipped_at))}</span>
           </div>
           <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
             <span className="inline-flex items-center gap-1.5">
@@ -221,7 +223,7 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
       <div className="flex min-w-0 flex-col justify-between gap-4 p-5 sm:p-6">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            {planStatusBadge(plan.status)}
+            {planStatusBadge(plan.status, Boolean(plan.skipped_at))}
             {countdown && <span className="font-display text-[19px] font-extrabold uppercase leading-none tracking-wide text-lime">{countdown}</span>}
           </div>
           <Title className={cn("display mt-3 break-words text-[32px] text-fg sm:text-[44px]", plan.status === "cancelled" && "line-through decoration-2")}>{plan.title}</Title>

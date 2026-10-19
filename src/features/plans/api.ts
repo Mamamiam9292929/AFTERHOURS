@@ -524,3 +524,26 @@ export function useSetPlanRepeat(planId: string) {
     },
   });
 }
+
+export interface SkipResult {
+  next_plan_id: string | null;
+  next_starts_at: string | null;
+}
+
+/** P8 Etappe 2: „Diesmal aussetzen“ – dieser Termin fällt aus, die Serie läuft weiter, der nächste steht sofort da. */
+export function useSkipPlanOccurrence(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<SkipResult> => {
+      const { data, error } = await supabase.rpc("skip_plan_occurrence", { p_plan_id: planId });
+      if (error) throw error;
+      const result = (data ?? {}) as Partial<SkipResult>;
+      return { next_plan_id: result.next_plan_id ?? null, next_starts_at: result.next_starts_at ?? null };
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: qk.plans });
+      void client.invalidateQueries({ queryKey: qk.plan(planId) });
+      void client.invalidateQueries({ queryKey: qk.notifications });
+    },
+  });
+}

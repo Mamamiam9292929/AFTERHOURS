@@ -99,18 +99,50 @@ export function latestInSeries<T extends { id: string; starts_at: string; series
   return latest;
 }
 
+/** Wie früh der nächste Termin einer Serie entsteht (gleich wie auf dem Server). */
+export const ROLL_AHEAD_MS = 7 * 86_400_000;
+
+function dayIndex(date: string): number {
+  return parse(date).getTime() / 86_400_000;
+}
+
 /**
- * Serien, deren letzter Termin schon begonnen hat: Dann soll der Server den nächsten anlegen.
- * `plans` sind die geladenen Pläne mit eingebetteter Serie (nur `active` wird gebraucht).
+ * Serien, bei denen der Server den nächsten Termin anlegen soll: Er beginnt in höchstens 7 Tagen, oder der
+ * letzte Termin ist abgesagt („diesmal ausgesetzt“) – dann sofort. Die Startzeit wird aus dem letzten Termin
+ * hochgerechnet; über eine Zeitumstellung kann sie um eine Stunde abweichen, deshalb eine Stunde Puffer
+ * (lieber eine Stunde später fragen als vergeblich – der Server prüft ohnehin selbst).
+ * `plans` sind die geladenen Pläne mit eingebetteter Serie.
  */
-export function dueSeries(plans: readonly { starts_at: string; series_id?: string | null; series?: { active: boolean } | null }[], now: Date = new Date()): string[] {
-  const latest = new Map<string, string>();
-  const active = new Set<string>();
+export function dueSeries(
+  plans: readonly { starts_at: string; status?: string; series_id?: string | null; series?: Pick<PlanSeries, "active" | "rule" | "weekday" | "nth" | "last_on"> | null }[],
+  now: Date = new Date(),
+): string[] {
+  type Latest = (typeof plans)[number];
+  const latest = new Map<string, Latest>();
+  const series = new Map<string, NonNullable<Latest["series"]>>();
   for (const plan of plans) {
     if (!plan.series_id) continue;
-    if (plan.series?.active) active.add(plan.series_id);
+    if (plan.series?.active) series.set(plan.series_id, plan.series);
     const known = latest.get(plan.series_id);
-    if (!known || Date.parse(plan.starts_at) > Date.parse(known)) latest.set(plan.series_id, plan.starts_at);
+    if (!known || Date.parse(plan.starts_at) > Date.parse(known.starts_at)) latest.set(plan.series_id, plan);
   }
-  return [...latest].filter(([id, startsAt]) => active.has(id) && new Date(startsAt).getTime() <= now.getTime()).map(([id]) => id);
+  const due: string[] = [];
+  for (const [id, plan] of latest) {
+    const rule = series.get(id);
+    if (!rule) continue;
+    if (plan.status === "cancelled") {
+      due.push(id);
+      continue;
+    }
+    const lastStart = Date.parse(plan.starts_at);
+    let on = rule.last_on;
+    let nextStart = lastStart;
+    // Wie auf dem Server: der nächste Termin nach jetzt und nach dem letzten (verpasste übersprungen).
+    for (let i = 0; i < 300 && nextStart <= Math.max(now.getTime(), lastStart); i++) {
+      on = nextOccurrence(rule.rule, rule.weekday, rule.nth, on);
+      nextStart = lastStart + (dayIndex(on) - dayIndex(berlinDate(plan.starts_at))) * 86_400_000;
+    }
+    if (nextStart + 3_600_000 - ROLL_AHEAD_MS <= now.getTime()) due.push(id);
+  }
+  return due;
 }

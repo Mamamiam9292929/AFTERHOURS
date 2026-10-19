@@ -27,7 +27,7 @@ import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useSet
 import { BookingPanel } from "./BookingPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { PlanForm } from "./PlanForm";
-import { RepeatCard, RepeatLine } from "./PlanRepeat";
+import { RepeatCard, RepeatLine, SkippedNotice } from "./PlanRepeat";
 import { FeatureTicket } from "./PlanTicket";
 import { PlanWeather } from "./PlanWeather";
 import { RidesPanel } from "./RidesPanel";
@@ -155,6 +155,7 @@ export function PlanDetailPage() {
           {t.plans.detail.statusNote.proposed}
         </Notice>
       )}
+      {plan.status === "cancelled" && plan.skipped_at && <SkippedNotice plan={plan} plans={allPlans.data ?? []} />}
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">

@@ -1666,6 +1666,46 @@ await step("P8 – Stammtisch: Plan wiederholt sich von selbst (Alice, Bob)", as
     await bob.page.getByTestId("repeat-line").waitFor();
     await bob.page.getByText("Dieser Plan ist ein Vorschlag und noch nicht bestätigt.").waitFor();
     await shot(bob, "33-plan-wiederkehrend");
+
+    // P8 Etappe 2: Alice setzt diesen Termin aus – die Serie läuft weiter, der nächste steht sofort da.
+    await alice.page.goto(`${APP}/plans/${nextId}`);
+    const skipCard = alice.page.getByRole("region", { name: "Regelmäßig" });
+    await skipCard.getByRole("button", { name: "Diesmal aussetzen" }).click();
+    const skipDialog = alice.page.getByRole("dialog", { name: "Diesmal aussetzen?" });
+    const skipConfirm = skipDialog.getByRole("button", { name: "Diesmal aussetzen" });
+    await skipConfirm.waitFor();
+    check(await skipDialog.getByText(/Der Stammtisch geht weiter/).isVisible(), "Rückfrage erklärt: nur dieser Abend fällt aus");
+    await shot(alice, "33-plan-aussetzen-rueckfrage");
+    await skipConfirm.click();
+    await toast(alice, "Ausgesetzt – der nächste Termin steht schon.");
+    let thirdId = "";
+    for (let i = 0; i < 40 && !thirdId; i++) {
+      thirdId = psql(`select id from public.plans where title = '${title}' and id not in ('${planId}', '${nextId}') limit 1`);
+      if (!thirdId) await new Promise((r) => setTimeout(r, 250));
+    }
+    check(Boolean(thirdId), "nach dem Aussetzen steht der nächste Termin sofort da");
+    await alice.page.waitForURL(`**/plans/${thirdId}`);
+    check(true, "Alice landet auf dem nächsten Termin");
+    check(psql(`select status || ':' || (skipped_at is not null) from public.plans where id = '${nextId}'`) === "cancelled:true", "ausgesetzter Termin ist abgesagt und markiert");
+    check(psql(`select (p3.starts_at - p2.starts_at) = interval '7 days' from public.plans p2, public.plans p3 where p2.id = '${nextId}' and p3.id = '${thirdId}'`) === "t", "nächster Termin eine Woche später");
+    check(psql(`select s.active from public.plan_series s join public.plans p on p.series_id = s.id where p.id = '${thirdId}'`) === "t", "die Serie läuft weiter");
+    await alice.page.getByTestId("repeat-line").waitFor();
+
+    // Bob erfährt es und sieht den Termin als „Ausgesetzt“ mit Sprung zum nächsten.
+    await bob.page.goto(`${APP}/notifications`);
+    await bob.page.getByText(/setzt diesmal aus/).first().waitFor();
+    check(await bob.page.getByText(/^Nächster Termin: /).first().isVisible(), "Benachrichtigung nennt den nächsten Termin");
+    await bob.page.goto(`${APP}/plans/${nextId}`);
+    await bob.page.getByText("Dieser Termin wurde ausgesetzt. Der Stammtisch geht weiter.", { exact: false }).waitFor();
+    check(await bob.page.getByText("Ausgesetzt", { exact: true }).first().isVisible(), "Ticket zeigt „Ausgesetzt“ statt „Abgesagt“");
+    await shot(bob, "33-plan-ausgesetzt");
+    await bob.page.locator(`main a[href$="/plans/${thirdId}"]`).first().click();
+    await bob.page.waitForURL(`**/plans/${thirdId}`);
+    check(true, "Link führt zum nächsten Termin");
+    if (ANON) {
+      const probe = await api(bob, "POST", "rpc/skip_plan_occurrence", { p_plan_id: thirdId });
+      check(probe.status === 403, `API: Bob (Mitglied) kann Alices Termin nicht aussetzen (HTTP ${probe.status})`);
+    }
   } finally {
     psql(`delete from public.plans where title = '${title}';
           delete from public.plan_series s where s.crew_id = '${ids.crew}' and not exists (select 1 from public.plans p where p.series_id = s.id);`);
