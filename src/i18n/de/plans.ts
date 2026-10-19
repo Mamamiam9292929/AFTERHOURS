@@ -86,8 +86,10 @@ export const plans = {
     tooFar: (date: string) => `Vorhersage ab ${date} – zwei Wochen vor dem Plan.`,
     error: "Wetter gerade nicht abrufbar.",
     retry: "Erneut versuchen",
-    source: (time: string) => `Vorhersage von Open-Meteo, Stand ${time}. Kann sich noch ändern.`,
+    /** Quelle: „Vorhersage von <Open-Meteo>, Stand 04:53 Uhr. Kann sich noch ändern.“ – der Name ist der Link. */
+    sourceLead: "Vorhersage von",
     sourceLink: "Open-Meteo",
+    sourceTail: (time: string) => `, Stand ${time}. Kann sich noch ändern.`,
     hints: {
       rain: "Draußen und Regen möglich – vielleicht einen Plan B überlegen?",
       thunder: "Draußen und Gewitter angesagt – lieber einen Plan B überlegen.",
