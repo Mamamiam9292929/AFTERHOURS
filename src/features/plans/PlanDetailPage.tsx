@@ -223,6 +223,12 @@ export function PlanDetailPage() {
                   {t.plans.calendar.add}
                 </button>
               )}
+              {/* P2 Etappe 2: Wer mehr als einen Plan im Kalender will, abonniert alle. */}
+              {!locked && !started && (
+                <Link to="/settings#calendar" className="mt-1 block w-fit text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-fg hover:decoration-lime">
+                  {t.plans.calendar.subscribe}
+                </Link>
+              )}
             </Fact>
             <Fact icon={<IconPin aria-hidden />} label={t.plans.detail.where}>
               {plan.address ? <span className="font-semibold">{plan.address}</span> : <span className="text-muted">{t.plans.detail.noAddress}</span>}

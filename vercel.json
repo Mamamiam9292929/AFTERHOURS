@@ -3,6 +3,7 @@
   "rewrites": [
     { "source": "/s/:token", "destination": "/api/share?token=:token" },
     { "source": "/v/:token", "destination": "/api/share?kind=poll&token=:token" },
+    { "source": "/c/:token", "destination": "/api/calendar?token=:token" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

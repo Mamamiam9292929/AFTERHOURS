@@ -40,13 +40,17 @@ export function estimateCosts(plan: PlanWithParticipants): CostEstimate {
   };
 }
 
+/** Höchstens so viele Pläne lädt die Übersicht – die mit dem spätesten Beginn (anstehende zuerst, dann die jüngsten). */
+export const PLAN_LIST_LIMIT = 200;
+
 export function usePlans() {
   return useQuery({
     queryKey: qk.plans,
     queryFn: async (): Promise<PlanWithParticipants[]> => {
-      const { data, error } = await supabase.from("plans").select(PLAN_SELECT).order("starts_at", { ascending: true }).limit(200);
+      // Absteigend begrenzen, dann umdrehen: Bei mehr als 200 Plänen fallen die ältesten weg, nie die anstehenden.
+      const { data, error } = await supabase.from("plans").select(PLAN_SELECT).order("starts_at", { ascending: false }).order("id").limit(PLAN_LIST_LIMIT);
       if (error) throw error;
-      return data as unknown as PlanWithParticipants[];
+      return (data as unknown as PlanWithParticipants[]).reverse();
     },
   });
 }

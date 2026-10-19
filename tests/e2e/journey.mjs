@@ -34,6 +34,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium } from "playwright";
+import { handleCalendar } from "../../api/calendar.js";
 import { handleShare } from "../../api/share.js";
 
 const APP = (process.env.APP_URL ?? "http://127.0.0.1:5173").replace(/\/$/, "");
@@ -1092,6 +1093,8 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   check(ics.split("\r\n").every((line) => Buffer.byteLength(line) <= 75), "Kalenderdatei: Zeilen höchstens 75 Byte");
   check(!/Alice|Bob|Carol|ATTENDEE|ORGANIZER|@(?!afterhours)/.test(ics), "Kalenderdatei: keine Namen, Teilnehmer oder E-Mail-Adressen");
   await toast(carol, "Kalenderdatei geladen");
+  // P2 Etappe 2: Daneben der Weg zum Abo aller Pläne.
+  check((await page.getByRole("link", { name: "Alle Pläne automatisch: Kalender-Abo" }).getAttribute("href")) === "/settings#calendar", "Planseite verweist auf das Kalender-Abo");
 
   // Ticket-Countdown und „Beginnt in …“ zählen dieselben Kalendertage.
   const countdown = /in (\d+) tagen/i.exec(await page.locator(".ticket-feature").innerText())?.[1];
@@ -1232,7 +1235,8 @@ await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async
   const { page } = alice;
   await page.goto(`${APP}/plans/${ids.plan}`);
   await page.getByRole("heading", { name: "Kosten teilen" }).waitFor();
-  check(await page.getByText("Wer hat etwas ausgelegt?").isVisible(), "Leerzustand erklärt, wofür der Bereich da ist");
+  // Die Einträge laden nach der Überschrift – warten statt sofort prüfen (sonst wackelt der Schritt).
+  check(await page.getByText("Wer hat etwas ausgelegt?").waitFor({ timeout: 10_000 }).then(() => true, () => false), "Leerzustand erklärt, wofür der Bereich da ist");
 
   // Alice hat die Bahn bezahlt; vorausgewählt sind die Zusagen (Alice, Bob) – Carol hat abgesagt.
   await page.getByRole("button", { name: "Ausgabe eintragen" }).click();
@@ -1364,6 +1368,25 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await balancesCard.scrollIntoViewIfNeeded();
   await noOverflow(alice, "Offene Beträge");
   await shot(alice, "21b-crew-kosten");
+
+  // P9 – Crew-Rückblick: der abgeschlossene Plan aus Schritt 11 ist der erste gemeinsame Abend.
+  if (DB_URL) {
+    const recap = alice.page.getByTestId("crew-recap");
+    await recap.waitFor();
+    check(/^1\s*gemeinsamer Abend/.test((await recap.locator("p").first().innerText()).trim()), "Rückblick: 1 gemeinsamer Abend");
+    check(await recap.getByText(/^seit \S+ \d{4}$/).isVisible(), "Rückblick: seit Monat und Jahr des ersten Abends");
+    check((await recap.getByRole("listitem").filter({ hasText: /: 1 Abend(?!e)/ }).count()) === 1, "Rückblick: ein Monat mit einem Abend in den letzten 12 Monaten");
+    check((await recap.getByText("Eure Stammorte").count()) === 0, "Rückblick: ein einzelner Abend ist noch kein Stammort");
+    check((await recap.getByText("Lieblingstag").count()) === 0, "Rückblick: kein Lieblingstag bei nur einem Abend");
+    check(!/Alice|Bob|Carol/.test(await recap.innerText()), "Rückblick: keine Rangliste von Personen");
+    await bob.page.getByRole("tab", { name: "Übersicht" }).click();
+    const bobRecap = bob.page.getByTestId("crew-recap");
+    await bobRecap.scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Crew-Rückblick");
+    await shot(bob, "21c-crew-rueckblick");
+  } else {
+    check((await alice.page.getByTestId("crew-recap").count()) === 0, "ohne abgeschlossenen Plan kein Rückblick");
+  }
   await openRow.click();
   await alice.page.waitForURL(`**/plans/${ids.plan}#kosten`);
   const costsHeading = alice.page.getByRole("heading", { name: "Kosten teilen" });
@@ -1900,6 +1923,68 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   check(await page.getByText("Mindestens 2 Zeichen.").isVisible(), "Profilformular validiert den Namen");
 });
 
+await step("P2 Etappe 2 – Kalender-Abo: Link anlegen, Kalender abrufen, ersetzen, beenden (Bob)", async () => {
+  const { page } = bob;
+  await page.goto(`${APP}/settings#calendar`);
+  const card = page.locator("section#calendar");
+  await card.getByRole("heading", { name: "Kalender-Abo" }).waitFor();
+  await card.getByText("Noch kein Abo.", { exact: false }).waitFor();
+  check(true, "ohne Abo: Hinweis statt Link");
+  await card.getByRole("button", { name: "Abo-Link erstellen" }).click();
+  await toast(bob, "Abo-Link erstellt.");
+  const field = card.getByLabel("Dein Abo-Link");
+  const link = await field.inputValue();
+  check(/\/c\/[0-9a-f]{64}\.ics$/.test(link), `Abo-Link: /c/<64 Hex>.ics (${link.replace(/[0-9a-f]{56}\.ics$/, "….ics")})`);
+  check((await card.getByRole("link", { name: "In Apple Kalender öffnen" }).getAttribute("href")) === link.replace(/^https?:\/\//, "webcal://"), "Apple: derselbe Link als webcal://");
+  const google = await card.getByRole("link", { name: /Google Kalender/ }).getAttribute("href");
+  check(google?.startsWith("https://calendar.google.com/calendar/render?cid=webcal%3A%2F%2F") ?? false, "Google: Abo-Link als cid");
+  check(await card.getByText("Noch von keinem Kalender abgerufen.").isVisible(), "noch nie abgerufen");
+  await shot(bob, "27b-kalender-abo");
+  await page.reload();
+  check((await page.locator("section#calendar").getByLabel("Dein Abo-Link").inputValue()) === link, "nach dem Neuladen: derselbe Link");
+
+  // Kalender-Apps rufen den Link ohne Anmeldung ab: die Vercel-Funktion gegen die echte lokale Datenbank.
+  const env = { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON };
+  if (ANON) {
+    const response = await handleCalendar(new Request(link), env, fetch);
+    const ics = await response.text();
+    check(response.status === 200 && response.headers.get("content-type") === "text/calendar; charset=utf-8", `Kalender: 200 text/calendar (${response.status})`);
+    check(ics.startsWith("BEGIN:VCALENDAR\r\n") && ics.endsWith("END:VCALENDAR\r\n"), "Kalender: gültiges iCalendar mit CRLF");
+    check(ics.includes(`UID:plan-${ids.plan}@afterhours`) && ics.includes("SUMMARY:Strike District Bowling"), "Kalender: Bobs Plan mit derselben UID wie die Einzeldatei");
+    check(ics.replace(/\r\n /g, "").includes("Crew: Weekend Crew"), "Kalender: Crew-Name in der Beschreibung");
+    check(ics.split("\r\n").every((line) => Buffer.byteLength(line) <= 75), "Kalender: Zeilen höchstens 75 Byte");
+    check(!/ATTENDEE|ORGANIZER|@example|@(?!afterhours)[a-z0-9-]+\./i.test(ics), "Kalender: keine Teilnehmer oder E-Mail-Adressen");
+    await page.reload();
+    await page.locator("section#calendar").getByText(/Zuletzt abgerufen/).waitFor();
+    check(true, "nach dem Abruf: „Zuletzt abgerufen …“");
+
+    // API-Proben: ohne Konto kein Link; geratene Links liefern nichts.
+    check([401, 403].includes((await api(null, "POST", "rpc/my_calendar_feed", {})).status), "API: ohne Konto kein Abo-Link (401/403)");
+    check([401, 403].includes((await api(null, "POST", "rpc/renew_calendar_feed", {})).status), "API: ohne Konto kein neuer Abo-Link (401/403)");
+    check((await api(null, "POST", "rpc/calendar_feed_events", { p_token: "0".repeat(64) })).json?.status === "not_found", "API: geratener Link liefert nur not_found");
+    check((await handleCalendar(new Request(`${APP}/c/${"0".repeat(64)}.ics`), env, fetch)).status === 404, "Kalender: geratener Link → 404");
+  }
+
+  // Neuer Link ersetzt den alten.
+  await page.locator("section#calendar").getByRole("button", { name: "Neuen Link erstellen" }).click();
+  await dialog(bob).getByRole("button", { name: "Neuen Link erstellen" }).click();
+  await toast(bob, "Neuer Abo-Link erstellt.");
+  const renewed = await page.locator("section#calendar").getByLabel("Dein Abo-Link").inputValue();
+  check(renewed !== link && /\/c\/[0-9a-f]{64}\.ics$/.test(renewed), "neuer Link ist ein anderer");
+  if (ANON) {
+    check((await handleCalendar(new Request(link), env, fetch)).status === 404, "alter Link → 404");
+    check((await handleCalendar(new Request(renewed), env, fetch)).status === 200, "neuer Link → 200");
+  }
+
+  // Abo beenden.
+  await page.locator("section#calendar").getByRole("button", { name: "Abo beenden" }).click();
+  await dialog(bob).getByRole("button", { name: "Abo beenden" }).click();
+  await toast(bob, "Kalender-Abo beendet.");
+  await page.locator("section#calendar").getByRole("button", { name: "Abo-Link erstellen" }).waitFor();
+  check(true, "nach dem Beenden: wieder „Abo-Link erstellen“");
+  if (ANON) check((await handleCalendar(new Request(renewed), env, fetch)).status === 404, "beendetes Abo → 404");
+});
+
 await step("Konto löschen (Mallory) – serverseitig, Anmeldung danach unmöglich", async () => {
   const { page } = mallory;
   await page.goto(`${APP}/settings`);
@@ -2195,6 +2280,31 @@ await step("W4 – Installierbar, offline lesbar, neue Version, Zähler am App-I
   check((await page.evaluate(() => localStorage.getItem("afterhours.offline"))) === null, "Abmelden löscht den gespeicherten Stand vom Gerät");
   users.splice(users.indexOf(app), 1);
   await context.close();
+});
+
+await step("Viele Pläne – anstehende bleiben sichtbar, wenn die Crew über 200 Abende hat (Carol)", async () => {
+  if (!DB_URL) {
+    console.log("   (E2E_DB_URL nicht gesetzt – übersprungen)");
+    return;
+  }
+  const { page } = carol;
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-qc", sql]);
+  // 210 vergangene Abende plus ein anstehender – vorher lud die Liste die ältesten 200 und verlor den neuen.
+  psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+        select '${ids.crew}', created_by, 'Archivabend ' || g, now() - make_interval(days => 30 + g), 'completed'
+        from public.plans p, generate_series(1, 210) g where p.id = '${ids.plan}';
+        insert into public.plans (crew_id, created_by, title, starts_at, status)
+        select '${ids.crew}', created_by, 'Zukunftsabend ${RUN}', now() + interval '12 days', 'confirmed' from public.plans where id = '${ids.plan}';`);
+  try {
+    await page.goto(`${APP}/plans`);
+    await page.getByText(`Zukunftsabend ${RUN}`).first().waitFor({ timeout: 15_000 });
+    check(true, "mit über 200 Plänen steht der anstehende Plan weiter in der Übersicht");
+    await page.goto(`${APP}/crews/${ids.crew}`);
+    await page.getByText(`Zukunftsabend ${RUN}`).first().waitFor({ timeout: 15_000 });
+    check(true, "… und auf der Crew-Seite");
+  } finally {
+    psql(`delete from public.plans where crew_id = '${ids.crew}' and (title like 'Archivabend %' or title = 'Zukunftsabend ${RUN}')`);
+  }
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {

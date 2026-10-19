@@ -23,6 +23,8 @@ export const qk = {
   settings: (userId: string) => ["settings", userId] as const,
   people: ["people"] as const,
   isAdmin: (userId: string) => ["is-admin", userId] as const,
+  /** P2 Etappe 2: eigener Abo-Link für Kalender-Apps. */
+  calendarFeed: (userId: string) => ["calendar-feed", userId] as const,
   crews: ["crews"] as const,
   crew: (crewId: string) => ["crews", crewId] as const,
   crewInvitations: (crewId: string) => ["crews", crewId, "invitations"] as const,
