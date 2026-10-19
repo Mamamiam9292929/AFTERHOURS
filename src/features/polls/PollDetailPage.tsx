@@ -42,7 +42,7 @@ import {
 } from "./api";
 import { OptionWeather, PollWeatherFooter } from "./PollWeather";
 import { ParticipationBar } from "./PollCard";
-import { GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
+import { activeWherePoll, dateOptionLabel, GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
 
 const RESPONSES: VoteResponse[] = ["yes", "maybe", "no"];
 
@@ -484,18 +484,36 @@ function GuestClaimCard({ pollId, token }: { pollId: string; token: string }) {
 /**
  * P1 Etappe 2 · Nach „Wann könnt ihr?“ kommt „Und wo?“: Eine neue Abstimmung über Orte, in der der
  * Gewinner-Termin schon eingetragen ist. Jedes Mitglied darf sie starten (wie jede Abstimmung).
+ * Etappe 3a: Sie ist mit der Termin-Abstimmung verknüpft (`where`); `failed` = der letzte Versuch endete ohne Zusage.
  */
-function WhereNext({ poll, winner }: { poll: PollWithDetails; winner: PollOption }) {
+function WhereNext({ poll, winner, failed }: { poll: PollWithDetails; winner: PollOption; failed: boolean }) {
   if (!winner.proposed_date || winner.proposed_date < today()) return null;
   const query = new URLSearchParams({ crew: poll.crew_id, date: winner.proposed_date });
   if (winner.proposed_time) query.set("time", winner.proposed_time.slice(0, 5));
-  const when = winner.proposed_time ? `${winner.title}, ${formatPlainTime(winner.proposed_time)}` : winner.title;
+  query.set("where", poll.id);
+  const when = dateOptionLabel(winner);
   return (
     <div className="mt-5 border-t border-dashed border-lime/40 pt-4" data-testid="poll-where">
       <p className="text-[17px] font-bold text-fg">{t.polls.detail.result.whereTitle}</p>
-      <p className="mt-1 max-w-prose text-[15px] leading-snug text-muted">{t.polls.detail.result.whereBody(when)}</p>
+      <p className="mt-1 max-w-prose text-[15px] leading-snug text-muted">{failed ? t.polls.detail.result.whereRetryBody(when) : t.polls.detail.result.whereBody(when)}</p>
       <ButtonLink to={`/polls/new?${query.toString()}`} variant="secondary" className="mt-3" icon={<IconPin className="size-4" aria-hidden />}>
         {t.polls.detail.result.whereCta}
+      </ButtonLink>
+    </div>
+  );
+}
+
+/** P1 Etappe 3a · Die Termin-Abstimmung zeigt, was aus „Und wo?“ geworden ist, und führt dorthin. */
+function WhereLinked({ winner, wherePoll, hasPlan }: { winner: PollOption; wherePoll: PollWithDetails; hasPlan: boolean }) {
+  const when = dateOptionLabel(winner);
+  const place = wherePoll.winning_option_id ? wherePoll.options.find((o) => o.id === wherePoll.winning_option_id) : undefined;
+  const text = place ? t.polls.detail.result.whereDecided(place.title, when) : wherePoll.is_tie ? t.polls.detail.result.whereTie : t.polls.detail.result.whereOpen(when);
+  return (
+    <div className="mt-5 border-t border-dashed border-lime/40 pt-4" data-testid="poll-where">
+      <p className="text-[17px] font-bold text-fg">{t.polls.detail.result.whereTitle}</p>
+      <p className="mt-1 max-w-prose text-[15px] leading-snug text-muted">{text}</p>
+      <ButtonLink to={`/polls/${wherePoll.id}`} variant={hasPlan ? "secondary" : "primary"} className="mt-3" icon={<IconPin className="size-4" aria-hidden />}>
+        {t.polls.detail.result.whereLink}
       </ButtonLink>
     </div>
   );
@@ -559,6 +577,11 @@ export function PollDetailPage() {
   const winner = closed ? (poll.options.find((o) => o.id === poll.winning_option_id) ?? null) : null;
   const plan = plans.data?.find((p) => p.poll_id === poll.id);
   const runoff = allPolls.data?.find((p) => p.parent_poll_id === poll.id);
+  // P1 Etappe 3a: Termin-Abstimmung ↔ Orts-Abstimmung. Entsteht der Plan aus „Und wo?“, zeigt auch der Termin ihn.
+  const where = poll.kind === "date" ? activeWherePoll(poll.id, allPolls.data) : { active: null, failed: false };
+  const shownPlan = plan ?? (where.active ? plans.data?.find((p) => p.poll_id === where.active?.id) : undefined);
+  const datePoll = poll.date_poll_id ? allPolls.data?.find((p) => p.id === poll.date_poll_id) : undefined;
+  const dateWinner = datePoll ? datePoll.options.find((o) => o.id === datePoll.winning_option_id) : undefined;
   const openMembers = memberIds.filter((id) => !summary.voterIds.includes(id));
   const weatherByOption = new Map<string, PollOptionWeather>(weather.data?.status === "open" ? weather.data.options.map((o) => [o.option_id, o] as const) : []);
   const votedCount = memberIds.length - openMembers.length;
@@ -596,6 +619,11 @@ export function PollDetailPage() {
             )}
             {poll.kind === "date" && <Badge tone="outline">{t.polls.detail.dateBadge}</Badge>}
             {poll.parent_poll_id && <Badge tone="outline">{t.polls.runoffBadge}</Badge>}
+            {poll.date_poll_id && (
+              <Link to={`/polls/${poll.date_poll_id}`} className="inline-flex min-h-8 items-center font-semibold text-fg underline decoration-lime underline-offset-4" data-testid="poll-from-date">
+                {dateWinner ? t.polls.detail.fromDatePoll(dateOptionLabel(dateWinner)) : t.polls.create.linkedWhen.back}
+              </Link>
+            )}
             {poll.guests_allowed && !summary.isOver && <Badge tone="outline">{t.polls.detail.guestsBadge}</Badge>}
             <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.participation(votedCount, memberIds.length)}</span>
           </span>
@@ -622,9 +650,9 @@ export function PollDetailPage() {
                 {winner && summary.missingForMinimum != null && <span className="mt-1 block font-semibold text-amber">{t.polls.detail.result.belowMinimum(summary.missingForMinimum)}</span>}
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2.5">
-                {plan ? (
+                {shownPlan ? (
                   <>
-                    <ButtonLink to={`/plans/${plan.id}`}>{t.polls.detail.result.toPlan}</ButtonLink>
+                    <ButtonLink to={`/plans/${shownPlan.id}`}>{t.polls.detail.result.toPlan}</ButtonLink>
                     <span className="text-sm text-muted">{t.polls.detail.result.planExists}</span>
                   </>
                 ) : runoff ? (
@@ -632,7 +660,7 @@ export function PollDetailPage() {
                     <ButtonLink to={`/polls/${runoff.id}`}>{t.polls.detail.result.toRunoff}</ButtonLink>
                     <span className="text-sm text-muted">{t.polls.detail.result.runoffExists}</span>
                   </>
-                ) : winner ? (
+                ) : where.active ? null : winner ? (
                   canManage ? (
                     <Button size="lg" onClick={() => setPlanOption(winner)} icon={<IconCalendarPlus className="size-5" aria-hidden />}>
                       {t.polls.detail.manage.createPlan}
@@ -652,7 +680,13 @@ export function PollDetailPage() {
                   </ButtonLink>
                 )}
               </div>
-              {poll.kind === "date" && winner && !runoff && <WhereNext poll={poll} winner={winner} />}
+              {/* Erst wenn die Abstimmungen der Crew geladen sind – sonst blitzt „Ort abstimmen“ auf, obwohl „Und wo?“ schon läuft. */}
+              {poll.kind === "date" && winner && !runoff && allPolls.data &&
+                (where.active ? (
+                  <WhereLinked winner={winner} wherePoll={where.active} hasPlan={Boolean(shownPlan)} />
+                ) : (
+                  <WhereNext poll={poll} winner={winner} failed={where.failed} />
+                ))}
             </div>
           )}
 

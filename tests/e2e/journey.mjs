@@ -1806,28 +1806,61 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   await page.getByRole("heading", { name: `Es wird ${l2}` }).waitFor();
   check(true, "der Termin mit den meisten Zusagen gewinnt");
 
-  // P1 Etappe 2: „Und wo?“ – Orts-Abstimmung mit dem Gewinner-Termin, ohne ihn neu einzutippen.
+  // P1 Etappe 2/3a: „Und wo?“ – Orts-Abstimmung, verknüpft mit dem Gewinner-Termin, ohne ihn neu einzutippen.
   const where = page.getByTestId("poll-where");
   await where.getByText("Und wo?").waitFor();
   await shot(alice, "36c-termin-und-wo");
   await where.getByRole("link", { name: "Ort abstimmen" }).click();
-  await page.waitForURL(new RegExp(`/polls/new\\?crew=[0-9a-f-]{36}&date=${d2}$`));
-  await page.getByLabel(/^Datum/).waitFor();
-  check((await page.getByLabel(/^Datum/).inputValue()) === d2, "„Und wo?“: Datum des Gewinner-Termins ist eingetragen");
-  check((await page.getByLabel(/^Uhrzeit/).inputValue()) === "", "„Und wo?“: Termin ohne Uhrzeit bleibt ohne Uhrzeit");
+  await page.waitForURL(new RegExp(`/polls/new\\?crew=[0-9a-f-]{36}&date=${d2}&where=${datePoll}$`));
+  const linkedWhen = page.getByTestId("poll-linked-when");
+  await linkedWhen.waitFor();
+  check((await linkedWhen.innerText()).includes(l2), `„Und wo?“: der Gewinner-Termin steht fest im Formular (${l2})`);
   const weekday = new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long" }).format(new Date(`${d2}T12:00:00Z`));
   check((await page.getByLabel("Frage an die Crew").inputValue()) === `Was machen wir am ${weekday}?`, `„Und wo?“: Frage passt zum Tag (${weekday})`);
   check((await page.getByRole("tab", { name: "Was machen wir?" }).getAttribute("aria-selected")) === "true", "„Und wo?“ ist eine Abstimmung über Orte");
-  await page.goBack();
-  await page.getByRole("heading", { name: `Es wird ${l2}` }).waitFor();
+  await page.getByRole("button", { name: "Eigenen Vorschlag hinzufügen" }).click();
+  await page.getByLabel(/^Vorschlag \d+$/).last().fill("Bowling");
+  check((await page.getByLabel(/^Datum/).count()) === 0 && (await page.getByText("Eigener Termin für diese Option").count()) === 0,
+    "„Und wo?“: kein eigenes Datum – der Termin gilt für alle Vorschläge");
+  await page.getByRole("button", { name: "in 2 Stunden" }).click();
+  await shot(alice, "36d-und-wo-erstellen");
+  await page.getByRole("button", { name: "Abstimmung starten" }).click();
+  await page.waitForURL(/\/polls\/[0-9a-f-]{36}$/);
+  const wherePoll = idFromUrl(page);
+  check(wherePoll !== datePoll, "„Und wo?“ ist eine eigene Abstimmung");
+  const fromDate = page.getByTestId("poll-from-date");
+  await fromDate.waitFor();
+  check((await fromDate.innerText()).includes(l2), "Orts-Abstimmung nennt den Termin aus „Wann könnt ihr?“ und führt zurück");
+
+  // Bob sieht auf der Termin-Abstimmung, dass über den Ort schon abgestimmt wird – kein zweites „Und wo?“.
+  await bob.page.goto(`${APP}/polls/${datePoll}`);
+  const bobWhere = bob.page.getByTestId("poll-where");
+  await bobWhere.getByText(/läuft die Abstimmung über den Ort/).waitFor();
+  check((await bobWhere.getByRole("link", { name: "Ort abstimmen" }).count()) === 0, "Termin-Abstimmung: kein zweites „Und wo?“, solange eines läuft");
+  await bobWhere.getByRole("link", { name: "Zur Abstimmung über den Ort" }).click();
+  await bob.page.waitForURL(new RegExp(`/polls/${wherePoll}$`));
+  await answer(bob, "Bowling", "Bin dabei").click();
+  await optionCard(bob, "Bowling").getByText("1 Zusage").waitFor();
+  check(true, "Bob kommt von der Termin- zur Orts-Abstimmung und stimmt ab");
+
+  await page.reload();
+  await page.getByRole("button", { name: "Abstimmung beenden" }).click();
+  await dialog(alice).getByRole("button", { name: "Abstimmung beenden" }).click();
+  await page.getByRole("heading", { name: "Es wird Bowling" }).waitFor();
   await page.getByRole("button", { name: "Plan erstellen" }).click();
-  check((await dialog(alice).getByLabel("Titel").inputValue()) === "", "Plan aus Terminen: Titel ist leer statt des Datums");
-  check((await dialog(alice).getByLabel("Datum").inputValue()) === d2, "Plan übernimmt das Datum des Gewinner-Termins");
-  await dialog(alice).getByLabel("Titel").fill("Bowling");
+  check((await dialog(alice).getByLabel("Titel").inputValue()) === "Bowling", "Plan aus „Und wo?“: Titel ist der Ort");
+  check((await dialog(alice).getByLabel("Datum").inputValue()) === d2, "Plan aus „Und wo?“: Datum aus „Wann könnt ihr?“");
   await dialog(alice).getByRole("button", { name: "Plan erstellen" }).click();
   await page.waitForURL(/\/plans\/[0-9a-f-]{36}/);
   await page.getByRole("heading", { level: 1, name: "Bowling" }).waitFor();
-  check(true, "aus dem Gewinner-Termin wird ein Plan");
+  check(true, "aus Termin und Ort wird ein Plan");
+
+  await page.goto(`${APP}/polls/${datePoll}`);
+  await where.getByText(/Es wird Bowling – am/).waitFor();
+  await page.getByRole("link", { name: "Zum Plan" }).waitFor();
+  check(true, "Termin-Abstimmung zeigt den Plan aus „Und wo?“");
+  check((await page.getByRole("button", { name: "Plan erstellen" }).count()) === 0, "kein zweiter Plan aus der Termin-Abstimmung");
+  await shot(alice, "36e-termin-und-wo-entschieden");
 });
 
 await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", async () => {

@@ -1,3 +1,4 @@
+import { formatPlainTime, today } from "@/lib/time";
 import type { Poll, PollGuest, PollGuestVote, PollOption, PollVote, VoteResponse } from "@/lib/types";
 
 export interface PollWithDetails extends Poll {
@@ -89,4 +90,29 @@ export function summarizePoll(poll: PollWithDetails, memberIds: string[], userId
     isOver: isPollOver(poll, now),
     missingForMinimum: poll.min_participants != null && maxYes < poll.min_participants ? poll.min_participants - maxYes : null,
   };
+}
+
+/** P1: „Samstag, 24. Oktober, 20:00 Uhr“ – Titel des Termins, Uhrzeit nur wenn bekannt. */
+export function dateOptionLabel(option: PollOption): string {
+  return option.proposed_time ? `${option.title}, ${formatPlainTime(option.proposed_time)}` : option.title;
+}
+
+/**
+ * P1 Etappe 3a: Gewinner-Termin einer entschiedenen Termin-Abstimmung, solange er noch nicht vorbei ist
+ * (Tag in Berliner Zeit) – sonst null. Grundlage für „Und wo?“.
+ */
+export function upcomingDateWinner(poll: PollWithDetails | null | undefined): PollOption | null {
+  if (!poll || poll.kind !== "date" || poll.status !== "closed" || !poll.winning_option_id) return null;
+  const winner = poll.options.find((o) => o.id === poll.winning_option_id);
+  return winner?.proposed_date && winner.proposed_date >= today() ? winner : null;
+}
+
+/**
+ * P1 Etappe 3a: die Orts-Abstimmung, die zu einer Termin-Abstimmung zählt – die neueste, die läuft oder
+ * ein Ergebnis bzw. einen Gleichstand hat. Endet „Und wo?“ ohne Zusage, zählt sie nicht (neuer Versuch).
+ */
+export function activeWherePoll<T extends Poll>(datePollId: string, polls: readonly T[] | undefined): { active: T | null; failed: boolean } {
+  const linked = (polls ?? []).filter((p) => p.date_poll_id === datePollId).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const active = linked.find((p) => p.status === "open" || p.winning_option_id || p.is_tie) ?? null;
+  return { active, failed: !active && linked.length > 0 };
 }

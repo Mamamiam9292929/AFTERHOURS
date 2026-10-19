@@ -155,6 +155,8 @@ export interface Poll {
   kind: PollKind;
   /** W3 Etappe 3: Wer (Owner/Admin) „Gäste dürfen der Crew beitreten“ eingeschaltet hat – null = aus. */
   guest_join_by: string | null;
+  /** P1 Etappe 3a: Orts-Abstimmung zu einer Termin-Abstimmung („Und wo?“) – deren ID, sonst null. */
+  date_poll_id: string | null;
 }
 
 export interface PollOption {
