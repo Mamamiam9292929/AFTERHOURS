@@ -6,6 +6,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { PublicOnly, RequireAuth, RequireOnboarded } from "@/features/auth/guards";
 import { DraftBar } from "@/features/polls/DraftBar";
 import { NotFoundPage, RouteError } from "./errors";
+import { ShareTargetPage } from "./ShareTarget";
 import { preloadWhenIdle, smoothNavigation } from "./transitions";
 
 /*
@@ -126,6 +127,8 @@ export const router = createBrowserRouter([
                 children: [
                   { path: "/home", element: <HomePage /> },
                   { path: "/start", element: <QuickStartPage /> },
+                  // S3: Teilen-Ziel aus WhatsApp & Co. – öffnet auf Home die Ein-Satz-Abstimmung mit dem Text.
+                  { path: "/share-target", element: <ShareTargetPage /> },
                   { path: "/discover", element: <DiscoverPage /> },
                   { path: "/activities/:activityId", element: <ActivityDetailPage /> },
                   { path: "/crews", element: <CrewsPage /> },

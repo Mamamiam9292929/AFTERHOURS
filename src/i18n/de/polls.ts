@@ -344,6 +344,10 @@ export const polls = {
     more: "Mit allen Details",
     created: "Abstimmung läuft – Link ist bereit",
     copied: "Abstimmung läuft – Link kopiert, füg ihn in die Gruppe ein",
+    /** S3 · Teilen-Ziel: Text kam über das Teilen-Menü aus einem Chat. */
+    shared: "Aus dem Chat übernommen – Namen und Links sind raus. Schau kurz auf die Vorschau.",
+    sharedEmpty: "Im geteilten Text war nichts, was ich übernehmen kann. Schreib kurz, was ihr vorhabt.",
+    sharedNoCrew: "Für eine Abstimmung brauchst du zuerst eine Crew. Gründe eine – dann teil den Satz noch einmal.",
   },
   /** S6 · Wischen statt Liste (V2). */
   swipe: {
