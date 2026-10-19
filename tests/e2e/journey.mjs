@@ -2527,6 +2527,66 @@ await step("Viele Pläne – anstehende bleiben sichtbar, wenn die Crew über 20
   }
 });
 
+await step("P1 Etappe 3b – Termin-Vorschläge aus den Abenden der Crew (Bob)", async () => {
+  if (!DB_URL) {
+    console.log("   (E2E_DB_URL nicht gesetzt – übersprungen)");
+    return;
+  }
+  const { page } = bob;
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-qc", sql]);
+  // Vier abgeschlossene Abende an den letzten vier Donnerstagen um 19:30 Berliner Zeit.
+  psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+        select '${ids.crew}', created_by, 'Donnerstagsabend ' || g,
+               ((date_trunc('week', now() at time zone 'Europe/Berlin') - make_interval(weeks => g)) + interval '3 days 19 hours 30 minutes') at time zone 'Europe/Berlin',
+               'completed'
+        from public.plans p, generate_series(1, 4) g where p.id = '${ids.plan}';`);
+  try {
+    await page.goto(`${APP}/polls/new?crew=${ids.crew}&kind=date`);
+    const card = page.getByTestId("date-suggestions");
+    await card.waitFor({ timeout: 15_000 });
+    const text = await card.innerText();
+    check(/eurer letzten \d+ Abende waren donnerstags, meist um 19:30 Uhr\./.test(text), `Vorschlag nennt Lieblingstag und übliche Uhrzeit (${text.split("\n")[1]})`);
+    check(text.includes("Die nächsten Termine sind schon eingetragen."), "Vorschläge sind schon eingetragen");
+    const chips = card.getByRole("button");
+    const count = await chips.count();
+    const labels = await chips.allInnerTexts();
+    check(count >= 2 && count <= 3, `zwei bis drei Vorschläge (${labels.join(", ")})`);
+    check(labels.filter((l) => /^Do \d{2}\.\d{2}\. · 19:30$/.test(l.trim())).length >= 2, "mindestens zwei Donnerstage um 19:30");
+    check((await card.locator('[aria-pressed="true"]').count()) === count, "alle Vorschläge sind ausgewählt");
+    const dates = page.getByLabel(/^Termin \d+$/);
+    check((await dates.count()) === count, "statt des Wochenendes stehen die Vorschläge in den Terminen");
+    const thursdays = labels.filter((l) => l.startsWith("Do ")).map((l) => l.slice(3, 9));
+    const filled = await Promise.all(Array.from({ length: count }, (_, i) => dates.nth(i).inputValue()));
+    check(thursdays.every((d) => filled.some((v) => `${v.slice(8, 10)}.${v.slice(5, 7)}.` === d)), "eingetragene Termine passen zu den Vorschlägen");
+    check((await page.getByLabel("Uhrzeit").first().inputValue()) === labels[0].trim().slice(-5), "übliche Uhrzeit ist eingetragen");
+    await noOverflow(bob, "Termin-Vorschläge");
+    await shot(bob, "36f-termin-vorschlaege");
+
+    // Abwählen nimmt den Termin heraus, Anwählen bringt ihn zurück – mindestens zwei bleiben.
+    const last = chips.nth(count - 1);
+    await last.click();
+    check((await last.getAttribute("aria-pressed")) === "false", "Vorschlag abwählen");
+    check((await dates.count()) === count - 1, "abgewählter Vorschlag verschwindet aus den Terminen");
+    check((await card.innerText()).includes("Tipp an, was rein oder raus soll.") && !(await card.innerText()).includes("schon eingetragen"), "nach dem Abwählen kein „schon eingetragen“ mehr");
+    await last.click();
+    check((await dates.count()) === count && (await last.getAttribute("aria-pressed")) === "true", "Vorschlag wieder anwählen");
+    // Eigene Änderung bleibt stehen.
+    await dates.first().fill(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + 40 * 86_400_000)));
+    check((await card.locator('[aria-pressed="true"]').count()) === count - 1, "von Hand geänderter Termin zählt nicht mehr als Vorschlag");
+
+    // Ohne Gewohnheit kein Vorschlag: andere Crew ohne Abende bzw. nach dem Aufräumen.
+    psql(`delete from public.plans where crew_id = '${ids.crew}' and title like 'Donnerstagsabend %'`);
+    await page.goto(`${APP}/polls/new?crew=${ids.crew}&kind=date`);
+    await page.getByLabel(/^Termin \d+$/).first().waitFor();
+    await page.waitForTimeout(2000);
+    const stillHabit = await page.getByTestId("date-suggestions").count();
+    if (stillHabit === 0) check((await page.getByLabel(/^Termin \d+$/).count()) === 3, "ohne Gewohnheit bleibt es beim nächsten Wochenende");
+    else console.log("   (Crew hat auch ohne die Testabende eine Gewohnheit – Rückfall nicht geprüft)");
+  } finally {
+    psql(`delete from public.plans where crew_id = '${ids.crew}' and title like 'Donnerstagsabend %'`);
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);

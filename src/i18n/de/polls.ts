@@ -34,6 +34,18 @@ export const polls = {
       add: "Termin hinzufügen",
       tooFew: "Schlag mindestens zwei Termine vor.",
       duplicate: "Diesen Termin gibt es schon.",
+      /** P1 Etappe 3b: Vorschläge aus den abgeschlossenen Abenden der Crew. */
+      suggest: {
+        title: "Passt zu euch",
+        habit: (count: number, evenings: number, weekday: string, time: string, usual: boolean) =>
+          `${count} eurer letzten ${evenings} Abende waren ${weekday}, ${usual ? "meist" : "zuletzt"} um ${time} Uhr.`,
+        applied: "Die nächsten Termine sind schon eingetragen. Tipp an, was rein oder raus soll.",
+        pick: "Tipp an, was rein oder raus soll.",
+        weekdays: ["sonntags", "montags", "dienstags", "mittwochs", "donnerstags", "freitags", "samstags"],
+        short: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
+        chip: (weekday: string, date: string, time: string) => `${weekday} ${date} · ${time}`,
+        listLabel: "Termine, die zu euch passen",
+      },
     },
     optionsTitle: "Optionen",
     optionsHint: "1 bis 10 Optionen. Orte aus Discover oder eigene Vorschläge.",
