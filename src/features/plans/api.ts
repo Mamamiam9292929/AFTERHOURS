@@ -4,14 +4,17 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
+import { dueSeries, type PlanSeries, type RepeatRule } from "@/lib/repeat";
 import type { PlanWeather } from "@/lib/weather";
 import type { AttendanceStatus, BookingRequest, BookingStatus, Plan, PlanExpense, PlanExpenseShare, PlanParticipant, PlanStatus, RideOffer, RideRequest } from "@/lib/types";
 
 export interface PlanWithParticipants extends Plan {
   participants: PlanParticipant[];
+  /** P8: eingebettete Serie (nur bei wiederkehrenden Plänen). */
+  series?: PlanSeries | null;
 }
 
-const PLAN_SELECT = "*, participants:plan_participants(*)";
+const PLAN_SELECT = "*, participants:plan_participants(*), series:plan_series(*)";
 
 export const ACTIVE_PLAN_STATUSES: PlanStatus[] = ["proposed", "confirmed", "booking_pending", "booked"];
 
@@ -50,9 +53,20 @@ export function usePlans() {
     queryKey: qk.plans,
     queryFn: async (): Promise<PlanWithParticipants[]> => {
       // Absteigend begrenzen, dann umdrehen: Bei mehr als 200 Plänen fallen die ältesten weg, nie die anstehenden.
-      const { data, error } = await supabase.from("plans").select(PLAN_SELECT).order("starts_at", { ascending: false }).order("id").limit(PLAN_LIST_LIMIT);
+      const load = () => supabase.from("plans").select(PLAN_SELECT).order("starts_at", { ascending: false }).order("id").limit(PLAN_LIST_LIMIT);
+      const { data, error } = await load();
       if (error) throw error;
-      return (data as unknown as PlanWithParticipants[]).reverse();
+      const plans = data as unknown as PlanWithParticipants[];
+      // P8: Ist der letzte Termin einer aktiven Serie vorbei, legt der Server den nächsten an – dann neu laden.
+      // Scheitert das (Rate Limit, Netz), bleibt es bei der Liste; der nächste Aufruf versucht es wieder.
+      if (dueSeries(plans).length > 0) {
+        const rolled = await supabase.rpc("roll_plan_series");
+        if (!rolled.error && Number(rolled.data) > 0) {
+          const again = await load();
+          if (!again.error) return (again.data as unknown as PlanWithParticipants[]).reverse();
+        }
+      }
+      return plans.reverse();
     },
   });
 }
@@ -492,6 +506,21 @@ export function usePlanWeather(plan: Pick<Plan, "id" | "starts_at" | "activity_i
       }
       if (!data) throw new Error("weather_unavailable");
       return data;
+    },
+  });
+}
+
+/** P8: Wiederholung einstellen (`rule`) oder beenden (`null`). Gilt für die ganze Serie. */
+export function useSetPlanRepeat(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (rule: RepeatRule | null): Promise<void> => {
+      const { error } = await supabase.rpc("set_plan_repeat", { p_plan_id: planId, p_rule: rule });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: qk.plans });
+      void client.invalidateQueries({ queryKey: qk.notifications });
     },
   });
 }

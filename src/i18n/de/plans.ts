@@ -1,3 +1,5 @@
+const WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+
 export const plans = {
   title: "Plans",
   lead: "Was ansteht, was noch entschieden wird und was ihr schon erlebt habt.",
@@ -105,6 +107,26 @@ export const plans = {
     link: (url: string) => `Plan in AFTERHOURS: ${url}`,
     /** P2 Etappe 2: Hinweis auf das Abo. */
     subscribe: "Alle Pläne automatisch: Kalender-Abo",
+  },
+  /** P8: wiederkehrende Pläne („Stammtisch“). Wochentage als ISO-Nummer (1 = Montag). */
+  repeat: {
+    title: "Regelmäßig",
+    label: "Wiederholen",
+    none: "Nur dieses Mal",
+    rule: (rule: "weekly" | "biweekly" | "monthly_nth" | "monthly_last", weekday: number, nth: number | null) => {
+      const day = WEEKDAY_NAMES[weekday - 1] ?? "Tag";
+      if (rule === "weekly") return `Jeden ${day}`;
+      if (rule === "biweekly") return `Jeden zweiten ${day}`;
+      if (rule === "monthly_nth") return `Jeden ${nth ?? 1}. ${day} im Monat`;
+      return `Jeden letzten ${day} im Monat`;
+    },
+    save: "Speichern",
+    saved: "Wiederholung gespeichert.",
+    stopped: "Der Plan wiederholt sich nicht mehr.",
+    next: (date: string) => `Ist dieser Abend vorbei, steht der nächste Termin am ${date} von selbst in der App – mit Titel, Ort und Uhrzeit von diesem.`,
+    hasNext: "Der nächste Termin steht schon:",
+    intro: "Für Stammtische: Ist der Abend vorbei, legt die App den nächsten Termin an – alle werden gefragt, ob sie dabei sind.",
+    stoppedNote: "Diese Serie ist beendet – es kommen keine neuen Termine dazu.",
   },
   detail: {
     back: "Plans",

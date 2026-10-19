@@ -61,6 +61,7 @@ export {
   LuPhone as IconPhone,
   LuPlus as IconPlus,
   LuRefreshCw as IconRefresh,
+  LuRepeat as IconRepeat,
   LuSearch as IconSearch,
   LuSend as IconSend,
   LuSettings as IconSettings,
