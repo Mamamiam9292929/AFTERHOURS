@@ -34,6 +34,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium } from "playwright";
+import { handleCalendar } from "../../api/calendar.js";
 import { handleShare } from "../../api/share.js";
 
 const APP = (process.env.APP_URL ?? "http://127.0.0.1:5173").replace(/\/$/, "");
@@ -1052,6 +1053,8 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   check(ics.split("\r\n").every((line) => Buffer.byteLength(line) <= 75), "Kalenderdatei: Zeilen höchstens 75 Byte");
   check(!/Alice|Bob|Carol|ATTENDEE|ORGANIZER|@(?!afterhours)/.test(ics), "Kalenderdatei: keine Namen, Teilnehmer oder E-Mail-Adressen");
   await toast(carol, "Kalenderdatei geladen");
+  // P2 Etappe 2: Daneben der Weg zum Abo aller Pläne.
+  check((await page.getByRole("link", { name: "Alle Pläne automatisch: Kalender-Abo" }).getAttribute("href")) === "/settings#calendar", "Planseite verweist auf das Kalender-Abo");
 
   // Ticket-Countdown und „Beginnt in …“ zählen dieselben Kalendertage.
   const countdown = /in (\d+) tagen/i.exec(await page.locator(".ticket-feature").innerText())?.[1];
@@ -1858,6 +1861,68 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   await page.getByLabel("Anzeigename").fill("B");
   await page.getByRole("button", { name: "Änderungen speichern" }).first().click();
   check(await page.getByText("Mindestens 2 Zeichen.").isVisible(), "Profilformular validiert den Namen");
+});
+
+await step("P2 Etappe 2 – Kalender-Abo: Link anlegen, Kalender abrufen, ersetzen, beenden (Bob)", async () => {
+  const { page } = bob;
+  await page.goto(`${APP}/settings#calendar`);
+  const card = page.locator("section#calendar");
+  await card.getByRole("heading", { name: "Kalender-Abo" }).waitFor();
+  await card.getByText("Noch kein Abo.", { exact: false }).waitFor();
+  check(true, "ohne Abo: Hinweis statt Link");
+  await card.getByRole("button", { name: "Abo-Link erstellen" }).click();
+  await toast(bob, "Abo-Link erstellt.");
+  const field = card.getByLabel("Dein Abo-Link");
+  const link = await field.inputValue();
+  check(/\/c\/[0-9a-f]{64}\.ics$/.test(link), `Abo-Link: /c/<64 Hex>.ics (${link.replace(/[0-9a-f]{56}\.ics$/, "….ics")})`);
+  check((await card.getByRole("link", { name: "In Apple Kalender öffnen" }).getAttribute("href")) === link.replace(/^https?:\/\//, "webcal://"), "Apple: derselbe Link als webcal://");
+  const google = await card.getByRole("link", { name: /Google Kalender/ }).getAttribute("href");
+  check(google?.startsWith("https://calendar.google.com/calendar/render?cid=webcal%3A%2F%2F") ?? false, "Google: Abo-Link als cid");
+  check(await card.getByText("Noch von keinem Kalender abgerufen.").isVisible(), "noch nie abgerufen");
+  await shot(bob, "27b-kalender-abo");
+  await page.reload();
+  check((await page.locator("section#calendar").getByLabel("Dein Abo-Link").inputValue()) === link, "nach dem Neuladen: derselbe Link");
+
+  // Kalender-Apps rufen den Link ohne Anmeldung ab: die Vercel-Funktion gegen die echte lokale Datenbank.
+  const env = { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON };
+  if (ANON) {
+    const response = await handleCalendar(new Request(link), env, fetch);
+    const ics = await response.text();
+    check(response.status === 200 && response.headers.get("content-type") === "text/calendar; charset=utf-8", `Kalender: 200 text/calendar (${response.status})`);
+    check(ics.startsWith("BEGIN:VCALENDAR\r\n") && ics.endsWith("END:VCALENDAR\r\n"), "Kalender: gültiges iCalendar mit CRLF");
+    check(ics.includes(`UID:plan-${ids.plan}@afterhours`) && ics.includes("SUMMARY:Strike District Bowling"), "Kalender: Bobs Plan mit derselben UID wie die Einzeldatei");
+    check(ics.replace(/\r\n /g, "").includes("Crew: Weekend Crew"), "Kalender: Crew-Name in der Beschreibung");
+    check(ics.split("\r\n").every((line) => Buffer.byteLength(line) <= 75), "Kalender: Zeilen höchstens 75 Byte");
+    check(!/ATTENDEE|ORGANIZER|@example|@(?!afterhours)[a-z0-9-]+\./i.test(ics), "Kalender: keine Teilnehmer oder E-Mail-Adressen");
+    await page.reload();
+    await page.locator("section#calendar").getByText(/Zuletzt abgerufen/).waitFor();
+    check(true, "nach dem Abruf: „Zuletzt abgerufen …“");
+
+    // API-Proben: ohne Konto kein Link; geratene Links liefern nichts.
+    check([401, 403].includes((await api(null, "POST", "rpc/my_calendar_feed", {})).status), "API: ohne Konto kein Abo-Link (401/403)");
+    check([401, 403].includes((await api(null, "POST", "rpc/renew_calendar_feed", {})).status), "API: ohne Konto kein neuer Abo-Link (401/403)");
+    check((await api(null, "POST", "rpc/calendar_feed_events", { p_token: "0".repeat(64) })).json?.status === "not_found", "API: geratener Link liefert nur not_found");
+    check((await handleCalendar(new Request(`${APP}/c/${"0".repeat(64)}.ics`), env, fetch)).status === 404, "Kalender: geratener Link → 404");
+  }
+
+  // Neuer Link ersetzt den alten.
+  await page.locator("section#calendar").getByRole("button", { name: "Neuen Link erstellen" }).click();
+  await dialog(bob).getByRole("button", { name: "Neuen Link erstellen" }).click();
+  await toast(bob, "Neuer Abo-Link erstellt.");
+  const renewed = await page.locator("section#calendar").getByLabel("Dein Abo-Link").inputValue();
+  check(renewed !== link && /\/c\/[0-9a-f]{64}\.ics$/.test(renewed), "neuer Link ist ein anderer");
+  if (ANON) {
+    check((await handleCalendar(new Request(link), env, fetch)).status === 404, "alter Link → 404");
+    check((await handleCalendar(new Request(renewed), env, fetch)).status === 200, "neuer Link → 200");
+  }
+
+  // Abo beenden.
+  await page.locator("section#calendar").getByRole("button", { name: "Abo beenden" }).click();
+  await dialog(bob).getByRole("button", { name: "Abo beenden" }).click();
+  await toast(bob, "Kalender-Abo beendet.");
+  await page.locator("section#calendar").getByRole("button", { name: "Abo-Link erstellen" }).waitFor();
+  check(true, "nach dem Beenden: wieder „Abo-Link erstellen“");
+  if (ANON) check((await handleCalendar(new Request(renewed), env, fetch)).status === 404, "beendetes Abo → 404");
 });
 
 await step("Konto löschen (Mallory) – serverseitig, Anmeldung danach unmöglich", async () => {

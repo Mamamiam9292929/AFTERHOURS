@@ -1,12 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { IconDownload, IconInfo, IconLogout } from "@/components/icons";
+import { IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconInfo, IconLock, IconLogout, IconRefresh } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClass } from "@/components/ui/Button";
 import { Chip, SwitchRow } from "@/components/ui/Controls";
-import { Dialog } from "@/components/ui/Dialog";
-import { ErrorState, Notice, PageSpinner } from "@/components/ui/Feedback";
+import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
+import { ErrorState, Notice, PageSpinner, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, SelectField, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { CITY_NAMES } from "@/data/cities";
@@ -18,11 +18,12 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
-import { useDocumentTitle } from "@/lib/hooks";
-import { supabase } from "@/lib/supabase";
+import { copyText, useDocumentTitle, useNow } from "@/lib/hooks";
+import { siteUrl, supabase } from "@/lib/supabase";
+import { formatAgo } from "@/lib/time";
 import { password as passwordRule, validate } from "@/lib/validation";
 import type { ActivityCategory, Interest, LocationSharingMode, Profile, UserSettings } from "@/lib/types";
-import { useProfile, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
+import { useCalendarFeed, useProfile, useRenewCalendarFeed, useRevokeCalendarFeed, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
 import { AvatarPicker } from "./AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "./notificationGroups";
 
@@ -235,6 +236,126 @@ function NotificationsCard({ settings }: { settings: UserSettings }) {
   );
 }
 
+/** P2 Etappe 2 · Kalender-Abo-Adressen: https zum Kopieren, webcal für Apple, Google per cid. */
+function calendarFeedUrls(token: string) {
+  const https = `${siteUrl()}/c/${token}.ics`;
+  const webcal = https.replace(/^https?:\/\//, "webcal://");
+  return { https, webcal, google: `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcal)}` };
+}
+
+function CalendarCard() {
+  const toast = useToast();
+  const now = useNow(60_000);
+  const feed = useCalendarFeed();
+  const renew = useRenewCalendarFeed();
+  const revoke = useRevokeCalendarFeed();
+  const [confirm, setConfirm] = useState<"renew" | "revoke" | null>(null);
+  const t2 = t.settings.calendar;
+
+  function close() {
+    setConfirm(null);
+    renew.reset();
+    revoke.reset();
+  }
+
+  let body: React.ReactNode;
+  if (feed.isPending) {
+    body = <Skeleton className="h-28" />;
+  } else if (feed.isError) {
+    body = <ErrorState error={feed.error} onRetry={() => void feed.refetch()} />;
+  } else if (!feed.data) {
+    body = (
+      <div className="space-y-4">
+        <p className="text-[15px] leading-snug text-fg">{t2.inactive}</p>
+        <p className="text-sm leading-snug text-muted">{t2.whatsIn}</p>
+        {renew.isError && confirm === null && <FormMessage>{errorMessage(renew.error)}</FormMessage>}
+        <Button loading={renew.isPending} onClick={() => renew.mutate(undefined, { onSuccess: () => toast.success(t2.created) })} icon={<IconCalendarPlus className="size-4" aria-hidden />}>
+          {t2.create}
+        </Button>
+      </div>
+    );
+  } else {
+    const urls = calendarFeedUrls(feed.data.token);
+    body = (
+      <div className="space-y-5">
+        <TextField label={t2.linkLabel} name="calendar_feed_url" value={urls.https} readOnly onFocus={(event) => event.currentTarget.select()} className="font-mono text-[13px]" />
+        <div className="flex flex-wrap gap-2">
+          <a href={urls.webcal} className={buttonClass("primary", "md")}>
+            <IconCalendarPlus className="size-4" aria-hidden />
+            {t2.apple}
+          </a>
+          <a href={urls.google} target="_blank" rel="noopener noreferrer" className={buttonClass("secondary", "md")}>
+            {t2.google}
+            <IconExternal className="size-3.5" aria-hidden />
+          </a>
+          <Button variant="secondary" icon={<IconCopy className="size-4" aria-hidden />} onClick={() => void copyText(urls.https).then((ok) => (ok ? toast.success(t2.copied) : toast.error(t2.copyFailed)))}>
+            {t2.copy}
+          </Button>
+        </div>
+        <Notice tone="amber" icon={<IconLock aria-hidden />}>
+          {t2.secret}
+        </Notice>
+        <div className="space-y-1.5 text-sm leading-snug text-muted">
+          <p>{t2.whatsIn}</p>
+          <p>
+            {t2.delay} {t2.googleNote}
+          </p>
+          <p className="font-semibold text-fg">{feed.data.last_used_at ? t2.lastUsed(formatAgo(feed.data.last_used_at, now)) : t2.neverUsed}</p>
+        </div>
+        <div className="flex flex-wrap gap-2 border-t border-line pt-5">
+          <Button variant="ghost" size="sm" icon={<IconRefresh className="size-4" aria-hidden />} onClick={() => setConfirm("renew")}>
+            {t2.renew}
+          </Button>
+          <Button variant="ghost" size="sm" className="text-danger" onClick={() => setConfirm("revoke")}>
+            {t2.revoke}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Card id="calendar" title={t2.title} lead={t2.lead}>
+      {body}
+      <ConfirmDialog
+        open={confirm === "renew"}
+        onClose={close}
+        title={t2.renewTitle}
+        description={t2.renewBody}
+        confirmLabel={t2.renewConfirm}
+        loading={renew.isPending}
+        error={renew.isError ? errorMessage(renew.error) : null}
+        onConfirm={() =>
+          renew.mutate(undefined, {
+            onSuccess: () => {
+              setConfirm(null);
+              toast.success(t2.renewed);
+            },
+          })
+        }
+      />
+      <ConfirmDialog
+        open={confirm === "revoke"}
+        onClose={close}
+        title={t2.revokeTitle}
+        description={t2.revokeBody}
+        confirmLabel={t2.revokeConfirm}
+        destructive
+        loading={revoke.isPending}
+        error={revoke.isError ? errorMessage(revoke.error) : null}
+        onConfirm={() =>
+          revoke.mutate(undefined, {
+            onSuccess: () => {
+              setConfirm(null);
+              toast.success(t2.revoked);
+            },
+          })
+        }
+      />
+    </Card>
+  );
+}
+
 function AccountCard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -386,6 +507,7 @@ export function SettingsPage() {
         <PreferencesCard profile={profile.data} settings={settings.data} />
         <LocationCard settings={settings.data} />
         <NotificationsCard settings={settings.data} />
+        <CalendarCard />
         <AccountCard />
       </div>
     </>
