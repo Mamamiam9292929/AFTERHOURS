@@ -1195,7 +1195,8 @@ await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async
   const { page } = alice;
   await page.goto(`${APP}/plans/${ids.plan}`);
   await page.getByRole("heading", { name: "Kosten teilen" }).waitFor();
-  check(await page.getByText("Wer hat etwas ausgelegt?").isVisible(), "Leerzustand erklärt, wofür der Bereich da ist");
+  // Die Einträge laden nach der Überschrift – warten statt sofort prüfen (sonst wackelt der Schritt).
+  check(await page.getByText("Wer hat etwas ausgelegt?").waitFor({ timeout: 10_000 }).then(() => true, () => false), "Leerzustand erklärt, wofür der Bereich da ist");
 
   // Alice hat die Bahn bezahlt; vorausgewählt sind die Zusagen (Alice, Bob) – Carol hat abgesagt.
   await page.getByRole("button", { name: "Ausgabe eintragen" }).click();
