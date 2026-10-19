@@ -151,6 +151,8 @@ export interface Poll {
   created_at: string;
   /** W3: Freunde ohne Konto dürfen über den Teilen-Link mitstimmen. */
   guests_allowed: boolean;
+  /** S5: Bei klarer Mehrheit der Crew oder Fristende entsteht der Plan von selbst. */
+  auto_decide: boolean;
   /** P1: „place“ = Abstimmung über Orte/Vorschläge, „date“ = Termin-Abstimmung „Wann könnt ihr?“. */
   kind: PollKind;
   /** W3 Etappe 3: Wer (Owner/Admin) „Gäste dürfen der Crew beitreten“ eingeschaltet hat – null = aus. */

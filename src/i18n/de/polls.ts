@@ -145,6 +145,19 @@ export const polls = {
     showPlace: "Ort ansehen",
     overBudget: "über Budget",
     rule: "Es zählen die Zusagen („Bin dabei“). Du kannst deine Antwort bis zum Ende ändern.",
+    /** S5: Abstimmung entscheidet sich selbst. */
+    auto: {
+      title: "Entscheiden",
+      toggle: "Entscheidet sich selbst",
+      toggleBody:
+        "Ist mehr als die Hälfte der Crew bei einem Vorschlag dabei und kann ihn kein anderer mehr einholen – oder läuft die Frist ab –, steht der Plan von selbst. Wer dabei war, ist zugesagt. Bei Gleichstand gibt es wie gewohnt eine Stichwahl.",
+      on: "Die Abstimmung entscheidet sich jetzt selbst.",
+      off: "Die Abstimmung entscheidet sich nicht mehr selbst.",
+      decidedNow: "Die Mehrheit steht schon – entschieden.",
+      badge: "Entscheidet sich selbst",
+      rule: "Steht eine klare Mehrheit der Crew, ist die Abstimmung sofort entschieden und der Plan steht.",
+      planBody: "Automatisch angelegt – wer dabei war, ist schon zugesagt.",
+    },
     result: {
       title: "Ergebnis",
       winner: (title: string) => `Es wird ${title}`,
@@ -324,6 +337,7 @@ export const polls = {
     options: (n: number) => (n === 1 ? "1 Vorschlag" : `${n} Vorschläge`),
     endsAt: (when: string) => `Entscheidet sich spätestens ${when}`,
     guests: "Freunde ohne App stimmen über den Link mit ab",
+    auto: "Bei klarer Mehrheit steht der Plan von selbst",
     crew: "Crew",
     submit: "Los – in die Gruppe",
     submitting: "Wird gestartet …",

@@ -93,6 +93,8 @@ function QuickPollSheet({ open, onClose, crews }: { open: boolean; onClose: () =
       const pollId = data as string;
       // S2: Gäste dürfen mitstimmen – sonst müssten Freunde erst die App holen. Schlägt das fehl, läuft die Abstimmung trotzdem.
       await supabase.rpc("set_poll_guests", { p_poll_id: pollId, p_allowed: true });
+      // S5: Bei klarer Mehrheit steht der Plan von selbst – niemand muss hinterherräumen.
+      await supabase.rpc("set_poll_auto_decide", { p_poll_id: pollId, p_enabled: true });
       const token = await supabase.rpc("poll_share_token", { p_poll_id: pollId });
       return { pollId, token: (token.data as string | null) ?? null };
     },
@@ -183,6 +185,7 @@ function QuickPollSheet({ open, onClose, crews }: { open: boolean; onClose: () =
                     {t.polls.quick.options(parsed.options.length)} · {t.polls.quick.endsAt(formatDateTime(parsed.endsAt))}
                   </p>
                   <p className="text-[13px] text-faint">{t.polls.quick.guests}</p>
+                  <p className="text-[13px] text-faint">{t.polls.quick.auto}</p>
                 </>
               )}
             </section>

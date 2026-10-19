@@ -2642,6 +2642,43 @@ await step("V2 + S1 – Ein Satz, eine Abstimmung: „Was geht?“ auf Home (Bob
   await deck.getByText(/Alles gewischt/).waitFor();
   const votes = (await api(bob, "GET", `poll_votes?select=response&poll_id=eq.${pollId}`)).json ?? [];
   check(votes.length === 4 && votes.filter((v) => v.response === "yes").length === 2, `S6: vier Antworten gespeichert, zwei davon „dabei“ (${votes.length})`);
+  ids.quickPoll = pollId;
+});
+
+await step("S5 – Abstimmung entscheidet sich selbst: klare Mehrheit → Plan steht (Bob, Alice, Carol)", async () => {
+  const page = bob.page;
+  const pollId = ids.quickPoll;
+  const row = (await api(bob, "GET", `polls?id=eq.${pollId}&select=auto_decide,status`)).json?.[0];
+  check(row?.auto_decide === true && row?.status === "open", "S5: Ein-Satz-Abstimmung entscheidet sich selbst, Bobs Stimmen allein entscheiden nichts");
+  await page.getByText("Entscheidet sich selbst", { exact: true }).first().waitFor();
+  check(await page.getByRole("switch", { name: /^Entscheidet sich selbst/ }).isChecked(), "Schalter für die Ersteller:in sichtbar und an");
+  // Alice und Carol sind beim selben Vorschlag wie Bob dabei, bei allen anderen nicht.
+  const options = (await api(bob, "GET", `poll_options?poll_id=eq.${pollId}&select=id,title,position&order=position`)).json ?? [];
+  const bobYes = new Set(((await api(bob, "GET", `poll_votes?poll_id=eq.${pollId}&response=eq.yes&select=poll_option_id`)).json ?? []).map((v) => v.poll_option_id));
+  const target = options.find((o) => bobYes.has(o.id));
+  check(Boolean(target), "Bob ist bei mindestens einem Vorschlag dabei");
+  for (const friend of [alice, carol]) {
+    for (const option of options) {
+      const result = await api(friend, "POST", "rpc/cast_vote", { p_option_id: option.id, p_response: option.id === target.id ? "yes" : "no" });
+      if (result.status >= 300 && result.json?.message !== "poll_closed") throw new Error(`${friend.name}: Stimme fehlgeschlagen (${result.status} ${result.json?.message})`);
+    }
+  }
+  const decided = (await api(bob, "GET", `polls?id=eq.${pollId}&select=status,winning_option_id,closed_by`)).json?.[0];
+  check(decided?.status === "closed" && decided.winning_option_id === target.id && decided.closed_by === null, "klare Mehrheit: Abstimmung ist von selbst entschieden");
+  const plans = (await api(bob, "GET", `plans?poll_id=eq.${pollId}&select=id,title,status,plan_participants(user_id,attendance_status)`)).json ?? [];
+  check(plans.length === 1 && plans[0].status === "confirmed" && plans[0].title === target.title, `genau ein bestätigter Plan „${target.title}“`);
+  const going = (plans[0]?.plan_participants ?? []).filter((p) => p.attendance_status === "going").length;
+  check(going >= 3, `wer dabei war, ist zugesagt (${going})`);
+  await page.reload();
+  await page.getByTestId("poll-plan-note").filter({ hasText: "Automatisch angelegt" }).waitFor();
+  await page.getByRole("link", { name: "Zum Plan" }).waitFor();
+  await shot(bob, "45-entschieden");
+  await page.getByRole("link", { name: "Zum Plan" }).click();
+  await page.waitForURL(new RegExp(`/plans/${plans[0].id}`));
+  await page.getByRole("heading", { level: 1 }).waitFor();
+  check(true, "„Zum Plan“ öffnet den automatisch angelegten Plan");
+  // Aufräumen: der Rest der Journey kennt diesen Plan nicht.
+  execFileSync("psql", [DB_URL, "-qc", `delete from public.plans where id = '${plans[0].id}'`]);
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
