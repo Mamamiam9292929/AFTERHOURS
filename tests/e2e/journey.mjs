@@ -1327,6 +1327,25 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await balancesCard.scrollIntoViewIfNeeded();
   await noOverflow(alice, "Offene Beträge");
   await shot(alice, "21b-crew-kosten");
+
+  // P9 – Crew-Rückblick: der abgeschlossene Plan aus Schritt 11 ist der erste gemeinsame Abend.
+  if (DB_URL) {
+    const recap = alice.page.getByTestId("crew-recap");
+    await recap.waitFor();
+    check(/^1\s*gemeinsamer Abend/.test((await recap.locator("p").first().innerText()).trim()), "Rückblick: 1 gemeinsamer Abend");
+    check(await recap.getByText(/^seit \S+ \d{4}$/).isVisible(), "Rückblick: seit Monat und Jahr des ersten Abends");
+    check((await recap.getByRole("listitem").filter({ hasText: /: 1 Abend(?!e)/ }).count()) === 1, "Rückblick: ein Monat mit einem Abend in den letzten 12 Monaten");
+    check((await recap.getByText("Eure Stammorte").count()) === 0, "Rückblick: ein einzelner Abend ist noch kein Stammort");
+    check((await recap.getByText("Lieblingstag").count()) === 0, "Rückblick: kein Lieblingstag bei nur einem Abend");
+    check(!/Alice|Bob|Carol/.test(await recap.innerText()), "Rückblick: keine Rangliste von Personen");
+    await bob.page.getByRole("tab", { name: "Übersicht" }).click();
+    const bobRecap = bob.page.getByTestId("crew-recap");
+    await bobRecap.scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Crew-Rückblick");
+    await shot(bob, "21c-crew-rueckblick");
+  } else {
+    check((await alice.page.getByTestId("crew-recap").count()) === 0, "ohne abgeschlossenen Plan kein Rückblick");
+  }
   await openRow.click();
   await alice.page.waitForURL(`**/plans/${ids.plan}#kosten`);
   const costsHeading = alice.page.getByRole("heading", { name: "Kosten teilen" });

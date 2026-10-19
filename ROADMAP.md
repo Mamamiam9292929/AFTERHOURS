@@ -52,7 +52,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 | P6 | Karte in Discover (OSM-Kacheln, erst nach Klick geladen) | Orte in der Nähe auf einen Blick | M | Nutzungsregeln der Kachelserver; bei Last eigener Anbieter | Freigegeben |
 | P7 | Fotos von OSM-Orten über Wikidata/Wikimedia Commons, mit Lizenzangabe pro Bild | Discover sieht lebendiger aus, ohne Bilder zu erfinden | M | Nur Bilder mit freier Lizenz und Namensnennung | Freigegeben |
 | P8 | Wiederkehrende Pläne („jeden ersten Freitag“) | Stammtische laufen von selbst | M | – | Freigegeben |
-| P9 | Crew-Rückblick: gemeinsame Abende, beliebteste Orte, Serien | Bindung und Spaß, ohne Daten nach außen | M | – | Freigegeben |
+| P9 | Crew-Rückblick: gemeinsame Abende, beliebteste Orte, Serien | Bindung und Spaß, ohne Daten nach außen | M | – | Etappe 1 PR offen: „Euer Rückblick“ auf der Crew-Seite ab dem ersten abgeschlossenen Plan – gemeinsame Abende, seit wann, längste Serie (Monate am Stück), größte Runde, Lieblingstag (ab 3 Abenden, nur eindeutig), die letzten 12 Monate als Balken, Stammorte (ab 2 Abenden). Keine Rangliste von Personen. Akzeptanz: Unit-Test der Berechnung in Berliner Zeit, Journey prüft Inhalt und 390 px. Etappe 2 (Idee): Jahresrückblick im Dezember als teilbare Karte (nur Zahlen, keine Namen) |
 | P10 | Fotos zum Plan teilen (nur Crew sichtbar, Supabase Storage) | Erinnerungen an einem Ort | M | Speicherkosten, Moderation, Löschfristen | Freigegeben |
 | P11 | Englische Oberfläche | Gemischte Freundeskreise, Expats | M | – | Freigegeben |
 | P12 | Anmeldung mit Google und Apple | Weniger Hürden bei der Registrierung | S | Entwicklerkonten bei Google/Apple, Schlüssel als Secret | Freigegeben |
