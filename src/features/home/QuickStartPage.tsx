@@ -58,7 +58,7 @@ function Header({ step, title, body }: { step: number; title: string; body: stri
   return (
     <header className="mb-7">
       <Progress step={step} />
-      <h1 className="display break-words text-[44px] uppercase leading-[0.95] text-fg sm:text-[64px]">
+      <h1 className="display chrome break-words text-[32px] uppercase leading-[0.95] sm:text-[46px]">
         <PosterTitle text={title} />
       </h1>
       <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-muted">{body}</p>

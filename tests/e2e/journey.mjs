@@ -372,7 +372,7 @@ await step("Barrierefreiheit – Anmeldung nur mit der Tastatur (Bob)", async ()
       if (!el || el === document.body) return null;
       const style = getComputedStyle(el);
       const label = el.labels?.[0]?.textContent?.trim() ?? el.getAttribute("aria-label") ?? el.textContent?.trim() ?? "";
-      const marked = (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) || style.boxShadow !== "none" || style.borderColor === "rgb(197, 248, 42)";
+      const marked = (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) || style.boxShadow !== "none" || style.borderColor === "rgb(200, 255, 46)";
       return { tag: el.tagName.toLowerCase(), type: el.getAttribute("type"), label: label.slice(0, 60), marked };
     });
   const unmarked = new Set();

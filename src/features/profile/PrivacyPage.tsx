@@ -40,7 +40,7 @@ export function PrivacyPage() {
       <div className="py-6">
         <Logo compact />
       </div>
-      <h1 className="display mb-6 text-[44px] text-fg sm:text-[52px]">{t.privacy.title}</h1>
+      <h1 className="display chrome mb-6 text-[32px] sm:text-[37px]">{t.privacy.title}</h1>
       <Content />
       <ButtonLink to={user ? "/settings#account" : "/login"} variant="secondary" className="mt-8">
         {user ? t.privacy.toSettings : t.privacy.toLogin}

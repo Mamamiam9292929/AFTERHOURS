@@ -33,7 +33,7 @@ function Overview() {
     <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {(Object.keys(t.admin.metrics) as (keyof typeof t.admin.metrics)[]).map((key) => (
         <div key={key} className="rounded-card border border-line bg-surface p-4">
-          <dd className="font-display text-[40px] font-extrabold leading-none text-fg">{formatNumber(overview.data[key] ?? 0)}</dd>
+          <dd className="font-display text-[29px] font-extrabold leading-none text-fg">{formatNumber(overview.data[key] ?? 0)}</dd>
           <dt className="mt-2 text-[13px] text-muted">{t.admin.metrics[key]}</dt>
         </div>
       ))}
@@ -74,7 +74,7 @@ function PlaceSyncHealthCard() {
   return (
     <section aria-labelledby="place-sync-title" className="mt-6 rounded-card border border-line bg-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="place-sync-title" className="font-display text-[22px] font-extrabold uppercase leading-none text-fg">{tx.title}</h2>
+        <h2 id="place-sync-title" className="font-display text-[16px] font-extrabold uppercase leading-none text-fg">{tx.title}</h2>
         <p className="text-[13px] text-muted">{tx.period(health.data?.days ?? 7)}</p>
       </div>
       <div className="mt-4">
@@ -92,7 +92,7 @@ function PlaceSyncHealthCard() {
                 ...(health.data.geocode_fallback_runs === undefined ? [] : [{ label: tx.geocodeFallback, value: formatNumber(health.data.geocode_fallback_runs) }]),
               ].map((item) => (
                 <div key={item.label}>
-                  <dd className="font-display text-[32px] font-extrabold leading-none text-fg">{item.value}</dd>
+                  <dd className="font-display text-[23px] font-extrabold leading-none text-fg">{item.value}</dd>
                   <dt className="mt-1 text-[13px] text-muted">{item.label}</dt>
                 </div>
               ))}

@@ -54,7 +54,7 @@ export function CrewBalances({ crewId, userId, plans }: { crewId: string; userId
             </p>
             <p className="mt-0.5 text-[13px] text-muted">{total === 0 ? tx.othersOnly : tx.planCount(rows.length)}</p>
           </div>
-          <p className={cn("display shrink-0 text-[36px] leading-none sm:text-[44px]", total > 0 ? "text-lime" : total < 0 ? "text-amber" : "text-fg")}>
+          <p className={cn("display shrink-0 text-[26px] leading-none sm:text-[32px]", total > 0 ? "text-lime" : total < 0 ? "text-amber" : "text-fg")}>
             {sign}
             {formatEuro(Math.abs(total))}
           </p>

@@ -91,7 +91,7 @@ function InviteTicket({ data }: { data: Valid }) {
           {date ? (
             <p className="flex flex-col items-center leading-none">
               <span className="text-[13px] font-bold uppercase tracking-wide">{date.weekday}</span>
-              <span className="font-display text-[64px] font-extrabold leading-[0.9] sm:text-[76px]">{date.day}</span>
+              <span className="font-display text-[46px] font-extrabold leading-[0.9] sm:text-[55px]">{date.day}</span>
               <span className="text-[13px] font-bold uppercase tracking-wide">{date.month}</span>
             </p>
           ) : (
@@ -107,7 +107,7 @@ function InviteTicket({ data }: { data: Valid }) {
         <div className="flex min-w-0 flex-col gap-4 p-5 sm:p-6">
           <div className="min-w-0">
             <p className="text-[13px] text-muted">{data.invited_by ? t.crews.landing.invitedBy(data.invited_by) : t.crews.landing.invitedAnonymous}</p>
-            <p id="invite-crew" className="display mt-1 break-words text-[34px] uppercase text-fg sm:text-[40px]">
+            <p id="invite-crew" className="display mt-1 break-words text-[24px] uppercase text-fg sm:text-[29px]">
               {date && (
                 <span className="mr-2" aria-hidden>
                   {data.crew.emoji}

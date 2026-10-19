@@ -161,7 +161,7 @@ export function PlanDetailPage() {
         <div className="min-w-0">
           {/* Eigene Antwort */}
           <section aria-labelledby="attendance-heading" className={cn("rounded-card border p-4 sm:p-5", mine === "invited" && !locked ? "attendance-open border-lime/45" : "border-line bg-surface")}>
-            <h2 id="attendance-heading" className="display text-[30px] uppercase text-fg sm:text-[36px]">
+            <h2 id="attendance-heading" className="display text-[22px] uppercase text-fg sm:text-[26px]">
               <PosterTitle text={t.plans.detail.attendance.question} />
             </h2>
             <div role="radiogroup" aria-labelledby="attendance-heading" className="mt-4 grid grid-cols-3 gap-2">

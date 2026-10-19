@@ -107,7 +107,7 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                         <Avatar person={lookup(transfer.to)} size="sm" decorative />
                       </span>
                       <span className="min-w-0 flex-1 text-[15px] font-semibold text-fg">{text}</span>
-                      <span className="display shrink-0 text-[22px] leading-none text-fg">{amount}</span>
+                      <span className="display shrink-0 text-[16px] leading-none text-fg">{amount}</span>
                       {involved && (
                         <Button size="sm" variant="secondary" aria-label={tx.markSettledLabel(text, amount)} onClick={() => setSettling(transfer)}>
                           {tx.markSettled}
@@ -153,7 +153,7 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                       {myShare != null && <p className="mt-1 text-sm font-semibold text-fg">{tx.yourShareValue(formatEuro(myShare))}</p>}
                       <p className="mt-0.5 text-[13px] text-faint">{formatDateTime(e.created_at)}</p>
                     </div>
-                    <p className="display shrink-0 pt-0.5 text-[22px] leading-none text-fg">{amount}</p>
+                    <p className="display shrink-0 pt-0.5 text-[16px] leading-none text-fg">{amount}</p>
                     {canDelete(e) && (
                       <IconButton label={tx.delete(title)} className="-my-1 -mr-2 size-10 text-muted" onClick={() => setDeleting(e)}>
                         <IconTrash className="size-4" aria-hidden />
@@ -243,7 +243,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "li
   return (
     <div className="min-w-0">
       <dt className="text-[13px] font-medium text-muted">{label}</dt>
-      <dd className={cn("display mt-1 truncate text-[26px] leading-none sm:text-[32px]", tone === "lime" ? "text-lime" : tone === "amber" ? "text-amber" : "text-fg")}>{value}</dd>
+      <dd className={cn("display mt-1 truncate text-[19px] leading-none sm:text-[23px]", tone === "lime" ? "text-lime" : tone === "amber" ? "text-amber" : "text-fg")}>{value}</dd>
     </div>
   );
 }

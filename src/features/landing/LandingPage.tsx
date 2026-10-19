@@ -82,7 +82,7 @@ function Hero() {
     <section aria-labelledby="landing-title" className="mx-auto grid w-full max-w-6xl items-center gap-12 px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] lg:gap-16 lg:pb-24 lg:pt-20">
       <div className="min-w-0">
         <p className="text-[13px] font-bold uppercase tracking-[0.14em] text-lime">{copy.hero.eyebrow}</p>
-        <h1 id="landing-title" className="display mt-4 text-[46px] uppercase text-fg sm:text-[76px] lg:text-[78px]">
+        <h1 id="landing-title" className="display chrome mt-4 text-[33px] uppercase sm:text-[55px] lg:text-[56px]">
           {copy.hero.title.map((line) => (
             <span key={line} className="block">
               {line}{" "}
@@ -118,7 +118,7 @@ function SampleTicket() {
         <div className="ticket ticket-feature">
           <div className="ticket-stub flex flex-col items-center justify-center gap-1 bg-lime px-2 py-5 text-center text-lime-ink">
             <span className="text-[15px] font-bold uppercase tracking-wide">{date.weekday}</span>
-            <span className="font-display text-[76px] font-extrabold leading-[0.85] sm:text-[92px]">{date.day}</span>
+            <span className="font-display text-[55px] font-extrabold leading-[0.85] sm:text-[66px]">{date.day}</span>
             <span className="text-[15px] font-bold uppercase tracking-wide">{date.month}</span>
             <span className="ticket-stamp is-new" aria-hidden>
               {copy.sample.ticketStamp}
@@ -127,7 +127,7 @@ function SampleTicket() {
           <div className="flex min-w-0 flex-col justify-between gap-4 p-5 sm:p-6">
             <div className="min-w-0">
               <Badge tone="lime">{t.enums.planStatus.confirmed}</Badge>
-              <p className="display mt-3 break-words text-[36px] uppercase text-fg sm:text-[44px]">{copy.sample.ticketTitle}</p>
+              <p className="display mt-3 break-words text-[26px] uppercase text-fg sm:text-[32px]">{copy.sample.ticketTitle}</p>
               <p className="mt-2.5 text-[15px] text-muted">
                 <span className="font-semibold text-fg">{formatTime(startsAt)}</span> · {copy.sample.ticketPlace}
               </p>
@@ -137,7 +137,7 @@ function SampleTicket() {
               <span className="ml-auto text-[15px] font-semibold text-muted">
                 <span className="sr-only">{copy.sample.goingOf(going.length, SAMPLE_PEOPLE.length)}</span>
                 <span aria-hidden className="flex items-baseline gap-1.5">
-                  <span className="font-display text-[34px] font-extrabold leading-none text-fg">{going.length}</span>
+                  <span className="font-display text-[24px] font-extrabold leading-none text-fg">{going.length}</span>
                   {t.plans.ticket.goingOf(SAMPLE_PEOPLE.length)}
                 </span>
               </span>
@@ -159,7 +159,7 @@ function SampleBadge({ className }: { className?: string }) {
 
 function SectionTitle({ id, text, accent }: { id: string; text: string; accent: string }) {
   return (
-    <h2 id={id} className="display text-[40px] uppercase text-fg sm:text-[56px]">
+    <h2 id={id} className="display text-[29px] uppercase text-fg sm:text-[40px]">
       {text} <span className="text-lime">{accent}</span>
     </h2>
   );
@@ -174,7 +174,7 @@ function Steps() {
           <ol className="mt-10 space-y-8">
             {copy.steps.items.map((item, index) => (
               <li key={item.title} className="flex gap-5">
-                <span aria-hidden className="display w-12 shrink-0 text-[44px] leading-none text-lime tabular-nums">
+                <span aria-hidden className="display w-12 shrink-0 text-[32px] leading-none text-lime tabular-nums">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <div className="min-w-0 border-t border-dashed border-line-strong pt-3">
@@ -198,7 +198,7 @@ function SamplePoll() {
     <figure aria-label={copy.sample.pollLabel} className="min-w-0 self-center">
       <SampleBadge />
       <div className="stage-card mt-4 rounded-card border border-line bg-surface p-5 sm:p-6">
-        <p className="display text-[34px] uppercase text-fg sm:text-[40px]">
+        <p className="display text-[24px] uppercase text-fg sm:text-[29px]">
           {copy.sample.pollQuestion} <span className="text-lime">{copy.sample.pollQuestionAccent}</span>
         </p>
         <p className="mt-2 text-sm text-muted">{copy.sample.pollMeta}</p>
@@ -209,7 +209,7 @@ function SamplePoll() {
               className={cn("poll-option relative overflow-hidden rounded-card border p-4", index === 0 ? "poll-option-leading border-lime/45" : "border-line bg-surface")}
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="display min-w-0 text-[24px] uppercase text-fg">{option.title}</p>
+                <p className="display min-w-0 text-[17px] uppercase text-fg">{option.title}</p>
                 {index === 0 && (
                   <Badge tone="lime" className="text-[13px]">
                     {copy.sample.leading}
@@ -223,7 +223,7 @@ function SamplePoll() {
                   <AvatarStack people={SAMPLE_PEOPLE.slice(index, index + option.yes)} max={4} ringColor="var(--color-raised)" />
                   <span className="text-sm font-semibold text-fg">{copy.sample.yes(option.yes)}</span>
                 </span>
-                <span aria-hidden className="display relative text-[26px] leading-none text-fg tabular-nums">
+                <span aria-hidden className="display relative text-[19px] leading-none text-fg tabular-nums">
                   {option.yes}
                 </span>
               </div>
@@ -283,11 +283,11 @@ function FinalCall() {
         <div className="ticket ticket-feature">
           <div className="ticket-stub flex flex-col items-center justify-center gap-2 bg-lime px-2 py-6 text-center text-lime-ink">
             <span className="text-[13px] font-bold uppercase tracking-wide">{copy.final.stub}</span>
-            <span className="font-display text-[56px] font-extrabold uppercase leading-[0.85] sm:text-[72px]">{copy.final.answer}</span>
+            <span className="font-display text-[40px] font-extrabold uppercase leading-[0.85] sm:text-[52px]">{copy.final.answer}</span>
             <span className="ticket-barcode mt-1" aria-hidden />
           </div>
           <div className="flex min-w-0 flex-col items-start p-5 sm:p-8">
-            <h2 id="landing-final" className="display text-[34px] uppercase text-fg sm:text-[48px]">
+            <h2 id="landing-final" className="display text-[24px] uppercase text-fg sm:text-[35px]">
               {copy.final.question}
             </h2>
             <p className="mt-3 max-w-xl leading-snug text-muted">{copy.final.body}</p>

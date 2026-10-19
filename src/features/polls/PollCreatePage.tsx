@@ -400,7 +400,7 @@ export function PollCreatePage() {
           {linked ? (
             <div className="rounded-card border border-lime/40 bg-lime/10 p-4" data-testid="poll-linked-when">
               <p className="text-sm font-semibold text-lime">{t.polls.create.linkedWhen.title}</p>
-              <p className="display mt-1 text-[26px] leading-none text-fg">{dateOptionLabel(linked.winner)}</p>
+              <p className="display mt-1 text-[19px] leading-none text-fg">{dateOptionLabel(linked.winner)}</p>
               <p className="mt-2 text-[13px] leading-snug text-muted">{t.polls.create.linkedWhen.body}</p>
               <Link to={`/polls/${linked.poll.id}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-fg underline decoration-lime underline-offset-4">
                 {t.polls.create.linkedWhen.back}

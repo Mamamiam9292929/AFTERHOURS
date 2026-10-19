@@ -87,7 +87,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
     >
       <div className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="display min-w-0 break-words text-[26px] uppercase text-fg sm:text-[28px]">{option.title}</h3>
+          <h3 className="display min-w-0 break-words text-[19px] uppercase text-fg sm:text-[20px]">{option.title}</h3>
           {isWinner ? (
             <Badge tone="lime" icon={<IconCrown className="size-3.5" aria-hidden />}>
               {t.polls.detail.result.title}
@@ -116,7 +116,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
             {tally.maybe.length > 0 && <span className="text-sm text-fg/90">{t.polls.maybeCount(tally.maybe.length)}</span>}
             {tally.no.length > 0 && <span className="text-sm text-fg/90">{t.polls.noCount(tally.no.length)}</span>}
           </div>
-          <span aria-hidden className="display relative text-[30px] leading-none text-fg tabular-nums">
+          <span aria-hidden className="display relative text-[22px] leading-none text-fg tabular-nums">
             {tally.yes.length}
           </span>
         </div>
@@ -636,7 +636,7 @@ export function PollDetailPage() {
           {closed && (
             <div className={cn("mb-6 rounded-card border p-5", winner ? "border-lime bg-lime/10" : "border-line bg-surface")}>
               <p className="text-sm font-semibold text-muted">{t.polls.detail.result.title}</p>
-              <h2 className="display mt-1.5 text-[34px] text-fg sm:text-[40px]">
+              <h2 className="display mt-1.5 text-[24px] text-fg sm:text-[29px]">
                 {winner ? t.polls.detail.result.winner(winner.title) : poll.is_tie ? t.polls.detail.result.tie : t.polls.detail.result.none}
               </h2>
               <p className="mt-2 max-w-prose text-[15px] leading-snug text-muted">

@@ -51,13 +51,15 @@ export function AppShell() {
   const bellLabel = unread > 0 ? t.notifications.bellUnread(unread) : t.nav.notifications;
 
   return (
-    <div className="min-h-dvh lg:pl-64">
+    <div className="relative isolate min-h-dvh lg:pl-64">
+      {/* V2: Aurora hinter der ganzen App. */}
+      <div className="aurora" aria-hidden />
       <a href="#content" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-control focus:bg-lime focus:px-4 focus:py-2 focus:font-semibold focus:text-lime-ink">
         {t.nav.skipToContent}
       </a>
 
       {/* Desktop: Seitenleiste */}
-      <aside className="vt-sidebar fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-nav px-4 py-6 lg:flex">
+      <aside className="vt-sidebar glass fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/[0.06] px-4 py-6 lg:flex">
         <Link to="/home" className="px-2">
           <Logo />
         </Link>
@@ -102,7 +104,7 @@ export function AppShell() {
       </aside>
 
       {/* Smartphone/Tablet: obere Leiste */}
-      <header className="vt-header sticky top-0 z-30 border-b border-line bg-base pt-safe lg:hidden">
+      <header className="vt-header glass sticky top-0 z-30 border-b border-white/[0.06] pt-safe lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <Link to="/home" aria-label={t.nav.home}>
             <Logo compact />
@@ -128,16 +130,17 @@ export function AppShell() {
       </main>
 
       {/* Smartphone/Tablet: untere Navigation */}
-      <nav aria-label={t.nav.main} className="vt-tabbar fixed inset-x-0 bottom-0 z-30 border-t border-line bg-nav pb-safe supports-[backdrop-filter]:bg-nav/92 supports-[backdrop-filter]:backdrop-blur-md lg:hidden">
-        <ul className="mx-auto grid max-w-xl grid-cols-5">
+      <nav aria-label={t.nav.main} className="vt-tabbar fixed inset-x-0 bottom-0 z-30 px-3 pb-[max(12px,env(safe-area-inset-bottom))] lg:hidden">
+        {/* V2: schwebende Glas-Leiste; der aktive Tab trägt eine Lime-Pille. */}
+        <ul className="glass mx-auto grid max-w-xl grid-cols-5 rounded-[28px] border border-white/10 px-1.5 shadow-[0_20px_40px_-18px_rgb(0_0_0/0.9)]">
           {NAV.map(({ to, label, icon: Icon }) => {
             const isActive = active === to;
             return (
               <li key={to}>
-                <Link to={to} aria-current={isActive ? "page" : undefined} className={cn("group relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold tracking-wide transition-colors duration-200", isActive ? "text-fg" : "text-faint")}>
+                <Link to={to} aria-current={isActive ? "page" : undefined} className={cn("group relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold tracking-wide transition-colors duration-200", isActive ? "text-fg" : "text-muted")}>
                   {/* Der Lime-Strich gleitet beim Tabwechsel zum neuen Tab (View Transition, D7). */}
-                  <span className={cn("absolute top-0 h-[3px] w-8 rounded-b-full", isActive ? "vt-tab-indicator bg-lime" : "bg-transparent")} aria-hidden />
-                  <Icon className={cn("size-[22px] transition-transform duration-150 group-active:scale-90", isActive && "text-lime")} aria-hidden />
+                  <span className={cn("absolute top-2 h-8 w-12 rounded-full", isActive ? "vt-tab-indicator bg-lime" : "bg-transparent")} aria-hidden />
+                  <Icon className={cn("relative size-[22px] transition-transform duration-150 group-active:scale-90", isActive && "text-lime-ink")} aria-hidden />
                   {label}
                 </Link>
               </li>

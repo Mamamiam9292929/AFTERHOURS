@@ -69,7 +69,7 @@ export function DiscoverPage() {
     <>
       {cityName ? (
         <header className="mb-6 lg:mb-8">
-          <h1 className="display break-words uppercase text-fg text-[44px] sm:text-[64px]">
+          <h1 className="display chrome break-words uppercase text-[32px] sm:text-[46px]">
             {cityName}
             <br />
             <span className="text-lime">{t.discover.poster[dayPhase()]}</span>

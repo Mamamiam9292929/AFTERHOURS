@@ -26,7 +26,7 @@ export function PageHeader({ title, lead, back, actions, className, poster }: Pa
       )}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div className="min-w-0 max-w-2xl">
-          <h1 className={cn("display break-words text-fg", poster ? "text-[44px] uppercase sm:text-[64px]" : "text-[40px] sm:text-[52px]")}>{title}</h1>
+          <h1 className={cn("display chrome break-words", poster ? "text-[34px] uppercase sm:text-[48px]" : "text-[30px] sm:text-[40px]")}>{title}</h1>
           {lead && <div className="mt-2.5 text-[15px] leading-snug text-muted">{lead}</div>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

@@ -31,7 +31,7 @@ export function CrewRecap({ plans }: { plans: readonly PlanWithParticipants[] })
       <div className="max-w-2xl overflow-hidden rounded-card border border-line bg-surface" data-testid="crew-recap">
         <div className="flex flex-wrap items-end gap-x-6 gap-y-4 p-4 sm:p-5">
           <p className="flex items-end gap-3">
-            <span className="display text-[64px] leading-[0.85] text-lime sm:text-[76px]">{recap.evenings}</span>
+            <span className="display text-[46px] leading-[0.85] text-lime sm:text-[55px]">{recap.evenings}</span>
             <span className="pb-1 text-[15px] font-semibold leading-tight text-fg">
               {tx.evenings(recap.evenings)}
               {recap.firstAt && <span className="block text-[13px] font-medium text-muted">{tx.since(formatMonthYear(recap.firstAt))}</span>}
@@ -42,7 +42,7 @@ export function CrewRecap({ plans }: { plans: readonly PlanWithParticipants[] })
               {facts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="text-[12px] font-medium uppercase tracking-wide text-muted">{fact.label}</dt>
-                  <dd className="display mt-0.5 text-[22px] text-fg">{fact.value}</dd>
+                  <dd className="display mt-0.5 text-[16px] text-fg">{fact.value}</dd>
                 </div>
               ))}
             </dl>
@@ -78,11 +78,11 @@ export function CrewRecap({ plans }: { plans: readonly PlanWithParticipants[] })
             <ol className="mt-2 divide-y divide-line">
               {recap.places.map((place, index) => (
                 <li key={place.key} className="flex items-center gap-3 py-2.5">
-                  <span aria-hidden className="display w-5 text-[20px] text-faint">
+                  <span aria-hidden className="display w-5 text-[14px] text-faint">
                     {index + 1}
                   </span>
                   <span className="min-w-0 flex-1 truncate font-semibold text-fg">{place.title}</span>
-                  <span className="display shrink-0 text-[22px] text-lime">{tx.placeCount(place.count)}</span>
+                  <span className="display shrink-0 text-[16px] text-lime">{tx.placeCount(place.count)}</span>
                 </li>
               ))}
             </ol>

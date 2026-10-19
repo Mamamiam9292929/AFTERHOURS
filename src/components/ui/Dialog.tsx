@@ -35,7 +35,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
         >
           <div className="flex items-start justify-between gap-3 px-5 pt-5 sm:px-6">
             <div className="min-w-0 pt-1.5">
-              <DialogTitle className="display text-[28px] text-fg">{title}</DialogTitle>
+              <DialogTitle className="display text-[20px] text-fg">{title}</DialogTitle>
               {description && <Description className="mt-2 text-sm leading-snug text-muted">{description}</Description>}
             </div>
             <IconButton label={t.actions.close} onClick={onClose} className="-mr-2 -mt-1">

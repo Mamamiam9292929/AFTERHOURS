@@ -53,7 +53,7 @@ export function InstallCard({ className }: { className?: string }) {
         <IconPhoneApp className="size-6" />
       </span>
       <div className="min-w-0 flex-1">
-        <h2 id="install-title" className="display text-[26px] leading-tight text-fg">
+        <h2 id="install-title" className="display text-[19px] leading-tight text-fg">
           {t.home.install.title}
         </h2>
         <p className="mt-2 text-[15px] leading-snug text-muted">{state === "ios" ? t.home.install.iosBody : t.home.install.body}</p>

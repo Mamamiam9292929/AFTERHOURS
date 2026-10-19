@@ -62,7 +62,7 @@ export function RewardsPage() {
                 {t.rewards.balanceLabel}
               </p>
               <p className="mt-1 flex items-baseline gap-3">
-                <span className="font-display text-[84px] font-extrabold leading-[0.9] text-lime sm:text-[104px]">{formatNumber(points)}</span>
+                <span className="font-display text-[60px] font-extrabold leading-[0.9] text-lime sm:text-[75px]">{formatNumber(points)}</span>
                 <span className="text-lg font-semibold text-fg">{t.rewards.levels[levelIndex]}</span>
               </p>
               <div className="mt-5 h-2 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)} aria-label={t.rewards.levels[levelIndex]}>
@@ -127,7 +127,7 @@ export function RewardsPage() {
               <ul className="space-y-3">
                 {t.rewards.rules.map((rule) => (
                   <li key={rule.title} className="flex gap-3.5 rounded-card border border-line bg-surface p-4">
-                    <span className="font-display text-[34px] font-extrabold leading-none text-lime">+{rule.points}</span>
+                    <span className="font-display text-[24px] font-extrabold leading-none text-lime">+{rule.points}</span>
                     <span>
                       <span className="block font-semibold text-fg">{rule.title}</span>
                       <span className="mt-0.5 block text-[13px] leading-snug text-muted">{rule.body}</span>
