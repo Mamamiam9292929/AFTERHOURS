@@ -2222,6 +2222,31 @@ await step("W4 – Installierbar, offline lesbar, neue Version, Zähler am App-I
   await context.close();
 });
 
+await step("Viele Pläne – anstehende bleiben sichtbar, wenn die Crew über 200 Abende hat (Carol)", async () => {
+  if (!DB_URL) {
+    console.log("   (E2E_DB_URL nicht gesetzt – übersprungen)");
+    return;
+  }
+  const { page } = carol;
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-qc", sql]);
+  // 210 vergangene Abende plus ein anstehender – vorher lud die Liste die ältesten 200 und verlor den neuen.
+  psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+        select '${ids.crew}', created_by, 'Archivabend ' || g, now() - make_interval(days => 30 + g), 'completed'
+        from public.plans p, generate_series(1, 210) g where p.id = '${ids.plan}';
+        insert into public.plans (crew_id, created_by, title, starts_at, status)
+        select '${ids.crew}', created_by, 'Zukunftsabend ${RUN}', now() + interval '12 days', 'confirmed' from public.plans where id = '${ids.plan}';`);
+  try {
+    await page.goto(`${APP}/plans`);
+    await page.getByText(`Zukunftsabend ${RUN}`).first().waitFor({ timeout: 15_000 });
+    check(true, "mit über 200 Plänen steht der anstehende Plan weiter in der Übersicht");
+    await page.goto(`${APP}/crews/${ids.crew}`);
+    await page.getByText(`Zukunftsabend ${RUN}`).first().waitFor({ timeout: 15_000 });
+    check(true, "… und auf der Crew-Seite");
+  } finally {
+    psql(`delete from public.plans where crew_id = '${ids.crew}' and (title like 'Archivabend %' or title = 'Zukunftsabend ${RUN}')`);
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);
