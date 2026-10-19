@@ -104,10 +104,11 @@ export function PlanWeather({ plan }: { plan: PlanWithParticipants }) {
         </span>
       )}
       <span className="mt-1 block text-[13px] text-faint">
-        {t.plans.weather.source(data.fetched_at ? formatTime(data.fetched_at) : "–")}{" "}
+        {t.plans.weather.sourceLead}{" "}
         <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="underline decoration-line underline-offset-4 hover:text-fg hover:decoration-lime">
           {t.plans.weather.sourceLink}
         </a>
+        {t.plans.weather.sourceTail(data.fetched_at ? formatTime(data.fetched_at) : "–")}
       </span>
     </Fact>
   );
