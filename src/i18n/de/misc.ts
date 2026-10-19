@@ -30,7 +30,14 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     const changed = Array.isArray(p.changed) ? (p.changed as string[]).map((key) => labels[key] ?? key).join(", ") : "";
     return { title: `${actor} hat einen Plan geändert${changed ? `: ${changed}` : ""}`, body: str(p, "title") };
   },
-  plan_cancelled: (actor, p) => ({ title: `${actor} hat einen Plan abgesagt`, body: str(p, "title") }),
+  // P8 Etappe 2: „Diesmal aussetzen“ – der Termin fällt aus, der Stammtisch geht weiter.
+  plan_cancelled: (actor, p) =>
+    p.skipped
+      ? {
+          title: `${actor} setzt diesmal aus: ${str(p, "title")}`,
+          body: str(p, "next_starts_at") ? `Nächster Termin: ${formatDateTime(str(p, "next_starts_at"))}` : "Der Stammtisch geht weiter.",
+        }
+      : { title: `${actor} hat einen Plan abgesagt`, body: str(p, "title") },
   plan_attendance: (actor, p) => ({
     title: p.status === "going" ? `${actor} ist dabei` : p.status === "maybe" ? `${actor} kommt vielleicht` : `${actor} hat abgesagt`,
     body: str(p, "title"),

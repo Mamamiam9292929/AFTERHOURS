@@ -49,16 +49,41 @@ test("angebotene Regeln passen zum Tag", () => {
 });
 
 test("letzter Termin einer Serie und fällige Serien", () => {
+  // s1: jeden Freitag, letzter Termin Fr 23.10. 20:00 Berlin. s2: alle zwei Wochen, letzter Sa 10.10.
+  const weekly = { active: true, rule: "weekly", weekday: 5, nth: null, last_on: "2026-10-23" };
+  const biweekly = { active: true, rule: "biweekly", weekday: 6, nth: null, last_on: "2026-10-10" };
   const plans = [
-    { id: "a", starts_at: "2026-10-16T18:00:00+00:00", series_id: "s1", series: { active: true } },
-    { id: "b", starts_at: "2026-10-23T18:00:00+00:00", series_id: "s1", series: { active: true } },
-    { id: "c", starts_at: "2026-10-10T18:00:00+00:00", series_id: "s2", series: { active: true } },
-    { id: "d", starts_at: "2026-10-01T18:00:00+00:00", series_id: "s3", series: { active: false } },
+    { id: "a", starts_at: "2026-10-16T18:00:00+00:00", series_id: "s1", series: weekly },
+    { id: "b", starts_at: "2026-10-23T18:00:00+00:00", series_id: "s1", series: weekly },
+    { id: "c", starts_at: "2026-10-10T18:00:00+00:00", series_id: "s2", series: biweekly },
+    { id: "d", starts_at: "2026-10-01T18:00:00+00:00", series_id: "s3", series: { ...weekly, active: false, last_on: "2026-10-01" } },
     { id: "e", starts_at: "2026-10-01T18:00:00+00:00", series_id: null, series: null },
   ];
   assert.equal(latestInSeries(plans, "s1")?.id, "b");
   assert.equal(latestInSeries(plans, "x"), null);
+  // s2: nächster Termin Sa 24.10. 20:00 – am 19.10. sind das gut 5 Tage: fällig. s1: nächster am 30.10.
   const now = new Date("2026-10-19T10:00:00Z");
   assert.deepEqual(dueSeries(plans, now), ["s2"]);
-  assert.deepEqual(dueSeries(plans, new Date("2026-10-24T00:00:00Z")).sort(), ["s1", "s2"]);
+  // Fr 23.10. 20:00 hat begonnen → der 30.10. ist genau 7 Tage entfernt. Eine Stunde Puffer wegen der Zeitumstellung.
+  assert.deepEqual(dueSeries(plans, new Date("2026-10-23T18:30:00Z")), ["s2"]);
+  assert.deepEqual(dueSeries(plans, new Date("2026-10-23T19:00:00Z")).sort(), ["s1", "s2"]);
+});
+
+test("früher Bescheid: monatlich eine Woche vorher, nicht früher", () => {
+  // Jeden 1. Freitag, letzter Termin Fr 2.10. 19:00 Berlin (17:00 UTC) → nächster Fr 6.11. 19:00 (18:00 UTC, Winterzeit).
+  const series = { active: true, rule: "monthly_nth", weekday: 5, nth: 1, last_on: "2026-10-02" };
+  const plans = [{ starts_at: "2026-10-02T17:00:00Z", series_id: "m", series }];
+  assert.deepEqual(dueSeries(plans, new Date("2026-10-25T12:00:00Z")), [], "12 Tage vorher: nichts");
+  assert.deepEqual(dueSeries(plans, new Date("2026-10-30T16:00:00Z")), [], "knapp über 7 Tage: noch nichts");
+  assert.deepEqual(dueSeries(plans, new Date("2026-10-30T19:00:00Z")), ["m"], "7 Tage vorher: fällig");
+});
+
+test("ausgesetzter letzter Termin: der nächste kommt sofort", () => {
+  const series = { active: true, rule: "monthly_nth", weekday: 5, nth: 1, last_on: "2026-11-06" };
+  const plans = [
+    { starts_at: "2026-10-02T17:00:00Z", status: "completed", series_id: "m", series },
+    { starts_at: "2026-11-06T18:00:00Z", status: "cancelled", series_id: "m", series },
+  ];
+  assert.deepEqual(dueSeries(plans, new Date("2026-10-20T12:00:00Z")), ["m"]);
+  assert.deepEqual(dueSeries([{ ...plans[1], series: { ...series, active: false } }], new Date("2026-10-20T12:00:00Z")), [], "beendete Serie nie");
 });

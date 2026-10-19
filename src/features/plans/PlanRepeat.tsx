@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { IconRepeat } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/Dialog";
+import { Notice } from "@/components/ui/Feedback";
 import { SelectField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
 import { latestInSeries, nextOccurrence, repeatAnchor, repeatOptions, type PlanSeries, type RepeatRule } from "@/lib/repeat";
+import { errorMessage } from "@/lib/errors";
 import { formatDateLong, formatPlainDate } from "@/lib/time";
-import { useSetPlanRepeat, type PlanWithParticipants } from "./api";
+import { hasStarted, useSetPlanRepeat, useSkipPlanOccurrence, type PlanWithParticipants } from "./api";
 
 /** „Jeden 1. Freitag im Monat“ – Regel einer aktiven Serie in Worten. */
 export function repeatLabel(series: Pick<PlanSeries, "rule" | "weekday" | "nth">): string {
@@ -31,7 +34,10 @@ export function RepeatLine({ series }: { series: PlanSeries | null | undefined }
  */
 export function RepeatCard({ plan, plans }: { plan: PlanWithParticipants; plans: readonly PlanWithParticipants[] }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const setRepeat = useSetPlanRepeat(plan.id);
+  const skip = useSkipPlanOccurrence(plan.id);
+  const [confirmSkip, setConfirmSkip] = useState(false);
   const series = plan.series ?? null;
   const latest = (series && latestInSeries(plans, series.id)) ?? plan;
   const anchor = repeatAnchor(latest.starts_at);
@@ -48,6 +54,19 @@ export function RepeatCard({ plan, plans }: { plan: PlanWithParticipants; plans:
   const anchorNth = anchor.nth <= 4 ? anchor.nth : null;
   const next = series?.active ? nextOccurrence(series.rule, series.weekday, series.nth, series.last_on) : null;
   const laterExists = latest.id !== plan.id;
+
+  // P8 Etappe 2: Nur dieser Termin fällt aus – solange er noch nicht begonnen hat.
+  const canSkip = Boolean(series?.active) && !hasStarted(plan);
+
+  function skipOnce() {
+    skip.mutate(undefined, {
+      onSuccess: (result) => {
+        setConfirmSkip(false);
+        toast.success(t.plans.repeat.skipped);
+        if (result.next_plan_id) navigate(`/plans/${result.next_plan_id}`);
+      },
+    });
+  }
 
   function save() {
     setRepeat.mutate(choice === "none" ? null : choice, {
@@ -84,6 +103,45 @@ export function RepeatCard({ plan, plans }: { plan: PlanWithParticipants; plans:
         </p>
       )}
       {series && !series.active && <p className="mt-3 text-[13px] leading-snug text-faint">{t.plans.repeat.stoppedNote}</p>}
+      {canSkip && (
+        <div className="mt-4 border-t border-line pt-4">
+          <Button block variant="ghost" onClick={() => setConfirmSkip(true)}>
+            {t.plans.repeat.skip}
+          </Button>
+          <p className="mt-2 text-[13px] leading-snug text-faint">{t.plans.repeat.skipHint}</p>
+        </div>
+      )}
+      <ConfirmDialog
+        open={confirmSkip}
+        onClose={() => setConfirmSkip(false)}
+        title={t.plans.repeat.skipTitle}
+        description={t.plans.repeat.skipBody(formatDateLong(plan.starts_at))}
+        confirmLabel={t.plans.repeat.skip}
+        loading={skip.isPending}
+        error={skip.isError ? errorMessage(skip.error) : null}
+        onConfirm={skipOnce}
+      />
     </section>
+  );
+}
+
+/** P8 Etappe 2: Hinweis auf einem ausgesetzten Termin – mit Sprung zum nächsten der Serie. */
+export function SkippedNotice({ plan, plans }: { plan: PlanWithParticipants; plans: readonly PlanWithParticipants[] }) {
+  const next = plans
+    .filter((p) => p.series_id && p.series_id === plan.series_id && p.status !== "cancelled" && Date.parse(p.starts_at) > Date.parse(plan.starts_at))
+    .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))[0];
+  return (
+    <Notice icon={<IconRepeat aria-hidden />} className="mt-5">
+      {t.plans.repeat.skippedNote}
+      {next && (
+        <>
+          {" "}
+          {t.plans.repeat.skippedNext}{" "}
+          <Link to={`/plans/${next.id}`} className="font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
+            {formatDateLong(next.starts_at)}
+          </Link>
+        </>
+      )}
+    </Notice>
   );
 }

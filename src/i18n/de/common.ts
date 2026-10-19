@@ -142,6 +142,8 @@ export const errors = {
     repeat_no_nth: "Ab dem 29. gibt es diesen Wochentag nicht in jedem Monat. Wähle „jeden letzten …“ oder jede Woche.",
     repeat_not_last_week: "„Jeden letzten …“ geht nur, wenn der Plan in der letzten Woche des Monats liegt.",
     too_many_series: "Diese Crew hat schon 10 wiederkehrende Pläne. Beende einen, bevor du einen neuen einstellst.",
+    series_not_active: "Dieser Plan gehört zu keinem laufenden Stammtisch. Sag ihn ab, wenn er nicht stattfindet.",
+    skip_too_late: "Dieser Termin hat schon begonnen – aussetzen geht nur vorher.",
     plan_not_started: "Ein Plan lässt sich erst abschließen, wenn er begonnen hat.",
     plan_not_confirmed: "Bestätige den Plan, bevor du eine Reservierung vorbereitest.",
     invalid_transition: "Dieser Schritt ist im aktuellen Status nicht möglich.",

@@ -214,6 +214,8 @@ export interface Plan {
   booking_status: BookingStatus;
   completed_at: string | null;
   cancelled_at: string | null;
+  /** P8 Etappe 2: Termin einer Serie „diesmal ausgesetzt“ (status = cancelled, die Serie läuft weiter). */
+  skipped_at?: string | null;
   created_at: string;
   updated_at: string;
 }
