@@ -17,6 +17,7 @@ import { useActivity } from "@/features/discover/api";
 import { useCreatePlanFromPoll, usePlans } from "@/features/plans/api";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
+import { SwipeDeck } from "./SwipeDeck";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
@@ -161,8 +162,9 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
                     "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-[13px] font-semibold leading-tight transition-colors sm:text-[15px]",
                     !selected && "border-transparent bg-raised text-fg/85 hover:border-line-strong hover:text-fg",
                     selected && response === "yes" && "border-lime bg-lime text-lime-ink",
-                    selected && response === "maybe" && "border-lime bg-transparent text-lime",
-                    selected && response === "no" && "border-fg/40 bg-raised text-fg",
+                    // V2: gleiche Antwortfarben wie die Plan-Karten – grün dabei, gelb vielleicht, rot nicht dabei.
+                    selected && response === "maybe" && "border-amber bg-amber text-amber-ink",
+                    selected && response === "no" && "border-danger bg-danger text-danger-ink",
                   )}
                 >
                   {t.enums.vote[response]}
@@ -688,6 +690,10 @@ export function PollDetailPage() {
                   <WhereNext poll={poll} winner={winner} failed={where.failed} />
                 ))}
             </div>
+          )}
+
+          {!summary.isOver && (
+            <SwipeDeck tallies={summary.tallies} onVote={(optionId, response) => castVote(optionId, response)} when={(tally) => optionWhen(tally.option)} memberCount={memberIds.length} />
           )}
 
           <ul className="space-y-3">

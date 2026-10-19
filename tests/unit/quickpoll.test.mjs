@@ -1,0 +1,78 @@
+// S1 · Ein Satz, eine Abstimmung (src/lib/quickpoll.ts) – Sätze, wie sie im Gruppenchat stehen.
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { MAX_OPTIONS, parseQuickPoll } from "../../src/lib/quickpoll.ts";
+
+// Montag, 19. Oktober 2026, 20:00 Berliner Zeit (UTC+2).
+const NOW = new Date("2026-10-19T18:00:00Z");
+const p = (s) => parseQuickPoll(s, NOW);
+const dates = (r) => r.days.map((d) => d.date);
+
+test("Beispiel aus dem Entwurf: zwei Aktivitäten, zwei Tage, Uhrzeit → 4 Optionen", () => {
+  const r = p("bowling oder kino, fr oder sa, 20 uhr");
+  assert.deepEqual(r.activities, ["Bowling", "Kino"]);
+  assert.deepEqual(dates(r), ["2026-10-23", "2026-10-24"]);
+  assert.equal(r.time, "20:00");
+  assert.equal(r.options.length, 4);
+  assert.deepEqual(r.options[0], { title: "Bowling", proposed_date: "2026-10-23", proposed_time: "20:00" });
+  assert.equal(r.title, "Was geht am Wochenende?");
+  assert.equal(r.days[0].label, "Fr 23.10.");
+});
+
+const cases = [
+  ["bowling freitag", ["Bowling"], ["2026-10-23"], null, "Was geht Freitag?"],
+  ["Kino heute 21:30", ["Kino"], ["2026-10-19"], "21:30", "Was geht heute?"],
+  ["morgen pizza essen um 8", ["Pizza essen"], ["2026-10-20"], "20:00", "Was geht morgen?"],
+  ["wer hat bock auf billard am samstag?", ["Billard"], ["2026-10-24"], null, "Was geht Samstag?"],
+  ["jemand lust auf karaoke oder bar diese woche", ["Karaoke", "Bar"], [], null, "Was machen wir?"],
+  ["Grillen am See, Sa 16 Uhr", ["Grillen am See"], ["2026-10-24"], "16:00", "Was geht Samstag?"],
+  ["escape room / lasertag / bowling", ["Escape room", "Lasertag", "Bowling"], [], null, "Was machen wir?"],
+  ["Wochenende bowling", ["Bowling"], ["2026-10-23", "2026-10-24"], null, "Was geht am Wochenende?"],
+  ["do oder fr bouldern ab 19 uhr", ["Bouldern"], ["2026-10-22", "2026-10-23"], "19:00", "Wann geht Bouldern?"],
+  ["Kino 24.10. 20:15", ["Kino"], ["2026-10-24"], "20:15", "Was geht Samstag?"],
+  ["mo, di oder mi", [], ["2026-10-19", "2026-10-20", "2026-10-21"], null, "Wann geht was?"],
+  ["Spieleabend bei mir", ["Spieleabend bei mir"], [], null, "Spieleabend bei mir – wer ist dabei?"],
+  ["übermorgen kart fahren 18.30", ["Kart fahren"], ["2026-10-21"], "18:30", "Was geht Mittwoch?"],
+  ["sonntag brunch um 11 uhr", ["Brunch"], ["2026-10-25"], "11:00", "Was geht Sonntag?"],
+  ["Freitag 8 Uhr abends Bar", ["Bar"], ["2026-10-23"], "20:00", "Was geht Freitag?"],
+  ["bowling, bowling, Bowling", ["Bowling"], [], null, "Bowling – wer ist dabei?"],
+  ["minigolf und eis essen samstags", ["Minigolf", "Eis essen"], ["2026-10-24"], null, "Was geht Samstag?"],
+  ["1.1. silvesterparty", ["Silvesterparty"], ["2027-01-01"], null, "Was geht Freitag?"],
+  ["kino um 20", ["Kino"], [], "20:00", "Kino – wer ist dabei?"],
+  ["heute noch wer bock auf bier", ["Bier"], ["2026-10-19"], null, "Was geht heute?"],
+  ["Thermen-Tag am Sonntag", ["Thermen-Tag"], ["2026-10-25"], null, "Was geht Sonntag?"],
+  ["Fr. oder Sa. Club", ["Club"], ["2026-10-23", "2026-10-24"], null, "Was geht am Wochenende?"],
+  ["Was geht?", ["Was geht"], [], null, "Was geht – wer ist dabei?"],
+];
+
+for (const [input, acts, ds, time, title] of cases) {
+  test(`„${input}“`, () => {
+    const r = p(input);
+    assert.deepEqual(r.activities, acts, "Aktivitäten");
+    assert.deepEqual(dates(r), ds, "Tage");
+    assert.equal(r.time, time, "Uhrzeit");
+    assert.equal(r.title, title, "Titel");
+    assert.ok(r.options.length >= 1, "mindestens eine Option");
+  });
+}
+
+test("höchstens 10 Optionen", () => {
+  const r = p("a1, b2, c3, d4, e5, f6 mo di mi do fr");
+  assert.equal(r.options.length, MAX_OPTIONS);
+});
+
+test("leerer Satz: keine Option", () => {
+  assert.equal(p("   ").options.length, 0);
+});
+
+test("Ende der Abstimmung: vor dem ersten Termin, mindestens 1 Stunde, ohne Termin nach 48 Stunden", () => {
+  assert.equal(p("bowling freitag 20 uhr").endsAt, "2026-10-23T10:00:00.000Z", "Freitag 12:00 Berlin");
+  assert.equal(p("kino").endsAt, "2026-10-21T18:00:00.000Z");
+  const tonight = new Date(p("kino heute 21:30").endsAt).getTime();
+  assert.equal(tonight, NOW.getTime() + 60 * 60_000, "heute 21:30 → spätestens 21:00, aber mindestens 1 Stunde");
+});
+
+test("Winterzeit: Termin nach der Zeitumstellung", () => {
+  const r = p("bowling 30.10. 20 uhr");
+  assert.equal(r.endsAt, "2026-10-30T11:00:00.000Z", "Freitag 30.10. 12:00 Berlin = 11:00 UTC");
+});

@@ -481,6 +481,24 @@
     transform: none;
   }
 }
+@keyframes swipe-right {
+  to {
+    transform: translateX(140%) rotate(22deg);
+    opacity: 0;
+  }
+}
+@keyframes swipe-left {
+  to {
+    transform: translateX(-140%) rotate(-22deg);
+    opacity: 0;
+  }
+}
+@keyframes swipe-up {
+  to {
+    transform: translateY(-60%) scale(0.9);
+    opacity: 0;
+  }
+}
 @keyframes shimmer {
   to {
     background-position: -200% 0;
@@ -522,6 +540,21 @@
 }
 .vt-plan-ticket {
   view-transition-name: plan-ticket;
+}
+/* V2: „Was geht?“-Knopf geht zum Sheet der Ein-Satz-Abstimmung auf (und zurück). */
+.vt-quickpoll {
+  view-transition-name: quick-poll;
+}
+::view-transition-group(quick-poll) {
+  animation-duration: 0.5s;
+  animation-timing-function: var(--ease-out-soft);
+}
+::view-transition-old(quick-poll),
+::view-transition-new(quick-poll) {
+  animation-duration: 0.28s;
+  height: 100%;
+  object-fit: none;
+  overflow: clip;
 }
 
 @media (prefers-reduced-motion: reduce) {

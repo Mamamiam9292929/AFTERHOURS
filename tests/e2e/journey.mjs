@@ -2601,6 +2601,47 @@ await step("P1 Etappe 3b – Termin-Vorschläge aus den Abenden der Crew (Bob)",
   }
 });
 
+await step("V2 + S1 – Ein Satz, eine Abstimmung: „Was geht?“ auf Home (Bob)", async () => {
+  const page = bob.page;
+  await page.goto(`${APP}/home`);
+  const launcher = page.getByRole("button", { name: "Was geht?" });
+  await launcher.waitFor();
+  await shot(bob, "41-home-was-geht");
+  await launcher.click();
+  const sheet = page.getByRole("dialog", { name: "Ein Satz reicht." });
+  // Die Dialog-Hülle selbst hat keine Größe (Inhalt liegt fixiert darüber) – auf das Eingabefeld warten.
+  await sheet.getByLabel("Was, wann, wo – wie im Chat").waitFor();
+  check((await sheet.getByRole("button", { name: /Los – in die Gruppe/ }).isDisabled()), "ohne Satz lässt sich nichts starten");
+  await sheet.getByLabel("Was, wann, wo – wie im Chat").fill("bowling oder kino, fr oder sa, 20 uhr");
+  const chips = sheet.getByRole("list", { name: "Daraus wird" });
+  for (const chip of ["Bowling", "Kino", "20:00"]) await chips.getByText(chip, { exact: true }).waitFor();
+  check((await chips.getByRole("listitem").count()) === 5, "Vorschau: 2 Aktivitäten, 2 Tage, 1 Uhrzeit");
+  await sheet.getByText("4 Vorschläge", { exact: false }).waitFor();
+  await sheet.getByText("Was geht am Wochenende?").waitFor();
+  await shot(bob, "42-ein-satz");
+  await sheet.getByRole("button", { name: /Los – in die Gruppe/ }).click();
+  await page.waitForURL(/\/polls\/[0-9a-f-]{36}/, { timeout: 20000 });
+  const pollId = idFromUrl(page);
+  await page.getByRole("heading", { level: 1 }).filter({ hasText: /wochenende/i }).waitFor();
+  const rows = (await api(bob, "GET", `polls?id=eq.${pollId}&select=title,guests_allowed,poll_options!poll_options_poll_id_fkey(title,proposed_date,proposed_time)`)).json ?? [];
+  check(rows[0]?.poll_options?.length === 4 && rows[0].poll_options.every((o) => o.proposed_time?.startsWith("20:00")), "S1: vier Vorschläge mit Tag und 20:00 angelegt");
+  check(rows[0]?.guests_allowed === true, "S2: Gäste dürfen über den Link mitstimmen");
+  await shot(bob, "43-ein-satz-abstimmung");
+  // S6: Wischen statt Liste – Knöpfe sind die barrierefreie Variante des Wischens.
+  const deck = page.getByTestId("swipe-deck");
+  await deck.getByText("noch 4 Vorschläge").waitFor();
+  await deck.getByRole("button", { name: /^Bin dabei: Bowling/ }).click();
+  await deck.getByText("noch 3 Vorschläge").waitFor();
+  await deck.getByRole("button", { name: /^Eher nicht: / }).click();
+  await deck.getByRole("button", { name: /^Vielleicht: / }).click();
+  await deck.getByText("noch 1 Vorschlag").waitFor();
+  await shot(bob, "44-wischen");
+  await deck.getByRole("button", { name: /^Bin dabei: / }).click();
+  await deck.getByText(/Alles gewischt/).waitFor();
+  const votes = (await api(bob, "GET", `poll_votes?select=response&poll_id=eq.${pollId}`)).json ?? [];
+  check(votes.length === 4 && votes.filter((v) => v.response === "yes").length === 2, `S6: vier Antworten gespeichert, zwei davon „dabei“ (${votes.length})`);
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);
