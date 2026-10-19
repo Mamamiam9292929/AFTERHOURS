@@ -36,6 +36,7 @@ import {
   useRemindPoll,
   useRemovePollGuest,
   useSetPollGuestJoin,
+  useSetPollAutoDecide,
   useSetPollGuests,
   usePollWeather,
   useStartRunoff,
@@ -344,6 +345,30 @@ function RunoffDialog({ poll, open, onClose }: { poll: PollWithDetails; open: bo
   );
 }
 
+/** S5: Schalter „Entscheidet sich selbst“ – für Ersteller:in und Owner/Admin, nur Orts-Abstimmungen. */
+function AutoDecideSettings({ poll }: { poll: PollWithDetails }) {
+  const toast = useToast();
+  const setAuto = useSetPollAutoDecide(poll.id);
+  return (
+    <Section title={t.polls.detail.auto.title} className="mt-0">
+      <div className="rounded-card border border-line bg-surface px-4 py-1.5">
+        <SwitchRow
+          label={t.polls.detail.auto.toggle}
+          description={t.polls.detail.auto.toggleBody}
+          checked={poll.auto_decide}
+          disabled={setAuto.isPending}
+          onChange={(enabled) =>
+            setAuto.mutate(enabled, {
+              onSuccess: (decided) => toast.success(decided ? t.polls.detail.auto.decidedNow : enabled ? t.polls.detail.auto.on : t.polls.detail.auto.off),
+              onError: (error) => toast.error(error),
+            })
+          }
+        />
+      </div>
+    </Section>
+  );
+}
+
 /** W3: Schalter „Gäste dürfen mitstimmen“ und die Liste der Gäste – für Ersteller:in und Owner/Admin. */
 function GuestSettings({ poll, guests, crewAdmin }: { poll: PollWithDetails; guests: PollGuest[]; crewAdmin: boolean }) {
   const toast = useToast();
@@ -627,6 +652,7 @@ export function PollDetailPage() {
               </Link>
             )}
             {poll.guests_allowed && !summary.isOver && <Badge tone="outline">{t.polls.detail.guestsBadge}</Badge>}
+            {poll.auto_decide && !summary.isOver && <Badge tone="outline">{t.polls.detail.auto.badge}</Badge>}
             <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.participation(votedCount, memberIds.length)}</span>
           </span>
         }
@@ -655,7 +681,9 @@ export function PollDetailPage() {
                 {shownPlan ? (
                   <>
                     <ButtonLink to={`/plans/${shownPlan.id}`}>{t.polls.detail.result.toPlan}</ButtonLink>
-                    <span className="text-sm text-muted">{t.polls.detail.result.planExists}</span>
+                    <span className="text-sm text-muted" data-testid="poll-plan-note">
+                      {plan && poll.auto_decide && poll.closed_by == null ? t.polls.detail.auto.planBody : t.polls.detail.result.planExists}
+                    </span>
                   </>
                 ) : runoff ? (
                   <>
@@ -725,7 +753,12 @@ export function PollDetailPage() {
               onRetry={() => void weather.refetch()}
             />
           )}
-          {!summary.isOver && <p className="mt-4 text-[13px] leading-snug text-faint">{t.polls.detail.rule}</p>}
+          {!summary.isOver && (
+            <p className="mt-4 text-[13px] leading-snug text-faint">
+              {t.polls.detail.rule}
+              {poll.auto_decide && <> {t.polls.detail.auto.rule}</>}
+            </p>
+          )}
         </div>
 
         <aside className="space-y-6 lg:sticky lg:top-10 lg:self-start">
@@ -771,6 +804,7 @@ export function PollDetailPage() {
           {!summary.isOver && <p className="text-[13px] text-faint">{t.polls.status.endsAt(formatDateTime(poll.ends_at))}</p>}
           <p className="text-[13px] text-faint">{poll.created_by === user.id ? t.polls.detail.createdByYou : t.polls.detail.createdBy(people.lookup(poll.created_by)?.display_name ?? t.states.formerMember)}</p>
 
+          {canManage && !summary.isOver && poll.kind === "place" && <AutoDecideSettings poll={poll} />}
           {canManage && !summary.isOver && <GuestSettings poll={poll} guests={guests} crewAdmin={canManageCrew(myRole(crew, user.id))} />}
 
           {canManage && !summary.isOver && (

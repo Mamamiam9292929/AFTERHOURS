@@ -193,6 +193,8 @@ export function useVote(pollId: string) {
     onSettled: () => {
       void client.invalidateQueries({ queryKey: qk.poll(pollId) });
       void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+      // S5: Eine Stimme kann die Abstimmung entscheiden und einen Plan anlegen.
+      void client.invalidateQueries({ queryKey: qk.plans });
     },
   });
 }
@@ -216,6 +218,23 @@ export function useSetPollGuests(pollId: string) {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: qk.poll(pollId) });
       void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+    },
+  });
+}
+
+/** S5: Abstimmung entscheidet sich selbst (Ersteller:in, Owner/Admin). Ergebnis true = sofort entschieden. */
+export function useSetPollAutoDecide(pollId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (enabled: boolean): Promise<boolean> => {
+      const { data, error } = await supabase.rpc("set_poll_auto_decide", { p_poll_id: pollId, p_enabled: enabled });
+      if (error) throw error;
+      return data === true;
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: qk.poll(pollId) });
+      void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+      void client.invalidateQueries({ queryKey: qk.plans });
     },
   });
 }

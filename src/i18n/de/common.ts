@@ -129,6 +129,7 @@ export const errors = {
     unknown_activity: "Einer der gewählten Orte ist nicht mehr verfügbar.",
     too_many_open_polls: "In dieser Crew laufen schon 20 Abstimmungen. Beende eine, bevor du eine neue startest.",
     poll_closed: "Diese Abstimmung ist beendet.",
+    auto_decide_unsupported: "Termin-Abstimmungen entscheiden sich nicht selbst – danach folgt „Und wo?“.",
     poll_still_open: "Die Abstimmung läuft noch. Beende sie, bevor du einen Plan daraus machst.",
     no_tie: "Für diese Abstimmung gibt es keinen Gleichstand.",
     runoff_exists: "Für diese Abstimmung gibt es bereits eine Stichwahl.",
