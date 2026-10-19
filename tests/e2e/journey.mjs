@@ -1659,6 +1659,16 @@ await step("P8 – Stammtisch: Plan wiederholt sich von selbst (Alice, Bob)", as
     check(psql(`select count(*) from public.plan_participants where plan_id = '${nextId}' and attendance_status <> 'invited'`) === "0", "niemand ist automatisch zugesagt");
     await bob.page.getByText(title).first().waitFor();
     check(true, "Plans-Übersicht zeigt den neuen Termin");
+    // P8 Etappe 3: Termine eines Stammtischs tragen „↻ Stammtisch“ auf dem Ticket, andere nicht.
+    const seriesTicket = bob.page.locator(`a[href="/plans/${nextId}"]`).first();
+    await seriesTicket.waitFor();
+    check(await seriesTicket.getByTestId("ticket-series").isVisible(), "Ticket in der Planliste trägt „Stammtisch“");
+    check((await seriesTicket.getByTestId("ticket-series").innerText()).trim() === "Stammtisch", "Kennzeichen heißt „Stammtisch“");
+    const otherTickets = bob.page.locator('a.ticket[href^="/plans/"]').filter({ hasNotText: title });
+    const withMark = await otherTickets.filter({ has: bob.page.getByTestId("ticket-series") }).count();
+    check((await otherTickets.count()) > 0 && withMark === 0, "Tickets ohne Serie tragen kein Kennzeichen");
+    await noOverflow(bob, "Planliste mit Stammtisch");
+    await shot(bob, "35b-stammtisch-ticket");
     await bob.page.goto(`${APP}/notifications`);
     await bob.page.getByText("Der nächste Termin steht – bist du dabei?").first().waitFor();
     check(true, "Benachrichtigung zum neuen Termin");
