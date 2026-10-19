@@ -1082,6 +1082,46 @@ await step("P5 – Wetter für Plantag und Ort (Bob, Carol)", async () => {
   check(true, "Wetter: „Erneut versuchen“ lädt die Vorhersage");
 });
 
+// W7 Etappe 1: Store-Screenshots aus dem echten Ablauf – Bobs Sitzung in zwei weiteren Kontexten mit den Maßen,
+// die die Stores annehmen. Apple: 1290 × 2796 (6,9"), Google: 1080 × 1920 (9:16; Google erlaubt höchstens 2:1).
+// Beide ohne Transparenz. Die Orte in Discover sind Demo-Daten und tragen in der App ihr „Beispieldaten“-Schild.
+const STORE_SCREENS = [
+  { key: "1-home", path: () => "/home", ready: (page) => page.locator(".ticket-feature").waitFor() },
+  { key: "2-plan", path: () => `/plans/${ids.plan}`, ready: (page) => page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor() },
+  { key: "3-abstimmung", path: () => `/polls/${ids.poll}`, ready: (page) => page.getByRole("heading", { name: "Es wird Strike District Bowling" }).waitFor() },
+  { key: "4-discover", path: () => "/discover", ready: (page) => page.locator(".stage-card").waitFor() },
+  { key: "5-crew", path: () => `/crews/${ids.crew}`, ready: (page) => page.locator(".ticket-feature").waitFor() },
+];
+const STORE_DEVICES = [
+  { store: "ios", viewport: { width: 430, height: 932 }, size: [1290, 2796] },
+  { store: "play", viewport: { width: 360, height: 640 }, size: [1080, 1920] },
+];
+
+await step("W7 – Store-Screenshots für App Store und Google Play (Bob)", async () => {
+  const session = await bob.context.storageState();
+  for (const device of STORE_DEVICES) {
+    const context = await browser.newContext({ viewport: device.viewport, deviceScaleFactor: 3, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block", reducedMotion: "reduce", storageState: session });
+    try {
+      const page = await context.newPage();
+      page.setDefaultTimeout(15_000);
+      page.on("pageerror", (e) => problems.push(`[Bob/${device.store}] pageerror: ${e}`));
+      for (const screen of STORE_SCREENS) {
+        await page.goto(`${APP}${screen.path()}`);
+        await screen.ready(page);
+        await page.evaluate(() => document.fonts.ready);
+        const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        check(overflow <= 1, `Store-Screenshot ${device.store}/${screen.key}: kein horizontaler Überlauf (${overflow}px)`);
+        const png = await page.screenshot();
+        const [width, height, colorType] = [png.readUInt32BE(16), png.readUInt32BE(20), png[25]];
+        check(width === device.size[0] && height === device.size[1] && colorType === 2, `Store-Screenshot ${device.store}/${screen.key}: ${width} × ${height}, ${colorType === 2 ? "ohne" : "mit"} Transparenz`);
+        if (SHOTS) fs.writeFileSync(path.join(SHOTS, `store-${device.store}-${screen.key}.png`), png);
+      }
+    } finally {
+      await context.close();
+    }
+  }
+});
+
 await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   const { page, context } = carol;
   // W2: Die Planseite holt den Teilen-Link vorab; erst danach teilen, sonst ginge der direkte Plan-Link raus.
