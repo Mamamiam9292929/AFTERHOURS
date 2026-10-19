@@ -46,6 +46,13 @@ export const polls = {
     optionPricePlaceholder: "offen",
     removeOption: (title: string) => `${title || "Option"} entfernen`,
     ownDate: "Eigener Termin für diese Option",
+    /** P1 Etappe 3a: „Und wo?“ – der Termin kommt aus der Termin-Abstimmung und gilt für alle Vorschläge. */
+    linkedWhen: {
+      title: "Der Termin steht",
+      body: "Aus „Wann könnt ihr?“ – gilt für alle Vorschläge.",
+      back: "Zur Termin-Abstimmung",
+      loading: "Termin wird geladen …",
+    },
     whenTitle: "Wann?",
     date: "Datum",
     time: "Uhrzeit",
@@ -90,6 +97,8 @@ export const polls = {
     priceOpen: "Preis offen",
     timeOpen: "Uhrzeit offen",
     dateBadge: "Termin-Abstimmung",
+    /** P1 Etappe 3a: Rückweg von der Orts- zur Termin-Abstimmung. */
+    fromDatePoll: (when: string) => `Termin aus „Wann könnt ihr?“: ${when}`,
     dateOpen: "Termin offen",
     /** P5 Etappe 2: Wetter je Vorschlag einer laufenden Abstimmung. */
     weather: {
@@ -143,6 +152,12 @@ export const polls = {
       whereTitle: "Und wo?",
       whereBody: (when: string) => `Der Termin steht: ${when}. Stimmt jetzt ab, wo es hingeht – der Termin ist schon eingetragen.`,
       whereCta: "Ort abstimmen",
+      /** P1 Etappe 3a: Die Orts-Abstimmung ist mit der Termin-Abstimmung verknüpft. */
+      whereOpen: (when: string) => `Für ${when} läuft die Abstimmung über den Ort.`,
+      whereDecided: (place: string, when: string) => `Es wird ${place} – am ${when}.`,
+      whereTie: "Beim Ort gibt es einen Gleichstand – die Abstimmung über den Ort entscheidet weiter.",
+      whereLink: "Zur Abstimmung über den Ort",
+      whereRetryBody: (when: string) => `Beim letzten Mal hat niemand für einen Ort zugesagt. Der Termin steht weiter: ${when}. Versucht es noch einmal.`,
     },
     manage: {
       close: "Abstimmung beenden",

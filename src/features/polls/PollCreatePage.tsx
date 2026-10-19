@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { IconPin, IconPlus, IconTrash } from "@/components/icons";
 import { PageHeader, Section } from "@/components/layout/Page";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
@@ -17,8 +17,9 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { addDays, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
 import type { Activity, PollKind } from "@/lib/types";
 import { ActivityPicker } from "./ActivityPicker";
-import { useCreateDatePoll, useCreatePoll, type PollOptionInput } from "./api";
+import { useCreateDatePoll, useCreatePoll, useCreateWherePoll, usePoll, type PollOptionInput } from "./api";
 import { MAX_POLL_OPTIONS, usePollDraft } from "./draft";
+import { dateOptionLabel, upcomingDateWinner } from "./logic";
 
 interface OptionRow {
   key: string;
@@ -64,6 +65,12 @@ export function PollCreatePage() {
   const draft = usePollDraft();
   const createPoll = useCreatePoll();
   const createDatePoll = useCreateDatePoll();
+  const createWherePoll = useCreateWherePoll();
+  // P1 Etappe 3a: „Und wo?“ verknüpft die Orts- mit der Termin-Abstimmung (?where=<id>). Ist sie nicht
+  // (mehr) entschieden oder nicht sichtbar, bleibt es eine normale Abstimmung mit dem Datum aus dem Link.
+  const whereId = params.get("where");
+  const datePoll = usePoll(whereId ?? undefined);
+  const linkedWinner = upcomingDateWinner(datePoll.data);
   const [kind, setKind] = useState<PollKind>(params.get("kind") === "date" ? "date" : "place");
   // Vorschlag: nächstes Wochenende (Fr, Sa) und der Freitag danach, jeweils 19 Uhr.
   const [slots, setSlots] = useState<SlotRow[]>(() => {
@@ -167,9 +174,13 @@ export function PollCreatePage() {
     );
   }
 
+  const linked = kind === "place" && linkedWinner && datePoll.data ? { poll: datePoll.data, winner: linkedWinner } : null;
+  const linkedLoading = kind === "place" && Boolean(whereId) && datePoll.isPending;
+
   function submit(event: FormEvent) {
     event.preventDefault();
     if (kind === "date") return submitDates();
+    if (linkedLoading) return;
     const next: Record<string, string | null> = {};
     if (!crewId) next.crew = t.validation.required;
     if (title.trim().length < 3) next.title = t.validation.minLength(3);
@@ -180,8 +191,9 @@ export function PollCreatePage() {
       const price = parseEuroInput(row.price);
       if (!row.activityId && row.title.trim() === "") next[`title-${row.key}`] = t.polls.create.optionTitleMissing;
       if (price === undefined) next[`price-${row.key}`] = t.validation.amount;
-      const date = row.ownWhen ? row.date : sharedDate;
-      const time = row.ownWhen ? row.time : sharedTime;
+      // Verknüpft: Termin aus „Wann könnt ihr?“ für alle (der Server setzt ihn ohnehin selbst).
+      const date = linked ? linked.winner.proposed_date : row.ownWhen ? row.date : sharedDate;
+      const time = linked ? (linked.winner.proposed_time?.slice(0, 5) ?? "") : row.ownWhen ? row.time : sharedTime;
       payload.push({
         activity_id: row.activityId,
         title: row.title.trim() || null,
@@ -204,17 +216,17 @@ export function PollCreatePage() {
     setFormError(null);
     if (Object.values(next).some(Boolean) || !endsAt) return;
 
-    createPoll.mutate(
-      { crewId, title: title.trim(), endsAt, options: payload, description: description.trim() || null, meetingPoint: meetingPoint.trim() || null, budgetCents: budgetCents ?? null, minParticipants: min },
-      {
-        onSuccess: (pollId) => {
-          draft.clear();
-          toast.success(t.polls.create.started);
-          navigate(`/polls/${pollId}`, { replace: true });
-        },
-        onError: (error) => setFormError(errorMessage(error)),
+    const input = { title: title.trim(), endsAt, options: payload, description: description.trim() || null, meetingPoint: meetingPoint.trim() || null, budgetCents: budgetCents ?? null, minParticipants: min };
+    const handlers = {
+      onSuccess: (pollId: string) => {
+        draft.clear();
+        toast.success(t.polls.create.started);
+        navigate(`/polls/${pollId}`, { replace: true });
       },
-    );
+      onError: (error: unknown) => setFormError(errorMessage(error)),
+    };
+    if (linked) createWherePoll.mutate({ ...input, datePollId: linked.poll.id }, handlers);
+    else createPoll.mutate({ ...input, crewId }, handlers);
   }
 
   if (crews.isPending) return <ListSkeleton rows={3} />;
@@ -250,7 +262,7 @@ export function PollCreatePage() {
           className="mb-6"
         />
         <div className="space-y-5">
-          {crews.data.length > 1 && (
+          {crews.data.length > 1 && !linked && (
             <SelectField label={t.polls.create.crew} value={crewId} onChange={(e) => setCrewId(e.target.value)} error={errors.crew}>
               {crews.data.map((crew) => (
                 <option key={crew.id} value={crew.id}>
@@ -313,11 +325,28 @@ export function PollCreatePage() {
         ) : (
         <>
         <Section title={t.polls.create.whenTitle}>
+          {linked ? (
+            <div className="rounded-card border border-lime/40 bg-lime/10 p-4" data-testid="poll-linked-when">
+              <p className="text-sm font-semibold text-lime">{t.polls.create.linkedWhen.title}</p>
+              <p className="display mt-1 text-[26px] leading-none text-fg">{dateOptionLabel(linked.winner)}</p>
+              <p className="mt-2 text-[13px] leading-snug text-muted">{t.polls.create.linkedWhen.body}</p>
+              <Link to={`/polls/${linked.poll.id}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-fg underline decoration-lime underline-offset-4">
+                {t.polls.create.linkedWhen.back}
+              </Link>
+            </div>
+          ) : linkedLoading ? (
+            <p className="flex min-h-24 items-center text-sm text-muted" role="status">
+              {t.polls.create.linkedWhen.loading}
+            </p>
+          ) : (
+          <>
           <div className="grid grid-cols-2 gap-4">
             <TextField label={t.polls.create.date} name="date" type="date" min={today()} value={sharedDate} onChange={(e) => setSharedDate(e.target.value)} optional />
             <TextField label={t.polls.create.time} name="time" type="time" value={sharedTime} onChange={(e) => setSharedTime(e.target.value)} disabled={!sharedDate} optional />
           </div>
           <p className="mt-2 text-[13px] leading-snug text-muted">{t.polls.create.whenHint}</p>
+          </>
+          )}
         </Section>
 
         <Section title={t.polls.create.optionsTitle}>
@@ -362,12 +391,14 @@ export function PollCreatePage() {
                       trailing={<span className="pr-3 text-muted">€</span>}
                       optional
                     />
+                    {!linked && (
                     <label className="flex min-h-11 cursor-pointer items-center gap-3 self-start text-sm text-fg sm:mt-7">
                       <input type="checkbox" checked={row.ownWhen} onChange={(e) => patchOption(row.key, { ownWhen: e.target.checked, date: row.date || sharedDate, time: row.time || sharedTime })} className="size-5 shrink-0 accent-[var(--color-lime)]" />
                       {t.polls.create.ownDate}
                     </label>
+                    )}
                   </div>
-                  {row.ownWhen && (
+                  {row.ownWhen && !linked && (
                     <div className="mt-3 grid grid-cols-2 gap-3">
                       <TextField label={t.polls.create.date} type="date" min={today()} value={row.date} onChange={(e) => patchOption(row.key, { date: e.target.value })} />
                       <TextField label={t.polls.create.time} type="time" value={row.time} onChange={(e) => patchOption(row.key, { time: e.target.value })} />
@@ -432,7 +463,7 @@ export function PollCreatePage() {
 
         <div className="mt-8 space-y-4">
           {formError && <FormMessage>{formError}</FormMessage>}
-          <Button type="submit" size="lg" block loading={createPoll.isPending || createDatePoll.isPending}>
+          <Button type="submit" size="lg" block loading={createPoll.isPending || createDatePoll.isPending || createWherePoll.isPending}>
             {t.polls.create.submit}
           </Button>
         </div>

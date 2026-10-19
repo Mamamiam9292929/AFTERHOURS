@@ -118,6 +118,31 @@ export function useCreateDatePoll() {
   });
 }
 
+/**
+ * P1 Etappe 3a: „Und wo?“ – Orts-Abstimmung zu einer entschiedenen Termin-Abstimmung. Crew und Termin
+ * kommen vom Server aus der Termin-Abstimmung; Datum und Uhrzeit der Optionen werden dort überschrieben.
+ */
+export function useCreateWherePoll() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Omit<CreatePollInput, "crewId"> & { datePollId: string }): Promise<string> => {
+      const { data, error } = await supabase.rpc("create_where_poll", {
+        p_date_poll_id: input.datePollId,
+        p_title: input.title,
+        p_ends_at: input.endsAt.toISOString(),
+        p_options: input.options,
+        p_description: input.description ?? null,
+        p_meeting_point: input.meetingPoint ?? null,
+        p_budget_cents: input.budgetCents ?? null,
+        p_min_participants: input.minParticipants ?? null,
+      });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: () => void client.invalidateQueries({ queryKey: qk.polls }),
+  });
+}
+
 export function useCreatePoll() {
   const client = useQueryClient();
   return useMutation({
