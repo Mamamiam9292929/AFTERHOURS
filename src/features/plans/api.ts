@@ -1,8 +1,10 @@
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
+import type { PlanWeather } from "@/lib/weather";
 import type { AttendanceStatus, BookingRequest, BookingStatus, Plan, PlanExpense, PlanExpenseShare, PlanParticipant, PlanStatus, RideOffer, RideRequest } from "@/lib/types";
 
 export interface PlanWithParticipants extends Plan {
@@ -462,6 +464,34 @@ export function useSharedPlanPreview(token: string | undefined, viewer: string |
       const { data, error } = await supabase.rpc("preview_shared_plan", { p_token: token ?? "" });
       if (error) throw error;
       return data as SharedPlanPreview;
+    },
+  });
+}
+
+/**
+ * P5: Wettervorhersage für Beginn und Ort des Plans über die Edge Function `weather` (Open-Meteo).
+ * Ändern sich Beginn oder Ort, ist es eine neue Abfrage. Die Function hält die Vorhersage drei Stunden
+ * für die ganze Crew vor; im Browser reicht eine halbe Stunde.
+ */
+export function usePlanWeather(plan: Pick<Plan, "id" | "starts_at" | "activity_id"> | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["plan-weather", plan?.id ?? "none", plan?.starts_at ?? "", plan?.activity_id ?? ""] as const,
+    enabled: Boolean(plan?.id) && enabled,
+    staleTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+    queryFn: async (): Promise<PlanWeather> => {
+      const { data, error } = await supabase.functions.invoke<PlanWeather>("weather", { body: { plan_id: plan?.id } });
+      if (error) {
+        if (error instanceof FunctionsHttpError) {
+          const response = error.context as Response;
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw Object.assign(new Error(body?.error ?? "weather_unavailable"), { code: body?.error ? "P0001" : undefined, status: response.status });
+        }
+        throw error;
+      }
+      if (!data) throw new Error("weather_unavailable");
+      return data;
     },
   });
 }

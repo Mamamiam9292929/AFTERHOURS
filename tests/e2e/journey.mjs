@@ -1014,6 +1014,39 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
 });
 
+await step("P5 – Wetter für Plantag und Ort (Bob, Carol)", async () => {
+  // Die Edge Function fragt den Open-Meteo-Stellvertreter (14,2 °C, 70 % Regen, leichter Regen, Wind 12 km/h).
+  const weather = bob.page.getByTestId("plan-weather");
+  await weather.waitFor();
+  check((await weather.innerText()).replace(/\s+/g, " ").trim() === "14 °C · Regen", `Wetter: Temperatur und Lage (${await weather.innerText()})`);
+  const details = await bob.page.getByText(/Regenrisiko/).first().innerText();
+  check(/^um \d{2} Uhr · 70 % Regenrisiko · Wind 12 km\/h$/.test(details.trim()), `Wetter: Uhrzeit des Plans, Regenrisiko, Wind (${details})`);
+  check((await bob.page.getByRole("link", { name: "Open-Meteo" }).getAttribute("href")) === "https://open-meteo.com/", "Wetter: Quelle Open-Meteo mit Link");
+  check(await bob.page.getByText(/^Vorhersage von Open-Meteo, Stand \d{2}:\d{2} Uhr/).isVisible(), "Wetter: Stand der Vorhersage");
+  // Bowling ist drinnen – kein Hinweis auf einen Plan B trotz Regen.
+  check((await bob.page.getByText(/Plan B/).count()) === 0, "Wetter: kein Draußen-Hinweis bei einem Ort drinnen");
+  await weather.scrollIntoViewIfNeeded();
+  await shot(bob, "16e-plan-wetter");
+
+  // Die Crew teilt sich eine Abfrage: Alice und Bob haben den Plan geöffnet, gefragt wurde einmal.
+  const calls = (await (await fetch("http://127.0.0.1:8089/weather-calls")).json()).calls.filter((q) => q.includes("latitude=52.52") && q.includes("longitude=13.50"));
+  check(calls.length === 1, `Wetter: eine Abfrage bei Open-Meteo für die ganze Crew (${calls.length})`);
+  check(calls.every((q) => !/plan|user|crew/i.test(q)), "Wetter: Open-Meteo erfährt nur Ort und Tag");
+
+  // Fehlerzustand: Ist die Function nicht erreichbar, steht das dort – mit „Erneut versuchen“.
+  const { page } = carol;
+  await page.route("**/functions/v1/weather", (route) => route.abort());
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  const retry = page.getByRole("button", { name: "Erneut versuchen" });
+  await retry.waitFor();
+  check(await page.getByText(/Wetter gerade nicht abrufbar|Keine Verbindung/).first().isVisible(), "Wetter: Fehlerzustand statt erfundener Werte");
+  await page.unroute("**/functions/v1/weather");
+  await retry.click();
+  await page.getByTestId("plan-weather").waitFor();
+  check(true, "Wetter: „Erneut versuchen“ lädt die Vorhersage");
+});
+
 await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   const { page, context } = carol;
   // W2: Die Planseite holt den Teilen-Link vorab; erst danach teilen, sonst ginge der direkte Plan-Link raus.

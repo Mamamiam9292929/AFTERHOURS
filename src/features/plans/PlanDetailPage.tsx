@@ -28,6 +28,7 @@ import { BookingPanel } from "./BookingPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { PlanForm } from "./PlanForm";
 import { FeatureTicket } from "./PlanTicket";
+import { PlanWeather } from "./PlanWeather";
 import { RidesPanel } from "./RidesPanel";
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
@@ -239,6 +240,8 @@ export function PlanDetailPage() {
                 </a>
               )}
             </Fact>
+            {/* P5: Vorhersage für Beginn und Ort (Open-Meteo) – nur bei anstehenden Plänen mit Ort. */}
+            {!locked && <PlanWeather plan={plan} />}
             <Fact icon={<IconNavigation aria-hidden />} label={t.plans.detail.meetingPoint}>
               {plan.meeting_point ? <span className="font-semibold">{plan.meeting_point}</span> : <span className="text-muted">{t.plans.detail.noMeetingPoint}</span>}
             </Fact>
