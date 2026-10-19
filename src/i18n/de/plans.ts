@@ -68,6 +68,8 @@ export const plans = {
     done: "Kalenderdatei geladen – öffne sie, um den Termin einzutragen.",
     meetingPoint: (value: string) => `Treffpunkt: ${value}`,
     link: (url: string) => `Plan in AFTERHOURS: ${url}`,
+    /** P2 Etappe 2: Hinweis auf das Abo. */
+    subscribe: "Alle Pläne automatisch: Kalender-Abo",
   },
   detail: {
     back: "Plans",

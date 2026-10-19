@@ -101,3 +101,50 @@ export function useIsAdmin() {
     },
   });
 }
+
+/** P2 Etappe 2 · Kalender-Abo: der eigene Link (oder null, solange keiner angelegt ist). */
+export interface CalendarFeed {
+  token: string;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export function useCalendarFeed() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: qk.calendarFeed(user?.id ?? "anonymous"),
+    enabled: Boolean(user),
+    staleTime: 30_000,
+    queryFn: async (): Promise<CalendarFeed | null> => {
+      const { data, error } = await supabase.rpc("my_calendar_feed");
+      if (error) throw error;
+      return (data as CalendarFeed | null) ?? null;
+    },
+  });
+}
+
+/** Legt den Link an oder ersetzt ihn – der alte funktioniert danach nicht mehr. */
+export function useRenewCalendarFeed() {
+  const { user } = useAuth();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<CalendarFeed> => {
+      const { data, error } = await supabase.rpc("renew_calendar_feed");
+      if (error) throw error;
+      return data as CalendarFeed;
+    },
+    onSuccess: (feed) => client.setQueryData(qk.calendarFeed(user?.id ?? "anonymous"), feed),
+  });
+}
+
+export function useRevokeCalendarFeed() {
+  const { user } = useAuth();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<void> => {
+      const { error } = await supabase.rpc("revoke_calendar_feed");
+      if (error) throw error;
+    },
+    onSuccess: () => client.setQueryData(qk.calendarFeed(user?.id ?? "anonymous"), null),
+  });
+}
