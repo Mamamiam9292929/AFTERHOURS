@@ -56,7 +56,7 @@ export function StageCard({ activity, distanceKm, now = new Date() }: Ranked & {
         {activity.is_demo && <DemoBadge className="absolute right-3 top-3 bg-nav/85" />}
       </div>
       <div className="flex flex-col p-4 sm:p-5 lg:justify-end lg:p-7">
-        <h2 className="display break-words text-[30px] uppercase text-fg sm:text-[38px]">
+        <h2 className="display break-words text-[22px] uppercase text-fg sm:text-[27px]">
           <Link to={`/activities/${activity.id}`} className="rounded-sm hover:text-lime focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime">
             {activity.name}
           </Link>

@@ -58,7 +58,7 @@ export function ProfilePage() {
         <div className="ticket ticket-feature profile-pass">
           <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", evenings > 0 ? "bg-lime text-lime-ink" : "bg-raised text-fg")}>
             <p className="flex flex-col items-center">
-              <span className="font-display text-[76px] font-extrabold leading-[0.85] sm:text-[92px]">{count(plansReady, evenings)}</span>{" "}
+              <span className="font-display text-[55px] font-extrabold leading-[0.85] sm:text-[66px]">{count(plansReady, evenings)}</span>{" "}
               <span className="mt-1 text-[13px] font-bold uppercase leading-tight tracking-wide">{t.profile.pass.evenings(evenings)}</span>
             </p>
             <span className="ticket-barcode mt-3" aria-hidden />
@@ -67,7 +67,7 @@ export function ProfilePage() {
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
               <Avatar person={me} size="lg" decorative className="shrink-0" />
               <div className="min-w-0">
-                <h1 className="display break-words text-[36px] uppercase text-fg sm:text-[52px]">
+                <h1 className="display chrome break-words text-[26px] uppercase sm:text-[37px]">
                   <PosterTitle text={me.display_name} />
                 </h1>
                 <p className="mt-1.5 flex items-center gap-1.5 text-[15px] text-muted">
@@ -81,7 +81,7 @@ export function ProfilePage() {
               {stats.map((stat) => (
                 <div key={stat.label} className="flex min-w-0 flex-col-reverse">
                   <dt className="mt-1 truncate text-[13px] text-muted">{stat.label}</dt>
-                  <dd className="font-display text-[30px] font-extrabold leading-none text-fg sm:text-[36px]">{stat.value}</dd>
+                  <dd className="font-display text-[22px] font-extrabold leading-none text-fg sm:text-[26px]">{stat.value}</dd>
                 </div>
               ))}
             </dl>

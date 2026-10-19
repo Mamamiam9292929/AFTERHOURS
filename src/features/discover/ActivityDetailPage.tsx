@@ -303,7 +303,7 @@ export function ActivityDetailPage() {
 
         <aside className="lg:sticky lg:top-10 lg:self-start">
           <div className="rounded-card border border-line bg-surface p-5">
-            <p className="display text-[34px] text-fg">{priceLabel(a)}</p>
+            <p className="display text-[24px] text-fg">{priceLabel(a)}</p>
             {hasPrice && <p className="mt-1 text-sm text-muted">{t.perPerson}</p>}
             <p className="mt-3 flex items-center gap-2 text-sm text-muted">
               <IconClock className="size-4 shrink-0" aria-hidden />

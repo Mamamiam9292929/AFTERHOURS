@@ -167,14 +167,14 @@ export function OnboardingPage() {
             {invite ? (
               <>
                 <div>
-                  <h1 className="display text-[40px] text-fg sm:text-[48px]">{t.onboarding.invite.title}</h1>
+                  <h1 className="display chrome text-[29px] sm:text-[35px]">{t.onboarding.invite.title}</h1>
                   <p className="mt-3 text-[15px] text-muted">{t.onboarding.invite.body}</p>
                 </div>
                 <InvitePass invite={invite} />
               </>
             ) : (
               <div>
-                <h1 className="display text-[40px] text-fg sm:text-[48px]">{t.onboarding.profile.title}</h1>
+                <h1 className="display chrome text-[29px] sm:text-[35px]">{t.onboarding.profile.title}</h1>
                 <p className="mt-3 text-[15px] text-muted">{t.onboarding.profile.body}</p>
               </div>
             )}
@@ -203,7 +203,7 @@ export function OnboardingPage() {
         {step === 2 && (
           <section className="space-y-7">
             <div>
-              <h1 className="display text-[40px] text-fg sm:text-[48px]">{t.onboarding.interests.title}</h1>
+              <h1 className="display chrome text-[29px] sm:text-[35px]">{t.onboarding.interests.title}</h1>
               <p className="mt-3 text-[15px] text-muted">{t.onboarding.interests.body}</p>
             </div>
             <fieldset>
@@ -232,7 +232,7 @@ export function OnboardingPage() {
         {step === 3 && (
           <section className="space-y-7">
             <div>
-              <h1 className="display text-[40px] text-fg sm:text-[48px]">{t.onboarding.prefs.title}</h1>
+              <h1 className="display chrome text-[29px] sm:text-[35px]">{t.onboarding.prefs.title}</h1>
               <p className="mt-3 text-[15px] text-muted">{t.onboarding.prefs.body}</p>
             </div>
             <fieldset>
@@ -322,7 +322,7 @@ function InvitePass({ invite }: { invite: ValidInvite }) {
       </div>
       <div className="min-w-0 p-4 sm:p-5">
         <p className="text-[13px] text-muted">{invite.invited_by ? t.crews.landing.invitedBy(invite.invited_by) : t.crews.landing.invitedAnonymous}</p>
-        <p className="display mt-1 break-words text-[30px] uppercase text-fg">{invite.crew.name}</p>
+        <p className="display mt-1 break-words text-[22px] uppercase text-fg">{invite.crew.name}</p>
         <p className="mt-1 text-[14px] text-muted">{t.onboarding.invite.members(t.members(invite.crew.member_count))}</p>
       </div>
     </section>

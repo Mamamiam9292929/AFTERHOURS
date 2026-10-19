@@ -1,63 +1,61 @@
 @import "tailwindcss";
 
-/* Schriften liegen im Projekt (public/fonts, SIL Open Font License) – es wird nichts von Dritten nachgeladen. */
+/* Schriften liegen im Projekt (public/fonts, SIL Open Font License, auf Latein + Deutsch reduziert) – es wird nichts von Dritten nachgeladen. */
 @font-face {
-  font-family: "Figtree";
-  src: url("/fonts/Figtree-Variable.woff2") format("woff2");
-  font-weight: 300 900;
+  font-family: "Instrument Sans";
+  src: url("/fonts/InstrumentSans-Variable.woff") format("woff");
+  font-weight: 400 700;
+  font-stretch: 75% 100%;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "Big Shoulders Display";
-  src: url("/fonts/BigShouldersDisplay-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Big Shoulders Display";
-  src: url("/fonts/BigShouldersDisplay-ExtraBold.woff2") format("woff2");
-  font-weight: 800;
+  font-family: "Unbounded";
+  src: url("/fonts/Unbounded-Variable.woff") format("woff");
+  font-weight: 200 900;
   font-style: normal;
   font-display: swap;
 }
 
 /*
- * Design-Tokens
- * Farbe:   Anthrazit als Fläche, fast Schwarz für Navigation, ein einziger Akzent (Lime).
- * Schrift: Big Shoulders Display (schmal, plakativ) für Überschriften, Zeiten und Zahlen;
- *          Figtree für alles, was gelesen wird.
- * Radius:  Bedienelemente 12, Karten 16, Tickets 20, Personen/Chips rund.
- * Antwort: Die eigene Antwort auf einen Plan färbt Abriss und Antwort-Knöpfe – grün (Lime) dabei,
- *          gelb (Amber) vielleicht, rot (Danger) abgesagt. Nur dort; sonst bleibt Lime der einzige Akzent.
+ * Design-Tokens – AFTERHOURS 2.0 („Aurora × Y2K × Deck“, Benito 19.10.2026)
+ * Farbe:   fast schwarzer Grund, darüber weiche Aurora-Farbwolken (Violett/Pink); Lime ist der Akzent
+ *          für „Los“ und „dabei“. Violett und Pink nur als Licht und Kartenfarbe, nie für Text.
+ * Schrift: Unbounded (breit, fett, Y2K) für Überschriften und Zahlen, oft in Chrom (.chrome);
+ *          Instrument Sans für alles, was gelesen wird.
+ * Form:    Karten und Stapel. Bedienelemente 16, Karten 24, Plan-Karten 28, Knöpfe als Pille.
+ * Antwort: Die eigene Antwort färbt die ganze Plan-Karte und die Antwort-Knöpfe – grün (Lime) dabei,
+ *          gelb (Amber) vielleicht, rot (Danger) abgesagt.
  */
 @theme {
-  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Big Shoulders Display", "Figtree", ui-sans-serif, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Unbounded", "Instrument Sans", ui-sans-serif, sans-serif;
 
-  --color-base: #1c1e20;
-  --color-nav: #0e0f10;
-  --color-surface: #25282b;
-  --color-raised: #2f3337;
-  --color-line: #363b40;
-  --color-line-strong: #4d5359;
-  --color-fg: #f3f4f1;
-  --color-muted: #a9aeaa;
-  --color-faint: #8b918d;
-  --color-lime: #c5f82a;
-  --color-lime-press: #b0e016;
-  --color-lime-ink: #141a00;
-  --color-amber: #f2c14e;
-  --color-amber-ink: #241900;
+  --color-base: #08080d;
+  --color-nav: #050508;
+  --color-surface: #14141d;
+  --color-raised: #1e1e2a;
+  --color-line: #2a2a3a;
+  --color-line-strong: #43435a;
+  --color-fg: #f5f6fa;
+  --color-muted: #b2b6c4;
+  --color-faint: #9094a6;
+  --color-lime: #c8ff2e;
+  --color-lime-press: #b4ec14;
+  --color-lime-ink: #0b0f00;
+  --color-amber: #ffc93d;
+  --color-amber-ink: #231800;
   --color-danger: #ff6b5e;
   --color-danger-ink: #2b0704;
+  --color-violet: #7b5cff;
+  --color-pink: #ff4fa3;
 
-  --radius-control: 12px;
-  --radius-card: 16px;
-  --radius-ticket: 20px;
+  --radius-control: 16px;
+  --radius-card: 24px;
+  --radius-ticket: 28px;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 @layer base {
@@ -72,7 +70,6 @@
     background: var(--color-base);
     color: var(--color-fg);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
@@ -106,140 +103,219 @@
 }
 
 @layer components {
-  /* Überschriften: schmal und groß gesetzt; lange deutsche Komposita passen so auch auf 360px. */
+  /*
+   * Überschriften: Unbounded, breit und fett. Lange deutsche Komposita dürfen umbrechen (Silbentrennung),
+   * damit auch 360 px reichen.
+   */
   .display {
     font-family: var(--font-display);
     font-weight: 800;
-    letter-spacing: 0.005em;
+    letter-spacing: -0.015em;
     line-height: 0.98;
     text-wrap: balance;
+    hyphens: auto;
+    overflow-wrap: break-word;
+  }
+  /*
+   * Chrom (Y2K): Plakat-Überschriften als poliertes Metall. Ein Schlüsselwort darf darin Lime tragen
+   * (eigene Textfarbe überdeckt den Verlauf). Ohne background-clip bleibt die Schrift einfach hell.
+   */
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    .chrome {
+      background-image: linear-gradient(180deg, #ffffff 0%, #e6e8ef 36%, #8f95a6 50%, #f7f8fb 68%, #c1c6d2 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .chrome .text-lime {
+      -webkit-text-fill-color: var(--color-lime);
+    }
   }
 
   /*
-   * Ticket: das wiederkehrende Bild für "das steht fest". Linker Abriss mit Datum, Perforation,
-   * rechts der Inhalt. Die Kerben übernehmen die Hintergrundfarbe der Seite.
+   * Aurora (B): weiche Farbwolken hinter der ganzen App, treiben sehr langsam. Liegen fest hinter allem
+   * (z -1), damit Karten darüber ruhig bleiben. Reduzierte Bewegung: stehen still.
+   */
+  .aurora {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    background: var(--color-base);
+  }
+  .aurora::before {
+    content: "";
+    position: absolute;
+    inset: -25%;
+    filter: blur(70px);
+    opacity: 0.55;
+    background:
+      radial-gradient(32% 26% at 22% 12%, var(--aurora-a, var(--color-violet)), transparent 70%),
+      radial-gradient(28% 24% at 82% 22%, var(--aurora-b, var(--color-pink)), transparent 70%),
+      radial-gradient(26% 20% at 50% 70%, color-mix(in srgb, var(--color-lime) 28%, transparent), transparent 70%);
+    animation: aurora-drift 22s ease-in-out infinite alternate;
+  }
+  .aurora::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 0%, rgb(8 8 13 / 0.55) 45%, var(--color-base) 85%);
+  }
+  /* Glas (B): Kopf und Tab-Leiste. */
+  .glass {
+    background: rgb(12 12 19 / 0.86);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    backdrop-filter: blur(18px) saturate(1.4);
+  }
+
+  /*
+   * Plan-Karte (V2, früher „Ticket“): eine Karte aus dem Stapel. Links groß das Datum, rechts was, wann,
+   * wo und wer. Die ganze Karte trägt deine Antwort: grün dabei, gelb vielleicht, rot abgesagt; ohne
+   * Antwort dunkles Glas. Auf farbigen Karten werden die Farb-Token im Inneren umgestellt, damit Text,
+   * Abzeichen und Avatare lesbar bleiben (dunkle Schrift auf Farbe).
    */
   .ticket {
     position: relative;
     display: grid;
     grid-template-columns: 84px minmax(0, 1fr);
     border-radius: var(--radius-ticket);
-    background: var(--color-surface);
+    background: linear-gradient(160deg, color-mix(in srgb, var(--color-violet) 16%, var(--color-surface)), var(--color-surface) 60%);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    color: var(--color-fg);
     isolation: isolate;
+    transition:
+      background-color 0.5s var(--ease-out-soft),
+      transform 0.35s var(--ease-out-soft),
+      box-shadow 0.5s var(--ease-out-soft);
   }
-  .ticket::before,
-  .ticket::after {
-    content: "";
-    position: absolute;
-    left: 84px;
-    width: 18px;
-    height: 18px;
-    margin-left: -9px;
-    border-radius: 999px;
-    background: var(--ticket-cutout, var(--color-base));
-    z-index: 2;
+  .ticket[data-answer="going"],
+  .ticket[data-answer="maybe"],
+  .ticket[data-answer="declined"] {
+    border-color: transparent;
+    --color-fg: #0b0b10;
+    --color-muted: rgb(11 11 16 / 0.78);
+    --color-faint: rgb(11 11 16 / 0.7);
+    --color-surface: rgb(11 11 16 / 0.12);
+    --color-raised: rgb(11 11 16 / 0.14);
+    --color-line: rgb(11 11 16 / 0.2);
+    --color-line-strong: rgb(11 11 16 / 0.35);
   }
-  .ticket::before {
-    top: -9px;
+  .ticket[data-answer="going"] {
+    /* Feste Werte: die Farb-Token werden auf dieser Karte selbst umgestellt. */
+    background: #c8ff2e;
+    box-shadow: 0 26px 50px -24px #c8ff2eb3;
+    --color-lime: #0b0b10;
+    --color-lime-ink: #c8ff2e;
   }
-  .ticket::after {
-    bottom: -9px;
+  .ticket[data-answer="maybe"] {
+    /* Feste Werte: die Farb-Token werden auf dieser Karte selbst umgestellt. */
+    background: #ffc93d;
+    box-shadow: 0 26px 50px -24px #ffc93db3;
+    --color-amber: #0b0b10;
+    --color-lime: #0b0b10;
+    --color-lime-ink: #ffc93d;
   }
+  .ticket[data-answer="declined"] {
+    /* Feste Werte: die Farb-Token werden auf dieser Karte selbst umgestellt. */
+    background: #ff6b5e;
+    box-shadow: 0 26px 50px -24px #ff6b5eb3;
+    --color-danger: #0b0b10;
+    --color-lime: #0b0b10;
+    --color-lime-ink: #ff6b5e;
+  }
+  .ticket[data-answer="past"] {
+    background: var(--color-surface);
+    opacity: 0.82;
+  }
+  /* Datum als Kachel in der Karte (eingerückt, eigener Radius) statt Abriss mit Perforation. */
   .ticket-stub {
+    margin: 8px 0 8px 8px;
+    border-radius: calc(var(--radius-ticket) - 8px);
     transition:
       background-color 0.5s var(--ease-out-soft),
       color 0.5s var(--ease-out-soft);
-    border-radius: var(--radius-ticket) 0 0 var(--radius-ticket);
-    border-right: 2px dashed color-mix(in srgb, var(--ticket-cutout, var(--color-base)) 85%, transparent);
   }
   @media (min-width: 640px) {
     .ticket {
       grid-template-columns: 104px minmax(0, 1fr);
     }
-    .ticket::before,
-    .ticket::after {
-      left: 104px;
-    }
   }
 
   /*
-   * Großes Ticket auf Home (D0): echte Löcher per Maske statt aufgemalter Kerben, damit es auch auf dem
-   * Lichtschein funktioniert. Die Schräge sitzt am Wrapper, der Schatten als drop-shadow folgt der Maske.
+   * Große Plan-Karte (Home, Planseite, Crew): oben auf einem angedeuteten Stapel (zwei Karten dahinter,
+   * leicht gedreht). Beim Antworten gibt die Karte kurz nach; die Farbe läuft weich über.
    */
   .ticket-feature-wrap {
-    --answer-glow: transparent;
-    transform: rotate(-1.2deg);
-    filter: drop-shadow(0 18px 28px rgb(0 0 0 / 0.45)) drop-shadow(0 0 36px var(--answer-glow));
-    transition:
-      transform 0.4s var(--ease-out-soft),
-      filter 0.6s var(--ease-out-soft);
+    position: relative;
+    isolation: isolate;
+    padding-bottom: 14px;
   }
-  /* Die eigene Antwort leuchtet ganz leicht um das Ticket – kein Neon, nur ein Hauch der Farbe. */
-  .ticket-feature-wrap[data-answer="going"] {
-    --answer-glow: color-mix(in srgb, var(--color-lime) 16%, transparent);
+  .ticket-feature-wrap::before,
+  .ticket-feature-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0 0 14px;
+    z-index: -1;
+    border-radius: var(--radius-ticket);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    transition: transform 0.5s var(--ease-out-soft);
   }
-  .ticket-feature-wrap[data-answer="maybe"] {
-    --answer-glow: color-mix(in srgb, var(--color-amber) 14%, transparent);
+  .ticket-feature-wrap::before {
+    background: rgb(255 255 255 / 0.04);
+    transform: translateY(14px) scale(0.9) rotate(3deg);
   }
-  .ticket-feature-wrap[data-answer="declined"] {
-    --answer-glow: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  .ticket-feature-wrap::after {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--color-violet) 45%, transparent), color-mix(in srgb, var(--color-pink) 28%, transparent));
+    transform: translateY(7px) scale(0.95) rotate(-2.5deg);
   }
-  .ticket-feature-wrap:hover,
-  .ticket-feature-wrap:focus-within {
-    transform: rotate(0deg);
+  .ticket-feature-wrap:hover::before {
+    transform: translateY(18px) scale(0.9) rotate(4.5deg);
   }
-  /* Vergangene oder abgesagte Pläne liegen gerade und ohne Schatten – das Ticket ist "abgelegt". */
+  .ticket-feature-wrap:hover::after {
+    transform: translateY(10px) scale(0.95) rotate(-4deg);
+  }
   .ticket-feature-wrap.ticket-feature-past {
-    transform: none;
-    filter: none;
+    padding-bottom: 0;
+  }
+  .ticket-feature-wrap.ticket-feature-past::before,
+  .ticket-feature-wrap.ticket-feature-past::after {
+    display: none;
   }
   .ticket-feature {
     --stub: 112px;
     grid-template-columns: var(--stub) minmax(0, 1fr);
-    border-radius: 22px;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
-    -webkit-mask:
-      radial-gradient(circle 11px at var(--stub) 0, #0000 96%, #000) top / 100% 51% no-repeat,
-      radial-gradient(circle 11px at var(--stub) 100%, #0000 96%, #000) bottom / 100% 51% no-repeat;
-    mask:
-      radial-gradient(circle 11px at var(--stub) 0, #0000 96%, #000) top / 100% 51% no-repeat,
-      radial-gradient(circle 11px at var(--stub) 100%, #0000 96%, #000) bottom / 100% 51% no-repeat;
+    border-radius: 32px;
   }
   .ticket-feature:focus-visible {
     outline-offset: 4px;
   }
-  .ticket-feature::before,
-  .ticket-feature::after {
-    display: none;
-  }
   .ticket-feature .ticket-stub {
-    border-radius: 22px 0 0 22px;
-    border-right: 2px dashed rgb(0 0 0 / 0.4);
+    margin: 10px 0 10px 10px;
+    border-radius: 24px;
   }
   @media (min-width: 640px) {
     .ticket-feature {
       --stub: 140px;
-      grid-template-columns: var(--stub) minmax(0, 1fr);
     }
   }
   /*
-   * Stempel im Abriss: Sobald du geantwortet hast, ersetzt er den Strichcode („DABEI“, „VIELLEICHT“,
-   * „ABGESAGT“). Ändert sich die Antwort, schlägt er neu auf (.is-new); beim Laden der Seite liegt er still da.
+   * Stempel: Sobald du geantwortet hast, steht er auf der Karte („DABEI“, „VIELLEICHT“, „ABGESAGT“).
+   * Ändert sich die Antwort, schlägt er neu auf (.is-new); beim Laden liegt er still da.
    */
   .ticket-stamp {
     display: inline-block;
     margin-top: 0.75rem;
-    padding: 0.2rem 0.45rem 0.1rem;
-    border: 2px solid currentColor;
-    border-radius: 6px;
+    padding: 0.3rem 0.5rem 0.25rem;
+    border: 2.5px solid currentColor;
+    border-radius: 10px;
     font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 800;
+    font-size: 11px;
+    font-weight: 900;
     line-height: 1;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.02em;
     text-transform: uppercase;
     transform: rotate(-8deg);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
   }
   .ticket-stamp.is-new {
     animation: stamp-in 0.55s var(--ease-out-soft) both;
@@ -273,7 +349,7 @@
     height: 560px;
     z-index: -1;
     pointer-events: none;
-    background: radial-gradient(ellipse 70% 80% at 35% 0%, color-mix(in srgb, var(--color-lime) 13%, transparent), transparent 75%);
+    background: radial-gradient(ellipse 70% 80% at 35% 0%, color-mix(in srgb, var(--color-violet) 18%, transparent), transparent 75%);
     /* Maske blendet Schein und Korn zu allen Rändern aus – keine sichtbare Kante, auch nicht auf dem Desktop. */
     -webkit-mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
     mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
@@ -318,7 +394,7 @@
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 18px 40px -24px rgb(0 0 0 / 0.7);
   }
   .stage-art {
-    background: radial-gradient(80% 90% at 70% 30%, color-mix(in srgb, var(--color-lime) 20%, var(--color-surface)), var(--color-surface) 70%);
+    background: radial-gradient(80% 90% at 70% 30%, color-mix(in srgb, var(--color-violet) 40%, var(--color-surface)), color-mix(in srgb, var(--color-pink) 12%, var(--color-surface)) 75%);
   }
 
   .scroll-row {
@@ -382,6 +458,27 @@
   from {
     opacity: 0;
     transform: translateY(14px);
+  }
+}
+@keyframes aurora-drift {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(-5%, 4%) rotate(12deg);
+  }
+}
+@keyframes pop-in {
+  0% {
+    transform: scale(0.6) rotate(-8deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08) rotate(2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
   }
 }
 @keyframes shimmer {

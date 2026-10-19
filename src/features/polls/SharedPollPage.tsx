@@ -110,7 +110,7 @@ function SharedPollTicket({ data }: { data: Valid }) {
         <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", open ? "bg-lime text-lime-ink" : "bg-raised text-muted")}>
           <span className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-80">{t.polls.shared.stubLabel}</span>
           <span className="text-[13px] font-bold uppercase tracking-wide">{date.weekday}</span>
-          <span className="font-display text-[64px] font-extrabold leading-[0.9] sm:text-[76px]">{date.day}</span>
+          <span className="font-display text-[46px] font-extrabold leading-[0.9] sm:text-[55px]">{date.day}</span>
           <span className="text-[13px] font-bold uppercase tracking-wide">{date.month}</span>
           <span className="ticket-barcode mt-3" aria-hidden />
         </div>
@@ -122,7 +122,7 @@ function SharedPollTicket({ data }: { data: Valid }) {
               </Badge>
               <span className="text-[13px] text-muted">{t.polls.shared.kicker}</span>
             </div>
-            <p id="shared-poll-title" className="display mt-3 break-words text-[32px] uppercase text-fg sm:text-[40px]">
+            <p id="shared-poll-title" className="display mt-3 break-words text-[23px] uppercase text-fg sm:text-[29px]">
               {poll.title}
             </p>
             <p className="mt-2 text-[15px] font-semibold text-fg">
@@ -132,11 +132,11 @@ function SharedPollTicket({ data }: { data: Valid }) {
           </div>
           <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 border-t border-dashed border-line pt-4 text-[15px] font-semibold text-muted">
             <p className="flex items-baseline gap-1.5">
-              <span className="font-display text-[34px] font-extrabold leading-none text-fg">{poll.option_count}</span>
+              <span className="font-display text-[24px] font-extrabold leading-none text-fg">{poll.option_count}</span>
               {t.polls.shared.options(poll.option_count, poll.kind)}
             </p>
             <p className="flex items-baseline gap-1.5">
-              {poll.voter_count > 0 && <span className="font-display text-[34px] font-extrabold leading-none text-lime">{poll.voter_count}</span>}
+              {poll.voter_count > 0 && <span className="font-display text-[24px] font-extrabold leading-none text-lime">{poll.voter_count}</span>}
               {t.polls.shared.voters(poll.voter_count, open)}
             </p>
           </div>
@@ -249,7 +249,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
             const mine = answers[key] ?? null;
             return (
               <div key={key} className={cn("rounded-card border bg-surface p-4", mine === "yes" ? "border-lime" : "border-line")}>
-                <p className="display break-words text-[24px] uppercase text-fg">{option.title}</p>
+                <p className="display break-words text-[17px] uppercase text-fg">{option.title}</p>
                 <p className="mt-1 text-sm text-muted">
                   {optionWhen(option, isDate)} · {t.polls.shared.ballot.counts(option.yes, option.maybe)}
                 </p>

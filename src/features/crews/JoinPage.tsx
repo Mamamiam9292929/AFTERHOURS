@@ -65,7 +65,7 @@ export function JoinPage() {
           {data.crew.emoji}
         </span>
         <div className="min-w-0">
-          <h1 className="display break-words text-[44px] text-fg">{data.crew.name}</h1>
+          <h1 className="display chrome break-words text-[32px]">{data.crew.name}</h1>
           <p className="mt-1 text-[15px] text-muted">{t.crews.join.crewLine(t.members(data.crew.member_count))}</p>
         </div>
       </div>

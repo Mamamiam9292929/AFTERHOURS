@@ -102,7 +102,7 @@ function SharedPlanTicket({ data }: { data: Valid }) {
       <div className="ticket ticket-feature">
         <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", over ? "bg-raised text-muted" : "bg-lime text-lime-ink")}>
           <span className="text-[13px] font-bold uppercase tracking-wide">{date.weekday}</span>
-          <span className="font-display text-[64px] font-extrabold leading-[0.9] sm:text-[76px]">{date.day}</span>
+          <span className="font-display text-[46px] font-extrabold leading-[0.9] sm:text-[55px]">{date.day}</span>
           <span className="text-[13px] font-bold uppercase tracking-wide">{date.month}</span>
           <span className="ticket-barcode mt-3" aria-hidden />
         </div>
@@ -112,13 +112,13 @@ function SharedPlanTicket({ data }: { data: Valid }) {
               {planStatusBadge(plan.status)}
               <span className="text-[13px] text-muted">{t.plans.shared.kicker}</span>
             </div>
-            <p id="shared-plan-title" className={cn("display mt-3 break-words text-[32px] uppercase text-fg sm:text-[40px]", plan.status === "cancelled" && "line-through decoration-2")}>
+            <p id="shared-plan-title" className={cn("display mt-3 break-words text-[23px] uppercase text-fg sm:text-[29px]", plan.status === "cancelled" && "line-through decoration-2")}>
               {plan.title}
             </p>
             <p className="mt-2 text-[15px] font-semibold text-fg">{formatTime(plan.starts_at)}</p>
           </div>
           <p className="flex items-baseline gap-1.5 border-t border-dashed border-line pt-4 text-[15px] font-semibold text-muted">
-            {plan.going_count > 0 && <span className="font-display text-[34px] font-extrabold leading-none text-fg">{plan.going_count}</span>}
+            {plan.going_count > 0 && <span className="font-display text-[24px] font-extrabold leading-none text-fg">{plan.going_count}</span>}
             {t.plans.shared.going(plan.going_count, over)}
           </p>
         </div>

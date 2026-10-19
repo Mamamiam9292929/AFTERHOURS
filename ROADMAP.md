@@ -7,7 +7,7 @@ Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
 ## AFTERHOURS 2.0 – schneller als der Gruppenchat (Benitos Entscheidung, 19.10.2026)
 
-Benito ist mit dem Design unzufrieden und sieht das Kernproblem darin, dass eine Abstimmung länger dauert als im Gruppenchat. Entscheidung: alle Ansätze S1–S7 umsetzen, neues Design als Mischung aus „Aurora Night“, „Y2K Bold“ und „Deck“ (Entwürfe: Design-Canvas „AFTERHOURS Neues Design“). **Bis Benito die Entwürfe freigibt, wird nichts am Aussehen der App geändert (D1–D5 ruhen).** Logik, Server und Tests für S1–S7 dürfen sofort gebaut werden; ihre Oberfläche bleibt schlicht und wird mit V2 umgestellt.
+Benito ist mit dem Design unzufrieden und sieht das Kernproblem darin, dass eine Abstimmung länger dauert als im Gruppenchat. Entscheidung: alle Ansätze S1–S7 umsetzen, neues Design als Mischung aus „Aurora Night“, „Y2K Bold“ und „Deck“ (Entwürfe: Design-Canvas „AFTERHOURS Neues Design“). **Benito hat die Entwürfe am 19.10. freigegeben – V2 hat höchste Priorität.** D1–D5 sind durch V2 ersetzt. S1–S7 werden im neuen Stil gebaut.
 
 | # | Aufgabe | Nutzen | Aufwand | Abhängigkeiten | Status |
 |---|---|---|---|---|---|
@@ -18,7 +18,7 @@ Benito ist mit dem Design unzufrieden und sieht das Kernproblem darin, dass eine
 | S5 | Abstimmung entscheidet sich selbst: bei klarer Mehrheit der Crew oder Fristablauf wird automatisch ein Plan angelegt (Gleichstand → Stichwahl wie bisher), alle bekommen Bescheid. Ein- und abschaltbar je Abstimmung, für S1 an. Akzeptanz: pgTAP für Mehrheit, Frist, Gleichstand, kein doppelter Plan | Niemand muss hinterherräumen | M | – | Freigegeben |
 | S6 | Wischen statt Liste: Vorschläge als Kartenstapel (rechts = dabei, links = eher nicht), Tastatur und Knöpfe als Alternative, „Match“, wenn genug dabei sind. Gleiche Stimmen-RPC. Akzeptanz: Journey wischt per Knopf, axe ohne Befund | Abstimmen macht Spaß und geht schnell | S | V2 | Freigegeben |
 | S7 | Wiederkehrende Runde „Freitag, was geht?“: Abstimmung startet jede Woche von selbst (wie P8, aber als Abstimmung). Akzeptanz: pgTAP, genau eine Runde je Woche | Stammtische ohne Organisator | S | P8, S5 | Freigegeben |
-| V2 | Neues Design 2.0 nach Freigabe der Entwürfe: dunkler Grund mit Aurora-Farbverläufen je Crew, Chrom-Plakatschrift (Unbounded) + Instrument Sans, Kartenstapel als Grundform, Morph-Übergänge (Knopf → Eingabe, Karte → Seite), Antwortfarben bleiben. In Etappen, Screen für Screen, mit Vorher/Nachher | Cool, modern, jugendlich – der Wow-Effekt, den Benito will | L | Freigabe durch Benito | Wartet auf Benito |
+| V2 | Neues Design 2.0 nach Freigabe der Entwürfe: dunkler Grund mit Aurora-Farbverläufen je Crew, Chrom-Plakatschrift (Unbounded) + Instrument Sans, Kartenstapel als Grundform, Morph-Übergänge (Knopf → Eingabe, Karte → Seite), Antwortfarben bleiben. In Etappen, Screen für Screen, mit Vorher/Nachher | Cool, modern, jugendlich – der Wow-Effekt, den Benito will | L | – | In Arbeit: Etappe 1 Fundament (Schriften, Farben, Aurora, Chrom, Glas, Pillen, Plan-Karten in Antwortfarbe) |
 
 ## Fundament
 

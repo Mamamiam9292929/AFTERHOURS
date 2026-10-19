@@ -1,27 +1,31 @@
-# Design-Richtung „Wow, aber nicht zu viel"
+# Design-Richtung „AFTERHOURS 2.0“ – Aurora × Y2K × Deck
 
-Freigegeben von Benito am 12.10.2026 als Richtung. Konzept-Screens: `home.png`, `poll.png`, `discover.png` (Quelle: die gleichnamigen `.html` mit `style.css`). Die Konzepte sind Vorlage, kein Code zum Kopieren – umgesetzt wird mit den Komponenten und Tokens der App.
+Freigegeben von Benito am 19.10.2026 („hau das design rein, das ist geil“). Entwürfe: Design-Canvas „AFTERHOURS Neues Design“ (Home → Satz → Wischen → Match, Link im Gruppenchat, Abstimmen ohne Konto, Heute noch wer?). Höchste Priorität.
 
 ## Leitidee
-Ein Abend mit Freunden ist ein Ereignis. Die App fühlt sich an wie das Ticket dafür: plakativ, haptisch, nachts gut lesbar. Der Wow-Effekt kommt aus **einem** großen Moment pro Screen, nicht aus Effekten überall.
+Cool, modern, jugendlich. Drei Zutaten:
+- **Aurora (B):** fast schwarzer Grund, weiche Farbwolken (Violett #7B5CFF, Pink #FF4FA3, ein Hauch Lime) treiben langsam hinter der App; Kopf, Seitenleiste und Tab-Leiste aus Glas.
+- **Y2K Bold (C):** Unbounded, breit und fett, für Überschriften und Zahlen; Plakat-Überschriften in Chrom (`.chrome`), ein Schlüsselwort darf Lime tragen. Lesetext in Instrument Sans.
+- **Deck (E):** Alles ist eine Karte. Große Pläne liegen oben auf einem angedeuteten Stapel; Abstimmen per Wischen (S6); Knöpfe sind Pillen.
 
-## Was sich ändert
-1. **Überschriften als Plakat:** Big Shoulders Display in Versalien, groß (42–48 px mobil), ein Schlüsselwort in Lime („Noch 3 Tage bis **Bowling**", „Was machen wir am **Freitag?**", „Leipzig **heute Abend**"). Der Satz kommt aus echten Daten, nie Dekor.
-2. **Das Ticket ist der Held auf Home:** nächster Plan als großes Ticket mit Lime-Abriss (Wochentag, riesiges Datum, Monat, Strichcode-Detail), gestrichelte Perforation, Kerben, leicht schräg (−1,2°), weicher Schatten. Zusage-Avatare und „4 von 6 dabei" auf dem Ticket.
-3. **Licht statt Fläche:** sehr dezenter Lime-Schein oben auf Home (Radialverlauf, ~13 % Deckkraft), feines Korn über der Fläche (~5 %). Karten mit 1-px-Lichtkante oben.
-4. **Abstimmen = Balken:** Jede Option zeigt den Stand als Lime-Verlauf im Hintergrund, Zahl in Display-Schrift, Avatare der Zusagen. Eigene Wahl mit Lime-Rahmen, führende Option mit „Vorn"-Badge und leichtem Lime-Schimmer.
-5. **Home zeigt, was fehlt:** „Deine Stimme fehlt" mit Mini-Ergebnis direkt auf Home.
-6. **Discover mit Bühne:** eine große Hauptkarte (offen jetzt, nah), darunter horizontale Reihe. Kategorie-Grafiken auf dunklem Lime-Radialverlauf; echte Fotos ersetzen sie, sobald P7 fertig ist.
-7. **Navigation:** halbtransparente Leiste mit Unschärfe, aktiver Tab mit Lime-Strich oben und Lime-Icon.
+## Farben mit Bedeutung
+- **Lime #C8FF2E** = los / dabei (Hauptknopf, aktiver Tab, Zusage).
+- **Antwortfarben:** Die eigene Antwort färbt die ganze Plan-Karte und die Antwort-Knöpfe – **grün dabei, gelb vielleicht, rot abgesagt**, dunkles Glas ohne Antwort, gedämpft wenn vorbei. Auf farbigen Karten ist die Schrift dunkel.
+- Violett und Pink nur als Licht und Kartenfläche, nie als Textfarbe.
 
-## Bewegung (D1, D7)
-Nur dort, wo etwas passiert: Stimmbalken wachsen beim Abstimmen, Ticket „reißt ab", wenn ein Plan bestätigt wird. Seitenwechsel gleiten (View Transition: aus- und aufsteigend, Navigation bleibt stehen, Lime-Strich gleitet zum Tab, angetipptes Ticket wird zum großen Ticket). Beim Antworten schlägt der Stempel auf und das Ticket gibt kurz nach. `prefers-reduced-motion` schaltet alles ab.
+## Bewegung
+Morph statt Sprung: Seitenwechsel gleiten (View Transitions), der Lime-Knopf wird zum Eingabefeld, eine angetippte Karte zur Seite, Karten fliegen beim Wischen raus, der Stempel schlägt beim Antworten auf. Aurora treibt sehr langsam. `prefers-reduced-motion` schaltet alles ab.
 
-## Antwortfarben (D7, Benitos Wunsch vom 13.10.2026)
-Die eigene Antwort auf einen Plan färbt den Abriss des Tickets und die Antwort-Knöpfe: **grün (Lime) dabei, gelb (Amber) vielleicht, rot (Danger) abgesagt**, grau ohne Antwort und bei vergangenen Plänen. Auf dem großen Ticket ersetzt ein Stempel den Strichcode, dazu ein Hauch Schein in der Antwortfarbe. Gelb und Rot gibt es nur dort – überall sonst bleibt Lime der einzige Akzent.
+## Grenzen
+- Kontrast AA für Text, Bedienflächen ≥ 44 px, sichtbarer Fokus (Lime-Rahmen).
+- Keine Emojis als Icons, keine erfundenen Daten: „Jetzt geöffnet“ nur mit bekannten Öffnungszeiten, Entfernung nur mit Koordinaten.
 
-## Grenzen (damit es nicht zu extrem wird)
-- Lime bleibt der einzige Akzent; Gelb und Rot nur als Antwortfarben auf Ticket und Antwort-Knöpfen (siehe oben); keine bunten Verläufe.
-- Kein Glassmorphismus außer der Tab-Leiste, keine Neon-Glows auf Text, keine Dauer-Animationen.
-- Kontrast AA für Text, Bedienflächen ≥ 44 px.
-- Nichts erfinden: „Jetzt geöffnet" nur mit bekannten Öffnungszeiten, Entfernung nur mit Koordinaten, Preis sonst „unbekannt".
+## Etappen (Roadmap V2)
+1. Fundament: Schriften, Farben, Aurora, Chrom, Glas, Pillen-Knöpfe, Plan-Karten in Antwortfarbe.
+2. Home als Stapel mit „Was geht?“-Knopf, der zur Ein-Satz-Abstimmung (S1) aufgeht.
+3. Wischen statt Liste (S6) mit „Match“.
+4. Restliche Screens (Discover, Abstimmung, Gast-Stimmzettel, Spontan-Frage S4) im neuen Stil.
+
+---
+
+Frühere Richtung (D0, 12.10.2026, abgelöst): Anthrazit, Big Shoulders Display, Ticket mit Abriss. Konzept-Screens `home.png`, `poll.png`, `discover.png` bleiben als Archiv.

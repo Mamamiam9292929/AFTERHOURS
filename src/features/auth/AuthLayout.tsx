@@ -18,7 +18,7 @@ export function AuthLayout({ title, intro, hero, children, footer }: { title: st
           <Logo />
         </Link>
         <div className="relative space-y-8">
-          <h2 className="display text-[52px] text-fg xl:text-[68px]">
+          <h2 className="display text-[37px] text-fg xl:text-[49px]">
             {t.auth.brand.headline.map((line) => (
               <span key={line} className="block whitespace-nowrap">
                 {line}
@@ -48,7 +48,7 @@ export function AuthLayout({ title, intro, hero, children, footer }: { title: st
         </div>
         <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-10">
           {hero && <div className="mb-10">{hero}</div>}
-          <h1 className="display text-[44px] text-fg sm:text-[52px]">{title}</h1>
+          <h1 className="display chrome text-[32px] sm:text-[37px]">{title}</h1>
           {intro && <div className="mt-3 text-[15px] leading-snug text-muted">{intro}</div>}
           <div className="mt-8">{children}</div>
           {footer && <div className="mt-8 text-sm text-muted">{footer}</div>}

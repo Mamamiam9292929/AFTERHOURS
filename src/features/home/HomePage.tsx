@@ -94,7 +94,7 @@ export function HomePage() {
         <p className="text-[15px] font-medium text-muted">
           {t.home.greeting[phase]}, {profile.data?.display_name ?? ""}
         </p>
-        <h1 className={cn("display mt-2 break-words uppercase text-fg", long ? "text-[40px] sm:text-[60px]" : "text-[52px] sm:text-[76px]")}>
+        <h1 className={cn("display chrome mt-2 break-words uppercase", long ? "text-[32px] sm:text-[48px]" : "text-[42px] sm:text-[60px]")}>
           {title.lead}
           <span className="text-lime">{title.key}</span>
           {title.tail}
@@ -122,7 +122,7 @@ export function HomePage() {
             <ErrorState error={failed.error} onRetry={() => void failed.refetch()} />
           ) : noCrews ? (
             <section className="rounded-card border border-line bg-surface p-5 sm:p-6">
-              <h2 className="display text-[30px] text-fg">{t.home.start.title}</h2>
+              <h2 className="display text-[22px] text-fg">{t.home.start.title}</h2>
               <ol className="mt-5 space-y-4">
                 {t.home.start.steps.map((step, index) => (
                   <li key={step.title} className="flex gap-4">

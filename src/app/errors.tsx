@@ -8,7 +8,7 @@ function Shell({ title, body, action }: { title: string; body: string; action: R
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-10">
       <Logo compact />
-      <h1 className="display mt-10 text-[44px] text-fg">{title}</h1>
+      <h1 className="display chrome mt-10 text-[32px]">{title}</h1>
       <p className="mt-3 text-[15px] leading-snug text-muted">{body}</p>
       <div className="mt-7">{action}</div>
     </div>

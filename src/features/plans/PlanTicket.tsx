@@ -18,16 +18,17 @@ export function ticketAnswer(plan: { status: PlanStatus; participants: { user_id
 }
 
 /**
- * Der Abriss trägt deine Antwort (D7, Benitos Wunsch): grün dabei, gelb vielleicht, rot abgesagt.
- * Ohne Antwort bleibt er grau; vergangene und abgesagte Pläne sind ausgegraut.
+ * V2: Die ganze Karte trägt deine Antwort (Benitos Wunsch): grün dabei, gelb vielleicht, rot abgesagt
+ * (Farbe kommt aus `.ticket[data-answer]` in index.css). Das Datum steht dann direkt auf der Farbe;
+ * ohne Antwort sitzt es auf einer hellen Kachel, bei Vergangenem gedämpft.
  */
 const STUB_TONE: Record<TicketAnswer, string> = {
-  going: "bg-lime text-lime-ink",
-  maybe: "bg-amber text-amber-ink",
-  declined: "bg-danger text-danger-ink",
-  invited: "bg-raised text-fg",
-  none: "bg-raised text-fg",
-  past: "bg-raised text-muted",
+  going: "text-fg",
+  maybe: "text-fg",
+  declined: "text-fg",
+  invited: "bg-white/[0.07] text-fg",
+  none: "bg-white/[0.07] text-fg",
+  past: "bg-white/[0.04] text-muted",
 };
 
 /** Textfarbe für die Antwortzeile und Gruppen – dieselbe Zuordnung wie der Abriss. */
@@ -123,7 +124,7 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
     <>
       <div className={cn("ticket-stub flex flex-col items-center justify-center px-2 py-4 text-center", STUB_TONE[answer])}>
         <span className="text-[13px] font-bold">{date.weekday}</span>
-        <span className="font-display text-[48px] font-extrabold leading-[0.9] sm:text-[56px]">{date.day}</span>
+        <span className="font-display text-[35px] font-extrabold leading-[0.9] sm:text-[40px]">{date.day}</span>
         <span className="text-[13px] font-bold">{date.month}</span>
       </div>
       <div className="flex min-w-0 flex-col justify-between gap-3 p-4">
@@ -227,7 +228,7 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
     <>
       <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", STUB_TONE[answer])}>
         <span className="text-[15px] font-bold uppercase tracking-wide">{date.weekday}</span>
-        <span className="font-display text-[76px] font-extrabold leading-[0.85] sm:text-[92px]">{date.day}</span>
+        <span className="font-display text-[55px] font-extrabold leading-[0.85] sm:text-[66px]">{date.day}</span>
         <span className="text-[15px] font-bold uppercase tracking-wide">{date.month}</span>
         {stamp ? (
           <span key={`${answer}-${changes}`} className={cn("ticket-stamp", changes > 0 && "is-new")} aria-hidden>
@@ -242,9 +243,9 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {planStatusBadge(plan.status, Boolean(plan.skipped_at))}
             <SeriesMark plan={plan} className="text-[13px]" />
-            {countdown && <span className="font-display text-[19px] font-extrabold uppercase leading-none tracking-wide text-lime">{countdown}</span>}
+            {countdown && <span className="font-display text-[14px] font-extrabold uppercase leading-none tracking-wide text-lime">{countdown}</span>}
           </div>
-          <Title className={cn("display mt-3 break-words text-[32px] text-fg sm:text-[44px]", plan.status === "cancelled" && "line-through decoration-2")}>{plan.title}</Title>
+          <Title className={cn("display mt-3 break-words text-[23px] text-fg sm:text-[32px]", plan.status === "cancelled" && "line-through decoration-2")}>{plan.title}</Title>
           <p className="mt-2.5 truncate text-[15px] text-muted">
             <span className="font-semibold text-fg">{formatTime(plan.starts_at)}</span>
             {place && ` · ${place}`}
@@ -258,7 +259,7 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
           <AvatarStack people={going.map((p) => lookup(p.user_id))} max={5} size="md" />
           <span className="ml-auto flex items-baseline gap-1.5 text-[15px] font-semibold text-muted">
-            <span className="font-display text-[34px] font-extrabold leading-none text-fg">{going.length}</span>
+            <span className="font-display text-[24px] font-extrabold leading-none text-fg">{going.length}</span>
             {t.plans.ticket.goingOf(plan.participants.length)}
           </span>
         </div>
@@ -270,11 +271,11 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
   return (
     <div className={cn("ticket-feature-wrap", hero && !active && "ticket-feature-past", hero && "vt-plan-ticket")} data-answer={answer}>
       {hero ? (
-        <div ref={ticketRef} className="ticket ticket-feature">
+        <div ref={ticketRef} className="ticket ticket-feature" data-answer={answer}>
           {body}
         </div>
       ) : (
-        <Link to={`/plans/${plan.id}`} onClick={nameForTransition} className="ticket ticket-feature">
+        <Link to={`/plans/${plan.id}`} onClick={nameForTransition} className="ticket ticket-feature" data-answer={answer}>
           {body}
         </Link>
       )}

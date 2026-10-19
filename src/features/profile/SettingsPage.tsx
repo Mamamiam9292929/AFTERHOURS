@@ -32,7 +32,7 @@ const toggle = <T,>(list: T[], value: T): T[] => (list.includes(value) ? list.fi
 function Card({ id, title, lead, children }: { id: string; title: string; lead?: string; children: React.ReactNode }) {
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24 rounded-card border border-line bg-surface p-5 sm:p-6">
-      <h2 id={`${id}-title`} className="display text-[28px] text-fg">
+      <h2 id={`${id}-title`} className="display text-[20px] text-fg">
         {title}
       </h2>
       {lead && <p className="mt-2 text-sm leading-snug text-muted">{lead}</p>}
