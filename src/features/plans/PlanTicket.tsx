@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { IconClock, IconPin } from "@/components/icons";
+import { IconClock, IconPin, IconRepeat } from "@/components/icons";
 import { AvatarStack, type Person } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Feedback";
 import { t } from "@/i18n";
@@ -43,6 +43,22 @@ export function planStatusBadge(status: PlanStatus, skipped = false): ReactNode 
   if (status === "cancelled" && skipped) return <Badge tone="neutral">{t.plans.repeat.badge}</Badge>;
   const tone = status === "confirmed" || status === "booked" ? "lime" : status === "booking_pending" ? "amber" : status === "cancelled" ? "danger" : "neutral";
   return <Badge tone={tone}>{t.enums.planStatus[status]}</Badge>;
+}
+
+/**
+ * P8 Etappe 3: Gehört der Plan zu einem Stammtisch, trägt das Ticket „↻ Stammtisch“ – für Screenreader
+ * mit der Regel („Jeden Freitag“), solange die Serie läuft.
+ */
+function SeriesMark({ plan, className }: { plan: PlanWithParticipants; className?: string }) {
+  if (!plan.series_id) return null;
+  const rule = plan.series?.active ? t.plans.repeat.rule(plan.series.rule, plan.series.weekday, plan.series.nth) : null;
+  return (
+    <span className={cn("inline-flex items-center gap-1 font-semibold text-fg", className)} title={rule ?? undefined} data-testid="ticket-series">
+      <IconRepeat className="size-3.5 shrink-0" aria-hidden />
+      {t.plans.ticket.series}
+      {rule && <span className="sr-only">: {rule}</span>}
+    </span>
+  );
 }
 
 const STAMP: Partial<Record<TicketAnswer, string>> = {
@@ -121,6 +137,7 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
               <IconClock className="size-4 shrink-0" aria-hidden />
               {formatTime(plan.starts_at)}
             </span>
+            <SeriesMark plan={plan} />
             {crew && (
               <span className="min-w-0 truncate">
                 {crew.emoji} {crew.name}
@@ -224,6 +241,7 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             {planStatusBadge(plan.status, Boolean(plan.skipped_at))}
+            <SeriesMark plan={plan} className="text-[13px]" />
             {countdown && <span className="font-display text-[19px] font-extrabold uppercase leading-none tracking-wide text-lime">{countdown}</span>}
           </div>
           <Title className={cn("display mt-3 break-words text-[32px] text-fg sm:text-[44px]", plan.status === "cancelled" && "line-through decoration-2")}>{plan.title}</Title>

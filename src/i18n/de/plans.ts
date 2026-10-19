@@ -31,6 +31,8 @@ export const plans = {
     youDeclined: "Du hast abgesagt",
     /** Stempel im Abriss des großen Tickets, sobald du geantwortet hast. */
     stamp: { going: "Dabei", maybe: "Vielleicht", declined: "Abgesagt" },
+    /** P8 Etappe 3: Kennzeichen für Termine eines Stammtischs. */
+    series: "Stammtisch",
     countdown: {
       today: "Heute",
       tonight: "Heute Abend",
