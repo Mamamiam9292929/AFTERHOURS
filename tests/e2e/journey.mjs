@@ -1671,10 +1671,12 @@ await step("P8 – Stammtisch: Plan wiederholt sich von selbst (Alice, Bob)", as
     await alice.page.goto(`${APP}/plans/${nextId}`);
     const skipCard = alice.page.getByRole("region", { name: "Regelmäßig" });
     await skipCard.getByRole("button", { name: "Diesmal aussetzen" }).click();
-    const dialog = alice.page.getByRole("dialog", { name: "Diesmal aussetzen?" });
-    await dialog.waitFor();
-    check((await dialog.innerText()).includes("Der Stammtisch geht weiter"), "Rückfrage erklärt: nur dieser Abend fällt aus");
-    await dialog.getByRole("button", { name: "Diesmal aussetzen" }).click();
+    const skipDialog = alice.page.getByRole("dialog", { name: "Diesmal aussetzen?" });
+    const skipConfirm = skipDialog.getByRole("button", { name: "Diesmal aussetzen" });
+    await skipConfirm.waitFor();
+    check(await skipDialog.getByText(/Der Stammtisch geht weiter/).isVisible(), "Rückfrage erklärt: nur dieser Abend fällt aus");
+    await shot(alice, "33-plan-aussetzen-rueckfrage");
+    await skipConfirm.click();
     await toast(alice, "Ausgesetzt – der nächste Termin steht schon.");
     let thirdId = "";
     for (let i = 0; i < 40 && !thirdId; i++) {
