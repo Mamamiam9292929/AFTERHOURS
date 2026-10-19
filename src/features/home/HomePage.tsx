@@ -15,6 +15,7 @@ import { useIdeas } from "./ideas";
 import { InstallCard } from "./InstallCard";
 import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
+import { QuickPollLauncher } from "@/features/polls/QuickPoll";
 import { PollCard } from "@/features/polls/PollCard";
 import { usePeople, useProfile, useSettings } from "@/features/profile/api";
 import { t } from "@/i18n";
@@ -104,14 +105,29 @@ export function HomePage() {
             <FeatureTicket plan={featured} crew={crewById.get(featured.crew_id)} userId={user.id} lookup={people.lookup} />
           </div>
         )}
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-          <ButtonLink to="/polls/new" size="lg" icon={<IconVote className="size-5" aria-hidden />}>
-            {t.home.startPoll}
-          </ButtonLink>
-          <ButtonLink to="/plans/new" size="lg" variant="secondary" icon={<IconCalendarPlus className="size-5" aria-hidden />}>
-            {t.home.createPlan}
-          </ButtonLink>
-        </div>
+        {crews.data && crews.data.length > 0 ? (
+          // V2 + S1: ein Lime-Knopf, der zur Ein-Satz-Abstimmung aufgeht; die ausführlichen Wege bleiben daneben.
+          <div className="mt-7 flex max-w-2xl flex-col gap-3">
+            <QuickPollLauncher crews={crews.data} />
+            <div className="flex flex-wrap gap-2">
+              <ButtonLink to="/polls/new" size="sm" variant="secondary" icon={<IconVote className="size-4" aria-hidden />}>
+                {t.home.startPoll}
+              </ButtonLink>
+              <ButtonLink to="/plans/new" size="sm" variant="secondary" icon={<IconCalendarPlus className="size-4" aria-hidden />}>
+                {t.home.createPlan}
+              </ButtonLink>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <ButtonLink to="/polls/new" size="lg" icon={<IconVote className="size-5" aria-hidden />}>
+              {t.home.startPoll}
+            </ButtonLink>
+            <ButtonLink to="/plans/new" size="lg" variant="secondary" icon={<IconCalendarPlus className="size-5" aria-hidden />}>
+              {t.home.createPlan}
+            </ButtonLink>
+          </div>
+        )}
       </header>
 
       <div className="grid gap-x-10 gap-y-9 lg:grid-cols-[minmax(0,1fr)_340px]">
