@@ -1,5 +1,5 @@
 /**
- * AFTERHOURS – Stellvertreter für Nominatim und Overpass (OpenStreetMap) in der Browser-Journey.
+ * AFTERHOURS – Stellvertreter für Nominatim und Overpass (OpenStreetMap) und Open-Meteo in der Browser-Journey.
  *
  *   node tests/e2e/osm-stub.mjs            # lauscht auf 0.0.0.0:8089 (OSM_STUB_PORT)
  *
@@ -25,6 +25,8 @@
  * Die CI trägt ihn als NOMINATIM_URL ein und den funktionierenden als PHOTON_URL – jede neue Stadt
  * wird also über Photon (/api, GeoJSON) gefunden. Photon liefert hier dieselben Relationen wie
  * Nominatim, damit die Overpass-Abfrage dieselbe bleibt.
+ * Wetter (Roadmap P5): Unter /v1/forecast spielt er Open-Meteo (OPEN_METEO_URL der Edge Function
+ * "weather"), /weather-calls listet die Abfragen.
  * Ohne Abhängigkeiten, nur Node.js.
  */
 import http from "node:http";
@@ -85,6 +87,7 @@ function send(res, status, body) {
   res.end(text);
 }
 
+const weatherCalls = [];
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://stub");
   let body = "";
@@ -125,6 +128,27 @@ const server = http.createServer(async (req, res) => {
     const elements = match && Number(match[1]) === areaId(LEIPZIG) ? leipzigElements() : [];
     return send(res, 200, { version: 0.6, generator: "AFTERHOURS osm-stub", elements });
   }
+
+  // P5: Stellvertreter für Open-Meteo. Jeder Tag gleich: 14,2 °C, 70 % Regenrisiko, leichter Regen
+  // (WMO 61), Wind 12 km/h – so prüft die Journey genaue Texte. /weather-calls zählt die Abfragen
+  // (die Crew soll sich eine Abfrage teilen).
+  if (url.pathname === "/v1/forecast") {
+    weatherCalls.push(url.search);
+    const day = url.searchParams.get("start_date") ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || url.searchParams.get("timezone") !== "Europe/Berlin") return send(res, 400, { error: true, reason: "bad request" });
+    const hours = Array.from({ length: 24 }, (_, h) => h);
+    return send(res, 200, {
+      latitude: Number(url.searchParams.get("latitude")), longitude: Number(url.searchParams.get("longitude")), timezone: "Europe/Berlin",
+      hourly: {
+        time: hours.map((h) => `${day}T${String(h).padStart(2, "0")}:00`),
+        temperature_2m: hours.map(() => 14.2),
+        precipitation_probability: hours.map(() => 70),
+        weather_code: hours.map(() => 61),
+        wind_speed_10m: hours.map(() => 12),
+      },
+    });
+  }
+  if (url.pathname === "/weather-calls") return send(res, 200, { calls: weatherCalls });
 
   send(res, 404, { error: "not_found" });
 });
