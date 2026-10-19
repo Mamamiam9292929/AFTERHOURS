@@ -23,11 +23,13 @@ import { downloadPlanIcs } from "@/lib/ics";
 import { mapProvider } from "@/lib/maps";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
-import { estimateCosts, hasStarted, usePlan, usePlanShareToken, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
+import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { BookingPanel } from "./BookingPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { PlanForm } from "./PlanForm";
+import { RepeatCard, RepeatLine } from "./PlanRepeat";
 import { FeatureTicket } from "./PlanTicket";
+import { PlanWeather } from "./PlanWeather";
 import { RidesPanel } from "./RidesPanel";
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
@@ -73,6 +75,8 @@ export function PlanDetailPage() {
   const toast = useToast();
   const now = useNow(30_000);
   const planQuery = usePlan(planId);
+  // P8: Für wiederkehrende Pläne – welcher Termin der Serie ist der letzte?
+  const allPlans = usePlans();
   const crews = useCrews();
   const people = usePeople();
   const plan = planQuery.data;
@@ -208,6 +212,7 @@ export function PlanDetailPage() {
               <span className="font-semibold">
                 {formatDateLong(plan.starts_at)}, {formatTime(plan.starts_at)}
               </span>
+              <RepeatLine series={plan.series} />
               {!locked && <span className="mt-0.5 block text-sm text-muted">{started ? t.plans.detail.started(formatAgo(plan.starts_at, now)) : t.plans.detail.startsIn(formatRelative(plan.starts_at, now))}</span>}
               {/* P2 Etappe 1: Termin als .ics – entsteht im Browser, nur Titel, Zeit, Ort, Treffpunkt und Link. */}
               {!locked && !started && (
@@ -239,6 +244,8 @@ export function PlanDetailPage() {
                 </a>
               )}
             </Fact>
+            {/* P5: Vorhersage für Beginn und Ort (Open-Meteo) – nur bei anstehenden Plänen mit Ort. */}
+            {!locked && <PlanWeather plan={plan} />}
             <Fact icon={<IconNavigation aria-hidden />} label={t.plans.detail.meetingPoint}>
               {plan.meeting_point ? <span className="font-semibold">{plan.meeting_point}</span> : <span className="text-muted">{t.plans.detail.noMeetingPoint}</span>}
             </Fact>
@@ -336,6 +343,8 @@ export function PlanDetailPage() {
               <IconInfo className="size-4 shrink-0" aria-hidden />
               {t.plans.detail.manage.editBody}
             </p>
+            {/* P8: Stammtisch – der Plan wiederholt sich von selbst. */}
+            <RepeatCard key={plan.id} plan={plan} plans={allPlans.data ?? [plan]} />
           </aside>
         )}
       </div>

@@ -1,15 +1,20 @@
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
+import { dueSeries, type PlanSeries, type RepeatRule } from "@/lib/repeat";
+import type { PlanWeather } from "@/lib/weather";
 import type { AttendanceStatus, BookingRequest, BookingStatus, Plan, PlanExpense, PlanExpenseShare, PlanParticipant, PlanStatus, RideOffer, RideRequest } from "@/lib/types";
 
 export interface PlanWithParticipants extends Plan {
   participants: PlanParticipant[];
+  /** P8: eingebettete Serie (nur bei wiederkehrenden Plänen). */
+  series?: PlanSeries | null;
 }
 
-const PLAN_SELECT = "*, participants:plan_participants(*)";
+const PLAN_SELECT = "*, participants:plan_participants(*), series:plan_series(*)";
 
 export const ACTIVE_PLAN_STATUSES: PlanStatus[] = ["proposed", "confirmed", "booking_pending", "booked"];
 
@@ -48,9 +53,20 @@ export function usePlans() {
     queryKey: qk.plans,
     queryFn: async (): Promise<PlanWithParticipants[]> => {
       // Absteigend begrenzen, dann umdrehen: Bei mehr als 200 Plänen fallen die ältesten weg, nie die anstehenden.
-      const { data, error } = await supabase.from("plans").select(PLAN_SELECT).order("starts_at", { ascending: false }).order("id").limit(PLAN_LIST_LIMIT);
+      const load = () => supabase.from("plans").select(PLAN_SELECT).order("starts_at", { ascending: false }).order("id").limit(PLAN_LIST_LIMIT);
+      const { data, error } = await load();
       if (error) throw error;
-      return (data as unknown as PlanWithParticipants[]).reverse();
+      const plans = data as unknown as PlanWithParticipants[];
+      // P8: Ist der letzte Termin einer aktiven Serie vorbei, legt der Server den nächsten an – dann neu laden.
+      // Scheitert das (Rate Limit, Netz), bleibt es bei der Liste; der nächste Aufruf versucht es wieder.
+      if (dueSeries(plans).length > 0) {
+        const rolled = await supabase.rpc("roll_plan_series");
+        if (!rolled.error && Number(rolled.data) > 0) {
+          const again = await load();
+          if (!again.error) return (again.data as unknown as PlanWithParticipants[]).reverse();
+        }
+      }
+      return plans.reverse();
     },
   });
 }
@@ -462,6 +478,49 @@ export function useSharedPlanPreview(token: string | undefined, viewer: string |
       const { data, error } = await supabase.rpc("preview_shared_plan", { p_token: token ?? "" });
       if (error) throw error;
       return data as SharedPlanPreview;
+    },
+  });
+}
+
+/**
+ * P5: Wettervorhersage für Beginn und Ort des Plans über die Edge Function `weather` (Open-Meteo).
+ * Ändern sich Beginn oder Ort, ist es eine neue Abfrage. Die Function hält die Vorhersage drei Stunden
+ * für die ganze Crew vor; im Browser reicht eine halbe Stunde.
+ */
+export function usePlanWeather(plan: Pick<Plan, "id" | "starts_at" | "activity_id"> | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["plan-weather", plan?.id ?? "none", plan?.starts_at ?? "", plan?.activity_id ?? ""] as const,
+    enabled: Boolean(plan?.id) && enabled,
+    staleTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+    queryFn: async (): Promise<PlanWeather> => {
+      const { data, error } = await supabase.functions.invoke<PlanWeather>("weather", { body: { plan_id: plan?.id } });
+      if (error) {
+        if (error instanceof FunctionsHttpError) {
+          const response = error.context as Response;
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw Object.assign(new Error(body?.error ?? "weather_unavailable"), { code: body?.error ? "P0001" : undefined, status: response.status });
+        }
+        throw error;
+      }
+      if (!data) throw new Error("weather_unavailable");
+      return data;
+    },
+  });
+}
+
+/** P8: Wiederholung einstellen (`rule`) oder beenden (`null`). Gilt für die ganze Serie. */
+export function useSetPlanRepeat(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (rule: RepeatRule | null): Promise<void> => {
+      const { error } = await supabase.rpc("set_plan_repeat", { p_plan_id: planId, p_rule: rule });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: qk.plans });
+      void client.invalidateQueries({ queryKey: qk.notifications });
     },
   });
 }

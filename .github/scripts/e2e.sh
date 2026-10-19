@@ -47,6 +47,7 @@ NOMINATIM_URL=http://$gateway:8090
 PHOTON_URL=http://$gateway:8089
 OVERPASS_URLS=http://$gateway:8090/api/interpreter,http://$gateway:8089/api/interpreter
 OSM_CONTACT=ci@afterhours.invalid
+OPEN_METEO_URL=http://$gateway:8089
 EOF
   nohup supabase functions serve --env-file "$LOGS/functions.env" >"$LOGS/functions.log" 2>&1 &
   # Ohne Anmeldung antwortet die Function mit 401 – dann läuft sie.

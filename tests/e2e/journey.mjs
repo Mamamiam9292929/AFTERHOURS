@@ -595,6 +595,41 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   }
 });
 
+await step("P5 Etappe 2 – Wetter schon beim Abstimmen (Bob, Carol)", async () => {
+  // Der Open-Meteo-Stellvertreter liefert jeden Tag 14,2 °C, 70 % Regenrisiko, leichten Regen.
+  await bob.page.goto(`${APP}/polls/${ids.poll}`);
+  const bowling = optionCard(bob, "Strike District Bowling").getByTestId("poll-option-weather");
+  await bowling.waitFor();
+  check((await bowling.innerText()).replace(/\s+/g, " ").trim() === "14 °C · Regen · 70 % Regenrisiko", `Abstimmung: Wetter beim Vorschlag (${await bowling.innerText()})`);
+  await optionCard(bob, "Lichtspielhaus Nord").getByTestId("poll-option-weather").waitFor();
+  check(true, "Abstimmung: jeder Ort mit Termin bekommt sein Wetter");
+  check((await optionCard(bob, "Grillen bei Bob").getByTestId("poll-option-weather").count()) === 0, "Abstimmung: eigener Vorschlag ohne Ort bekommt kein (erfundenes) Wetter");
+  check((await bob.page.getByText(/^Draußen –/).count()) === 0, "Abstimmung: kein Draußen-Hinweis bei Orten drinnen");
+  check(await bob.page.getByText(/^Wetter: Vorhersage von Open-Meteo, Stand \d{2}:\d{2} Uhr/).isVisible(), "Abstimmung: Quelle und Stand der Vorhersage einmal unter den Vorschlägen");
+  check((await bob.page.getByRole("link", { name: "Open-Meteo" }).getAttribute("href")) === "https://open-meteo.com/", "Abstimmung: Quelle verlinkt");
+  await bowling.scrollIntoViewIfNeeded();
+  await shot(bob, "11b-abstimmung-wetter");
+
+  // Ein Ort und Tag wird einmal abgefragt – Alice, Bob und Carol teilen sich die Vorhersage, und Open-Meteo erfährt nur Ort und Tag.
+  const calls = (await (await fetch("http://127.0.0.1:8089/weather-calls")).json()).calls.filter((q) => q.includes("latitude=52.52") && q.includes("longitude=13.50"));
+  check(calls.length === 1, `Abstimmung: eine Abfrage bei Open-Meteo für Ort und Tag (${calls.length})`);
+  check(calls.every((q) => !/poll|plan|user|crew/i.test(q)), "Abstimmung: Open-Meteo erfährt nur Ort und Tag");
+
+  // Fehlerzustand: Ist die Function nicht erreichbar, steht das unter den Vorschlägen – mit „Erneut versuchen“.
+  const { page } = carol;
+  await page.route("**/functions/v1/weather", (route) => route.abort());
+  await page.goto(`${APP}/polls/${ids.poll}`);
+  await page.getByRole("heading", { name: ids.pollTitle }).waitFor();
+  const retry = page.getByRole("button", { name: "Erneut versuchen" });
+  await retry.waitFor();
+  check(await page.getByText(/Wetter gerade nicht abrufbar|Keine Verbindung/).first().isVisible(), "Abstimmung: Fehlerzustand statt erfundener Werte");
+  check((await page.getByTestId("poll-option-weather").count()) === 0, "Abstimmung: ohne Vorhersage keine Werte");
+  await page.unroute("**/functions/v1/weather");
+  await retry.click();
+  await optionCard(carol, "Strike District Bowling").getByTestId("poll-option-weather").waitFor();
+  check(true, "Abstimmung: „Erneut versuchen“ lädt das Wetter");
+});
+
 await step("W2 Etappe 2 – Geteilte Abstimmung: Vorschau im Messenger und für Freunde ohne Konto", async () => {
   if (!ids.pollShareUrl) throw new Error("kein Teilen-Link aus Schritt 6");
   const sharePath = new URL(ids.pollShareUrl).pathname;
@@ -1012,6 +1047,39 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   // Schritt 10 erwartet Bob wieder auf der Planseite.
   await bob.page.goto(`${APP}/plans/${ids.plan}`);
   await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+});
+
+await step("P5 – Wetter für Plantag und Ort (Bob, Carol)", async () => {
+  // Die Edge Function fragt den Open-Meteo-Stellvertreter (14,2 °C, 70 % Regen, leichter Regen, Wind 12 km/h).
+  const weather = bob.page.getByTestId("plan-weather");
+  await weather.waitFor();
+  check((await weather.innerText()).replace(/\s+/g, " ").trim() === "14 °C · Regen", `Wetter: Temperatur und Lage (${await weather.innerText()})`);
+  const details = await bob.page.getByText(/Regenrisiko/).first().innerText();
+  check(/^um \d{2} Uhr · 70 % Regenrisiko · Wind 12 km\/h$/.test(details.trim()), `Wetter: Uhrzeit des Plans, Regenrisiko, Wind (${details})`);
+  check((await bob.page.getByRole("link", { name: "Open-Meteo" }).getAttribute("href")) === "https://open-meteo.com/", "Wetter: Quelle Open-Meteo mit Link");
+  check(await bob.page.getByText(/^Vorhersage von Open-Meteo, Stand \d{2}:\d{2} Uhr/).isVisible(), "Wetter: Stand der Vorhersage");
+  // Bowling ist drinnen – kein Hinweis auf einen Plan B trotz Regen.
+  check((await bob.page.getByText(/Plan B/).count()) === 0, "Wetter: kein Draußen-Hinweis bei einem Ort drinnen");
+  await weather.scrollIntoViewIfNeeded();
+  await shot(bob, "16e-plan-wetter");
+
+  // Die Crew teilt sich eine Abfrage: Alice und Bob haben den Plan geöffnet, gefragt wurde einmal.
+  const calls = (await (await fetch("http://127.0.0.1:8089/weather-calls")).json()).calls.filter((q) => q.includes("latitude=52.52") && q.includes("longitude=13.50"));
+  check(calls.length === 1, `Wetter: eine Abfrage bei Open-Meteo für die ganze Crew (${calls.length})`);
+  check(calls.every((q) => !/plan|user|crew/i.test(q)), "Wetter: Open-Meteo erfährt nur Ort und Tag");
+
+  // Fehlerzustand: Ist die Function nicht erreichbar, steht das dort – mit „Erneut versuchen“.
+  const { page } = carol;
+  await page.route("**/functions/v1/weather", (route) => route.abort());
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  const retry = page.getByRole("button", { name: "Erneut versuchen" });
+  await retry.waitFor();
+  check(await page.getByText(/Wetter gerade nicht abrufbar|Keine Verbindung/).first().isVisible(), "Wetter: Fehlerzustand statt erfundener Werte");
+  await page.unroute("**/functions/v1/weather");
+  await retry.click();
+  await page.getByTestId("plan-weather").waitFor();
+  check(true, "Wetter: „Erneut versuchen“ lädt die Vorhersage");
 });
 
 // W7 Etappe 1: Store-Screenshots aus dem echten Ablauf – Bobs Sitzung in zwei weiteren Kontexten mit den Maßen,
@@ -1523,6 +1591,85 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await alice.page.getByText("Carol hat einen Plan abgesagt").waitFor();
   check(true, "Absage benachrichtigt die Crew");
   await shot(alice, "31-benachrichtigungen");
+});
+
+await step("P8 – Stammtisch: Plan wiederholt sich von selbst (Alice, Bob)", async () => {
+  if (!DB_URL) {
+    console.log("   (E2E_DB_URL nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const title = `Stammtisch ${RUN}`;
+  // In 5 Tagen um 20:00 Berliner Zeit; Alice organisiert.
+  const planId = psql(`insert into public.plans (crew_id, created_by, title, starts_at, address, status)
+    select '${ids.crew}', created_by, '${title}', ((now() at time zone 'Europe/Berlin')::date + 5 + time '20:00') at time zone 'Europe/Berlin', 'Eckkneipe, Hauptstr. 1', 'confirmed'
+    from public.plans where id = '${ids.plan}' returning id;
+    insert into public.plan_participants (plan_id, user_id)
+    select p.id, m.user_id from public.plans p join public.crew_members m on m.crew_id = p.crew_id where p.title = '${title}';`).split("\n")[0];
+  const dayLabel = (offset) => {
+    const d = new Date(Date.now() + offset * 86400_000);
+    return {
+      weekday: new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", weekday: "long" }).format(d),
+      long: new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", weekday: "long", day: "numeric", month: "long" }).format(d),
+    };
+  };
+  const first = dayLabel(5);
+  try {
+    // Alice stellt „Jeden <Wochentag>“ ein.
+    await alice.page.goto(`${APP}/plans/${planId}`);
+    const card = alice.page.getByRole("region", { name: "Regelmäßig" });
+    await card.waitFor();
+    check((await card.getByRole("button", { name: "Speichern" }).isDisabled()), "Wiederholen: ohne Änderung nichts zu speichern");
+    const options = await card.getByLabel("Wiederholen").locator("option").allInnerTexts();
+    check(options.includes(`Jeden ${first.weekday}`) && options.includes(`Jeden zweiten ${first.weekday}`) && options.includes("Nur dieses Mal"),
+      `Wiederholen bietet „Jeden ${first.weekday}“, „Jeden zweiten ${first.weekday}“ und „Nur dieses Mal“ (${options.join(" / ")})`);
+    await card.getByLabel("Wiederholen").selectOption("weekly");
+    await card.getByRole("button", { name: "Speichern" }).click();
+    await toast(alice, "Wiederholung gespeichert.");
+    await alice.page.getByTestId("repeat-line").filter({ hasText: `Jeden ${first.weekday}` }).waitFor();
+    check(true, "Planseite zeigt die Regel unter „Wann?“");
+    const next = dayLabel(12);
+    await card.getByText(`steht der nächste Termin am ${next.long} von selbst in der App`).waitFor();
+    check(true, `Karte nennt den nächsten Termin (${next.long})`);
+    await shot(alice, "33-plan-wiederholen");
+    check(psql(`select count(*) from public.plans where series_id is not null and title = '${title}'`) === "1", "solange der Abend ansteht, gibt es keinen zweiten Termin");
+
+    // Bob (Mitglied) sieht die Regel, stellt aber nichts ein.
+    await bob.page.goto(`${APP}/plans/${planId}`);
+    await bob.page.getByTestId("repeat-line").waitFor();
+    check((await bob.page.getByRole("region", { name: "Regelmäßig" }).count()) === 0, "Mitglieder ohne Verwaltungsrecht sehen keine Einstellung");
+    if (ANON) {
+      const probe = await api(bob, "POST", "rpc/set_plan_repeat", { p_plan_id: planId, p_rule: "none" });
+      check(probe.status === 403, `API: Bob kann die Wiederholung von Alices Plan nicht beenden (HTTP ${probe.status})`);
+    }
+
+    // Zeit vergehen lassen: Der Abend liegt zwei Stunden zurück. Öffnet Bob seine Pläne, steht der nächste da.
+    psql(`update public.plans set starts_at = now() - interval '2 hours' where id = '${planId}';
+          update public.plan_series s set last_on = ((now() - interval '2 hours') at time zone 'Europe/Berlin')::date
+          from public.plans p where p.id = '${planId}' and s.id = p.series_id;`);
+    await bob.page.goto(`${APP}/plans`);
+    let nextId = "";
+    for (let i = 0; i < 40 && !nextId; i++) {
+      nextId = psql(`select id from public.plans where title = '${title}' and id <> '${planId}' limit 1`);
+      if (!nextId) await new Promise((r) => setTimeout(r, 250));
+    }
+    check(Boolean(nextId), "nach dem Abend legt die App den nächsten Termin an");
+    check(psql(`select count(*) from public.plans where title = '${title}'`) === "2", "genau ein neuer Termin");
+    check(psql(`select status from public.plans where id = '${nextId}'`) === "proposed", "neuer Termin startet als Vorschlag");
+    check(psql(`select count(*) from public.plan_participants where plan_id = '${nextId}' and attendance_status <> 'invited'`) === "0", "niemand ist automatisch zugesagt");
+    await bob.page.getByText(title).first().waitFor();
+    check(true, "Plans-Übersicht zeigt den neuen Termin");
+    await bob.page.goto(`${APP}/notifications`);
+    await bob.page.getByText("Der nächste Termin steht – bist du dabei?").first().waitFor();
+    check(true, "Benachrichtigung zum neuen Termin");
+    await bob.page.goto(`${APP}/plans/${nextId}`);
+    await bob.page.getByTestId("repeat-line").waitFor();
+    await bob.page.getByText("Dieser Plan ist ein Vorschlag und noch nicht bestätigt.").waitFor();
+    await shot(bob, "33-plan-wiederkehrend");
+  } finally {
+    psql(`delete from public.plans where title = '${title}';
+          delete from public.plan_series s where s.crew_id = '${ids.crew}' and not exists (select 1 from public.plans p where p.series_id = s.id);`);
+  }
 });
 
 await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async () => {

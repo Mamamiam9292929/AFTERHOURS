@@ -98,5 +98,10 @@ verify_jwt = true
 enabled = true
 verify_jwt = true
 
+# P5: Wetter zum Plan über Open-Meteo (siehe supabase/functions/weather/index.ts).
+[functions.weather]
+enabled = true
+verify_jwt = true
+
 [analytics]
 enabled = false

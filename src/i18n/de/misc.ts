@@ -1,4 +1,5 @@
 import { formatEuro } from "@/lib/format";
+import { formatDateTime } from "@/lib/time";
 import type { NotificationType } from "@/lib/types";
 
 type Payload = Record<string, unknown>;
@@ -19,7 +20,11 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: p.winner_title ? `Ergebnis: ${str(p, "winner_title")}` : p.is_tie ? "Abstimmung endet mit Gleichstand" : "Abstimmung ohne Zusagen beendet",
     body: str(p, "title"),
   }),
-  plan_created: (actor, p) => ({ title: `${actor} hat einen Plan erstellt`, body: str(p, "title") }),
+  // P8: Den nächsten Termin eines wiederkehrenden Plans legt die App selbst an – ohne auslösende Person.
+  plan_created: (actor, p) =>
+    p.repeat
+      ? { title: "Der nächste Termin steht – bist du dabei?", body: str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title") }
+      : { title: `${actor} hat einen Plan erstellt`, body: str(p, "title") },
   plan_changed: (actor, p) => {
     const labels: Record<string, string> = { starts_at: "Zeit", address: "Ort", meeting_point: "Treffpunkt", cost: "Kosten" };
     const changed = Array.isArray(p.changed) ? (p.changed as string[]).map((key) => labels[key] ?? key).join(", ") : "";

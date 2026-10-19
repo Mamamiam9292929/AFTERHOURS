@@ -1,3 +1,5 @@
+const WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"];
+
 export const plans = {
   title: "Plans",
   lead: "Was ansteht, was noch entschieden wird und was ihr schon erlebt habt.",
@@ -62,6 +64,41 @@ export const plans = {
     submit: "Plan erstellen",
     created: "Plan erstellt. Die Crew ist benachrichtigt.",
   },
+  /** P5: Wettervorhersage für Beginn und Ort des Plans (Open-Meteo). */
+  weather: {
+    label: "Wetter",
+    loading: "Vorhersage wird geladen …",
+    kinds: {
+      clear: "Klar",
+      partly: "Teils bewölkt",
+      cloudy: "Bewölkt",
+      fog: "Nebel",
+      drizzle: "Nieselregen",
+      rain: "Regen",
+      freezing: "Gefrierender Regen",
+      snow: "Schnee",
+      showers: "Regenschauer",
+      thunder: "Gewitter",
+      unknown: "Wetterlage unbekannt",
+    },
+    at: (hour: number) => `um ${String(hour).padStart(2, "0")} Uhr`,
+    rain: (percent: number) => `${percent} % Regenrisiko`,
+    rainUnknown: "Regenrisiko unbekannt",
+    wind: (kmh: number) => `Wind ${kmh} km/h`,
+    tooFar: (date: string) => `Vorhersage ab ${date} – zwei Wochen vor dem Plan.`,
+    error: "Wetter gerade nicht abrufbar.",
+    retry: "Erneut versuchen",
+    /** Quelle: „Vorhersage von <Open-Meteo>, Stand 04:53 Uhr. Kann sich noch ändern.“ – der Name ist der Link. */
+    sourceLead: "Vorhersage von",
+    sourceLink: "Open-Meteo",
+    sourceTail: (time: string) => `, Stand ${time}. Kann sich noch ändern.`,
+    hints: {
+      rain: "Draußen und Regen möglich – vielleicht einen Plan B überlegen?",
+      thunder: "Draußen und Gewitter angesagt – lieber einen Plan B überlegen.",
+      snow: "Draußen und Schnee oder Glätte möglich – warm anziehen oder Plan B überlegen.",
+      cold: "Draußen und kalt – warm anziehen.",
+    },
+  },
   /** P2 Etappe 1: Plan als Kalenderdatei (.ics). */
   calendar: {
     add: "In den Kalender",
@@ -70,6 +107,26 @@ export const plans = {
     link: (url: string) => `Plan in AFTERHOURS: ${url}`,
     /** P2 Etappe 2: Hinweis auf das Abo. */
     subscribe: "Alle Pläne automatisch: Kalender-Abo",
+  },
+  /** P8: wiederkehrende Pläne („Stammtisch“). Wochentage als ISO-Nummer (1 = Montag). */
+  repeat: {
+    title: "Regelmäßig",
+    label: "Wiederholen",
+    none: "Nur dieses Mal",
+    rule: (rule: "weekly" | "biweekly" | "monthly_nth" | "monthly_last", weekday: number, nth: number | null) => {
+      const day = WEEKDAY_NAMES[weekday - 1] ?? "Tag";
+      if (rule === "weekly") return `Jeden ${day}`;
+      if (rule === "biweekly") return `Jeden zweiten ${day}`;
+      if (rule === "monthly_nth") return `Jeden ${nth ?? 1}. ${day} im Monat`;
+      return `Jeden letzten ${day} im Monat`;
+    },
+    save: "Speichern",
+    saved: "Wiederholung gespeichert.",
+    stopped: "Der Plan wiederholt sich nicht mehr.",
+    next: (date: string) => `Ist dieser Abend vorbei, steht der nächste Termin am ${date} von selbst in der App – mit Titel, Ort und Uhrzeit von diesem.`,
+    hasNext: "Der nächste Termin steht schon:",
+    intro: "Für Stammtische: Ist der Abend vorbei, legt die App den nächsten Termin an – alle werden gefragt, ob sie dabei sind.",
+    stoppedNote: "Diese Serie ist beendet – es kommen keine neuen Termine dazu.",
   },
   detail: {
     back: "Plans",

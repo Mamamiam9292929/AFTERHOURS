@@ -23,6 +23,7 @@ import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { addDays, formatAgo, formatDateTime, formatPlainDate, formatPlainTime, formatRelative, today, zonedToUtc } from "@/lib/time";
 import type { PollGuest, PollOption, VoteResponse } from "@/lib/types";
+import type { PollOptionWeather } from "@/lib/weather";
 import {
   storedGuestSecret,
   useClaimGuest,
@@ -35,9 +36,11 @@ import {
   useRemovePollGuest,
   useSetPollGuestJoin,
   useSetPollGuests,
+  usePollWeather,
   useStartRunoff,
   useVote,
 } from "./api";
+import { OptionWeather, PollWeatherFooter } from "./PollWeather";
 import { ParticipationBar } from "./PollCard";
 import { GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
 
@@ -57,9 +60,12 @@ interface OptionCardProps {
   onVote: (response: VoteResponse | null) => void;
   lookup: ReturnType<typeof usePeople>["lookup"];
   action?: React.ReactNode;
+  /** P5 Etappe 2: Wetter zu Ort und Termin – nur in laufenden Abstimmungen. */
+  weather?: PollOptionWeather;
+  weatherLoading?: boolean;
 }
 
-function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action }: OptionCardProps) {
+function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, weather, weatherLoading = false }: OptionCardProps) {
   const { option } = tally;
   const overBudget = poll.budget_cents != null && option.estimated_price_cents != null && option.estimated_price_cents > poll.budget_cents;
   const names = (ids: string[]) =>
@@ -98,6 +104,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action }:
           {meta.join(" · ")}
           {overBudget && !isDate && <span className="ml-2 font-semibold text-amber">{t.polls.detail.overBudget}</span>}
         </p>
+        <OptionWeather title={option.title} weather={weather} loading={weatherLoading} />
 
         {/* Stand als Balken: Anteil der Zusagen an der Crew, eigene Zusage mit Lime-Rahmen. */}
         <div className={cn("relative mt-3.5 flex min-h-14 items-center gap-3 overflow-hidden rounded-control border bg-raised/70 py-2 pl-3 pr-4", tally.mine === "yes" ? "border-lime" : "border-transparent")}>
@@ -513,6 +520,10 @@ export function PollDetailPage() {
   const poll = pollQuery.data;
   // W2 Etappe 2: Teilen-Link vorab holen – das Teilen-Menü muss direkt auf den Tipp hin aufgehen.
   const shareToken = usePollShareToken(poll?.id, poll?.status === "open");
+  // P5 Etappe 2: Wetter je Vorschlag, solange abgestimmt wird – nur wenn ein Vorschlag Ort und Termin hat.
+  const weatherFor = (option: PollOption) => Boolean(option.activity_id && option.proposed_date);
+  const weatherWanted = Boolean(poll && poll.status === "open" && new Date(poll.ends_at) > now && poll.options.some(weatherFor));
+  const weather = usePollWeather(poll, weatherWanted);
   useDocumentTitle(poll?.title);
 
   // Läuft die Frist ab, während die Seite offen ist: einmal neu laden – dabei wird das Ergebnis festgestellt.
@@ -549,6 +560,7 @@ export function PollDetailPage() {
   const plan = plans.data?.find((p) => p.poll_id === poll.id);
   const runoff = allPolls.data?.find((p) => p.parent_poll_id === poll.id);
   const openMembers = memberIds.filter((id) => !summary.voterIds.includes(id));
+  const weatherByOption = new Map<string, PollOptionWeather>(weather.data?.status === "open" ? weather.data.options.map((o) => [o.option_id, o] as const) : []);
   const votedCount = memberIds.length - openMembers.length;
   // W3: Gäste erscheinen in Balken und „Wer hat wie geantwortet?“ unter ihrem Namen mit „(Gast)“.
   const guests = poll.guests ?? [];
@@ -654,6 +666,8 @@ export function PollDetailPage() {
                 isWinner={winner?.id === tally.option.id}
                 onVote={(response) => castVote(tally.option.id, response)}
                 lookup={lookup}
+                weather={weatherWanted ? weatherByOption.get(tally.option.id) : undefined}
+                weatherLoading={weatherWanted && weather.isPending && weatherFor(tally.option)}
                 action={
                   closed && poll.is_tie && canManage && !plan && !runoff && tally.leading ? (
                     <Button variant="secondary" size="sm" onClick={() => setPlanOption(tally.option)}>
@@ -664,6 +678,13 @@ export function PollDetailPage() {
               />
             ))}
           </ul>
+          {weatherWanted && (weather.isError || (weather.data?.status === "open" && weather.data.options.some((o) => o.status === "ok"))) && (
+            <PollWeatherFooter
+              fetchedAt={weather.data?.status === "open" ? weather.data.fetched_at : undefined}
+              error={weather.isError ? weather.error : null}
+              onRetry={() => void weather.refetch()}
+            />
+          )}
           {!summary.isOver && <p className="mt-4 text-[13px] leading-snug text-faint">{t.polls.detail.rule}</p>}
         </div>
 
