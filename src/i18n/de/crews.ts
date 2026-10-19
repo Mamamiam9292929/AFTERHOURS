@@ -50,6 +50,23 @@ export const crews = {
     notFoundTitle: "Diese Crew gibt es nicht",
     notFoundBody: "Sie wurde gelöscht oder du bist kein Mitglied mehr.",
   },
+  /** P9 · Crew-Rückblick: was die Crew gemeinsam erlebt hat (nur abgeschlossene Pläne, keine Rangliste von Personen). */
+  recap: {
+    title: "Euer Rückblick",
+    evenings: (n: number) => (n === 1 ? "gemeinsamer Abend" : "gemeinsame Abende"),
+    since: (month: string) => `seit ${month}`,
+    streak: "Längste Serie",
+    streakValue: (n: number) => (n === 1 ? "1 Monat" : `${n} Monate am Stück`),
+    biggestRound: "Größte Runde",
+    biggestRoundValue: (n: number) => `${n} dabei`,
+    favoriteDay: "Lieblingstag",
+    weekdays: ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
+    monthsTitle: "Die letzten 12 Monate",
+    monthBar: (month: string, n: number) => `${month}: ${n === 1 ? "1 Abend" : `${n} Abende`}`,
+    places: "Eure Stammorte",
+    placeCount: (n: number) => `${n}×`,
+    hint: "Gezählt werden abgeschlossene Pläne der Crew.",
+  },
   /** P3 Etappe 3 · Offene Beträge aller Abende der Crew (nur Übersicht, ausgeglichen wird je Plan). */
   balances: {
     title: "Offene Beträge",

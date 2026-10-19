@@ -28,6 +28,7 @@ import {
 } from "./api";
 import { CrewBalances } from "./CrewBalances";
 import { CrewForm } from "./CrewForm";
+import { CrewRecap } from "./CrewRecap";
 import { InviteDialog } from "./InviteDialog";
 
 type Tab = "overview" | "chat" | "members" | "settings";
@@ -100,6 +101,7 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
         </Section>
       )}
       <CrewBalances crewId={crew.id} userId={user.id} plans={crewPlans} />
+      <CrewRecap plans={crewPlans} />
       {past.length > 0 && (
         <Section title={t.crews.detail.pastPlans}>
           <div className="grid gap-5 lg:grid-cols-2">
