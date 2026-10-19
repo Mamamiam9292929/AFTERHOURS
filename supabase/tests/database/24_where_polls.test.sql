@@ -84,8 +84,10 @@ select is(
   'Bowling ' || tests.var('d1') || ' 20:00, Kino ' || tests.var('d1') || ' 20:00',
   'jeder Vorschlag bekommt den Gewinner-Termin – ein mitgeschicktes Datum zählt nicht');
 select is((select estimated_price_cents from public.poll_options where poll_id = tests.var('where')::uuid and title = 'Kino'), 1200, 'Preis bleibt erhalten');
+select tests.login('alice'); -- Benachrichtigungen sieht nur die Empfängerin
 select ok(exists (select 1 from public.notifications where user_id = tests.uid('alice') and type = 'poll_created' and related_entity_id = tests.var('where')::uuid),
   'die Crew wird wie bei jeder Abstimmung benachrichtigt');
+select tests.login('bob');
 select throws_ok(format($$ select public.create_where_poll(%L, 'Und wo?', now() + interval '1 day', '[{"title":"Minigolf"}]') $$, tests.var('when')),
   'P0001', 'where_poll_exists', 'kein zweites „Und wo?“, solange eines läuft');
 select throws_ok($$ update public.polls set date_poll_id = null $$, '42501', null, 'die Verknüpfung ist nicht direkt änderbar');
