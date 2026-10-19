@@ -69,7 +69,6 @@ export function PlanWeather({ plan }: { plan: PlanWithParticipants }) {
   }
 
   const data = weather.data;
-  if (data.status === "past" || data.status === "no_location") return null;
 
   if (data.status === "too_far") {
     return (
@@ -78,6 +77,9 @@ export function PlanWeather({ plan }: { plan: PlanWithParticipants }) {
       </Fact>
     );
   }
+
+  // Ohne Ort mit Koordinaten oder nach dem Plan: nichts anzeigen.
+  if (data.status !== "ok") return null;
 
   const kind = weatherKind(data.weather_code);
   const Icon = ICONS[kind];

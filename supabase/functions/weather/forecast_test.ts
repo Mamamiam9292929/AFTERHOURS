@@ -13,7 +13,7 @@ const sample = (day = DAY) => ({
   hourly: {
     time: Array.from({ length: 24 }, (_, h) => `${day}T${String(h).padStart(2, "0")}:00`),
     temperature_2m: Array.from({ length: 24 }, (_, h) => 8 + h / 2),
-    precipitation_probability: Array.from({ length: 24 }, (_, h) => (h >= 18 ? 70 : 10)),
+    precipitation_probability: Array.from({ length: 24 }, (_, h): number | null => (h >= 18 ? 70 : 10)),
     weather_code: Array.from({ length: 24 }, (_, h) => (h >= 18 ? 61 : 2)),
     wind_speed_10m: Array.from({ length: 24 }, () => 12.5),
   },
@@ -50,7 +50,7 @@ Deno.test("Antwort: 24 Stunden mit allen Werten", () => {
 
 Deno.test("Antwort: fehlende Werte bleiben null statt erfunden", () => {
   const data = sample();
-  data.hourly.precipitation_probability[20] = null as unknown as number;
+  data.hourly.precipitation_probability[20] = null;
   const hours = parseForecast(data, DAY)!;
   eq(hours[20].precipitation_probability, null);
   eq(hours[20].temperature, 18);
