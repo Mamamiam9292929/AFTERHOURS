@@ -5,6 +5,21 @@ Arbeitsweise: Claude entscheidet selbst (seit 12.10.2026 von Benito vollständig
 Status: `Vorschlag` → `Freigegeben` → `In Arbeit` → `PR offen` → `Erledigt` (oder `Abgelehnt`).
 Aufwand: S = eine Nacht, M = zwei bis drei Nächte, L = mehrere Etappen.
 
+## AFTERHOURS 2.0 – schneller als der Gruppenchat (Benitos Entscheidung, 19.10.2026)
+
+Benito ist mit dem Design unzufrieden und sieht das Kernproblem darin, dass eine Abstimmung länger dauert als im Gruppenchat. Entscheidung: alle Ansätze S1–S7 umsetzen, neues Design als Mischung aus „Aurora Night“, „Y2K Bold“ und „Deck“ (Entwürfe: Design-Canvas „AFTERHOURS Neues Design“). **Bis Benito die Entwürfe freigibt, wird nichts am Aussehen der App geändert (D1–D5 ruhen).** Logik, Server und Tests für S1–S7 dürfen sofort gebaut werden; ihre Oberfläche bleibt schlicht und wird mit V2 umgestellt.
+
+| # | Aufgabe | Nutzen | Aufwand | Abhängigkeiten | Status |
+|---|---|---|---|---|---|
+| S1 | Ein Satz, eine Abstimmung: „bowling oder kino, fr oder sa, 20 uhr“ wird ohne KI im Browser zerlegt (Aktivitäten, Tage, Uhrzeit, Ort aus Discover), Vorschau als Chips, ein Tipp startet. Crew = zuletzt genutzte. Akzeptanz: Unit-Tests mit 30 echten Chat-Sätzen; von Home bis Abstimmung ≤ 2 Tipps; Journey | Abstimmung starten in unter 5 Sekunden | M | – | Freigegeben |
+| S2 | Abstimmen direkt aus dem Gruppenchat: Gäste-Stimmen standardmäßig an für Abstimmungen aus S1, Link wird beim Start sofort geteilt (Web Share), Stimmzettel ohne Namenspflicht beim zweiten Mal (Name auf dem Gerät). Baut auf W3 und W2 auf. Akzeptanz: Journey stimmt als Gast mit einem Tipp ab | Freunde müssen nichts installieren | S | W3, W2 | Freigegeben |
+| S3 | Teilen-Ziel: Text aus WhatsApp & Co. mit AFTERHOURS teilen (PWA `share_target`) → landet in S1. Akzeptanz: Journey öffnet `/share-target?text=…` | Aus dem Chat heraus planen | S | S1, W4 | Freigegeben |
+| S4 | „Heute noch wer?“: Spontan-Frage an die Crew, nur „Bock / heute nicht“, verfällt nach 2 h; ab 3 Zusagen Orte, die laut OSM-Öffnungszeiten jetzt offen haben (sonst „Öffnungszeiten unbekannt“). App-Kurzbefehl im Manifest. Akzeptanz: pgTAP (Ablauf, Außenstehende), Journey | Spontane Abende ohne Abstimmung | M | – | Freigegeben |
+| S5 | Abstimmung entscheidet sich selbst: bei klarer Mehrheit der Crew oder Fristablauf wird automatisch ein Plan angelegt (Gleichstand → Stichwahl wie bisher), alle bekommen Bescheid. Ein- und abschaltbar je Abstimmung, für S1 an. Akzeptanz: pgTAP für Mehrheit, Frist, Gleichstand, kein doppelter Plan | Niemand muss hinterherräumen | M | – | Freigegeben |
+| S6 | Wischen statt Liste: Vorschläge als Kartenstapel (rechts = dabei, links = eher nicht), Tastatur und Knöpfe als Alternative, „Match“, wenn genug dabei sind. Gleiche Stimmen-RPC. Akzeptanz: Journey wischt per Knopf, axe ohne Befund | Abstimmen macht Spaß und geht schnell | S | V2 | Freigegeben |
+| S7 | Wiederkehrende Runde „Freitag, was geht?“: Abstimmung startet jede Woche von selbst (wie P8, aber als Abstimmung). Akzeptanz: pgTAP, genau eine Runde je Woche | Stammtische ohne Organisator | S | P8, S5 | Freigegeben |
+| V2 | Neues Design 2.0 nach Freigabe der Entwürfe: dunkler Grund mit Aurora-Farbverläufen je Crew, Chrom-Plakatschrift (Unbounded) + Instrument Sans, Kartenstapel als Grundform, Morph-Übergänge (Knopf → Eingabe, Karte → Seite), Antwortfarben bleiben. In Etappen, Screen für Screen, mit Vorher/Nachher | Cool, modern, jugendlich – der Wow-Effekt, den Benito will | L | Freigabe durch Benito | Wartet auf Benito |
+
 ## Fundament
 
 | # | Aufgabe | Nutzen | Aufwand | Abhängigkeiten | Status |
