@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { IconHourglass } from "@/components/icons";
+import { IconHourglass, IconRepeat } from "@/components/icons";
 import { Badge } from "@/components/ui/Feedback";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -57,6 +57,7 @@ export function PollCard({ poll, crew, memberIds, userId, now }: PollCardProps) 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {needsMyVote && <Badge tone="lime">{t.polls.voteNow}</Badge>}
           {poll.parent_poll_id && <Badge tone="outline">{t.polls.runoffBadge}</Badge>}
+          {poll.series?.active && <Badge tone="outline" icon={<IconRepeat className="size-3.5" aria-hidden />}>{t.polls.detail.repeat.badge}</Badge>}
         </div>
       )}
     </Link>

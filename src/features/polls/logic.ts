@@ -7,6 +7,8 @@ export interface PollWithDetails extends Poll {
   /** W3: Gäste ohne Konto und ihre Antworten (fehlen in älteren Offline-Ständen). */
   guests?: PollGuest[];
   guest_votes?: PollGuestVote[];
+  /** S7: Serie „Jede Woche neu“, falls die Abstimmung dazugehört (fehlt in älteren Offline-Ständen). */
+  series?: { id: string; active: boolean } | null;
 }
 
 /** Gäste stehen in den Listen der Antworten als „guest:<id>“ neben den Konto-IDs. */
