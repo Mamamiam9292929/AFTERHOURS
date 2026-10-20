@@ -370,6 +370,30 @@ export function guestSecret(token: string): string {
   return secret;
 }
 
+/*
+ * S2 · Name auf dem Gerät: Wer einmal als Gast abgestimmt hat, muss den Namen beim nächsten Link nicht
+ * wieder eintippen – er liegt nur auf diesem Gerät (`localStorage`), nie auf dem Server ohne Stimme.
+ */
+const GUEST_NAME_KEY = "afterhours.guest.name";
+
+export function rememberedGuestName(): string | null {
+  try {
+    const name = localStorage.getItem(GUEST_NAME_KEY)?.trim().replace(/\s+/g, " ") ?? "";
+    return name.length >= 2 && name.length <= 40 ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberGuestName(name: string | null): void {
+  try {
+    if (name) localStorage.setItem(GUEST_NAME_KEY, name);
+    else localStorage.removeItem(GUEST_NAME_KEY);
+  } catch {
+    // Privates Fenster o. Ä.: dann eben beim nächsten Mal wieder eintippen.
+  }
+}
+
 export interface BallotOption {
   key: number;
   title: string;
