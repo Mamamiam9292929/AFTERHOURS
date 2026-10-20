@@ -313,15 +313,33 @@ await step("W6 – Öffentliche Startseite ohne Anmeldung", async () => {
   for (const user of [alice, bob, carol]) {
     const { page } = user;
     await page.goto(`${APP}/`);
-    await page.getByRole("heading", { level: 1, name: /Kein Chat-Chaos/ }).waitFor();
+    await page.getByRole("heading", { level: 1, name: /Ein Satz.*Ein Abend/ }).waitFor();
     check(new URL(page.url()).pathname === "/", `„/“ ohne Konto zeigt die Startseite statt der Anmeldung (${user.viewport})`);
-    check((await page.getByText("Beispiel", { exact: true }).count()) >= 2, `Beispiel-Ticket und -Abstimmung sind als „Beispiel“ markiert (${user.viewport})`);
+    check((await page.getByText("Beispiel", { exact: true }).count()) >= 3, `Satz-Probe, Kartenstapel und Plan-Karten sind als „Beispiel“ markiert (${user.viewport})`);
     await shot(user, "00-startseite");
     if (SHOTS && user !== carol) await page.screenshot({ path: path.join(SHOTS, `00-startseite-ganz-${user.viewport}.png`), fullPage: true });
   }
   const text = await bob.page.locator("main").innerText();
   check(!/\d[\d.]*\s*(Nutzer|Crews|Downloads|Bewertungen)|★|Sterne|kostenlos|gratis/i.test(text), "Startseite behauptet keine Nutzerzahlen, Bewertungen oder Preise");
   check(await bob.page.getByRole("link", { name: "Datenschutz" }).isVisible(), "Startseite verlinkt den Datenschutz");
+
+  // V2: Die Satz-Probe nutzt den echten Zerleger der App – im Browser, ohne Konto, ohne Anfrage.
+  const demo = bob.page.getByTestId("landing-demo");
+  const demoChips = demo.getByRole("list", { name: "Daraus wird" });
+  for (const chip of ["Bowling", "Kino", "20:00"]) await demoChips.getByText(chip, { exact: true }).waitFor();
+  const writes = [];
+  bob.page.on("request", (r) => r.url().includes("/rest/v1/") && writes.push(r.url()));
+  await demo.getByLabel("Was habt ihr vor?").fill("billard oder bar, sa 21 uhr");
+  for (const chip of ["Billard", "Bar", "21:00"]) await demoChips.getByText(chip, { exact: true }).waitFor();
+  await demo.getByText("2 Vorschläge").waitFor();
+  await demo.getByRole("button", { name: "Beispiel einsetzen: heute noch bar?" }).click();
+  await demoChips.getByText("Bar", { exact: true }).waitFor();
+  check(writes.length === 0, `Satz-Probe schickt nichts an den Server (${writes.length})`);
+  await demo.getByLabel("Was habt ihr vor?").fill("");
+  await demo.getByText("Schreib, was ihr machen wollt").waitFor();
+  check(true, "Satz-Probe: Vorschau folgt der Eingabe, leer zeigt den Hinweis");
+  // Plan-Karten tragen die Antwortfarben.
+  for (const answer of ["going", "maybe", "declined"]) check((await bob.page.locator(`.ticket[data-answer="${answer}"]`).count()) === 1, `Beispiel-Karte in Antwortfarbe „${answer}“`);
 
   // W6 Etappe 2: Messenger und Suchmaschinen lesen nur das HTML – ohne JavaScript.
   const raw = await (await fetch(`${APP}/`)).text();
