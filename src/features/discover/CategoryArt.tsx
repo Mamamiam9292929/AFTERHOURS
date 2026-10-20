@@ -155,9 +155,19 @@ const ART: Record<ActivityCategory, ReactNode> = {
   ),
 };
 
-export function CategoryArt({ category, className }: { category: ActivityCategory; className?: string }) {
+/**
+ * `onLight`: Die Grafik liegt auf einer Farbwelt (V2, `.cat-world`) – dann ohne eigene Fläche und mit
+ * hellen, halbtransparenten Linien statt Grau.
+ */
+export function CategoryArt({ category, className, onLight = false }: { category: ActivityCategory; className?: string; onLight?: boolean }) {
   return (
-    <svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" className={cn("size-full bg-raised [--art-line:#5d646b]", className)} aria-hidden focusable="false">
+    <svg
+      viewBox="0 0 320 200"
+      preserveAspectRatio="xMidYMid slice"
+      className={cn("size-full", onLight ? "[--art-line:rgb(255_255_255/0.55)]" : "bg-raised [--art-line:#5d646b]", className)}
+      aria-hidden
+      focusable="false"
+    >
       {ART[category]}
     </svg>
   );

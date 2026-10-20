@@ -127,6 +127,38 @@ export const home = {
     unavailable: "Live-Standorte sind in dieser Version noch nicht verfügbar. Es werden keine Positionen erfasst oder angezeigt.",
     settings: "Standortfreigabe verwalten",
   },
+  // S4 · „Heute noch wer?“: Spontan-Frage an die Crew, nur „Bock“ oder „heute nicht“, verfällt nach 2 Stunden.
+  spontaneous: {
+    launcher: "Heute noch wer?",
+    sheetTitle: "Heute noch wer?",
+    sheetBody: "Deine Crew bekommt Bescheid und antwortet mit einem Tipp. Nach 2 Stunden verschwindet die Frage von selbst.",
+    noteLabel: "Worauf hast du Lust? (optional)",
+    notePlaceholder: "Bier im Park, Kino, Pizza …",
+    crew: "Welche Crew?",
+    submit: "Crew fragen",
+    submitting: "Fragt …",
+    sent: "Gefragt – deine Crew bekommt Bescheid.",
+    allBusy: "In jeder deiner Crews läuft schon eine Frage.",
+    title: "Heute noch wer?",
+    asked: (name: string, crew: string) => `${name} fragt in ${crew}`,
+    askedByMe: (crew: string) => `Du fragst in ${crew}`,
+    left: (time: string) => `noch ${time}`,
+    leftLabel: (time: string) => `Die Frage verschwindet in ${time}.`,
+    in: "Bock",
+    out: "Heute nicht",
+    answerGroup: (crew: string) => `Antwort auf „Heute noch wer?“ in ${crew}`,
+    count: (n: number) => (n === 1 ? "1 hat Bock" : `${n} haben Bock`),
+    outCount: (n: number) => (n === 1 ? "1 heute nicht" : `${n} heute nicht`),
+    missing: (n: number) => (n === 1 ? "Noch 1, dann seid ihr eine Runde." : `Noch ${n}, dann seid ihr eine Runde.`),
+    matched: "Ihr seid eine Runde – macht was draus!",
+    matchedAction: "Plan erstellen",
+    pollAction: "Abstimmen, was",
+    close: "Frage beenden",
+    closed: "Frage beendet.",
+    savedIn: "Du hast Bock – die Crew sieht es.",
+    savedOut: "Alles klar, vielleicht nächstes Mal.",
+  },
+
 };
 
 export const onboarding = {

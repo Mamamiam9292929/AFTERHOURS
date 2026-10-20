@@ -1,6 +1,6 @@
 {
   "initialJsGzipKb": 225,
-  "initialCssGzipKb": 14.5,
+  "initialCssGzipKb": 15.5,
   "largestLazyChunkGzipKb": 30,
-  "totalJsGzipKb": 380
+  "totalJsGzipKb": 400
 }

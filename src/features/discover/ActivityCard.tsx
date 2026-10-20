@@ -7,20 +7,21 @@ import { usePollDraft } from "@/features/polls/draft";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatDistance } from "@/lib/format";
+import { categoryWorld } from "@/lib/stage";
 import type { Activity } from "@/lib/types";
 import { typicalPriceCents } from "./api";
 import { CategoryArt } from "./CategoryArt";
 import { openLabel, priceLabel } from "./display";
 
-/** Titelbild eines Ortes: echtes Foto, wenn vorhanden und ladbar – sonst die Kategorie-Grafik. */
+/** Titelbild eines Ortes: echtes Foto, wenn vorhanden und ladbar – sonst die Kategorie-Grafik auf der Farbwelt ihrer Kategorie. */
 export function ActivityCover({ activity, className }: { activity: Pick<Activity, "image_url" | "category" | "name">; className?: string }) {
   const [broken, setBroken] = useState(false);
   return (
-    <div className={cn("overflow-hidden bg-raised", className)}>
+    <div className={cn("cat-world overflow-hidden", className)} data-world={categoryWorld(activity.category)}>
       {activity.image_url && !broken ? (
-        <img src={activity.image_url} alt="" loading="lazy" decoding="async" className="size-full object-cover" onError={() => setBroken(true)} />
+        <img src={activity.image_url} alt="" loading="lazy" decoding="async" draggable={false} className="size-full object-cover" onError={() => setBroken(true)} />
       ) : (
-        <CategoryArt category={activity.category} />
+        <CategoryArt category={activity.category} onLight />
       )}
     </div>
   );
@@ -45,11 +46,11 @@ export function ActivityCard({ activity, distanceKm, compact = false }: { activi
   const open = openLabel(activity);
 
   return (
-    <article className={cn("group relative flex flex-col rounded-card border bg-surface transition-colors", selected ? "border-lime" : "border-line hover:border-line-strong")}>
-      <div className="relative">
-        <ActivityCover activity={activity} className={cn("rounded-t-[15px]", compact ? "aspect-[16/9]" : "aspect-[16/10]")} />
-        <span className="absolute bottom-2.5 left-2.5 rounded-full bg-nav/85 px-2.5 py-1 text-xs font-semibold text-fg">{t.enums.category[activity.category]}</span>
-        {activity.is_demo && <DemoBadge className="absolute right-2.5 top-2.5 bg-nav/85" />}
+    <article className={cn("deck-card group relative flex flex-col rounded-card border transition-[border-color,transform] duration-300", selected ? "border-lime" : "border-white/[0.08] hover:-translate-y-0.5 hover:border-white/20")}>
+      <div className="relative p-1.5 pb-0">
+        <ActivityCover activity={activity} className={cn("rounded-[19px]", compact ? "aspect-[16/9]" : "aspect-[16/10]")} />
+        <span className="glass absolute bottom-2.5 left-4 rounded-full border border-white/10 px-2.5 py-1 text-xs font-semibold text-fg">{t.enums.category[activity.category]}</span>
+        {activity.is_demo && <DemoBadge className="absolute right-4 top-4 bg-nav/85" />}
         {/* Sitzt auf der Kante zwischen Bild und Text – so bleibt die Preiszeile frei. */}
         <button
           type="button"
@@ -59,7 +60,7 @@ export function ActivityCard({ activity, distanceKm, compact = false }: { activi
           title={selected ? t.discover.card.addedToPoll : t.discover.card.addToPoll}
           className={cn(
             "absolute -bottom-[22px] right-3 z-10 inline-flex size-11 items-center justify-center rounded-full border-2 transition-colors",
-            selected ? "border-lime bg-lime text-lime-ink" : "border-surface bg-raised text-fg ring-1 ring-line-strong hover:bg-lime hover:text-lime-ink hover:ring-lime",
+            selected ? "border-base bg-lime text-lime-ink shadow-[0_10px_24px_-10px_var(--color-lime)]" : "border-base bg-raised text-fg ring-1 ring-line-strong hover:bg-lime hover:text-lime-ink hover:ring-lime",
           )}
         >
           {selected ? <IconCheck className="size-5" strokeWidth={3} aria-hidden /> : <IconPlus className="size-5" aria-hidden />}
@@ -67,7 +68,7 @@ export function ActivityCard({ activity, distanceKm, compact = false }: { activi
       </div>
       <div className="flex flex-1 flex-col gap-2.5 p-4">
         <div className="min-w-0">
-          <h3 className="pr-12 text-[17px] font-bold leading-tight text-fg">
+          <h3 className="pr-12 font-display text-[16px] font-bold leading-tight tracking-[-0.01em] text-fg">
             <Link to={`/activities/${activity.id}`} className="after:absolute after:inset-0 after:rounded-card after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-lime">
               {activity.name}
             </Link>
