@@ -146,6 +146,15 @@ export const polls = {
     overBudget: "über Budget",
     rule: "Es zählen die Zusagen („Bin dabei“). Du kannst deine Antwort bis zum Ende ändern.",
     /** S5: Abstimmung entscheidet sich selbst. */
+    /** S7: Runde jede Woche von selbst. */
+    repeat: {
+      toggle: "Jede Woche neu",
+      toggleBody: "Ist diese Runde vorbei, startet die nächste von selbst – eine Woche später, mit denselben Vorschlägen (Termine eine Woche später). Sie läuft so lange wie diese.",
+      next: (opens: string, ends: string) => `Nächste Runde ab ${opens}, entscheidet sich bis ${ends}.`,
+      on: "Läuft ab jetzt jede Woche.",
+      off: "Keine neuen Runden mehr – diese bleibt, wie sie ist.",
+      badge: "Jede Woche",
+    },
     auto: {
       title: "Entscheiden",
       toggle: "Entscheidet sich selbst",
