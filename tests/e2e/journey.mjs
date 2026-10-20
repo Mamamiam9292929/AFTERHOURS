@@ -1113,7 +1113,8 @@ await step("W7 – Store-Screenshots für App Store und Google Play (Bob)", asyn
         await page.evaluate(() => document.fonts.ready);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         check(overflow <= 1, `Store-Screenshot ${device.store}/${screen.key}: kein horizontaler Überlauf (${overflow}px)`);
-        const png = await page.screenshot();
+        // 1290 × 2796 mit Aurora und Unschärfe braucht auf dem CI-Runner manchmal länger als 15 s.
+        const png = await page.screenshot({ timeout: 60_000 });
         const [width, height, colorType] = [png.readUInt32BE(16), png.readUInt32BE(20), png[25]];
         check(width === device.size[0] && height === device.size[1] && colorType === 2, `Store-Screenshot ${device.store}/${screen.key}: ${width} × ${height}, ${colorType === 2 ? "ohne" : "mit"} Transparenz`);
         if (SHOTS) fs.writeFileSync(path.join(SHOTS, `store-${device.store}-${screen.key}.png`), png);

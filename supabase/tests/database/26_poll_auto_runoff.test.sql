@@ -37,18 +37,6 @@ begin
 end $$;
 grant execute on function tests.poll3(text, boolean, jsonb) to authenticated;
 
--- Gleichstand A/B (Alice bei A, Bob bei B), C ohne Zusage; danach Frist vorbei.
-create function tests.tie(p_name text) returns void
-language plpgsql as $$
-begin
-  perform tests.login('alice');
-  perform public.cast_vote(tests.var(p_name || '_a')::uuid, 'yes');
-  perform tests.login('bob');
-  perform public.cast_vote(tests.var(p_name || '_b')::uuid, 'yes');
-  perform tests.logout();
-  update public.polls set ends_at = now() - interval '1 second' where id = tests.var(p_name)::uuid;
-end $$;
-
 -- ---- Rechte -----------------------------------------------------------------------------------
 select ok(not has_function_privilege('anon', 'app_private.on_poll_closed_auto_runoff()', 'execute'), 'anon kann die Trigger-Funktion nicht aufrufen');
 select ok(not has_function_privilege('authenticated', 'app_private.on_poll_closed_auto_runoff()', 'execute'), 'Angemeldete auch nicht');
@@ -58,8 +46,13 @@ select ok((select 'search_path=""' = any(proconfig) from pg_proc where oid = 'ap
 select tests.login('alice');
 select tests.poll3('tie', true);
 select public.set_poll_guests(tests.var('tie')::uuid, true);
+-- Gleichstand: Alice bei A, Bob bei B, C ohne Zusage; danach ist die Frist vorbei.
+select tests.login('alice');
+select public.cast_vote(tests.var('tie_a')::uuid, 'yes');
+select tests.login('bob');
+select public.cast_vote(tests.var('tie_b')::uuid, 'yes');
 select tests.logout();
-select tests.tie('tie');
+update public.polls set ends_at = now() - interval '1 second' where id = tests.var('tie')::uuid;
 select tests.login('carol');
 select is(public.finalize_due_poll(tests.var('tie')::uuid), true, 'ein Mitglied stellt das Ergebnis fest');
 select tests.logout();
@@ -103,8 +96,13 @@ select is((select title from public.plans where poll_id = tests.var('runoff')::u
 -- ---- Stichwahl endet wieder unentschieden → keine Kette ----------------------------------------
 select tests.login('alice');
 select tests.poll3('again', true);
+-- Gleichstand: Alice bei A, Bob bei B, C ohne Zusage; danach ist die Frist vorbei.
+select tests.login('alice');
+select public.cast_vote(tests.var('again_a')::uuid, 'yes');
+select tests.login('bob');
+select public.cast_vote(tests.var('again_b')::uuid, 'yes');
 select tests.logout();
-select tests.tie('again');
+update public.polls set ends_at = now() - interval '1 second' where id = tests.var('again')::uuid;
 select tests.login('bob');
 select public.finalize_due_poll(tests.var('again')::uuid);
 select tests.logout();
@@ -125,8 +123,13 @@ select tests.logout();
 -- ---- Kein Automatismus: ohne Schalter, von Hand beendet --------------------------------------
 select tests.login('alice');
 select tests.poll3('off', false);
+-- Gleichstand: Alice bei A, Bob bei B, C ohne Zusage; danach ist die Frist vorbei.
+select tests.login('alice');
+select public.cast_vote(tests.var('off_a')::uuid, 'yes');
+select tests.login('bob');
+select public.cast_vote(tests.var('off_b')::uuid, 'yes');
 select tests.logout();
-select tests.tie('off');
+update public.polls set ends_at = now() - interval '1 second' where id = tests.var('off')::uuid;
 select tests.login('bob');
 select public.finalize_due_poll(tests.var('off')::uuid);
 select tests.logout();
@@ -150,8 +153,13 @@ select tests.poll3('near', true, jsonb_build_array(
   jsonb_build_object('title', 'Bar', 'proposed_date', left(tests.var('soon3'), 10), 'proposed_time', right(tests.var('soon3'), 5)),
   jsonb_build_object('title', 'Kino', 'proposed_date', tests.var('d2')),
   jsonb_build_object('title', 'Minigolf', 'proposed_date', tests.var('d2'))));
+-- Gleichstand: Alice bei A, Bob bei B, C ohne Zusage; danach ist die Frist vorbei.
+select tests.login('alice');
+select public.cast_vote(tests.var('near_a')::uuid, 'yes');
+select tests.login('bob');
+select public.cast_vote(tests.var('near_b')::uuid, 'yes');
 select tests.logout();
-select tests.tie('near');
+update public.polls set ends_at = now() - interval '1 second' where id = tests.var('near')::uuid;
 select tests.login('carol');
 select public.finalize_due_poll(tests.var('near')::uuid);
 select tests.logout();
@@ -165,8 +173,13 @@ select tests.poll3('late', true, jsonb_build_array(
   jsonb_build_object('title', 'Bar', 'proposed_date', left(tests.var('soon'), 10), 'proposed_time', right(tests.var('soon'), 5)),
   jsonb_build_object('title', 'Kino', 'proposed_date', tests.var('d2')),
   jsonb_build_object('title', 'Minigolf', 'proposed_date', tests.var('d2'))));
+-- Gleichstand: Alice bei A, Bob bei B, C ohne Zusage; danach ist die Frist vorbei.
+select tests.login('alice');
+select public.cast_vote(tests.var('late_a')::uuid, 'yes');
+select tests.login('bob');
+select public.cast_vote(tests.var('late_b')::uuid, 'yes');
 select tests.logout();
-select tests.tie('late');
+update public.polls set ends_at = now() - interval '1 second' where id = tests.var('late')::uuid;
 select tests.login('carol');
 select public.finalize_due_poll(tests.var('late')::uuid);
 select tests.logout();
