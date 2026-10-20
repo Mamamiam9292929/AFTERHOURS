@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { IconVote } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -13,7 +13,7 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { errorMessage } from "@/lib/errors";
 import { formatDateTime, formatPlainDate, formatPlainTime, ticketDate } from "@/lib/time";
 import type { VoteResponse } from "@/lib/types";
-import { type BallotOption, guestSecret, type SharedPollPreview, useGuestJoin, useGuestVote, useSharedPollBallot, useSharedPollPreview } from "./api";
+import { type BallotOption, guestSecret, rememberedGuestName, rememberGuestName, type SharedPollPreview, useGuestJoin, useGuestVote, useSharedPollBallot, useSharedPollPreview } from "./api";
 
 type Valid = Extract<SharedPollPreview, { status: "valid" }>;
 
@@ -183,10 +183,16 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
   const ballot = useSharedPollBallot(token, secret);
   const vote = useGuestVote(token, secret);
   const [answers, setAnswers] = useState<Record<string, VoteResponse | null>>({});
-  const [name, setName] = useState("");
+  // S2: Name vom letzten Link auf diesem Gerät – dann genügt ein Tipp je Vorschlag.
+  const [deviceName, setDeviceName] = useState(() => rememberedGuestName());
+  const [name, setName] = useState(() => deviceName ?? "");
+  const [editingName, setEditingName] = useState(false);
+  const [forgotten, setForgotten] = useState(false);
   const [errors, setErrors] = useState<{ name?: string | null; answers?: string | null }>({});
   const [saved, setSaved] = useState(false);
   const loaded = ballot.data?.status === "valid" ? ballot.data : null;
+  // Antworten im Ein-Tipp-Modus nacheinander senden, damit schnelles Tippen nichts überholt.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
 
   // Gespeicherten Stand übernehmen, sobald er da ist (nur einmal – Eingaben gehen nicht verloren).
   const me = loaded?.me ?? null;
@@ -199,6 +205,10 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
       setName(me.name);
     }
   }, [initialized, loaded, me]);
+
+  // Wer hier schon abgestimmt hat (oder den Namen vom letzten Link mitbringt), stimmt mit einem Tipp ab.
+  const knownName = me?.name ?? deviceName;
+  const oneTap = Boolean(knownName) && !editingName;
 
   if (ballot.isPending) return <PageSpinner />;
   if (ballot.isError) {
@@ -232,7 +242,39 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
     setSaved(false);
     if (next.name || next.answers) return;
     const votes = Object.fromEntries(loaded.options.map((o) => [String(o.key), answers[String(o.key)] ?? null]));
-    vote.mutate({ name: name.trim(), votes }, { onSuccess: () => setSaved(true) });
+    const cleanName = name.trim().replace(/\s+/g, " ");
+    vote.mutate(
+      { name: cleanName, votes },
+      {
+        onSuccess: () => {
+          setSaved(true);
+          setEditingName(false);
+          rememberGuestName(cleanName);
+          setDeviceName(cleanName);
+          setForgotten(false);
+        },
+      },
+    );
+  }
+
+  /** Ein-Tipp-Modus: jede Antwort geht sofort raus – nur diese eine, die übrigen bleiben, wie sie sind. */
+  function tap(key: string, next: VoteResponse | null) {
+    if (!knownName) return;
+    const previous = answers[key] ?? null;
+    setAnswers((prev) => ({ ...prev, [key]: next }));
+    setErrors((prev) => ({ ...prev, answers: null }));
+    setSaved(false);
+    // Neuer Gast ohne eine einzige Antwort: nichts zu speichern (der Server verlangt mindestens eine).
+    if (!me && next === null) return;
+    queue.current = queue.current.then(() =>
+      vote
+        .mutateAsync({ name: knownName, votes: { [key]: next } })
+        .then(() => {
+          setSaved(true);
+          rememberGuestName(knownName);
+        })
+        .catch(() => setAnswers((prev) => ({ ...prev, [key]: previous }))),
+    );
   }
 
   return (
@@ -264,6 +306,10 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
                           role="radio"
                           aria-checked={selected}
                           onClick={() => {
+                            if (oneTap) {
+                              tap(key, selected ? null : response);
+                              return;
+                            }
                             setAnswers((prev) => ({ ...prev, [key]: selected ? null : response }));
                             setSaved(false);
                             setErrors((prev) => ({ ...prev, answers: null }));
@@ -297,8 +343,39 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
           )}
         </fieldset>
 
-        {open && (
+        {open && oneTap && knownName && (
+          <div className="space-y-3" data-testid="guest-one-tap">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-card border border-line bg-surface px-4 py-3">
+              <p className="text-[15px] text-muted">
+                {t.polls.shared.ballot.votingAs} <span className="font-bold text-fg">{knownName}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setName(knownName);
+                  setEditingName(true);
+                  setSaved(false);
+                }}
+                className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline"
+              >
+                {t.polls.shared.ballot.notMe(knownName)}
+              </button>
+            </div>
+            <p className="text-[13px] leading-snug text-faint">{t.polls.shared.ballot.tapHint}</p>
+            {vote.isError && <FormMessage>{errorMessage(vote.error)}</FormMessage>}
+            <div aria-live="polite">
+              {vote.isPending ? (
+                <p className="text-sm text-muted">{t.polls.shared.ballot.saving}</p>
+              ) : (
+                saved && <FormMessage tone="success">{t.polls.shared.ballot.saved}</FormMessage>
+              )}
+            </div>
+            <p className="text-[13px] leading-snug text-faint">{t.polls.shared.ballot.privacy}</p>
+          </div>
+        )}
+        {open && !oneTap && (
           <>
+            {forgotten && <FormMessage tone="success">{t.polls.shared.ballot.nameForgotten}</FormMessage>}
             <TextField
               label={t.polls.shared.ballot.name}
               name="guest_name"
@@ -319,6 +396,20 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
             <Button type="submit" size="lg" block loading={vote.isPending}>
               {me ? t.polls.shared.ballot.update : t.polls.shared.ballot.submit}
             </Button>
+            {deviceName && (
+              <button
+                type="button"
+                onClick={() => {
+                  rememberGuestName(null);
+                  setDeviceName(null);
+                  setForgotten(true);
+                  if (!me) setName("");
+                }}
+                className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline"
+              >
+                {t.polls.shared.ballot.forgetName}
+              </button>
+            )}
             <p className="text-[13px] leading-snug text-faint">{t.polls.shared.ballot.privacy}</p>
           </>
         )}
