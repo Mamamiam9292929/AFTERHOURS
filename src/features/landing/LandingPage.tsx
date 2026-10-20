@@ -115,7 +115,7 @@ function Hero() {
     <section aria-labelledby="landing-title" className="mx-auto grid w-full max-w-6xl items-center gap-12 px-5 pb-16 pt-10 sm:px-8 sm:pt-16 lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] lg:gap-14 lg:pb-24 lg:pt-20">
       <div className="min-w-0">
         <p className="inline-flex rounded-full border border-lime/40 bg-lime/10 px-3.5 py-1.5 text-[13px] font-bold text-lime">{copy.hero.eyebrow}</p>
-        <h1 id="landing-title" className="display chrome mt-5 text-[38px] uppercase sm:text-[60px] lg:text-[64px]">
+        <h1 id="landing-title" className="display chrome mt-5 text-[30px] uppercase [hyphens:manual] min-[400px]:text-[34px] sm:text-[50px] lg:text-[54px]">
           {copy.hero.title.map((line) => (
             <span key={line} className="block">
               {line}{" "}
