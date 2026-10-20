@@ -28,9 +28,9 @@ begin
       jsonb_build_object('title', 'Bowling', 'proposed_date', tests.var('d1'), 'proposed_time', '20:00'),
       jsonb_build_object('title', 'Kino', 'proposed_date', tests.var('d2')),
       jsonb_build_object('title', 'Minigolf', 'proposed_date', tests.var('d2')))))::text);
-  perform tests.set_var(p_name || '_a', (select id::text from public.poll_options where poll_id = tests.var(p_name)::uuid and position = 0));
-  perform tests.set_var(p_name || '_b', (select id::text from public.poll_options where poll_id = tests.var(p_name)::uuid and position = 1));
-  perform tests.set_var(p_name || '_c', (select id::text from public.poll_options where poll_id = tests.var(p_name)::uuid and position = 2));
+  perform tests.set_var(p_name || '_a', (select id::text from public.poll_options where poll_id = tests.var(p_name)::uuid order by position limit 1 offset 0));
+  perform tests.set_var(p_name || '_b', (select id::text from public.poll_options where poll_id = tests.var(p_name)::uuid order by position limit 1 offset 1));
+  perform tests.set_var(p_name || '_c', (select id::text from public.poll_options where poll_id = tests.var(p_name)::uuid order by position limit 1 offset 2));
   if p_auto then
     perform public.set_poll_auto_decide(tests.var(p_name)::uuid, true);
   end if;
