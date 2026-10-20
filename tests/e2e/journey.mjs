@@ -2794,6 +2794,97 @@ await step("S5 – Abstimmung entscheidet sich selbst: klare Mehrheit → Plan s
   execFileSync("psql", [DB_URL, "-qc", `delete from public.plans where id = '${plans[0].id}'`]);
 });
 
+await step("S4 – „Heute noch wer?“: Spontan-Frage an die Crew (Bob, Alice, Carol)", async () => {
+  const page = bob.page;
+  await page.goto(`${APP}/home`);
+  const launcher = page.getByRole("button", { name: "Heute noch wer?" });
+  await launcher.click();
+  const sheet = page.getByRole("dialog", { name: "Heute noch wer?" });
+  await sheet.getByLabel("Worauf hast du Lust? (optional)").fill("  Bier im   Park  ");
+  if ((await sheet.getByText("Welche Crew?").count()) > 0) await sheet.getByRole("button", { name: /Weekend Crew/ }).click();
+  await shot(bob, "46-heute-noch-wer-frage");
+  await sheet.getByRole("button", { name: "Crew fragen" }).click();
+  await toast(bob, "Gefragt – deine Crew bekommt Bescheid.");
+  const card = page.getByTestId("spontaneous-card");
+  await card.getByText("Bier im Park", { exact: true }).waitFor();
+  check(await card.getByText(/^Du fragst in /).isVisible(), "Bob sieht seine Frage als Karte");
+  await card.getByText("1 hat Bock").waitFor();
+  check((await card.getAttribute("data-answer")) === "in", "wer fragt, hat Bock – die Karte ist Lime");
+  check(/noch (1:5\d|2:00) h/.test(await card.innerText()), "Restzeit knapp 2 Stunden");
+  check((await page.getByRole("button", { name: "Heute noch wer?" }).count()) === 0, "in einer Crew mit laufender Frage kein zweiter Knopf");
+  await noOverflow(bob, "Heute noch wer? (390 px)");
+  await shot(bob, "47-heute-noch-wer-karte");
+
+  const asks = (await api(bob, "GET", "spontaneous_asks?select=id,crew_id,note,expires_at,closed_at&closed_at=is.null")).json ?? [];
+  check(asks.length === 1 && asks[0].note === "Bier im Park", "eine Frage, Notiz bereinigt");
+  const askId = asks[0]?.id;
+  const notified = (await api(alice, "GET", "notifications?type=eq.spontaneous_ask&select=payload")).json ?? [];
+  check(notified.length === 1 && notified[0].payload?.ask_id === askId, "Alice bekommt Bescheid");
+  const anonRead = await api(null, "GET", "spontaneous_asks?select=id");
+  check(anonRead.status >= 400 || anonRead.json?.length === 0, `ohne Konto sieht niemand die Frage (${anonRead.status})`);
+  const anonAnswer = await api(null, "POST", "rpc/answer_spontaneous", { p_ask_id: askId, p_answer: "in" });
+  check(anonAnswer.status >= 400, `ohne Konto keine Antwort (${anonAnswer.status})`);
+
+  // Alice (Desktop) antwortet auf Home mit einem Tipp – erst „heute nicht“, dann doch „Bock“.
+  await alice.page.goto(`${APP}/home`);
+  const aliceCard = alice.page.getByTestId("spontaneous-card");
+  await aliceCard.getByText(/^Bob fragt in /).waitFor();
+  await aliceCard.getByRole("button", { name: "Heute nicht" }).click();
+  await toast(alice, "Alles klar, vielleicht nächstes Mal.");
+  await aliceCard.getByText("1 heute nicht", { exact: false }).waitFor();
+  check((await aliceCard.getAttribute("data-answer")) === "out", "„heute nicht“ färbt die Karte rot");
+  await aliceCard.getByRole("button", { name: "Bock" }).click();
+  await aliceCard.getByText("2 haben Bock").waitFor();
+  check(await aliceCard.getByRole("button", { name: "Bock" }).getAttribute("aria-pressed") === "true", "Antwort lässt sich ändern");
+  check(await aliceCard.getByText("Noch 1, dann seid ihr eine Runde.").isVisible(), "zeigt, wie viele noch fehlen");
+  check((await aliceCard.getByRole("button", { name: "Frage beenden" }).count()) === 1, "Alice (Owner) darf die Frage beenden");
+  await shot(alice, "48-heute-noch-wer-antwort");
+
+  // Carol (Tablet) macht die Runde voll.
+  await carol.page.goto(`${APP}/home`);
+  const carolCard = carol.page.getByTestId("spontaneous-card");
+  await carolCard.getByRole("button", { name: "Bock" }).click();
+  await carolCard.getByText("Ihr seid eine Runde – macht was draus!").waitFor();
+  check((await carolCard.getByRole("button", { name: "Frage beenden" }).count()) === 0, "einfache Mitglieder beenden fremde Fragen nicht");
+  check((await carolCard.getByRole("link", { name: "Plan erstellen" }).getAttribute("href"))?.includes("/plans/new?crew="), "„Plan erstellen“ mit der Crew");
+  await shot(carol, "49-heute-noch-wer-runde");
+  const match = (await api(bob, "GET", "notifications?type=eq.spontaneous_match&select=payload")).json ?? [];
+  check(match.length === 1 && match[0].payload?.in_count === 3, "Bob erfährt: ihr seid drei");
+  await page.goto(`${APP}/home`);
+  await card.getByText("Ihr seid eine Runde – macht was draus!").waitFor();
+  await card.getByText("3 haben Bock").waitFor();
+  await shot(bob, "50-heute-noch-wer-runde-mobile");
+
+  // Bob beendet die Frage – die Karte verschwindet, der Knopf ist wieder da.
+  await card.getByRole("button", { name: "Frage beenden" }).click();
+  await toast(bob, "Frage beendet.");
+  await page.getByRole("button", { name: "Heute noch wer?" }).waitFor();
+  check((await page.getByTestId("spontaneous-card").count()) === 0, "beendete Frage verschwindet von Home");
+  const after = await api(carol, "POST", "rpc/answer_spontaneous", { p_ask_id: askId, p_answer: "out" });
+  check(after.status >= 400 && after.json?.message === "spontaneous_over", "nach dem Beenden keine Antwort mehr");
+
+  // Nach 2 Stunden verschwindet eine Frage von selbst.
+  if (DB_URL) {
+    const asked = await api(carol, "POST", "rpc/ask_spontaneous", { p_crew_id: asks[0]?.crew_id, p_note: "Pizza?" });
+    check(asked.status < 300, "Carol fragt neu");
+    await alice.page.reload();
+    await alice.page.getByTestId("spontaneous-card").getByText("Pizza?").waitFor();
+    execFileSync("psql", [DB_URL, "-qc", `update public.spontaneous_asks set created_at = now() - interval '3 hours', expires_at = now() - interval '1 hour' where id = '${asked.json}'`]);
+    await alice.page.reload();
+    await alice.page.getByRole("button", { name: "Heute noch wer?" }).waitFor();
+    check((await alice.page.getByTestId("spontaneous-card").count()) === 0, "abgelaufene Frage verschwindet von Home");
+  }
+  // Fehlerzustand: Lassen sich die Fragen nicht laden, sagt Home das – mit „Erneut versuchen“.
+  await page.route("**/rest/v1/spontaneous_asks**", (route) => route.abort("failed"));
+  await page.goto(`${APP}/home`);
+  await page.getByText("Die Daten konnten nicht geladen werden.").waitFor({ timeout: 30_000 });
+  check((await page.getByRole("button", { name: "Heute noch wer?" }).count()) === 0, "ohne geladene Fragen kein Knopf (sonst doppelte Frage)");
+  await page.unroute("**/rest/v1/spontaneous_asks**");
+  await page.getByRole("button", { name: "Erneut versuchen" }).click();
+  await page.getByRole("button", { name: "Heute noch wer?" }).waitFor();
+  check(true, "„Erneut versuchen“ lädt die Fragen");
+});
+
 await step("S7 – Runde jede Woche von selbst: „Freitag, was geht?“ (Bob, Carol)", async () => {
   const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
   const day = new Date(Date.now() + 3 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
