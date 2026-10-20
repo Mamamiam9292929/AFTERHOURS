@@ -313,15 +313,33 @@ await step("W6 – Öffentliche Startseite ohne Anmeldung", async () => {
   for (const user of [alice, bob, carol]) {
     const { page } = user;
     await page.goto(`${APP}/`);
-    await page.getByRole("heading", { level: 1, name: /Kein Chat-Chaos/ }).waitFor();
+    await page.getByRole("heading", { level: 1, name: /Ein Satz.*Ein Abend/ }).waitFor();
     check(new URL(page.url()).pathname === "/", `„/“ ohne Konto zeigt die Startseite statt der Anmeldung (${user.viewport})`);
-    check((await page.getByText("Beispiel", { exact: true }).count()) >= 2, `Beispiel-Ticket und -Abstimmung sind als „Beispiel“ markiert (${user.viewport})`);
+    check((await page.getByText("Beispiel", { exact: true }).count()) >= 3, `Satz-Probe, Kartenstapel und Plan-Karten sind als „Beispiel“ markiert (${user.viewport})`);
     await shot(user, "00-startseite");
     if (SHOTS && user !== carol) await page.screenshot({ path: path.join(SHOTS, `00-startseite-ganz-${user.viewport}.png`), fullPage: true });
   }
   const text = await bob.page.locator("main").innerText();
   check(!/\d[\d.]*\s*(Nutzer|Crews|Downloads|Bewertungen)|★|Sterne|kostenlos|gratis/i.test(text), "Startseite behauptet keine Nutzerzahlen, Bewertungen oder Preise");
   check(await bob.page.getByRole("link", { name: "Datenschutz" }).isVisible(), "Startseite verlinkt den Datenschutz");
+
+  // V2: Die Satz-Probe nutzt den echten Zerleger der App – im Browser, ohne Konto, ohne Anfrage.
+  const demo = bob.page.getByTestId("landing-demo");
+  const demoChips = demo.getByRole("list", { name: "Daraus wird" });
+  for (const chip of ["Bowling", "Kino", "20:00"]) await demoChips.getByText(chip, { exact: true }).waitFor();
+  const writes = [];
+  bob.page.on("request", (r) => r.url().includes("/rest/v1/") && writes.push(r.url()));
+  await demo.getByLabel("Was habt ihr vor?").fill("billard oder bar, sa 21 uhr");
+  for (const chip of ["Billard", "Bar", "21:00"]) await demoChips.getByText(chip, { exact: true }).waitFor();
+  await demo.getByText("2 Vorschläge").waitFor();
+  await demo.getByRole("button", { name: "Beispiel einsetzen: heute noch bar?" }).click();
+  await demoChips.getByText("Bar", { exact: true }).waitFor();
+  check(writes.length === 0, `Satz-Probe schickt nichts an den Server (${writes.length})`);
+  await demo.getByLabel("Was habt ihr vor?").fill("");
+  await demo.getByText("Schreib, was ihr machen wollt").waitFor();
+  check(true, "Satz-Probe: Vorschau folgt der Eingabe, leer zeigt den Hinweis");
+  // Plan-Karten tragen die Antwortfarben.
+  for (const answer of ["going", "maybe", "declined"]) check((await bob.page.locator(`.ticket[data-answer="${answer}"]`).count()) === 1, `Beispiel-Karte in Antwortfarbe „${answer}“`);
 
   // W6 Etappe 2: Messenger und Suchmaschinen lesen nur das HTML – ohne JavaScript.
   const raw = await (await fetch(`${APP}/`)).text();
@@ -481,6 +499,29 @@ await step("Schritt 4 – Aktivitäten in Discover auswählen", async () => {
   check((await page.locator(".stage-card").count()) === 1, "ein Ort steht groß auf der Bühne");
   check((await page.locator(".stage-card").getByRole("link", { name: "Details" }).count()) === 1, "Bühne führt zu den Details");
   await shot(alice, "08-discover");
+  // V2: Orte als Stapel – Pfeile und Wischen blättern, jeder Ort steht genau einmal auf der Seite.
+  const stageName = () => page.locator(".stage-card h2").textContent();
+  const deckFirst = (await stageName()).trim();
+  check((await page.getByText(/^1 \/ \d+$/).count()) === 1, "Stapel zeigt die Position");
+  await page.getByRole("button", { name: "Nächster Ort" }).click();
+  await page.getByText(/^2 \/ \d+$/).waitFor();
+  const deckSecond = (await stageName()).trim();
+  check(deckSecond !== deckFirst, "„Nächster Ort“ legt einen anderen Ort nach oben");
+  check((await page.getByRole("heading", { name: deckFirst, exact: true }).count()) === 1, "der vorige Ort steht jetzt in der Liste – genau einmal");
+  check((await page.getByRole("heading", { name: deckSecond, exact: true }).count()) === 1, "der Ort oben im Stapel fehlt in der Liste");
+  await page.getByRole("button", { name: "Vorheriger Ort" }).click();
+  await page.getByText(/^1 \/ \d+$/).waitFor();
+  check((await stageName()).trim() === deckFirst, "„Vorheriger Ort“ holt den ersten Ort zurück");
+  const art = await page.locator(".stage-art").boundingBox();
+  await page.mouse.move(art.x + art.width * 0.75, art.y + art.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(art.x + art.width * 0.75 - 60, art.y + art.height / 2, { steps: 4 });
+  await page.mouse.move(art.x + art.width * 0.75 - 160, art.y + art.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await page.getByText(/^2 \/ \d+$/).waitFor();
+  check((await stageName()).trim() === deckSecond, "Wischen nach links blättert zum nächsten Ort");
+  check(await page.locator(".stage-art .cat-world").first().isVisible(), "Kategorie-Grafik liegt auf ihrer Farbwelt");
+  await shot(alice, "08b-discover-stapel");
   await page.getByRole("button", { name: "Filter" }).click();
   await dialog(alice).getByLabel("Höchstpreis pro Person").selectOption({ label: "bis 15 €" });
   await dialog(alice).getByRole("button", { name: /Orte? anzeigen/ }).click();
@@ -1516,6 +1557,40 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await bob.page.goto(`${APP}/crews/${ids.crew}`);
   await bob.page.getByTestId("crew-balances").getByText("Du gibst insgesamt 28 €").waitFor();
   check(true, "Bob sieht auf der Crew-Seite: gibt insgesamt 28 €");
+
+  // P3 Etappe 3b – Erinnerung an offene Beträge: eine Woche nach Abend und letztem Eintrag sind Bobs
+  // 28 € noch offen. Abend und Einträge werden dafür kurz um acht Tage zurückdatiert.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const shift = (sign) =>
+      psql(`update public.plans set starts_at = starts_at ${sign} interval '8 days' where id = '${ids.plan}';
+            update public.plan_expenses set created_at = created_at ${sign} interval '8 days' where plan_id = '${ids.plan}'`);
+    shift("-");
+    try {
+      await bob.page.goto(`${APP}/notifications`);
+      const reminder = bob.page.getByRole("link", { name: /Bei „Strike District Bowling“ sind von dir noch 28\s€ offen/ });
+      await reminder.waitFor();
+      check(await reminder.getByText("Schon erledigt? Dann tippe bei „Kosten teilen“ auf „Erledigt“.").isVisible(), "Erinnerung sagt freundlich, was zu tun ist");
+      await noOverflow(bob, "Erinnerung an offene Beträge");
+      await shot(bob, "21d-erinnerung-offene-betraege");
+      await bob.page.reload();
+      await reminder.waitFor();
+      check((await bob.page.getByRole("link", { name: /sind von dir noch 28\s€ offen/ }).count()) === 1, "Neuladen erinnert nicht noch einmal");
+      await reminder.click();
+      await bob.page.waitForURL(`**/plans/${ids.plan}#kosten`);
+      await bob.page.getByText("Du gibst noch 28 €").waitFor();
+      check(true, "Erinnerung führt direkt zu „Kosten teilen“");
+      await alice.page.goto(`${APP}/notifications`);
+      await alice.page.getByRole("link", { name: /Bei „Strike District Bowling“ bekommst du noch 28\s€/ }).waitFor();
+      check(true, "Alice wird an die 28 € erinnert, die sie noch bekommt");
+      check(psql(`select count(*) from public.notifications where type = 'plan_expense_reminder' and related_entity_id = '${ids.plan}'`) === "2", "je Person genau eine Erinnerung");
+      await bob.page.goto(`${APP}/settings`);
+      await bob.page.getByText("Erinnerung an offene Beträge").first().waitFor();
+      check(true, "Erinnerung lässt sich in den Einstellungen abschalten");
+    } finally {
+      shift("+");
+    }
+  }
 
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
@@ -2740,6 +2815,156 @@ await step("S5 – Abstimmung entscheidet sich selbst: klare Mehrheit → Plan s
   check(true, "„Zum Plan“ öffnet den automatisch angelegten Plan");
   // Aufräumen: der Rest der Journey kennt diesen Plan nicht.
   execFileSync("psql", [DB_URL, "-qc", `delete from public.plans where id = '${plans[0].id}'`]);
+});
+
+await step("S4 – „Heute noch wer?“: Spontan-Frage an die Crew (Bob, Alice, Carol)", async () => {
+  const page = bob.page;
+  await page.goto(`${APP}/home`);
+  const launcher = page.getByRole("button", { name: "Heute noch wer?" });
+  await launcher.click();
+  const sheet = page.getByRole("dialog", { name: "Heute noch wer?" });
+  await sheet.getByLabel("Worauf hast du Lust? (optional)").fill("  Bier im   Park  ");
+  if ((await sheet.getByText("Welche Crew?").count()) > 0) await sheet.getByRole("button", { name: /Weekend Crew/ }).click();
+  await shot(bob, "46-heute-noch-wer-frage");
+  await sheet.getByRole("button", { name: "Crew fragen" }).click();
+  await toast(bob, "Gefragt – deine Crew bekommt Bescheid.");
+  const card = page.getByTestId("spontaneous-card");
+  await card.getByText("Bier im Park", { exact: true }).waitFor();
+  check(await card.getByText(/^Du fragst in /).isVisible(), "Bob sieht seine Frage als Karte");
+  await card.getByText("1 hat Bock").waitFor();
+  check((await card.getAttribute("data-answer")) === "in", "wer fragt, hat Bock – die Karte ist Lime");
+  check(/noch (1:5\d|2:00) h/.test(await card.innerText()), "Restzeit knapp 2 Stunden");
+  check((await page.getByRole("button", { name: "Heute noch wer?" }).count()) === 0, "in einer Crew mit laufender Frage kein zweiter Knopf");
+  await noOverflow(bob, "Heute noch wer? (390 px)");
+  await shot(bob, "47-heute-noch-wer-karte");
+
+  const asks = (await api(bob, "GET", "spontaneous_asks?select=id,crew_id,note,expires_at,closed_at&closed_at=is.null")).json ?? [];
+  check(asks.length === 1 && asks[0].note === "Bier im Park", "eine Frage, Notiz bereinigt");
+  const askId = asks[0]?.id;
+  const notified = (await api(alice, "GET", "notifications?type=eq.spontaneous_ask&select=payload")).json ?? [];
+  check(notified.length === 1 && notified[0].payload?.ask_id === askId, "Alice bekommt Bescheid");
+  const anonRead = await api(null, "GET", "spontaneous_asks?select=id");
+  check(anonRead.status >= 400 || anonRead.json?.length === 0, `ohne Konto sieht niemand die Frage (${anonRead.status})`);
+  const anonAnswer = await api(null, "POST", "rpc/answer_spontaneous", { p_ask_id: askId, p_answer: "in" });
+  check(anonAnswer.status >= 400, `ohne Konto keine Antwort (${anonAnswer.status})`);
+
+  // Alice (Desktop) antwortet auf Home mit einem Tipp – erst „heute nicht“, dann doch „Bock“.
+  await alice.page.goto(`${APP}/home`);
+  const aliceCard = alice.page.getByTestId("spontaneous-card");
+  await aliceCard.getByText(/^Bob fragt in /).waitFor();
+  await aliceCard.getByRole("button", { name: "Heute nicht" }).click();
+  await toast(alice, "Alles klar, vielleicht nächstes Mal.");
+  await aliceCard.getByText("1 heute nicht", { exact: false }).waitFor();
+  check((await aliceCard.getAttribute("data-answer")) === "out", "„heute nicht“ färbt die Karte rot");
+  await aliceCard.getByRole("button", { name: "Bock" }).click();
+  await aliceCard.getByText("2 haben Bock").waitFor();
+  check(await aliceCard.getByRole("button", { name: "Bock" }).getAttribute("aria-pressed") === "true", "Antwort lässt sich ändern");
+  check(await aliceCard.getByText("Noch 1, dann seid ihr eine Runde.").isVisible(), "zeigt, wie viele noch fehlen");
+  check((await aliceCard.getByRole("button", { name: "Frage beenden" }).count()) === 1, "Alice (Owner) darf die Frage beenden");
+  await shot(alice, "48-heute-noch-wer-antwort");
+
+  // Carol (Tablet) macht die Runde voll.
+  await carol.page.goto(`${APP}/home`);
+  const carolCard = carol.page.getByTestId("spontaneous-card");
+  await carolCard.getByRole("button", { name: "Bock" }).click();
+  await carolCard.getByText("Ihr seid eine Runde – macht was draus!").waitFor();
+  check((await carolCard.getByRole("button", { name: "Frage beenden" }).count()) === 0, "einfache Mitglieder beenden fremde Fragen nicht");
+  check((await carolCard.getByRole("link", { name: "Plan erstellen" }).getAttribute("href"))?.includes("/plans/new?crew="), "„Plan erstellen“ mit der Crew");
+  await shot(carol, "49-heute-noch-wer-runde");
+  const match = (await api(bob, "GET", "notifications?type=eq.spontaneous_match&select=payload")).json ?? [];
+  check(match.length === 1 && match[0].payload?.in_count === 3, "Bob erfährt: ihr seid drei");
+  await page.goto(`${APP}/home`);
+  await card.getByText("Ihr seid eine Runde – macht was draus!").waitFor();
+  await card.getByText("3 haben Bock").waitFor();
+  await shot(bob, "50-heute-noch-wer-runde-mobile");
+
+  // Bob beendet die Frage – die Karte verschwindet, der Knopf ist wieder da.
+  await card.getByRole("button", { name: "Frage beenden" }).click();
+  await toast(bob, "Frage beendet.");
+  await page.getByRole("button", { name: "Heute noch wer?" }).waitFor();
+  check((await page.getByTestId("spontaneous-card").count()) === 0, "beendete Frage verschwindet von Home");
+  const after = await api(carol, "POST", "rpc/answer_spontaneous", { p_ask_id: askId, p_answer: "out" });
+  check(after.status >= 400 && after.json?.message === "spontaneous_over", "nach dem Beenden keine Antwort mehr");
+
+  // Nach 2 Stunden verschwindet eine Frage von selbst.
+  if (DB_URL) {
+    const asked = await api(carol, "POST", "rpc/ask_spontaneous", { p_crew_id: asks[0]?.crew_id, p_note: "Pizza?" });
+    check(asked.status < 300, "Carol fragt neu");
+    await alice.page.reload();
+    await alice.page.getByTestId("spontaneous-card").getByText("Pizza?").waitFor();
+    execFileSync("psql", [DB_URL, "-qc", `update public.spontaneous_asks set created_at = now() - interval '3 hours', expires_at = now() - interval '1 hour' where id = '${asked.json}'`]);
+    await alice.page.reload();
+    await alice.page.getByRole("button", { name: "Heute noch wer?" }).waitFor();
+    check((await alice.page.getByTestId("spontaneous-card").count()) === 0, "abgelaufene Frage verschwindet von Home");
+  }
+  // Fehlerzustand: Lassen sich die Fragen nicht laden, sagt Home das – mit „Erneut versuchen“.
+  await page.route("**/rest/v1/spontaneous_asks**", (route) => route.abort("failed"));
+  await page.goto(`${APP}/home`);
+  await page.getByText("Die Daten konnten nicht geladen werden.").waitFor({ timeout: 30_000 });
+  check((await page.getByRole("button", { name: "Heute noch wer?" }).count()) === 0, "ohne geladene Fragen kein Knopf (sonst doppelte Frage)");
+  await page.unroute("**/rest/v1/spontaneous_asks**");
+  await page.getByRole("button", { name: "Erneut versuchen" }).click();
+  await page.getByRole("button", { name: "Heute noch wer?" }).waitFor();
+  check(true, "„Erneut versuchen“ lädt die Fragen");
+});
+
+await step("S7 – Runde jede Woche von selbst: „Freitag, was geht?“ (Bob, Carol)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const day = new Date(Date.now() + 3 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
+  const created = await api(bob, "POST", "rpc/create_poll", {
+    p_crew_id: ids.crew, p_title: "Freitag, was geht?", p_ends_at: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+    p_options: [{ title: "Bowling", proposed_date: day, proposed_time: "20:00" }, { title: "Kino" }],
+    p_description: null, p_meeting_point: null, p_budget_cents: null, p_min_participants: null,
+  });
+  if (created.status >= 300) throw new Error(`Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+  const pollId = created.json;
+  let seriesId = null;
+  try {
+    await bob.page.goto(`${APP}/polls/${pollId}`);
+    const toggle = bob.page.getByRole("switch", { name: /^Jede Woche neu/ });
+    await toggle.waitFor();
+    check(!(await toggle.isChecked()), "„Jede Woche neu“ ist standardmäßig aus");
+    await toggle.click();
+    await toast(bob, "Läuft ab jetzt jede Woche.");
+    await bob.page.getByTestId("poll-repeat").getByText(/Nächste Runde ab .+, entscheidet sich bis /).waitFor();
+    await bob.page.getByText("Jede Woche", { exact: true }).first().waitFor();
+    check(true, "Ersteller:in schaltet „Jede Woche neu“ ein und sieht, wann die nächste Runde startet");
+    await noOverflow(bob, "Jede Woche neu");
+    await shot(bob, "47-jede-woche");
+    seriesId = (await api(bob, "GET", `polls?id=eq.${pollId}&select=series_id`)).json?.[0]?.series_id;
+    check(Boolean(seriesId), "Abstimmung gehört zu einer Serie");
+    await carol.page.goto(`${APP}/polls/${pollId}`);
+    await carol.page.getByText("Jede Woche", { exact: true }).first().waitFor();
+    check((await carol.page.getByRole("switch", { name: /^Jede Woche neu/ }).count()) === 0, "einfache Mitglieder sehen das Kennzeichen, aber keinen Schalter");
+    const outsider = await api(mallory, "POST", "rpc/set_poll_repeat", { p_poll_id: pollId, p_enabled: false });
+    check(outsider.status >= 400, `API: Außenstehende schalten nichts um (${outsider.status})`);
+
+    // Die Runde ist vorbei, die nächste müsste schon laufen: Home stößt sie an.
+    psql(`update public.polls set ends_at = now() - interval '5 days', created_at = now() - interval '8 days', status = 'closed', closed_at = now() - interval '5 days' where id = '${pollId}'`);
+    await bob.page.goto(`${APP}/home`);
+    let rounds = [];
+    for (let i = 0; i < 30 && rounds.length < 2; i++) {
+      rounds = (await api(bob, "GET", `polls?series_id=eq.${seriesId}&select=id,status,ends_at,poll_options!poll_options_poll_id_fkey(title,proposed_date)&order=ends_at`)).json ?? [];
+      if (rounds.length < 2) await bob.page.waitForTimeout(500);
+    }
+    check(rounds.length === 2 && rounds[1].status === "open", `Home startet die nächste Runde von selbst (${rounds.length} Runden)`);
+    const nextDay = new Date(new Date(`${day}T12:00:00Z`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+    check(rounds[1]?.poll_options?.find((o) => o.title === "Bowling")?.proposed_date === nextDay, "gleiche Vorschläge, Termin eine Woche später");
+    await bob.page.reload();
+    await bob.page.getByRole("button", { name: "Was geht?" }).waitFor();
+    check((await api(bob, "GET", `polls?series_id=eq.${seriesId}&select=id`)).json?.length === 2, "Neuladen startet keine zweite Runde");
+    await carol.page.goto(`${APP}/notifications`);
+    await carol.page.getByText("Neue Runde – was geht diese Woche?").first().waitFor();
+    check(true, "die Crew bekommt „Neue Runde – was geht diese Woche?“");
+    await carol.page.goto(`${APP}/polls/${rounds[1].id}`);
+    await carol.page.getByRole("heading", { level: 1 }).filter({ hasText: /was geht/i }).waitFor();
+    await carol.page.getByText("Jede Woche", { exact: true }).first().waitFor();
+    check(true, "die neue Runde trägt „Jede Woche“");
+  } finally {
+    // Aufräumen: Die übrige Journey kennt diese Abstimmungen nicht.
+    if (seriesId) psql(`delete from public.polls where series_id = '${seriesId}'; delete from public.poll_series where id = '${seriesId}'`);
+    psql(`delete from public.polls where id = '${pollId}'`);
+  }
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {

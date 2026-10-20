@@ -104,6 +104,9 @@ export const errors = {
   loadFailed: "Die Daten konnten nicht geladen werden.",
   codes: {
     // RPC-Fehlerschlüssel aus der Datenbank
+    spontaneous_active: "In dieser Crew läuft schon eine Frage „Heute noch wer?“.",
+    spontaneous_over: "Diese Frage ist schon vorbei.",
+    invalid_spontaneous_answer: "Antworte mit „Bock“ oder „Heute nicht“.",
     rate_limited: "Das waren zu viele Versuche in kurzer Zeit. Warte einen Moment und versuch es dann erneut.",
     invalid_city: "Diesen Stadtnamen können wir nicht verarbeiten. Bitte nur Buchstaben, Leerzeichen und Bindestriche.",
     city_not_found: "Diese Stadt haben wir in Deutschland nicht gefunden. Prüfe die Schreibweise.",
@@ -145,6 +148,7 @@ export const errors = {
     repeat_no_nth: "Ab dem 29. gibt es diesen Wochentag nicht in jedem Monat. Wähle „jeden letzten …“ oder jede Woche.",
     repeat_not_last_week: "„Jeden letzten …“ geht nur, wenn der Plan in der letzten Woche des Monats liegt.",
     too_many_series: "Diese Crew hat schon 10 wiederkehrende Pläne. Beende einen, bevor du einen neuen einstellst.",
+    repeat_unsupported: "Nur Abstimmungen über Vorschläge lassen sich jede Woche wiederholen – keine Termin-Abstimmungen und keine Stichwahlen.",
     series_not_active: "Dieser Plan gehört zu keinem laufenden Stammtisch. Sag ihn ab, wenn er nicht stattfindet.",
     skip_too_late: "Dieser Termin hat schon begonnen – aussetzen geht nur vorher.",
     plan_not_started: "Ein Plan lässt sich erst abschließen, wenn er begonnen hat.",

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
+import { dueRepeats } from "@/lib/pollrepeat";
 import { supabase } from "@/lib/supabase";
 import type { PollKind, PollVote, VoteResponse } from "@/lib/types";
 import type { PollWeather } from "@/lib/weather";
@@ -11,7 +12,7 @@ import type { PollWithDetails } from "./logic";
 // Der FK-Hinweis ist nötig, weil polls und poll_options doppelt verbunden sind (poll_id und winning_option_id).
 // W3: Gäste nur mit Name und Zeitpunkt – den Hash ihres Geheimnisses gibt die Datenbank ohnehin nicht heraus.
 const POLL_SELECT =
-  "*, options:poll_options!poll_options_poll_id_fkey(*), votes:poll_votes(*), guests:poll_guests(id, display_name, created_at), guest_votes:poll_guest_votes(*)";
+  "*, options:poll_options!poll_options_poll_id_fkey(*), votes:poll_votes(*), guests:poll_guests(id, display_name, created_at), guest_votes:poll_guest_votes(*), series:poll_series(id, active)";
 
 /**
  * Stellt für Abstimmungen, deren Frist abgelaufen ist, das Ergebnis fest. Jedes Mitglied darf das
@@ -35,7 +36,14 @@ export function usePolls() {
         return data as unknown as PollWithDetails[];
       };
       const polls = await load();
-      return (await finalizeDue(polls)) ? load() : polls;
+      const finalized = await finalizeDue(polls);
+      // S7: Ist die letzte Runde einer Serie vorbei und die nächste fällig, startet der Server sie – dann neu laden.
+      // Scheitert das (Rate Limit, Netz), bleibt es bei der Liste; der nächste Aufruf versucht es wieder.
+      if (dueRepeats(polls).length > 0) {
+        const rolled = await supabase.rpc("roll_poll_series");
+        if (!rolled.error && Number(rolled.data) > 0) return load();
+      }
+      return finalized ? load() : polls;
     },
   });
 }
@@ -235,6 +243,30 @@ export function useSetPollAutoDecide(pollId: string) {
       void client.invalidateQueries({ queryKey: qk.poll(pollId) });
       void client.invalidateQueries({ queryKey: qk.polls, exact: true });
       void client.invalidateQueries({ queryKey: qk.plans });
+    },
+  });
+}
+
+/** S7: „Jede Woche neu“ (Ersteller:in, Owner/Admin). */
+export interface PollSeriesState {
+  id: string;
+  active: boolean;
+  last_poll_id: string | null;
+  next_ends_at: string | null;
+  next_opens_at: string | null;
+}
+
+export function useSetPollRepeat(pollId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (enabled: boolean): Promise<PollSeriesState | null> => {
+      const { data, error } = await supabase.rpc("set_poll_repeat", { p_poll_id: pollId, p_enabled: enabled });
+      if (error) throw error;
+      return (data as PollSeriesState | null) ?? null;
+    },
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: qk.poll(pollId) });
+      void client.invalidateQueries({ queryKey: qk.polls, exact: true });
     },
   });
 }

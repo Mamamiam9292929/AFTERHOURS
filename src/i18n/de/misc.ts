@@ -1,5 +1,5 @@
 import { formatEuro } from "@/lib/format";
-import { formatDateTime } from "@/lib/time";
+import { formatDateTime, formatTime } from "@/lib/time";
 import type { NotificationType } from "@/lib/types";
 
 type Payload = Record<string, unknown>;
@@ -13,9 +13,15 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: p.role === "owner" ? "Du bist jetzt Owner der Crew" : p.role === "admin" ? "Du bist jetzt Admin der Crew" : "Deine Rolle in der Crew wurde geändert",
     body: p.reason === "succession" ? "Der bisherige Owner hat die Crew verlassen." : undefined,
   }),
-  // S5 Etappe 2: Die Stichwahl nach einem Gleichstand startet von selbst – ohne auslösende Person.
+  // S5 Etappe 2 / S7: Stichwahl nach Gleichstand und neue Wochenrunde starten von selbst – ohne auslösende Person.
   poll_created: (actor, p) => ({
-    title: p.auto && p.runoff ? "Gleichstand – die Stichwahl läuft" : p.runoff ? `${actor} hat eine Stichwahl gestartet` : `${actor} hat eine Abstimmung gestartet`,
+    title: p.repeat
+      ? "Neue Runde – was geht diese Woche?"
+      : p.auto && p.runoff
+        ? "Gleichstand – die Stichwahl läuft"
+        : p.runoff
+          ? `${actor} hat eine Stichwahl gestartet`
+          : `${actor} hat eine Abstimmung gestartet`,
     body: str(p, "title"),
   }),
   poll_reminder: (actor, p) => ({ title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") }),
@@ -63,6 +69,24 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
   plan_settlement: (actor, p) => {
     const amount = typeof p.amount_cents === "number" ? formatEuro(p.amount_cents) : "";
     return { title: p.direction === "received" ? `${actor} hat deine Rückzahlung von ${amount} bestätigt` : `${actor} hat dir ${amount} zurückgegeben`, body: str(p, "title") };
+  },
+  // S4 · „Heute noch wer?“
+  spontaneous_ask: (actor, p) => ({
+    title: `${actor}: Heute noch wer?`,
+    body: [str(p, "note"), str(p, "crew_name"), str(p, "expires_at") ? `bis ${formatTime(str(p, "expires_at"))}` : ""].filter(Boolean).join(" · "),
+  }),
+  spontaneous_answer: (actor, p) => ({ title: `${actor} hat Bock`, body: [str(p, "note"), str(p, "crew_name")].filter(Boolean).join(" · ") }),
+  spontaneous_match: (_actor, p) => ({
+    title: `Ihr seid ${typeof p.in_count === "number" ? p.in_count : "genug"} – heute geht was!`,
+    body: [str(p, "note"), str(p, "crew_name")].filter(Boolean).join(" · "),
+  }),
+  // P3 Etappe 3b: Eine Woche nach dem Abend ist noch Geld offen – einmal, ohne auslösende Person.
+  plan_expense_reminder: (_actor, p) => {
+    const balance = typeof p.balance_cents === "number" ? p.balance_cents : 0;
+    const title = str(p, "title", "eurem Abend");
+    return balance > 0
+      ? { title: `Bei „${title}“ bekommst du noch ${formatEuro(balance)}`, body: "Schon zurückbekommen? Dann tippe bei „Kosten teilen“ auf „Erledigt“." }
+      : { title: `Bei „${title}“ sind von dir noch ${formatEuro(-balance)} offen`, body: "Schon erledigt? Dann tippe bei „Kosten teilen“ auf „Erledigt“." };
   },
   reward_earned: (_actor, p) => ({
     title: `+${typeof p.points === "number" ? p.points : ""} Punkte`,
@@ -170,7 +194,9 @@ export const settings = {
       bookings: { title: "Reservierungen", body: "Wenn sich der Stand einer Reservierung ändert." },
       rides: { title: "Mitfahrten", body: "Anfragen und Zusagen für Fahrgemeinschaften." },
       costs: { title: "Kosten teilen", body: "Neue Ausgaben, an denen du beteiligt bist, und Rückzahlungen." },
+      costReminders: { title: "Erinnerung an offene Beträge", body: "Einmal je Abend, wenn eine Woche danach bei dir noch Geld offen ist." },
       crew: { title: "Crew", body: "Neue Mitglieder und Änderungen deiner Rolle." },
+      spontaneous: { title: "Heute noch wer?", body: "Spontane Fragen deiner Crew, Zusagen auf deine Frage und wenn eine Runde zusammen ist." },
       rewards: { title: "Rewards", body: "Wenn du Punkte erhältst." },
     },
   },

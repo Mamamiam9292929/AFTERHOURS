@@ -42,7 +42,8 @@ export type NotificationType =
   | "poll_created" | "poll_reminder" | "poll_vote" | "poll_result"
   | "plan_created" | "plan_changed" | "plan_cancelled" | "plan_attendance"
   | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned"
-  | "plan_expense" | "plan_settlement";
+  | "plan_expense" | "plan_settlement" | "plan_expense_reminder"
+  | "spontaneous_ask" | "spontaneous_answer" | "spontaneous_match";
 
 export interface UserSettings {
   user_id: string;
@@ -159,6 +160,8 @@ export interface Poll {
   guest_join_by: string | null;
   /** P1 Etappe 3a: Orts-Abstimmung zu einer Termin-Abstimmung („Und wo?“) – deren ID, sonst null. */
   date_poll_id: string | null;
+  /** S7: Runde einer wöchentlichen Serie („Jede Woche neu“), sonst null. */
+  series_id: string | null;
 }
 
 export interface PollOption {
