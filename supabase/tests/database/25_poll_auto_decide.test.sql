@@ -115,9 +115,8 @@ select public.finalize_due_poll(tests.var('tie')::uuid);
 select tests.logout();
 select is((select is_tie from public.polls where id = tests.var('tie')::uuid), true, 'Gleichstand bleibt Gleichstand');
 select is((select count(*)::int from public.plans where poll_id = tests.var('tie')::uuid), 0, 'bei Gleichstand entsteht kein Plan');
-select tests.login('alice');
-select tests.set_var('runoff', public.start_runoff_poll(tests.var('tie')::uuid, 'Stichwahl', now() + interval '1 day')::text);
-select tests.logout();
+-- Seit S5 Etappe 2 startet die Stichwahl von selbst (Einzelheiten in 26_poll_auto_runoff).
+select tests.set_var('runoff', (select id::text from public.polls where parent_poll_id = tests.var('tie')::uuid));
 select is((select auto_decide from public.polls where id = tests.var('runoff')::uuid), true, 'die Stichwahl erbt den Schalter');
 
 -- ---- Schalter aus, Beenden von Hand, Einschalten mit bestehender Mehrheit ------------------------

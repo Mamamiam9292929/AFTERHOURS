@@ -2652,26 +2652,41 @@ await step("S5 – Abstimmung entscheidet sich selbst: klare Mehrheit → Plan s
   check(row?.auto_decide === true && row?.status === "open", "S5: Ein-Satz-Abstimmung entscheidet sich selbst, Bobs Stimmen allein entscheiden nichts");
   await page.getByText("Entscheidet sich selbst", { exact: true }).first().waitFor();
   check(await page.getByRole("switch", { name: /^Entscheidet sich selbst/ }).isChecked(), "Schalter für die Ersteller:in sichtbar und an");
-  // Alice und Carol sind beim selben Vorschlag wie Bob dabei, bei allen anderen nicht.
+  // S5 Etappe 2: Alice ist beim Vorschlag von Bob nicht dabei, Carol hat alles andere abgelehnt – ihr Wisch
+  // auf den letzten Vorschlag bringt die Mehrheit. Bob verlässt die Seite, damit nur Carol den Moment sieht.
   const options = (await api(bob, "GET", `poll_options?poll_id=eq.${pollId}&select=id,title,position&order=position`)).json ?? [];
   const bobYes = new Set(((await api(bob, "GET", `poll_votes?poll_id=eq.${pollId}&response=eq.yes&select=poll_option_id`)).json ?? []).map((v) => v.poll_option_id));
   const target = options.find((o) => bobYes.has(o.id));
   check(Boolean(target), "Bob ist bei mindestens einem Vorschlag dabei");
-  for (const friend of [alice, carol]) {
-    for (const option of options) {
-      const result = await api(friend, "POST", "rpc/cast_vote", { p_option_id: option.id, p_response: option.id === target.id ? "yes" : "no" });
-      if (result.status >= 300 && result.json?.message !== "poll_closed") throw new Error(`${friend.name}: Stimme fehlgeschlagen (${result.status} ${result.json?.message})`);
-    }
-  }
+  await page.goto(`${APP}/home`);
+  const vote = async (friend, option, response) => {
+    const result = await api(friend, "POST", "rpc/cast_vote", { p_option_id: option.id, p_response: response });
+    if (result.status >= 300) throw new Error(`${friend.name}: Stimme fehlgeschlagen (${result.status} ${result.json?.message})`);
+  };
+  for (const option of options) await vote(alice, option, "no");
+  for (const option of options.filter((o) => o.id !== target.id)) await vote(carol, option, "no");
+  check((await api(bob, "GET", `polls?id=eq.${pollId}&select=status`)).json?.[0]?.status === "open", "ohne Mehrheit läuft die Abstimmung weiter");
+  await carol.page.goto(`${APP}/polls/${pollId}`);
+  const deck = carol.page.getByTestId("swipe-deck");
+  await deck.getByText("noch 1 Vorschlag").waitFor();
+  await deck.getByRole("button", { name: `Bin dabei: ${target.title}` }).click();
+  const moment = carol.page.getByTestId("decided-moment");
+  await moment.getByText("Entschieden", { exact: true }).waitFor({ timeout: 15000 });
+  check(await moment.getByText(`Es wird ${target.title} – der Plan steht.`).isVisible(), "S5 Etappe 2: Carols Wisch entscheidet – „Entschieden“ mit dem Gewinner");
+  await shot(carol, "45b-entschieden-moment");
   const decided = (await api(bob, "GET", `polls?id=eq.${pollId}&select=status,winning_option_id,closed_by`)).json?.[0];
   check(decided?.status === "closed" && decided.winning_option_id === target.id && decided.closed_by === null, "klare Mehrheit: Abstimmung ist von selbst entschieden");
   const plans = (await api(bob, "GET", `plans?poll_id=eq.${pollId}&select=id,title,status,plan_participants(user_id,attendance_status)`)).json ?? [];
   check(plans.length === 1 && plans[0].status === "confirmed" && plans[0].title === target.title, `genau ein bestätigter Plan „${target.title}“`);
   const going = (plans[0]?.plan_participants ?? []).filter((p) => p.attendance_status === "going").length;
-  check(going >= 3, `wer dabei war, ist zugesagt (${going})`);
-  await page.reload();
+  check(going === 2, `wer dabei war (Bob, Carol), ist zugesagt (${going})`);
+  await moment.getByRole("button", { name: "Zum Plan" }).click();
+  await carol.page.waitForURL(new RegExp(`/plans/${plans[0].id}`));
+  check(true, "„Zum Plan“ im Moment öffnet den Plan");
+  // Ohne Tipp springt die Seite von selbst – Bob sieht beim Öffnen einer schon entschiedenen Abstimmung keinen Moment.
+  await page.goto(`${APP}/polls/${pollId}`);
   await page.getByTestId("poll-plan-note").filter({ hasText: "Automatisch angelegt" }).waitFor();
-  await page.getByRole("link", { name: "Zum Plan" }).waitFor();
+  check((await page.getByTestId("decided-moment").count()) === 0, "schon entschieden: kein Moment, nur das Ergebnis");
   await shot(bob, "45-entschieden");
   await page.getByRole("link", { name: "Zum Plan" }).click();
   await page.waitForURL(new RegExp(`/plans/${plans[0].id}`));
