@@ -251,6 +251,7 @@ function Steps() {
 /** Kartenstapel wie in der Abstimmung (S6) – nur Bild, die Knöpfe sind Deko. */
 function SampleDeck() {
   const [top, ...rest] = copy.deck.cards;
+  if (!top) return null;
   return (
     <figure aria-label={copy.deck.label} className="mx-auto w-full max-w-[420px] min-w-0">
       <SampleBadge />
