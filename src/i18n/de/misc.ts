@@ -80,6 +80,14 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: `Ihr seid ${typeof p.in_count === "number" ? p.in_count : "genug"} – heute geht was!`,
     body: [str(p, "note"), str(p, "crew_name")].filter(Boolean).join(" · "),
   }),
+  // P3 Etappe 3b: Eine Woche nach dem Abend ist noch Geld offen – einmal, ohne auslösende Person.
+  plan_expense_reminder: (_actor, p) => {
+    const balance = typeof p.balance_cents === "number" ? p.balance_cents : 0;
+    const title = str(p, "title", "eurem Abend");
+    return balance > 0
+      ? { title: `Bei „${title}“ bekommst du noch ${formatEuro(balance)}`, body: "Schon zurückbekommen? Dann tippe bei „Kosten teilen“ auf „Erledigt“." }
+      : { title: `Bei „${title}“ sind von dir noch ${formatEuro(-balance)} offen`, body: "Schon erledigt? Dann tippe bei „Kosten teilen“ auf „Erledigt“." };
+  },
   reward_earned: (_actor, p) => ({
     title: `+${typeof p.points === "number" ? p.points : ""} Punkte`,
     body: `${p.reason === "plan_organized" ? "Für die Organisation" : "Für deine Teilnahme"}: ${str(p, "title")}`,
@@ -186,6 +194,7 @@ export const settings = {
       bookings: { title: "Reservierungen", body: "Wenn sich der Stand einer Reservierung ändert." },
       rides: { title: "Mitfahrten", body: "Anfragen und Zusagen für Fahrgemeinschaften." },
       costs: { title: "Kosten teilen", body: "Neue Ausgaben, an denen du beteiligt bist, und Rückzahlungen." },
+      costReminders: { title: "Erinnerung an offene Beträge", body: "Einmal je Abend, wenn eine Woche danach bei dir noch Geld offen ist." },
       crew: { title: "Crew", body: "Neue Mitglieder und Änderungen deiner Rolle." },
       spontaneous: { title: "Heute noch wer?", body: "Spontane Fragen deiner Crew, Zusagen auf deine Frage und wenn eine Runde zusammen ist." },
       rewards: { title: "Rewards", body: "Wenn du Punkte erhältst." },

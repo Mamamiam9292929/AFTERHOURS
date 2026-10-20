@@ -42,7 +42,7 @@ export type NotificationType =
   | "poll_created" | "poll_reminder" | "poll_vote" | "poll_result"
   | "plan_created" | "plan_changed" | "plan_cancelled" | "plan_attendance"
   | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned"
-  | "plan_expense" | "plan_settlement"
+  | "plan_expense" | "plan_settlement" | "plan_expense_reminder"
   | "spontaneous_ask" | "spontaneous_answer" | "spontaneous_match";
 
 export interface UserSettings {
