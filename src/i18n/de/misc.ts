@@ -1,5 +1,5 @@
 import { formatEuro } from "@/lib/format";
-import { formatDateTime } from "@/lib/time";
+import { formatDateTime, formatTime } from "@/lib/time";
 import type { NotificationType } from "@/lib/types";
 
 type Payload = Record<string, unknown>;
@@ -64,6 +64,16 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     const amount = typeof p.amount_cents === "number" ? formatEuro(p.amount_cents) : "";
     return { title: p.direction === "received" ? `${actor} hat deine Rückzahlung von ${amount} bestätigt` : `${actor} hat dir ${amount} zurückgegeben`, body: str(p, "title") };
   },
+  // S4 · „Heute noch wer?“
+  spontaneous_ask: (actor, p) => ({
+    title: `${actor}: Heute noch wer?`,
+    body: [str(p, "note"), str(p, "crew_name"), str(p, "expires_at") ? `bis ${formatTime(str(p, "expires_at"))}` : ""].filter(Boolean).join(" · "),
+  }),
+  spontaneous_answer: (actor, p) => ({ title: `${actor} hat Bock`, body: [str(p, "note"), str(p, "crew_name")].filter(Boolean).join(" · ") }),
+  spontaneous_match: (_actor, p) => ({
+    title: `Ihr seid ${typeof p.in_count === "number" ? p.in_count : "genug"} – heute geht was!`,
+    body: [str(p, "note"), str(p, "crew_name")].filter(Boolean).join(" · "),
+  }),
   reward_earned: (_actor, p) => ({
     title: `+${typeof p.points === "number" ? p.points : ""} Punkte`,
     body: `${p.reason === "plan_organized" ? "Für die Organisation" : "Für deine Teilnahme"}: ${str(p, "title")}`,
@@ -171,6 +181,7 @@ export const settings = {
       rides: { title: "Mitfahrten", body: "Anfragen und Zusagen für Fahrgemeinschaften." },
       costs: { title: "Kosten teilen", body: "Neue Ausgaben, an denen du beteiligt bist, und Rückzahlungen." },
       crew: { title: "Crew", body: "Neue Mitglieder und Änderungen deiner Rolle." },
+      spontaneous: { title: "Heute noch wer?", body: "Spontane Fragen deiner Crew, Zusagen auf deine Frage und wenn eine Runde zusammen ist." },
       rewards: { title: "Rewards", body: "Wenn du Punkte erhältst." },
     },
   },

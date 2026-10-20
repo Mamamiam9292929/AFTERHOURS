@@ -104,6 +104,9 @@ export const errors = {
   loadFailed: "Die Daten konnten nicht geladen werden.",
   codes: {
     // RPC-Fehlerschlüssel aus der Datenbank
+    spontaneous_active: "In dieser Crew läuft schon eine Frage „Heute noch wer?“.",
+    spontaneous_over: "Diese Frage ist schon vorbei.",
+    invalid_spontaneous_answer: "Antworte mit „Bock“ oder „Heute nicht“.",
     rate_limited: "Das waren zu viele Versuche in kurzer Zeit. Warte einen Moment und versuch es dann erneut.",
     invalid_city: "Diesen Stadtnamen können wir nicht verarbeiten. Bitte nur Buchstaben, Leerzeichen und Bindestriche.",
     city_not_found: "Diese Stadt haben wir in Deutschland nicht gefunden. Prüfe die Schreibweise.",
