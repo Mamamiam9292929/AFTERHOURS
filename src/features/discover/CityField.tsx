@@ -41,7 +41,7 @@ export function CityField({ value, onCommit, className }: { value: string | null
           }
         }}
         onBlur={() => commit(text)}
-        className="h-12 w-full rounded-full border border-white/12 bg-white/[0.06] pl-11 pr-3 text-fg backdrop-blur-md placeholder:text-faint hover:border-white/25 focus:border-lime focus:outline-none [&::-webkit-calendar-picker-indicator]:hidden"
+        className="h-12 w-full rounded-full border border-white/12 bg-white/[0.06] pl-11 pr-3 text-fg placeholder:text-faint hover:border-white/25 focus:border-lime focus:outline-none [&::-webkit-calendar-picker-indicator]:hidden"
       />
       <datalist id={listId}>
         {CITY_NAMES.map((city) => (

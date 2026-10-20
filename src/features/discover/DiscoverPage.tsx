@@ -96,7 +96,7 @@ export function DiscoverPage() {
             aria-label={t.discover.searchLabel}
             placeholder={t.discover.searchPlaceholder}
             disabled={!city}
-            className="h-12 w-full rounded-full border border-white/12 bg-white/[0.06] pl-11 pr-11 text-fg backdrop-blur-md placeholder:text-faint hover:border-white/25 focus:border-lime focus:outline-none disabled:opacity-50 [&::-webkit-search-cancel-button]:hidden"
+            className="h-12 w-full rounded-full border border-white/12 bg-white/[0.06] pl-11 pr-11 text-fg placeholder:text-faint hover:border-white/25 focus:border-lime focus:outline-none disabled:opacity-50 [&::-webkit-search-cancel-button]:hidden"
           />
           {filters.search && (
             <button type="button" onClick={() => patch({ search: "" })} aria-label={t.actions.remove} className="absolute right-1 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:text-fg">
