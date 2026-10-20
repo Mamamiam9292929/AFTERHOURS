@@ -2,7 +2,7 @@ import { ShareButton } from "@/components/ui/ShareButton";
 import { pollShare } from "@/lib/share";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconVote } from "@/components/icons";
+import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconRepeat, IconVote } from "@/components/icons";
 import { PageHeader, PosterTitle, Section } from "@/components/layout/Page";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -22,6 +22,7 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
+import { nextRound } from "@/lib/pollrepeat";
 import { addDays, formatAgo, formatDateTime, formatPlainDate, formatPlainTime, formatRelative, today, zonedToUtc } from "@/lib/time";
 import type { PollGuest, PollOption, VoteResponse } from "@/lib/types";
 import type { PollOptionWeather } from "@/lib/weather";
@@ -38,6 +39,7 @@ import {
   useSetPollGuestJoin,
   useSetPollAutoDecide,
   useSetPollGuests,
+  useSetPollRepeat,
   usePollWeather,
   useStartRunoff,
   useVote,
@@ -342,6 +344,40 @@ function RunoffDialog({ poll, open, onClose }: { poll: PollWithDetails; open: bo
       </div>
       {runoff.isError && <p role="alert" className="mt-3 text-sm text-danger">{errorMessage(runoff.error)}</p>}
     </Dialog>
+  );
+}
+
+/** S7: Schalter „Jede Woche neu“ – für Ersteller:in und Owner/Admin, nur Orts-Abstimmungen ohne Stichwahl. */
+function RepeatSettings({ poll, latest, now }: { poll: PollWithDetails; latest: boolean; now: Date }) {
+  const toast = useToast();
+  const setRepeat = useSetPollRepeat(poll.id);
+  const active = poll.series?.active === true;
+  const next = active && latest ? nextRound(poll.ends_at, poll.created_at, new Date(Math.max(now.getTime(), new Date(poll.ends_at).getTime()))) : null;
+  return (
+    <Section title={t.polls.detail.repeat.toggle} className="mt-0">
+      <div className="rounded-card border border-line bg-surface px-4 py-1.5" data-testid="poll-repeat">
+        <SwitchRow
+          label={t.polls.detail.repeat.toggle}
+          description={
+            next ? (
+              <>
+                {t.polls.detail.repeat.next(formatDateTime(next.opensAt.toISOString()), formatDateTime(next.endsAt.toISOString()))}
+              </>
+            ) : (
+              t.polls.detail.repeat.toggleBody
+            )
+          }
+          checked={active}
+          disabled={setRepeat.isPending}
+          onChange={(enabled) =>
+            setRepeat.mutate(enabled, {
+              onSuccess: () => toast.success(enabled ? t.polls.detail.repeat.on : t.polls.detail.repeat.off),
+              onError: (error) => toast.error(error),
+            })
+          }
+        />
+      </div>
+    </Section>
   );
 }
 
@@ -653,6 +689,11 @@ export function PollDetailPage() {
             )}
             {poll.guests_allowed && !summary.isOver && <Badge tone="outline">{t.polls.detail.guestsBadge}</Badge>}
             {poll.auto_decide && !summary.isOver && <Badge tone="outline">{t.polls.detail.auto.badge}</Badge>}
+            {poll.series?.active && (
+              <Badge tone="outline" icon={<IconRepeat className="size-3.5" aria-hidden />}>
+                {t.polls.detail.repeat.badge}
+              </Badge>
+            )}
             <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.participation(votedCount, memberIds.length)}</span>
           </span>
         }
@@ -805,6 +846,13 @@ export function PollDetailPage() {
           <p className="text-[13px] text-faint">{poll.created_by === user.id ? t.polls.detail.createdByYou : t.polls.detail.createdBy(people.lookup(poll.created_by)?.display_name ?? t.states.formerMember)}</p>
 
           {canManage && !summary.isOver && poll.kind === "place" && <AutoDecideSettings poll={poll} />}
+          {canManage && poll.kind === "place" && !poll.parent_poll_id && (
+            <RepeatSettings
+              poll={poll}
+              now={now}
+              latest={!allPolls.data?.some((p) => p.series_id && p.series_id === poll.series_id && new Date(p.ends_at) > new Date(poll.ends_at))}
+            />
+          )}
           {canManage && !summary.isOver && <GuestSettings poll={poll} guests={guests} crewAdmin={canManageCrew(myRole(crew, user.id))} />}
 
           {canManage && !summary.isOver && (
