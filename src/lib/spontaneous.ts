@@ -40,9 +40,15 @@ export function openAsks<T extends Pick<SpontaneousAsk, "crew_id" | "closed_at" 
     .filter((ask) => (seen.has(ask.crew_id) ? false : (seen.add(ask.crew_id), true)));
 }
 
-/** Restzeit in ganzen Minuten (aufgerundet, nie negativ). */
-export function minutesLeft(ask: Pick<SpontaneousAsk, "expires_at">, now: Date): number {
-  return Math.max(0, Math.ceil((new Date(ask.expires_at).getTime() - now.getTime()) / 60_000));
+/**
+ * Restzeit in ganzen Minuten (aufgerundet, nie negativ, nie mehr als die ganze Laufzeit – `now` kann
+ * aus der Minute stammen, bevor die Frage entstand).
+ */
+export function minutesLeft(ask: Pick<SpontaneousAsk, "expires_at"> & Partial<Pick<SpontaneousAsk, "created_at">>, now: Date): number {
+  const expires = new Date(ask.expires_at).getTime();
+  const left = Math.max(0, Math.ceil((expires - now.getTime()) / 60_000));
+  if (!ask.created_at) return left;
+  return Math.max(0, Math.min(left, Math.ceil((expires - new Date(ask.created_at).getTime()) / 60_000)));
 }
 
 /** „1:34 h“ bzw. „12 min“ – kurz genug für eine Pille. */

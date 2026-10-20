@@ -40,6 +40,9 @@ test("Restzeit: aufgerundet, nie negativ, Stunden mit Minuten", () => {
   assert.equal(minutesLeft(ask(), NOW), 90);
   assert.equal(minutesLeft(ask({ expires_at: "2026-10-20T18:00:30Z" }), NOW), 1);
   assert.equal(minutesLeft(ask({ expires_at: "2026-10-20T17:00:00Z" }), NOW), 0);
+  // Die Uhr der Seite stammt aus der Minute vor dem Fragen: nie mehr als 2:00 h.
+  assert.equal(minutesLeft(ask({ created_at: "2026-10-20T18:00:40Z", expires_at: "2026-10-20T20:00:40Z" }), NOW), 120);
+  assert.equal(minutesLeft({ expires_at: "2026-10-20T20:00:40Z" }, NOW), 121, "ohne Startzeit keine Kappung");
   assert.equal(formatLeft(120), "2:00 h");
   assert.equal(formatLeft(94), "1:34 h");
   assert.equal(formatLeft(60), "1:00 h");
