@@ -68,7 +68,8 @@ language plpgsql stable security definer set search_path = '' as $$
 declare
   v_series public.poll_series%rowtype;
   v_last public.polls%rowtype;
-  v_next record;
+  v_next_ends timestamptz; -- bleibt null bei beendeter Serie (ein nicht zugewiesener record würde beim Lesen scheitern)
+  v_next_opens timestamptz;
 begin
   select * into v_series from public.poll_series s where s.id = p_series_id;
   if not found then
@@ -76,10 +77,11 @@ begin
   end if;
   select * into v_last from public.polls p where p.series_id = p_series_id order by p.ends_at desc, p.created_at desc limit 1;
   if v_series.active and v_last.id is not null then
-    select * into v_next from app_private.poll_series_next(v_last.ends_at, v_last.created_at, greatest(now(), v_last.ends_at));
+    select n.ends_at, n.opens_at into v_next_ends, v_next_opens
+    from app_private.poll_series_next(v_last.ends_at, v_last.created_at, greatest(now(), v_last.ends_at)) n;
   end if;
   return jsonb_build_object('id', v_series.id, 'active', v_series.active, 'last_poll_id', v_last.id,
-                            'next_ends_at', v_next.ends_at, 'next_opens_at', v_next.opens_at);
+                            'next_ends_at', v_next_ends, 'next_opens_at', v_next_opens);
 end $$;
 
 -- Startet die nächste Runde einer Serie, wenn die letzte vorbei und die nächste fällig ist. 1 = gestartet, sonst 0.

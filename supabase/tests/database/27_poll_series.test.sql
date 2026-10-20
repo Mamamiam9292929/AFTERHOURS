@@ -105,6 +105,9 @@ select is((select count(*)::int from public.polls where id = tests.var('next')::
 select tests.logout();
 
 -- ---- Verpasste Wochen werden übersprungen ------------------------------------------------------
+-- Zeit vergeht für die ganze Serie: Die erste Runde rückt mit zurück, damit die zweite die letzte bleibt.
+update public.polls set ends_at = now() - interval '27 days', created_at = now() - interval '30 days', closed_at = now() - interval '27 days'
+where id = tests.var('poll')::uuid;
 update public.polls set ends_at = now() - interval '20 days', created_at = now() - interval '23 days', status = 'closed', closed_at = now() - interval '20 days'
 where id = tests.var('next')::uuid;
 select is(app_private.roll_due_poll_series(), 1, 'pg_cron startet die fällige Runde');
@@ -129,7 +132,9 @@ select throws_ok(format($$ select public.set_poll_repeat(%L, false) $$, tests.va
 
 -- ---- Beenden und wieder einschalten -----------------------------------------------------------
 select tests.login('alice');
-select is((public.set_poll_repeat(tests.var('third')::uuid, false) ->> 'active')::boolean, false, 'Serie beendet');
+select tests.set_var('state', public.set_poll_repeat(tests.var('third')::uuid, false)::text);
+select is((tests.var('state')::jsonb ->> 'active')::boolean, false, 'Serie beendet');
+select is(tests.var('state')::jsonb -> 'next_ends_at', 'null'::jsonb, 'beendete Serie nennt keine nächste Runde');
 select tests.logout();
 update public.polls set ends_at = now() - interval '6 days 20 hours', created_at = now() - interval '7 days 20 hours' where id = tests.var('third')::uuid;
 select is(app_private.roll_due_poll_series(), 0, 'beendete Serie startet keine Runde, auch wenn sie fällig wäre');
