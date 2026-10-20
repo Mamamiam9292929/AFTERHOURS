@@ -2833,6 +2833,65 @@ await step("S4 – „Heute noch wer?“: Spontan-Frage an die Crew (Bob, Alice,
   check(true, "„Erneut versuchen“ lädt die Fragen");
 });
 
+await step("S7 – Runde jede Woche von selbst: „Freitag, was geht?“ (Bob, Carol)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const day = new Date(Date.now() + 3 * 86_400_000).toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
+  const created = await api(bob, "POST", "rpc/create_poll", {
+    p_crew_id: ids.crew, p_title: "Freitag, was geht?", p_ends_at: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+    p_options: [{ title: "Bowling", proposed_date: day, proposed_time: "20:00" }, { title: "Kino" }],
+    p_description: null, p_meeting_point: null, p_budget_cents: null, p_min_participants: null,
+  });
+  if (created.status >= 300) throw new Error(`Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+  const pollId = created.json;
+  let seriesId = null;
+  try {
+    await bob.page.goto(`${APP}/polls/${pollId}`);
+    const toggle = bob.page.getByRole("switch", { name: /^Jede Woche neu/ });
+    await toggle.waitFor();
+    check(!(await toggle.isChecked()), "„Jede Woche neu“ ist standardmäßig aus");
+    await toggle.click();
+    await toast(bob, "Läuft ab jetzt jede Woche.");
+    await bob.page.getByTestId("poll-repeat").getByText(/Nächste Runde ab .+, entscheidet sich bis /).waitFor();
+    await bob.page.getByText("Jede Woche", { exact: true }).first().waitFor();
+    check(true, "Ersteller:in schaltet „Jede Woche neu“ ein und sieht, wann die nächste Runde startet");
+    await noOverflow(bob, "Jede Woche neu");
+    await shot(bob, "47-jede-woche");
+    seriesId = (await api(bob, "GET", `polls?id=eq.${pollId}&select=series_id`)).json?.[0]?.series_id;
+    check(Boolean(seriesId), "Abstimmung gehört zu einer Serie");
+    await carol.page.goto(`${APP}/polls/${pollId}`);
+    await carol.page.getByText("Jede Woche", { exact: true }).first().waitFor();
+    check((await carol.page.getByRole("switch", { name: /^Jede Woche neu/ }).count()) === 0, "einfache Mitglieder sehen das Kennzeichen, aber keinen Schalter");
+    const outsider = await api(mallory, "POST", "rpc/set_poll_repeat", { p_poll_id: pollId, p_enabled: false });
+    check(outsider.status >= 400, `API: Außenstehende schalten nichts um (${outsider.status})`);
+
+    // Die Runde ist vorbei, die nächste müsste schon laufen: Home stößt sie an.
+    psql(`update public.polls set ends_at = now() - interval '5 days', created_at = now() - interval '8 days', status = 'closed', closed_at = now() - interval '5 days' where id = '${pollId}'`);
+    await bob.page.goto(`${APP}/home`);
+    let rounds = [];
+    for (let i = 0; i < 30 && rounds.length < 2; i++) {
+      rounds = (await api(bob, "GET", `polls?series_id=eq.${seriesId}&select=id,status,ends_at,poll_options!poll_options_poll_id_fkey(title,proposed_date)&order=ends_at`)).json ?? [];
+      if (rounds.length < 2) await bob.page.waitForTimeout(500);
+    }
+    check(rounds.length === 2 && rounds[1].status === "open", `Home startet die nächste Runde von selbst (${rounds.length} Runden)`);
+    const nextDay = new Date(new Date(`${day}T12:00:00Z`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+    check(rounds[1]?.poll_options?.find((o) => o.title === "Bowling")?.proposed_date === nextDay, "gleiche Vorschläge, Termin eine Woche später");
+    await bob.page.reload();
+    await bob.page.getByRole("button", { name: "Was geht?" }).waitFor();
+    check((await api(bob, "GET", `polls?series_id=eq.${seriesId}&select=id`)).json?.length === 2, "Neuladen startet keine zweite Runde");
+    await carol.page.goto(`${APP}/notifications`);
+    await carol.page.getByText("Neue Runde – was geht diese Woche?").first().waitFor();
+    check(true, "die Crew bekommt „Neue Runde – was geht diese Woche?“");
+    await carol.page.goto(`${APP}/polls/${rounds[1].id}`);
+    await carol.page.getByRole("heading", { level: 1 }).filter({ hasText: /was geht/i }).waitFor();
+    await carol.page.getByText("Jede Woche", { exact: true }).first().waitFor();
+    check(true, "die neue Runde trägt „Jede Woche“");
+  } finally {
+    // Aufräumen: Die übrige Journey kennt diese Abstimmungen nicht.
+    if (seriesId) psql(`delete from public.polls where series_id = '${seriesId}'; delete from public.poll_series where id = '${seriesId}'`);
+    psql(`delete from public.polls where id = '${pollId}'`);
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);

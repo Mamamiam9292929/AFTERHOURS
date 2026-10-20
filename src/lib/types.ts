@@ -160,6 +160,8 @@ export interface Poll {
   guest_join_by: string | null;
   /** P1 Etappe 3a: Orts-Abstimmung zu einer Termin-Abstimmung („Und wo?“) – deren ID, sonst null. */
   date_poll_id: string | null;
+  /** S7: Runde einer wöchentlichen Serie („Jede Woche neu“), sonst null. */
+  series_id: string | null;
 }
 
 export interface PollOption {
