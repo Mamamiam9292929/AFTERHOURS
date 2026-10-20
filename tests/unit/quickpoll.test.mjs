@@ -43,6 +43,26 @@ const cases = [
   ["Thermen-Tag am Sonntag", ["Thermen-Tag"], ["2026-10-25"], null, "Was geht Sonntag?"],
   ["Fr. oder Sa. Club", ["Club"], ["2026-10-23", "2026-10-24"], null, "Was geht am Wochenende?"],
   ["Was geht?", ["Was geht"], [], null, "Was geht – wer ist dabei?"],
+  // Feinschliff (20.10.): Uhrzeiten, wie man sie sagt, Tage mit Tageszeit, Kurzformen am Rand
+  ["kino am fr um halb 8", ["Kino"], ["2026-10-23"], "19:30", "Was geht Freitag?"],
+  ["Restaurant am Mo um viertel nach 7", ["Restaurant"], ["2026-10-19"], "19:15", "Was geht heute?"],
+  ["dreiviertel 8 bar", ["Bar"], [], "19:45", "Bar – wer ist dabei?"],
+  ["Am So. um halb 8 Tatort", ["Tatort"], ["2026-10-25"], "19:30", "Was geht Sonntag?"],
+  ["Kneipe? heute so gegen 9", ["Kneipe"], ["2026-10-19"], "21:00", "Was geht heute?"],
+  ["kino um 8 rum", ["Kino"], [], "20:00", "Kino – wer ist dabei?"],
+  ["kino 20h", ["Kino"], [], "20:00", "Kino – wer ist dabei?"],
+  ["Karaoke am Samstagabend", ["Karaoke"], ["2026-10-24"], null, "Was geht Samstag?"],
+  ["Freitagabend Bar", ["Bar"], ["2026-10-23"], null, "Was geht Freitag?"],
+  ["morgenabend kino", ["Kino"], ["2026-10-20"], null, "Was geht morgen?"],
+  ["Sonntagmorgen brunch", ["Brunch"], ["2026-10-25"], null, "Was geht Sonntag?"],
+  ["lass mal am WE was trinken gehen", ["Was trinken gehen"], ["2026-10-23", "2026-10-24"], null, "Was geht am Wochenende?"],
+  ["nächsten freitag kino", ["Kino"], ["2026-10-23"], null, "Was geht Freitag?"],
+  ["Grillen am See am So", ["Grillen am See"], ["2026-10-25"], null, "Was geht Sonntag?"],
+  ["Brunch so 11 uhr", ["Brunch"], ["2026-10-25"], "11:00", "Was geht Sonntag?"],
+  ["Pizza & Film fr", ["Pizza & Film"], ["2026-10-23"], null, "Was geht Freitag?"],
+  ["Rum Tasting fr", ["Rum Tasting"], ["2026-10-23"], null, "Was geht Freitag?"],
+  // Bleibt wie bisher: „so“ mitten im Satz ist kein Sonntag
+  ["Bar so wie immer", ["Bar so wie immer"], [], null, "Bar so wie immer – wer ist dabei?"],
 ];
 
 for (const [input, acts, ds, time, title] of cases) {

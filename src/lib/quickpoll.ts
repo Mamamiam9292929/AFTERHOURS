@@ -51,7 +51,14 @@ const FILLER = [
   "hat jemand bock auf", "hat jemand lust auf", "habt ihr bock auf", "habt ihr lust auf", "bock auf", "lust auf", "lass mal", "lasst uns",
   "gehen wir", "wollen wir", "sollen wir", "wie wärs mit", "wie wäre es mit", "was ist mit", "vielleicht", "diese woche", "nächste woche",
   "am", "an", "um", "ab", "so gegen", "gegen", "zum", "zur", "ins", "in die", "in den", "ne runde", "eine runde", "noch", "mal", "wer", "abends", "abend",
+  "nächsten", "nächste", "kommenden", "kommende", "diesen", "jeden",
 ];
+
+/** Wörter, nach denen eine Kurzform („am so“, „jeden do“) sicher ein Wochentag ist. */
+const DAY_LEAD = ["am", "ab", "bis", "jeden", "nächsten", "nächster", "kommenden", "diesen"];
+
+/** Tageszeit an Tagesnamen: „Samstagabend“, „freitagnachts“, „sonntagmorgen“, „morgenabend“. */
+const DAYTIME_SUFFIX = /(abends?|nachmittags?|vormittags?|mittags?|morgens?|nachts?)$/;
 
 interface BerlinNow {
   date: string;
@@ -162,17 +169,27 @@ export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll
     return " , ";
   });
 
-  // Uhrzeit: „20 uhr“, „20:30“, „20.30 uhr“, „um 8“, „8 uhr abends“
-  const timePatterns: RegExp[] = [
-    /\b(?:um|ab|gegen)?\s*(\d{1,2})[:.](\d{2})\s*(?:uhr)?\s*(abends)?/i,
-    /\b(?:um|ab|gegen)?\s*(\d{1,2})\s*uhr\s*(abends)?/i,
-    /\b(?:um|ab|gegen)\s+(\d{1,2})\b(?!\.\d)\s*(abends)?/i,
+  // Uhrzeit: „20 uhr“, „20:30“, „20.30 uhr“, „um 8“, „8 uhr abends“, „20h“, „halb 8“, „viertel nach 8“.
+  // „so gegen 9“ ist ungefähr, kein Sonntag; „am so um 8“ bleibt Sonntag. „rum“ dahinter gehört dazu.
+  // (Ohne Lookbehind, damit ältere Safari-Versionen den Ausdruck laden.)
+  text = text.replace(/\bam\s+so\b\.?/gi, "am sonntag");
+  const lead = String.raw`(?:\bso\s+(?=gegen|um\s))?(?:\b(?:um|ab|gegen)\s*)?`;
+  const tail = String.raw`(?:\s*(?:uhr|h\b))?(?:\s*(abends))?(?:\s+(?:rum|herum)\b)?`;
+  const timePatterns: { re: RegExp; hour: (h: number) => number; minute: number | null }[] = [
+    { re: new RegExp(String.raw`${lead}\bhalb\s+(\d{1,2})\b(?![.:]\d)${tail}`, "i"), hour: (h) => h - 1, minute: 30 },
+    { re: new RegExp(String.raw`${lead}\bviertel\s+nach\s+(\d{1,2})\b(?![.:]\d)${tail}`, "i"), hour: (h) => h, minute: 15 },
+    { re: new RegExp(String.raw`${lead}\b(?:viertel\s+vor|dreiviertel)\s+(\d{1,2})\b(?![.:]\d)${tail}`, "i"), hour: (h) => h - 1, minute: 45 },
+    { re: new RegExp(String.raw`${lead}\b(\d{1,2})[:.](\d{2})${tail}`, "i"), hour: (h) => h, minute: null },
+    { re: new RegExp(String.raw`${lead}\b(\d{1,2})\s*(?:uhr|h\b)(?:\s*(abends))?(?:\s+(?:rum|herum)\b)?`, "i"), hour: (h) => h, minute: 0 },
+    { re: new RegExp(String.raw`(?:\bso\s+(?=gegen|um\s))?\b(?:um|ab|gegen)\s+(\d{1,2})\b(?![.:]\d)(?:\s*(abends))?(?:\s+(?:rum|herum)\b)?`, "i"), hour: (h) => h, minute: 0 },
   ];
-  for (const re of timePatterns) {
+  for (const { re, hour, minute } of timePatterns) {
     const m = re.exec(text);
     if (!m) continue;
-    const hasMinutes = re === timePatterns[0];
-    const t = normalizeTime(Number(m[1]), hasMinutes ? Number(m[2]) : 0, Boolean(hasMinutes ? m[3] : m[2]));
+    const minutes = minute ?? Number(m[2]);
+    const evening = Boolean(minute === null ? m[3] : m[2]);
+    const h = hour(Number(m[1]));
+    const t = normalizeTime(h < 0 ? 23 : h, minutes, evening);
     if (t) {
       time = t;
       text = text.replace(m[0], " , ");
@@ -188,16 +205,26 @@ export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll
 
   for (const raw of phrases) {
     const words = raw.split(" ").filter(Boolean);
-    const key = (w: string) => w.toLocaleLowerCase("de").replace(/[.:]+$/, "");
+    const key = (w: string) => {
+      const k = w.toLocaleLowerCase("de").replace(/[.:]+$/, "");
+      // „Samstagabend“ → „samstag“, „morgenabend“ → „morgen“; „morgens“ allein bleibt, wie es ist.
+      const base = k.replace(DAYTIME_SUFFIX, "");
+      if (base !== k && ((base.length > 2 && base in WEEKDAYS) || ["heute", "morgen", "übermorgen"].includes(base))) return base;
+      return k === "we" ? "wochenende" : k;
+    };
     const isDayWord = (w: string) => key(w) in WEEKDAYS || ["heute", "heut", "morgen", "übermorgen", "uebermorgen", "wochenende"].includes(key(w));
-    // Kurzformen („do“, „so“, „mi“) sind im Deutschen auch normale Wörter: nur in kurzen Phrasen
-    // als Wochentag lesen; „so“ nur mit Punkt oder in einer reinen Tagesliste.
+    // Kurzformen („do“, „so“, „mi“) sind im Deutschen auch normale Wörter: als Wochentag nur nach „am“,
+    // „jeden“ & Co., in kurzen Phrasen oder am Anfang/Ende; „so“ zusätzlich nur mit Punkt, in einer reinen
+    // Tagesliste oder am Rand einer kurzen Phrase („Brunch so“).
     const others = words.filter((w) => !isDayWord(w)).length;
     const rest: string[] = [];
-    for (const w of words) {
+    for (const [i, w] of words.entries()) {
       const word = key(w);
       const short = word.length === 2 && word in WEEKDAYS;
-      const shortOk = !short || (word === "so" ? others === 0 || w.endsWith(".") : others <= 2);
+      const led = i > 0 && DAY_LEAD.includes(key(words[i - 1] ?? ""));
+      const edge = i === 0 || i === words.length - 1;
+      const shortOk =
+        !short || led || (word === "so" ? others === 0 || w.endsWith(".") || (edge && others <= 2) : others <= 2 || edge);
       if (word === "heute" || word === "heut") addDay(today.date);
       else if (word === "morgen") addDay(addDays(today.date, 1));
       else if (word === "übermorgen" || word === "uebermorgen") addDay(addDays(today.date, 2));
