@@ -5,6 +5,23 @@ import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
 import type { AppNotification } from "@/lib/types";
 
+/**
+ * P3 Etappe 3b: Einmal je Sitzung (und Person) fragt die App den Server, ob eine Erinnerung an offene
+ * Beträge fällig ist; der Server legt sie dann als Benachrichtigung an. Scheitert das (Netz, Rate Limit),
+ * bleibt es bei der Liste – beim nächsten Start versucht es die App wieder.
+ */
+let expenseRemindersCheckedFor: string | null = null;
+
+async function checkExpenseReminders(userId: string) {
+  if (expenseRemindersCheckedFor === userId) return;
+  expenseRemindersCheckedFor = userId;
+  try {
+    await supabase.rpc("send_my_expense_reminders");
+  } catch {
+    // Ohne Netz kommt die Erinnerung beim nächsten Start.
+  }
+}
+
 /** Die letzten 60 Benachrichtigungen. Aktualisiert sich per Realtime, ersatzweise alle 45 Sekunden. */
 export function useNotifications() {
   const { user } = useAuth();
@@ -17,6 +34,7 @@ export function useNotifications() {
     enabled: Boolean(user),
     refetchInterval: 45_000,
     queryFn: async (): Promise<AppNotification[]> => {
+      if (user) await checkExpenseReminders(user.id);
       const { data, error } = await supabase.from("notifications").select("*").order("created_at", { ascending: false }).limit(60);
       if (error) throw error;
       return data as AppNotification[];

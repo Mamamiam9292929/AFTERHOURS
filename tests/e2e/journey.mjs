@@ -1517,6 +1517,40 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await bob.page.getByTestId("crew-balances").getByText("Du gibst insgesamt 28 €").waitFor();
   check(true, "Bob sieht auf der Crew-Seite: gibt insgesamt 28 €");
 
+  // P3 Etappe 3b – Erinnerung an offene Beträge: eine Woche nach Abend und letztem Eintrag sind Bobs
+  // 28 € noch offen. Abend und Einträge werden dafür kurz um acht Tage zurückdatiert.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const shift = (sign) =>
+      psql(`update public.plans set starts_at = starts_at ${sign} interval '8 days' where id = '${ids.plan}';
+            update public.plan_expenses set created_at = created_at ${sign} interval '8 days' where plan_id = '${ids.plan}'`);
+    shift("-");
+    try {
+      await bob.page.goto(`${APP}/notifications`);
+      const reminder = bob.page.getByRole("link", { name: /Bei „Strike District Bowling“ sind von dir noch 28\s€ offen/ });
+      await reminder.waitFor();
+      check(await reminder.getByText("Schon erledigt? Dann tippe bei „Kosten teilen“ auf „Erledigt“.").isVisible(), "Erinnerung sagt freundlich, was zu tun ist");
+      await noOverflow(bob, "Erinnerung an offene Beträge");
+      await shot(bob, "21d-erinnerung-offene-betraege");
+      await bob.page.reload();
+      await reminder.waitFor();
+      check((await bob.page.getByRole("link", { name: /sind von dir noch 28\s€ offen/ }).count()) === 1, "Neuladen erinnert nicht noch einmal");
+      await reminder.click();
+      await bob.page.waitForURL(`**/plans/${ids.plan}#kosten`);
+      await bob.page.getByText("Du gibst noch 28 €").waitFor();
+      check(true, "Erinnerung führt direkt zu „Kosten teilen“");
+      await alice.page.goto(`${APP}/notifications`);
+      await alice.page.getByRole("link", { name: /Bei „Strike District Bowling“ bekommst du noch 28\s€/ }).waitFor();
+      check(true, "Alice wird an die 28 € erinnert, die sie noch bekommt");
+      check(psql(`select count(*) from public.notifications where type = 'plan_expense_reminder' and related_entity_id = '${ids.plan}'`) === "2", "je Person genau eine Erinnerung");
+      await bob.page.goto(`${APP}/settings`);
+      await bob.page.getByText("Erinnerung an offene Beträge").first().waitFor();
+      check(true, "Erinnerung lässt sich in den Einstellungen abschalten");
+    } finally {
+      shift("+");
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });
