@@ -11,12 +11,13 @@ import { useProfile } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/errors";
 import { useDebouncedValue } from "@/lib/hooks";
+import { stepDeck } from "@/lib/stage";
 import { dayPhase, formatDateWithYear } from "@/lib/time";
 import { ActivityCard } from "./ActivityCard";
 import { applyFilters, countActiveFilters, EMPTY_FILTERS, useActivitySearch, usePlaceRegion, type ActivityFilters } from "./api";
 import { CityField } from "./CityField";
 import { rememberCity, rememberedCity } from "./rememberedCity";
-import { pickStage, StageCard } from "./StageCard";
+import { StageDeck, stageDeck } from "./StageCard";
 
 const numberOrNull = (value: string) => (value === "" ? null : Number(value));
 
@@ -27,6 +28,8 @@ export function DiscoverPage() {
   const [filters, setFilters] = useState<ActivityFilters>(EMPTY_FILTERS);
   const [cityInitialized, setCityInitialized] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Position im Stapel – gilt nur für genau diesen Stapel; ändern sich Stadt, Kategorie oder Filter, geht es oben los.
+  const [deckPosition, setDeckPosition] = useState({ key: "", index: 0 });
   const patch = (update: Partial<ActivityFilters>) => setFilters((f) => ({ ...f, ...update }));
 
   // Start mit der zuletzt gewählten Stadt, sonst der aus dem Profil.
@@ -60,8 +63,12 @@ export function DiscoverPage() {
   const activeCount = countActiveFilters(filters);
   const region = places.region.data;
   const syncError = places.syncError;
-  // Bühne (D0): ein Ort groß oben – nur beim Stöbern, nicht bei einer Suche nach etwas Bestimmtem.
-  const stage = filters.search.trim() === "" ? pickStage(results) : null;
+  // Stapel (V2): Orte groß oben zum Durchblättern – nur beim Stöbern, nicht bei einer Suche nach etwas Bestimmtem.
+  // Jeder Ort steht genau einmal auf der Seite: der oberste im Stapel, alle anderen in der Liste darunter.
+  const deck = useMemo(() => (filters.search.trim() === "" ? stageDeck(results) : []), [filters.search, results]);
+  const deckKey = deck.map((r) => r.activity.id).join(",");
+  const deckIndex = deckPosition.key === deckKey ? Math.min(deckPosition.index, Math.max(0, deck.length - 1)) : 0;
+  const stage = deck[deckIndex] ?? null;
   const rest = stage ? results.filter((r) => r !== stage) : results;
   const cityName = places.canonicalName ?? city;
 
@@ -89,7 +96,7 @@ export function DiscoverPage() {
             aria-label={t.discover.searchLabel}
             placeholder={t.discover.searchPlaceholder}
             disabled={!city}
-            className="h-12 w-full rounded-control border border-line bg-surface pl-11 pr-11 text-fg placeholder:text-faint hover:border-line-strong focus:border-lime focus:outline-none disabled:opacity-50 [&::-webkit-search-cancel-button]:hidden"
+            className="h-12 w-full rounded-full border border-white/12 bg-white/[0.06] pl-11 pr-11 text-fg backdrop-blur-md placeholder:text-faint hover:border-white/25 focus:border-lime focus:outline-none disabled:opacity-50 [&::-webkit-search-cancel-button]:hidden"
           />
           {filters.search && (
             <button type="button" onClick={() => patch({ search: "" })} aria-label={t.actions.remove} className="absolute right-1 top-1/2 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:text-fg">
@@ -174,11 +181,11 @@ export function DiscoverPage() {
                   </Notice>
                 )}
                 {stage && (
-                  <div className="mb-8">
-                    <StageCard activity={stage.activity} distanceKm={stage.distanceKm} />
+                  <div className="mb-9">
+                    <StageDeck deck={deck} index={deckIndex} onStep={(step) => setDeckPosition({ key: deckKey, index: stepDeck(deckIndex, deck.length, step) })} />
                   </div>
                 )}
-                {stage && rest.length > 0 && <h2 className="mb-1 text-xl font-bold text-fg">{t.discover.stage.more(cityName ?? "")}</h2>}
+                {stage && rest.length > 0 && <h2 className="display mb-1.5 text-[20px] text-fg sm:text-[24px]">{t.discover.stage.more(cityName ?? "")}</h2>}
                 <p className="mb-3 text-sm text-muted" aria-live="polite">
                   {page && page.total > items.length ? t.discover.resultsOf(results.length, page.total) : t.discover.results(results.length)}
                 </p>
