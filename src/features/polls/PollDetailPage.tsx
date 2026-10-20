@@ -17,6 +17,7 @@ import { useActivity } from "@/features/discover/api";
 import { useCreatePlanFromPoll, usePlans } from "@/features/plans/api";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
+import { DecidedMoment } from "./DecidedMoment";
 import { SwipeDeck } from "./SwipeDeck";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
@@ -761,6 +762,8 @@ export function PollDetailPage() {
             </div>
           )}
 
+          {/* S5 Etappe 2: Entscheidet sich die Abstimmung jetzt, springt die Seite zum Plan bzw. zur Stichwahl. */}
+          <DecidedMoment key={poll.id} open={!summary.isOver} auto={poll.auto_decide && (!closed || poll.closed_by == null)} plan={plan} runoffId={runoff?.id} />
           {!summary.isOver && (
             <SwipeDeck tallies={summary.tallies} onVote={(optionId, response) => castVote(optionId, response)} when={(tally) => optionWhen(tally.option)} memberCount={memberIds.length} />
           )}

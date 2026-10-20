@@ -13,9 +13,15 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: p.role === "owner" ? "Du bist jetzt Owner der Crew" : p.role === "admin" ? "Du bist jetzt Admin der Crew" : "Deine Rolle in der Crew wurde geändert",
     body: p.reason === "succession" ? "Der bisherige Owner hat die Crew verlassen." : undefined,
   }),
-  // S7: Die neue Runde einer wöchentlichen Abstimmung startet von selbst – ohne auslösende Person.
+  // S5 Etappe 2 / S7: Stichwahl nach Gleichstand und neue Wochenrunde starten von selbst – ohne auslösende Person.
   poll_created: (actor, p) => ({
-    title: p.repeat ? "Neue Runde – was geht diese Woche?" : p.runoff ? `${actor} hat eine Stichwahl gestartet` : `${actor} hat eine Abstimmung gestartet`,
+    title: p.repeat
+      ? "Neue Runde – was geht diese Woche?"
+      : p.auto && p.runoff
+        ? "Gleichstand – die Stichwahl läuft"
+        : p.runoff
+          ? `${actor} hat eine Stichwahl gestartet`
+          : `${actor} hat eine Abstimmung gestartet`,
     body: str(p, "title"),
   }),
   poll_reminder: (actor, p) => ({ title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") }),
