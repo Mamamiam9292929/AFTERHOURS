@@ -37,6 +37,8 @@ export const qk = {
   activity: (id: string) => ["activities", id] as const,
   activitySearch: (city: string, category: string | null, query: string, limit: number) => ["activities", "search", city.toLocaleLowerCase("de"), category, query, limit] as const,
   placeRegion: (city: string) => ["place-region", city.toLocaleLowerCase("de")] as const,
+  /** S4: laufende „Heute noch wer?“-Fragen aller eigenen Crews. */
+  spontaneous: ["spontaneous"] as const,
   polls: ["polls"] as const,
   poll: (pollId: string) => ["polls", pollId] as const,
   plans: ["plans"] as const,

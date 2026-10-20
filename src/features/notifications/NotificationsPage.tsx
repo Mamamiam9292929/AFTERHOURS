@@ -16,6 +16,8 @@ import { useDeleteNotification, useMarkNotificationsRead, useNotifications } fro
 /** Wohin eine Benachrichtigung führt. */
 function targetOf(n: AppNotification): string | null {
   if (n.type === "reward_earned") return "/rewards";
+  // S4: „Heute noch wer?“ wird auf Home beantwortet.
+  if (n.type === "spontaneous_ask" || n.type === "spontaneous_answer" || n.type === "spontaneous_match") return "/";
   // P3 Etappe 3b: Die Erinnerung führt direkt zu „Kosten teilen“.
   if (n.type === "plan_expense_reminder" && n.related_entity_id) return `/plans/${n.related_entity_id}#kosten`;
   if (!n.related_entity_id) return n.crew_id ? `/crews/${n.crew_id}` : null;

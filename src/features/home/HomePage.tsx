@@ -13,6 +13,7 @@ import { FeatureTicket, PlanTicket } from "@/features/plans/PlanTicket";
 import { PlanQuickAnswer } from "@/features/plans/QuickAnswer";
 import { useIdeas } from "./ideas";
 import { InstallCard } from "./InstallCard";
+import { SpontaneousCard, SpontaneousLauncher, useSpontaneousAsks } from "./Spontaneous";
 import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
 import { QuickPollLauncher } from "@/features/polls/QuickPoll";
@@ -20,6 +21,7 @@ import { PollCard } from "@/features/polls/PollCard";
 import { usePeople, useProfile, useSettings } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { openAsks } from "@/lib/spontaneous";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { calendarDaysBetween, dayPhase, zonedParts } from "@/lib/time";
 
@@ -65,6 +67,7 @@ export function HomePage() {
   const plans = usePlans();
   const people = usePeople();
   const { ideas, isPending: ideasPending, city: ideasCity, importing: ideasImporting } = useIdeas();
+  const spontaneous = useSpontaneousAsks(Boolean(crews.data && crews.data.length > 0));
 
   const crewById = useMemo(() => new Map((crews.data ?? []).map((c) => [c.id, c])), [crews.data]);
   const membersOf = (crewId: string) => crewById.get(crewId)?.members.map((m) => m.user_id) ?? [];
@@ -78,6 +81,7 @@ export function HomePage() {
   const featured = upcoming.find(
     (p) => !plansNeedingMe.includes(p) && p.status !== "cancelled" && p.participants.find((pp) => pp.user_id === user.id)?.attendance_status !== "declined",
   );
+  const asks = openAsks(spontaneous.data ?? [], now);
   const nextPlans = upcoming.filter((p) => !plansNeedingMe.includes(p) && p !== featured).slice(0, 2);
   const needsAnswer = pollsNeedingMe.length + plansNeedingMe.length;
 
@@ -100,6 +104,19 @@ export function HomePage() {
           <span className="text-lime">{title.key}</span>
           {title.tail}
         </h1>
+        {/* S4: Eine laufende „Heute noch wer?“-Frage ist das Dringendste – sie verfällt nach 2 Stunden. */}
+        {asks.length > 0 && (
+          <div className="mt-7 max-w-2xl space-y-4">
+            {asks.map((ask) => (
+              <SpontaneousCard key={ask.id} ask={ask} crew={crewById.get(ask.crew_id)} userId={user.id} lookup={people.lookup} now={now} />
+            ))}
+          </div>
+        )}
+        {spontaneous.isError && (
+          <div className="mt-7 max-w-2xl">
+            <ErrorState error={spontaneous.error} onRetry={() => void spontaneous.refetch()} />
+          </div>
+        )}
         {featured && !loading && !failed && (
           <div className="mt-7 max-w-2xl lg:mt-9">
             <FeatureTicket plan={featured} crew={crewById.get(featured.crew_id)} userId={user.id} lookup={people.lookup} />
@@ -110,6 +127,7 @@ export function HomePage() {
           <div className="mt-7 flex max-w-2xl flex-col gap-3">
             <QuickPollLauncher crews={crews.data} />
             <div className="flex flex-wrap gap-2">
+              {spontaneous.data && <SpontaneousLauncher crews={crews.data} asks={spontaneous.data} now={now} />}
               <ButtonLink to="/polls/new" size="sm" variant="secondary" icon={<IconVote className="size-4" aria-hidden />}>
                 {t.home.startPoll}
               </ButtonLink>

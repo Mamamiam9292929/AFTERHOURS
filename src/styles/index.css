@@ -243,6 +243,59 @@
   }
 
   /*
+   * S4 · „Heute noch wer?“: eine Karte wie die Plan-Karte. Ohne Antwort dunkles Glas mit Lime-Rand,
+   * bei „Bock“ ganz in Lime, bei „heute nicht“ rot – dunkle Schrift auf Farbe (Token werden umgestellt).
+   */
+  .ask-card {
+    position: relative;
+    border-radius: var(--radius-ticket);
+    padding: 18px 18px 16px;
+    background: linear-gradient(150deg, color-mix(in srgb, var(--color-pink) 18%, var(--color-surface)), color-mix(in srgb, var(--color-violet) 14%, var(--color-surface)) 55%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-lime) 45%, transparent);
+    color: var(--color-fg);
+    --ask-ring: var(--color-surface);
+    transition:
+      background-color 0.5s var(--ease-out-soft),
+      box-shadow 0.5s var(--ease-out-soft);
+  }
+  .ask-card[data-answer="in"],
+  .ask-card[data-answer="out"] {
+    border-color: transparent;
+    --color-fg: #0b0b10;
+    --color-muted: rgb(11 11 16 / 0.78);
+    --color-faint: rgb(11 11 16 / 0.7);
+    --color-surface: rgb(11 11 16 / 0.12);
+    --color-raised: rgb(11 11 16 / 0.14);
+    --color-line: rgb(11 11 16 / 0.2);
+    --color-line-strong: rgb(11 11 16 / 0.35);
+    --color-danger: #0b0b10;
+    --color-lime: #0b0b10;
+  }
+  .ask-card[data-answer="in"] {
+    /* Feste Werte: die Farb-Token werden auf dieser Karte selbst umgestellt. */
+    background: #c8ff2e;
+    box-shadow: 0 26px 50px -24px #c8ff2eb3;
+    --ask-ring: #c8ff2e;
+    --ask-accent: #c8ff2e;
+  }
+  .ask-card[data-answer="out"] {
+    background: #ff6b5e;
+    box-shadow: 0 26px 50px -24px #ff6b5eb3;
+    --ask-ring: #ff6b5e;
+    --ask-accent: #ff6b5e;
+  }
+  .ask-answer-active {
+    border-color: #0b0b10;
+    background: #0b0b10;
+    color: var(--ask-accent, #c8ff2e);
+  }
+  @media (min-width: 640px) {
+    .ask-card {
+      padding: 22px 24px 20px;
+    }
+  }
+
+  /*
    * Große Plan-Karte (Home, Planseite, Crew): oben auf einem angedeuteten Stapel (zwei Karten dahinter,
    * leicht gedreht). Beim Antworten gibt die Karte kurz nach; die Farbe läuft weich über.
    */
