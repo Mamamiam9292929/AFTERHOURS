@@ -365,5 +365,15 @@ export const polls = {
     done: "Alles gewischt – deine Antworten stehen unten und lassen sich jederzeit ändern.",
     match: "Match",
     matchBody: (title: string) => `Alle sind bei „${title}“ dabei.`,
+    /** S5 Etappe 2: Die Abstimmung hat sich gerade selbst entschieden. */
+    decided: "Entschieden",
+    decidedBody: (title: string) => `Es wird ${title} – der Plan steht.`,
+    decidedGoing: "Wer dabei war, ist schon zugesagt.",
+    tie: "Gleichstand",
+    tieBody: "Die Stichwahl läuft schon – nur mit den Vorschlägen, die gleichauf lagen.",
+    toPlan: "Zum Plan",
+    toRunoff: "Zur Stichwahl",
+    jumping: "Gleich geht’s weiter …",
+    stay: "Hier bleiben",
   },
 };
