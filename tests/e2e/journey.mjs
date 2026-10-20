@@ -726,6 +726,15 @@ await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () =>
     await guest.page.reload();
     await guest.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Dana" }).waitFor();
     check((await answer(guest, "Grillen bei Bob", "Bin dabei").getAttribute("aria-checked")) === "true", "Gast sieht nach dem Neuladen seine Antworten");
+    // S2: Der Name bleibt auf dem Gerät, ändern geht mit einem Tipp – ohne Namensfeld und ohne Speichern-Knopf.
+    check((await guest.page.evaluate(() => localStorage.getItem("afterhours.guest.name"))) === "Dana", "S2: Name liegt auf diesem Gerät");
+    await guest.page.getByTestId("guest-one-tap").getByText("Dana", { exact: true }).waitFor();
+    check((await guest.page.getByLabel("Dein Name").count()) === 0 && (await guest.page.getByRole("button", { name: "Antworten speichern" }).count()) === 0, "S2: wer abgestimmt hat, ändert ohne Formular");
+    await answer(guest, "Lichtspielhaus Nord", "Bin dabei").click();
+    await guest.page.getByText("Gespeichert. Die Crew sieht deine Stimme.").waitFor();
+    await guest.page.reload();
+    await guest.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Dana" }).waitFor();
+    check((await answer(guest, "Lichtspielhaus Nord", "Bin dabei").getAttribute("aria-checked")) === "true", "S2: ein Tipp hat die Antwort gespeichert");
     await shot(guest, "11d-gast-abgestimmt");
     for (const viewport of ["tablet", "desktop"]) {
       await guest.page.setViewportSize(VIEWPORTS[viewport]);
@@ -755,6 +764,42 @@ await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () =>
   await optionCard(alice, "Grillen bei Bob").getByText("0 Zusagen").waitFor();
   check(true, "entfernter Gast zählt nicht mehr");
   check((await alice.page.getByText("+ 1 Gast hat mitgestimmt").count()) === 0, "Beteiligung ohne Gast");
+
+  // S2: Wer schon bei einem anderen Link abgestimmt hat, bringt den Namen mit und stimmt mit einem Tipp ab.
+  const lea = await newUser("Lea", "mobile");
+  try {
+    await lea.page.addInitScript(() => {
+      if (!sessionStorage.getItem("journey.lea")) {
+        sessionStorage.setItem("journey.lea", "1");
+        localStorage.setItem("afterhours.guest.name", "Lea");
+      }
+    });
+    await lea.page.goto(ids.pollShareUrl);
+    await lea.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
+    await lea.page.getByTestId("guest-one-tap").getByText("Lea", { exact: true }).waitFor();
+    check((await lea.page.getByLabel("Dein Name").count()) === 0, "S2: kein Namensfeld, wenn der Name auf dem Gerät liegt");
+    await shot(lea, "11e-gast-ein-tipp");
+    await answer(lea, "Grillen bei Bob", "Bin dabei").click();
+    await lea.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Lea" }).waitFor();
+    check(true, "S2: Gast stimmt mit einem Tipp ab");
+    await alice.page.reload();
+    await optionCard(alice, "Grillen bei Bob").getByText("1 Zusage").waitFor();
+    check(await alice.page.getByRole("list", { name: "Gäste" }).getByText("Lea (Gast)").isVisible(), "S2: Ein-Tipp-Stimme zählt mit Namen");
+    // „Nicht Lea?“: Namensfeld mit dem Namen, Vergessen löscht ihn vom Gerät.
+    await lea.page.getByRole("button", { name: "Nicht Lea?" }).click();
+    check((await lea.page.getByLabel("Dein Name").inputValue()) === "Lea", "„Nicht Lea?“ öffnet das Namensfeld");
+    await lea.page.getByRole("button", { name: "Namen auf diesem Gerät vergessen" }).click();
+    await lea.page.getByText(/^Vergessen\./).waitFor();
+    check((await lea.page.evaluate(() => localStorage.getItem("afterhours.guest.name"))) === null, "Name ist vom Gerät gelöscht");
+    await noOverflow(lea, "Gast-Stimmzettel mit einem Tipp");
+  } finally {
+    users.splice(users.indexOf(lea), 1);
+    await lea.context.close();
+  }
+  await alice.page.getByRole("button", { name: "Lea entfernen" }).click();
+  await dialog(alice).getByRole("button", { name: "Entfernen" }).click();
+  await toast(alice, "Gast entfernt.");
+  await optionCard(alice, "Grillen bei Bob").getByText("0 Zusagen").waitFor();
 
   if (ANON) {
     const tokenValue = ids.pollShareUrl.split("/").pop();
@@ -1113,9 +1158,8 @@ await step("W7 – Store-Screenshots für App Store und Google Play (Bob)", asyn
         await page.evaluate(() => document.fonts.ready);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         check(overflow <= 1, `Store-Screenshot ${device.store}/${screen.key}: kein horizontaler Überlauf (${overflow}px)`);
-        // Bei 3-facher Dichte braucht Chromium für Aurora und Glas mitunter länger als 15 s („waiting for fonts to load“) –
-        // auch auf main. Mehr Zeit und ein zweiter Versuch statt eines roten Laufs; geprüft wird das Bild trotzdem.
-        const png = await page.screenshot({ timeout: 45_000, animations: "disabled" }).catch(() => page.screenshot({ timeout: 45_000, animations: "disabled" }));
+        // 1290 × 2796 mit Aurora und Unschärfe braucht auf dem CI-Runner manchmal länger als 15 s.
+        const png = await page.screenshot({ timeout: 60_000 });
         const [width, height, colorType] = [png.readUInt32BE(16), png.readUInt32BE(20), png[25]];
         check(width === device.size[0] && height === device.size[1] && colorType === 2, `Store-Screenshot ${device.store}/${screen.key}: ${width} × ${height}, ${colorType === 2 ? "ohne" : "mit"} Transparenz`);
         if (SHOTS) fs.writeFileSync(path.join(SHOTS, `store-${device.store}-${screen.key}.png`), png);
@@ -2654,26 +2698,41 @@ await step("S5 – Abstimmung entscheidet sich selbst: klare Mehrheit → Plan s
   check(row?.auto_decide === true && row?.status === "open", "S5: Ein-Satz-Abstimmung entscheidet sich selbst, Bobs Stimmen allein entscheiden nichts");
   await page.getByText("Entscheidet sich selbst", { exact: true }).first().waitFor();
   check(await page.getByRole("switch", { name: /^Entscheidet sich selbst/ }).isChecked(), "Schalter für die Ersteller:in sichtbar und an");
-  // Alice und Carol sind beim selben Vorschlag wie Bob dabei, bei allen anderen nicht.
+  // S5 Etappe 2: Alice ist beim Vorschlag von Bob nicht dabei, Carol hat alles andere abgelehnt – ihr Wisch
+  // auf den letzten Vorschlag bringt die Mehrheit. Bob verlässt die Seite, damit nur Carol den Moment sieht.
   const options = (await api(bob, "GET", `poll_options?poll_id=eq.${pollId}&select=id,title,position&order=position`)).json ?? [];
   const bobYes = new Set(((await api(bob, "GET", `poll_votes?poll_id=eq.${pollId}&response=eq.yes&select=poll_option_id`)).json ?? []).map((v) => v.poll_option_id));
   const target = options.find((o) => bobYes.has(o.id));
   check(Boolean(target), "Bob ist bei mindestens einem Vorschlag dabei");
-  for (const friend of [alice, carol]) {
-    for (const option of options) {
-      const result = await api(friend, "POST", "rpc/cast_vote", { p_option_id: option.id, p_response: option.id === target.id ? "yes" : "no" });
-      if (result.status >= 300 && result.json?.message !== "poll_closed") throw new Error(`${friend.name}: Stimme fehlgeschlagen (${result.status} ${result.json?.message})`);
-    }
-  }
+  await page.goto(`${APP}/home`);
+  const vote = async (friend, option, response) => {
+    const result = await api(friend, "POST", "rpc/cast_vote", { p_option_id: option.id, p_response: response });
+    if (result.status >= 300) throw new Error(`${friend.name}: Stimme fehlgeschlagen (${result.status} ${result.json?.message})`);
+  };
+  for (const option of options) await vote(alice, option, "no");
+  for (const option of options.filter((o) => o.id !== target.id)) await vote(carol, option, "no");
+  check((await api(bob, "GET", `polls?id=eq.${pollId}&select=status`)).json?.[0]?.status === "open", "ohne Mehrheit läuft die Abstimmung weiter");
+  await carol.page.goto(`${APP}/polls/${pollId}`);
+  const deck = carol.page.getByTestId("swipe-deck");
+  await deck.getByText("noch 1 Vorschlag").waitFor();
+  await deck.getByRole("button", { name: `Bin dabei: ${target.title}` }).click();
+  const moment = carol.page.getByTestId("decided-moment");
+  await moment.getByText("Entschieden", { exact: true }).waitFor({ timeout: 15000 });
+  check(await moment.getByText(`Es wird ${target.title} – der Plan steht.`).isVisible(), "S5 Etappe 2: Carols Wisch entscheidet – „Entschieden“ mit dem Gewinner");
+  await shot(carol, "45b-entschieden-moment");
   const decided = (await api(bob, "GET", `polls?id=eq.${pollId}&select=status,winning_option_id,closed_by`)).json?.[0];
   check(decided?.status === "closed" && decided.winning_option_id === target.id && decided.closed_by === null, "klare Mehrheit: Abstimmung ist von selbst entschieden");
   const plans = (await api(bob, "GET", `plans?poll_id=eq.${pollId}&select=id,title,status,plan_participants(user_id,attendance_status)`)).json ?? [];
   check(plans.length === 1 && plans[0].status === "confirmed" && plans[0].title === target.title, `genau ein bestätigter Plan „${target.title}“`);
   const going = (plans[0]?.plan_participants ?? []).filter((p) => p.attendance_status === "going").length;
-  check(going >= 3, `wer dabei war, ist zugesagt (${going})`);
-  await page.reload();
+  check(going === 2, `wer dabei war (Bob, Carol), ist zugesagt (${going})`);
+  await moment.getByRole("button", { name: "Zum Plan" }).click();
+  await carol.page.waitForURL(new RegExp(`/plans/${plans[0].id}`));
+  check(true, "„Zum Plan“ im Moment öffnet den Plan");
+  // Ohne Tipp springt die Seite von selbst – Bob sieht beim Öffnen einer schon entschiedenen Abstimmung keinen Moment.
+  await page.goto(`${APP}/polls/${pollId}`);
   await page.getByTestId("poll-plan-note").filter({ hasText: "Automatisch angelegt" }).waitFor();
-  await page.getByRole("link", { name: "Zum Plan" }).waitFor();
+  check((await page.getByTestId("decided-moment").count()) === 0, "schon entschieden: kein Moment, nur das Ergebnis");
   await shot(bob, "45-entschieden");
   await page.getByRole("link", { name: "Zum Plan" }).click();
   await page.waitForURL(new RegExp(`/plans/${plans[0].id}`));

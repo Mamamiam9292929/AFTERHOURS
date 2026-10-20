@@ -13,7 +13,11 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: p.role === "owner" ? "Du bist jetzt Owner der Crew" : p.role === "admin" ? "Du bist jetzt Admin der Crew" : "Deine Rolle in der Crew wurde geändert",
     body: p.reason === "succession" ? "Der bisherige Owner hat die Crew verlassen." : undefined,
   }),
-  poll_created: (actor, p) => ({ title: p.runoff ? `${actor} hat eine Stichwahl gestartet` : `${actor} hat eine Abstimmung gestartet`, body: str(p, "title") }),
+  // S5 Etappe 2: Die Stichwahl nach einem Gleichstand startet von selbst – ohne auslösende Person.
+  poll_created: (actor, p) => ({
+    title: p.auto && p.runoff ? "Gleichstand – die Stichwahl läuft" : p.runoff ? `${actor} hat eine Stichwahl gestartet` : `${actor} hat eine Abstimmung gestartet`,
+    body: str(p, "title"),
+  }),
   poll_reminder: (actor, p) => ({ title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") }),
   poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (Gast) hat abgestimmt` : `${actor} hat abgestimmt`, body: str(p, "title") }),
   poll_result: (_actor, p) => ({
