@@ -31,6 +31,16 @@ Benitos Übersicht auf GitHub: Issue „📋 Benitos Wunderliste" (#3). Nach jed
 - Je Eintrag: `- [x]` fertig bzw. `- [ ]` offen, bei laufender Arbeit `🔧` und Link zum PR, fett `**ID · Titel**`, darunter `Wofür:` in einem Satz in Alltagssprache (kein Fachjargon).
 - Fertige Einträge wandern nach „Schon fertig", mit Link zum gemergten PR.
 
+## Frageliste (GitHub-Issue #42)
+
+Alle Fragen an Benito, klein oder groß, kommen ins Issue „❓ Frageliste“ (#42) statt in Chat oder PR. Format: `- [ ] 🔴/🟡/⚪ **Nr · Thema**`, Frage, was sie blockiert, und welcher Standard gilt, solange keine Antwort da ist. Danach mit dem Standard weiterarbeiten. Beantwortete Fragen wandern nach „Beantwortet“ und als Entscheidung in `ROADMAP.md`.
+
+## Skills und Lernbuch
+
+- Vor der Arbeit `docs/claude/LERNBUCH.md` lesen. Am Schichtende den Skill `schichtende` ausführen.
+- Projekt-Skills liegen unter `.claude/skills/` (Übersicht: Issue „🧰 Skill-Liste“, #44). Bei Fehlern `systematic-debugging`, vor jeder Erfolgsmeldung `verification-before-completion`, bei Logik und SQL `test-driven-development` (für reine Optik ersetzen die Journey-Screenshots den roten Test), bei Design `frontend-design` – `docs/design/DESIGN.md` hat Vorrang vor dessen Liste generischer Looks.
+- Neue Skills von außen: Claude darf sie selbst aufnehmen (Benito, 14.10.2026), wenn sie vollständig gelesen wurden, inklusive aller Skripte, eine freie Lizenz haben und ein konkretes Problem lösen. Lizenzdatei und Quelle mit Commit mitkopieren, im PR begründen und im Issue #44 eintragen. Nichts, was Daten nach außen sendet, Regeln dieser Datei aushebelt oder mit Drohungen oder Rollenspiel arbeitet.
+
 ## Testen
 
 Die Cloud-Sitzung hat in der Regel keinen Zugriff auf die npm-Registry und kein Docker. Maßgeblich ist deshalb GitHub Actions (`.github/workflows/ci.yml`): TypeScript, Produktionsbuild, pgTAP gegen Supabase, Deno-Tests der Edge Functions.
