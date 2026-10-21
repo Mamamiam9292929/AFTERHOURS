@@ -41,8 +41,9 @@ function morph(update: () => void) {
  * Gäste-Stimmen ein (S2: Freunde ohne App stimmen über den Link ab), öffnet das Teilen-Menü und führt
  * zur Abstimmung. Die Abstimmung entscheidet sich zum angezeigten Zeitpunkt wie jede andere.
  */
-export function QuickPollLauncher({ crews, className }: { crews: Crew[]; className?: string }) {
-  const [open, setOpen] = useState(false);
+export function QuickPollLauncher({ crews, shared = null, className }: { crews: Crew[]; shared?: string | null; className?: string }) {
+  // S3: Kommt ein Satz über das Teilen-Menü (`/share-target`), ist das Sheet von Anfang an offen und vorausgefüllt.
+  const [open, setOpen] = useState(shared !== null);
   return (
     <>
       <button
@@ -58,13 +59,15 @@ export function QuickPollLauncher({ crews, className }: { crews: Crew[]; classNa
         <IconPlus className="size-6 transition-transform duration-300 group-hover:rotate-90" aria-hidden />
         <span className="font-display text-[19px] font-black uppercase tracking-tight">{t.polls.quick.launcher}</span>
       </button>
-      <QuickPollSheet open={open} onClose={() => morph(() => setOpen(false))} crews={crews} />
+      <QuickPollSheet open={open} onClose={() => morph(() => setOpen(false))} crews={crews} shared={shared} />
     </>
   );
 }
 
-function QuickPollSheet({ open, onClose, crews }: { open: boolean; onClose: () => void; crews: Crew[] }) {
-  const [text, setText] = useState("");
+function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClose: () => void; crews: Crew[]; shared: string | null }) {
+  const [text, setText] = useState(shared ?? "");
+  // Hinweis nur, solange der geteilte Satz unverändert im Feld steht.
+  const fromShare = shared !== null && text === shared;
   const [crewId, setCrewId] = useState<string | null>(() => {
     const saved = rememberedCrew();
     return crews.some((c) => c.id === saved) ? saved : (crews[0]?.id ?? null);
@@ -150,6 +153,11 @@ function QuickPollSheet({ open, onClose, crews }: { open: boolean; onClose: () =
                 enterKeyHint="go"
                 className="h-15 rounded-[20px] border-[1.5px] border-lime bg-white/[0.06] px-5 text-[17px] font-semibold text-fg placeholder:font-normal placeholder:text-faint focus:outline-none focus-visible:ring-2 focus-visible:ring-lime/40"
               />
+              {fromShare && (
+                <p className="text-[13px] text-muted" data-testid="quickpoll-shared">
+                  {shared === "" ? t.polls.quick.sharedEmpty : t.polls.quick.shared}
+                </p>
+              )}
               {text.trim() === "" && (
                 <div className="flex flex-wrap gap-2">
                   {t.polls.quick.examples.map((ex) => (

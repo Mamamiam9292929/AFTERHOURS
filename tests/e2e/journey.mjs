@@ -190,13 +190,14 @@ async function a11y(user, name) {
 }
 
 async function shot(user, name) {
-  await noOverflow(user, name);
-  await a11y(user, name);
-  if (!SHOTS) return;
-  // Laufende Übergänge (Farbwechsel, Stempel, Seitenwechsel) erst zu Ende laufen lassen – sonst zeigt das Bild einen Zwischenstand.
+  // Laufende Übergänge (Farbwechsel, Stempel, Seitenwechsel) erst zu Ende laufen lassen – sonst zeigt das Bild einen
+  // Zwischenstand und die Kontrastprüfung misst eine Mischfarbe (z. B. ein gerade abgewählter roter Knopf).
   await user.page
     .evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))))
     .catch(() => undefined);
+  await noOverflow(user, name);
+  await a11y(user, name);
+  if (!SHOTS) return;
   await user.page.screenshot({ path: path.join(SHOTS, `${name}-${user.viewport}.png`) });
 }
 const dialog = (user) => user.page.getByRole("dialog");
@@ -2862,6 +2863,58 @@ await step("S5 – Abstimmung entscheidet sich selbst: klare Mehrheit → Plan s
   check(true, "„Zum Plan“ öffnet den automatisch angelegten Plan");
   // Aufräumen: der Rest der Journey kennt diesen Plan nicht.
   execFileSync("psql", [DB_URL, "-qc", `delete from public.plans where id = '${plans[0].id}'`]);
+});
+
+await step("S3 – Teilen-Ziel: Satz aus WhatsApp landet in der Ein-Satz-Abstimmung (Bob, 390 px)", async () => {
+  const page = bob.page;
+  const pollCount = async () => ((await api(bob, "GET", "polls?select=id")).json ?? []).length;
+  const pollsBefore = await pollCount();
+  // Das Manifest meldet AFTERHOURS als Ziel im Teilen-Menü an.
+  const manifest = await (await page.request.get(`${APP}/manifest.webmanifest`)).json();
+  check(manifest.share_target?.action === "/share-target" && manifest.share_target?.method === "GET" && manifest.share_target?.params?.text === "text", "Manifest: share_target → /share-target (GET, text/title/url)");
+  // So ruft Android den Link auf, wenn jemand eine weitergeleitete Chat-Nachricht teilt.
+  const shared = "[19.10.26, 21:04] Carol: minigolf oder billard, sa 19 uhr https://chat.example/x";
+  await page.goto(`${APP}/share-target?title=&text=${encodeURIComponent(shared)}&url=`);
+  await page.waitForURL(`${APP}/home`);
+  const sheet = page.getByRole("dialog", { name: "Ein Satz reicht." });
+  const input = sheet.getByLabel("Was, wann, wo – wie im Chat");
+  await input.waitFor();
+  check((await input.inputValue()) === "minigolf oder billard, sa 19 uhr", `Satz ohne Name, Chat-Zeit und Link übernommen („${await input.inputValue()}“)`);
+  await sheet.getByTestId("quickpoll-shared").filter({ hasText: "Aus dem Chat übernommen" }).waitFor();
+  const chips = sheet.getByRole("list", { name: "Daraus wird" });
+  for (const chip of ["Minigolf", "Billard", "19:00"]) await chips.getByText(chip, { exact: true }).waitFor();
+  check(!(await chips.getByText(/carol|http/i).count()), "kein Name und kein Link als Vorschlag");
+  check(!page.url().includes("text="), "Text steht nicht mehr in der Adresse");
+  await shot(bob, "51-teilen-ziel");
+  // Eigene Änderung: Hinweis verschwindet.
+  await input.fill("minigolf oder billard, sa 20 uhr");
+  await sheet.getByTestId("quickpoll-shared").waitFor({ state: "detached" });
+  // Nichts gestartet, nichts gespeichert: Schließen, Neuladen – das Sheet bleibt zu.
+  await sheet.getByRole("button", { name: "Schließen" }).click();
+  await input.waitFor({ state: "detached" });
+  await page.reload();
+  await page.getByRole("button", { name: "Was geht?" }).waitFor();
+  await page.waitForTimeout(500);
+  check((await page.getByRole("dialog", { name: "Ein Satz reicht." }).count()) === 0, "nach dem Neuladen geht das Sheet nicht wieder auf");
+  check((await pollCount()) === pollsBefore, "Teilen allein startet keine Abstimmung");
+  // Leerer Text (nur ein Link): Sheet offen, ehrlicher Hinweis.
+  await page.goto(`${APP}/share-target?text=${encodeURIComponent("https://chat.example/nur-ein-link")}`);
+  await page.waitForURL(`${APP}/home`);
+  await sheet.getByTestId("quickpoll-shared").filter({ hasText: "nichts, was ich übernehmen kann" }).waitFor();
+  check((await input.inputValue()) === "", "nur ein Link: Feld bleibt leer");
+  check(await sheet.getByRole("button", { name: /Los – in die Gruppe/ }).isDisabled(), "ohne Satz lässt sich nichts starten");
+  await sheet.getByRole("button", { name: "Schließen" }).click();
+  // Ohne Anmeldung: erst Anmeldung, das Ziel wird gemerkt.
+  const anon = await browser.newContext({ viewport: VIEWPORTS.mobile, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+  try {
+    const p = await anon.newPage();
+    await p.goto(`${APP}/share-target?text=${encodeURIComponent("kino fr")}`);
+    await p.waitForURL(/\/login/);
+    const next = await p.evaluate(() => localStorage.getItem("afterhours.next"));
+    check(Boolean(next?.includes("/share-target?text=")), "ohne Konto: Anmeldung, Teilen-Ziel als nächstes Ziel gemerkt");
+  } finally {
+    await anon.close();
+  }
 });
 
 await step("S4 – „Heute noch wer?“: Spontan-Frage an die Crew (Bob, Alice, Carol)", async () => {

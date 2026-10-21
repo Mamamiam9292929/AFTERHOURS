@@ -1,5 +1,6 @@
-import { useCallback, useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { isQuickPollHandoff } from "@/app/ShareTarget";
 import { IconCalendarPlus, IconPinOff, IconPlans, IconSpinner, IconVote } from "@/components/icons";
 import { Section, SectionLink } from "@/components/layout/Page";
 import { ButtonLink } from "@/components/ui/Button";
@@ -67,6 +68,15 @@ export function HomePage() {
   const plans = usePlans();
   const people = usePeople();
   const { ideas, isPending: ideasPending, city: ideasCity, importing: ideasImporting } = useIdeas();
+  const location = useLocation();
+  const navigate = useNavigate();
+  // S3: Satz aus dem Teilen-Menü (`/share-target`). Einmal übernehmen und aus dem Verlauf löschen –
+  // sonst ginge das Sheet beim Neuladen oder Zurück wieder auf.
+  const [shared] = useState<string | null>(() => (isQuickPollHandoff(location.state) ? location.state.quickPollText : null));
+  useEffect(() => {
+    if (shared !== null) navigate(location.pathname, { replace: true, state: null });
+    // nur beim ersten Rendern
+  }, []);
   const spontaneous = useSpontaneousAsks(Boolean(crews.data && crews.data.length > 0));
   // S4 Etappe 2: App-Kurzbefehl „Heute noch wer?“ (Manifest) öffnet das Sheet direkt.
   const [params, setParams] = useSearchParams();
@@ -140,7 +150,7 @@ export function HomePage() {
         {crews.data && crews.data.length > 0 ? (
           // V2 + S1: ein Lime-Knopf, der zur Ein-Satz-Abstimmung aufgeht; die ausführlichen Wege bleiben daneben.
           <div className="mt-7 flex max-w-2xl flex-col gap-3">
-            <QuickPollLauncher crews={crews.data} />
+            <QuickPollLauncher crews={crews.data} shared={shared} />
             <div className="flex flex-wrap gap-2">
               {spontaneous.data && <SpontaneousLauncher crews={crews.data} asks={spontaneous.data} now={now} autoOpen={askFromShortcut} onAutoOpened={clearShortcut} />}
               <ButtonLink to="/polls/new" size="sm" variant="secondary" icon={<IconVote className="size-4" aria-hidden />}>
@@ -152,6 +162,12 @@ export function HomePage() {
             </div>
           </div>
         ) : (
+          <>
+          {shared !== null && crews.data && (
+            <Notice tone="amber" className="mt-7 max-w-2xl" title={t.polls.quick.launcher}>
+              <span data-testid="quickpoll-shared-no-crew">{t.polls.quick.sharedNoCrew}</span>
+            </Notice>
+          )}
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <ButtonLink to="/polls/new" size="lg" icon={<IconVote className="size-5" aria-hidden />}>
               {t.home.startPoll}
@@ -160,6 +176,7 @@ export function HomePage() {
               {t.home.createPlan}
             </ButtonLink>
           </div>
+          </>
         )}
       </header>
 
