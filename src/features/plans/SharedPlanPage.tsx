@@ -2,15 +2,16 @@ import { useEffect } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { ButtonLink } from "@/components/ui/Button";
 import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
+import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
 import { AuthLayout } from "@/features/auth/AuthLayout";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { clearNext, rememberNext } from "@/features/auth/next";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { useDocumentTitle } from "@/lib/hooks";
+import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { formatTime, ticketDate } from "@/lib/time";
 import { type SharedPlanPreview, useSharedPlanPreview } from "./api";
-import { planStatusBadge } from "./PlanTicket";
+import { planCountdown } from "./PlanTicket";
 
 type Valid = Extract<SharedPlanPreview, { status: "valid" }>;
 
@@ -92,35 +93,46 @@ export function SharedPlanPage() {
   );
 }
 
-/** Der geteilte Plan als Eintrittskarte: Datum im Abriss, Titel als Plakat, Zahl der Zusagen. */
+/**
+ * Der geteilte Plan als Karte (V2 Etappe 3f) – wie die geteilte Abstimmung: oben auf dem Stapel, was gerade
+ * zählt als Lime-Pille („In 3 Tagen“), der Titel als Chrom-Plakat, das Datum als Kachel daneben, die Zusagen als
+ * Glas-Pille. Wer den Link öffnet, hat noch keine Antwort – die Karte bleibt deshalb dunkles Glas.
+ * Ist der Abend vorbei oder abgesagt, liegt sie gedämpft allein da.
+ */
 function SharedPlanTicket({ data }: { data: Valid }) {
   const plan = data.plan;
+  const now = useNow(60_000);
   const date = ticketDate(plan.starts_at);
-  const over = plan.status === "completed" || plan.status === "cancelled" || new Date(plan.ends_at ?? plan.starts_at).getTime() < Date.now();
+  const over = plan.status === "completed" || plan.status === "cancelled" || new Date(plan.ends_at ?? plan.starts_at).getTime() < now.getTime();
+  const countdown = over ? null : planCountdown(plan, now);
   return (
-    <section aria-labelledby="shared-plan-title" className={cn("ticket-feature-wrap", over && "ticket-feature-past")}>
-      <div className="ticket ticket-feature">
-        <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", over ? "bg-raised text-muted" : "bg-lime text-lime-ink")}>
-          <span className="text-[13px] font-bold uppercase tracking-wide">{date.weekday}</span>
-          <span className="font-display text-[46px] font-extrabold leading-[0.9] sm:text-[55px]">{date.day}</span>
-          <span className="text-[13px] font-bold uppercase tracking-wide">{date.month}</span>
-          <span className="ticket-barcode mt-3" aria-hidden />
-        </div>
-        <div className="flex min-w-0 flex-col justify-between gap-4 p-5 sm:p-6">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {planStatusBadge(plan.status)}
-              <span className="text-[13px] text-muted">{t.plans.shared.kicker}</span>
-            </div>
-            <p id="shared-plan-title" className={cn("display mt-3 break-words text-[23px] uppercase text-fg sm:text-[29px]", plan.status === "cancelled" && "line-through decoration-2")}>
-              {plan.title}
-            </p>
-            <p className="mt-2 text-[15px] font-semibold text-fg">{formatTime(plan.starts_at)}</p>
+    <section aria-labelledby="shared-plan-title" className={cn("ticket-feature-wrap", over && "ticket-feature-past")} data-testid="shared-plan-card">
+      <div className={cn("vote-card overflow-hidden rounded-[32px] p-5 sm:p-7", over && "opacity-80")}>
+        <span aria-hidden className="pointer-events-none absolute -left-16 -top-20 size-56 rounded-full bg-violet/30 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {countdown && <LivePill testId="shared-plan-countdown">{countdown}</LivePill>}
+            <span className={cn(GLASS_PILL, plan.status === "cancelled" ? "text-danger" : "text-fg")}>{t.enums.planStatus[plan.status]}</span>
           </div>
-          <p className="flex items-baseline gap-1.5 border-t border-dashed border-line pt-4 text-[15px] font-semibold text-muted">
-            {plan.going_count > 0 && <span className="font-display text-[24px] font-extrabold leading-none text-fg">{plan.going_count}</span>}
-            {t.plans.shared.going(plan.going_count, over)}
+          {/* Datum als Kachel – ersetzt den Abriss des alten Tickets. */}
+          <p className={cn("flex w-[72px] shrink-0 flex-col items-center rounded-[22px] border px-2 py-2.5 text-center leading-none", over ? "border-white/10 bg-white/[0.04] text-muted" : "border-lime/40 bg-lime/10 text-fg")} data-testid="shared-plan-date">
+            <span className="text-[12px] font-bold uppercase tracking-wide">{date.weekday}</span>
+            <span className={cn("mt-1 font-display text-[30px] font-extrabold", !over && "text-lime")}>{date.day}</span>
+            <span className="mt-1 text-[12px] font-bold uppercase tracking-wide">{date.month}</span>
           </p>
+        </div>
+        <div className="relative">
+          <p className="mt-4 text-[13px] font-semibold uppercase tracking-[0.12em] text-faint">{t.plans.shared.kicker}</p>
+          <p id="shared-plan-title" className={cn("display chrome mt-2 break-words text-[27px] uppercase sm:text-[34px]", plan.status === "cancelled" && "line-through decoration-2")}>
+            {plan.title}
+          </p>
+          <p className="mt-3 text-[15px] font-semibold text-fg">{formatTime(plan.starts_at)}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <p className={GLASS_PILL} data-testid="shared-plan-going">
+              {plan.going_count > 0 && <span className="font-display text-[17px] font-extrabold leading-none text-lime">{plan.going_count}</span>}
+              {t.plans.shared.going(plan.going_count, over)}
+            </p>
+          </div>
         </div>
       </div>
     </section>
