@@ -92,4 +92,4 @@ Benito ist mit dem Design unzufrieden und sieht das Kernproblem darin, dass eine
 
 ## Offene Fragen an Benito
 
-- Keine
+Alle Fragen, klein und groß, stehen im Issue „❓ Frageliste“ (#42). Beantwortete wandern als Entscheidung in den Abschnitt oben.
