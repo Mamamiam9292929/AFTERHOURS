@@ -110,12 +110,14 @@ function factText(fact: RecapCardFact): { label: string; value: string } {
   return { label: tx.favoriteDay, value: tx.weekdays[fact.value] ?? "" };
 }
 
-/** Adresse fürs Bild nur, wenn die echte Adresse feststeht (sonst stünde dort „127.0.0.1“). */
+/** Adresse fürs Bild nur, wenn die echte, öffentliche Adresse feststeht. */
 function publicHost(): string {
   const configured = import.meta.env.VITE_SITE_URL?.trim();
   if (!configured) return "";
   try {
-    return new URL(configured).host;
+    const url = new URL(configured);
+    // Lokale Test-Adressen gehören nicht auf ein Bild, das in Chats landet.
+    return /^(localhost|127\.|\[?::1\]?$)/.test(url.hostname) ? "" : url.host;
   } catch {
     return "";
   }
