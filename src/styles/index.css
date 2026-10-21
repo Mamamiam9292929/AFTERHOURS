@@ -431,7 +431,7 @@
   }
 
   /*
-   * Licht statt Fläche (D0): dezenter Lime-Schein oben auf Home mit feinem Korn. Läuft zu den Rändern
+   * Licht statt Fläche (D0): dezenter Lime-Schein oben auf Home. Das Korn aus D0 ist mit 2.0 entfallen (Aurora übernimmt, spart CSS beim Start). Läuft zu den Rändern
    * transparent aus, damit keine Kante entsteht; liegt hinter dem Inhalt (Eltern-Element mit isolation).
    */
   .home-glow {
@@ -441,7 +441,7 @@
     z-index: -1;
     pointer-events: none;
     background: radial-gradient(ellipse 70% 80% at 35% 0%, color-mix(in srgb, var(--color-violet) 18%, transparent), transparent 75%);
-    /* Maske blendet Schein und Korn zu allen Rändern aus – keine sichtbare Kante, auch nicht auf dem Desktop. */
+    /* Maske blendet den Schein zu allen Rändern aus – keine sichtbare Kante, auch nicht auf dem Desktop. */
     -webkit-mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
     mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
   }
@@ -449,13 +449,6 @@
     .home-glow {
       inset: -2.5rem -2.5rem auto;
     }
-  }
-  .home-glow::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    opacity: 0.05;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   /*
@@ -465,9 +458,36 @@
   .poll-option {
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
   }
-  /* Planseite (D0 Etappe 5a): fehlt die eigene Antwort, trägt die Frage einen Lime-Schimmer. */
-  .attendance-open {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--color-lime) 9%, var(--color-surface)), var(--color-surface) 70%);
+  /*
+   * Planseite (V2 Etappe 3c). „Bist du dabei?“ ist eine `.vote-card` (Farbe deiner Antwort, Pillen);
+   * ohne Antwort mit Lime-Rand. Was/Wann/Wo und „Organisieren“ sind Glas-Karten; unter „Wer“ ist jede
+   * Person eine Pille in der Farbe ihrer Antwort (gedämpft, Schrift bleibt hell). Form über Utilities,
+   * hier nur die Farben – wegen des CSS-Budgets beim Start.
+   */
+  .vote-card.answer-open {
+    border-color: color-mix(in srgb, var(--color-lime) 50%, transparent);
+    box-shadow: 0 22px 44px -30px color-mix(in srgb, var(--color-lime) 55%, transparent);
+  }
+  .plan-facts,
+  .plan-manage {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--c) 12%, var(--color-surface)), var(--color-surface) 65%);
+    --c: var(--color-violet);
+  }
+  .plan-manage {
+    --c: var(--color-pink);
+  }
+  .who-chip {
+    background: color-mix(in srgb, var(--c, #fff) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c, #fff) 30%, transparent);
+  }
+  .who-chip[data-status="going"] {
+    --c: var(--color-lime);
+  }
+  .who-chip[data-status="maybe"] {
+    --c: var(--color-amber);
+  }
+  .who-chip[data-status="declined"] {
+    --c: var(--color-danger);
   }
   /*
    * V2 Etappe 3b · Vorschlag in der Abstimmung (Crew und Gast-Stimmzettel): eine Karte wie die Plan-Karte.

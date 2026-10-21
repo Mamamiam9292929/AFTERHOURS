@@ -39,6 +39,8 @@ const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] 
 ];
 const GROUPS: AttendanceStatus[] = ["going", "maybe", "invited", "declined"];
 const GROUP_DOT: Record<AttendanceStatus, string> = { going: "bg-lime", maybe: "bg-amber", invited: "bg-line-strong", declined: "bg-danger" };
+/** V2: Antwort auf der Planseite in den Farbnamen der Abstimm-Karten (`.vote-card[data-answer]`). */
+const CARD_ANSWER: Record<Exclude<AttendanceStatus, "invited">, "yes" | "maybe" | "no"> = { going: "yes", maybe: "maybe", declined: "no" };
 
 function FollowUp({ plan, city }: { plan: PlanWithParticipants; city: string | null }) {
   const activities = useActivitySearch(city ? { city, limit: 60 } : null);
@@ -159,9 +161,14 @@ export function PlanDetailPage() {
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
-          {/* Eigene Antwort */}
-          <section aria-labelledby="attendance-heading" className={cn("rounded-card border p-4 sm:p-5", mine === "invited" && !locked ? "attendance-open border-lime/45" : "border-line bg-surface")}>
-            <h2 id="attendance-heading" className="display text-[22px] uppercase text-fg sm:text-[26px]">
+          {/* Eigene Antwort – V2 Etappe 3c: eine Karte wie die Plan-Karte, ganz in der Farbe deiner Antwort
+              (grün dabei, gelb vielleicht, rot abgesagt), ohne Antwort dunkles Glas mit Lime-Rand. */}
+          <section
+            aria-labelledby="attendance-heading"
+            data-answer={mine === "invited" ? undefined : CARD_ANSWER[mine]}
+            className={cn("vote-card answer-card p-4 sm:p-5", mine === "invited" && !locked && "answer-open")}
+          >
+            <h2 id="attendance-heading" className={cn("display text-[22px] uppercase sm:text-[26px]", mine === "invited" ? "chrome" : "text-fg")}>
               <PosterTitle text={t.plans.detail.attendance.question} />
             </h2>
             <div role="radiogroup" aria-labelledby="attendance-heading" className="mt-4 grid grid-cols-3 gap-2">
@@ -173,16 +180,10 @@ export function PlanDetailPage() {
                     type="button"
                     role="radio"
                     aria-checked={selected}
+                    data-response={CARD_ANSWER[value]}
                     disabled={locked}
                     onClick={() => !selected && setAttendance.mutate(value, { onSuccess: () => toast.success(t.plans.detail.attendance.saved), onError: (error) => toast.error(error) })}
-                    className={cn(
-                      "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-sm font-semibold leading-tight transition-[background-color,border-color,color,transform] duration-300 ease-out active:scale-[0.96] disabled:opacity-50",
-                      !selected && "border-line-strong text-muted hover:border-faint hover:text-fg",
-                      // Gleiche Farben wie der Abriss des Tickets: grün dabei, gelb vielleicht, rot abgesagt.
-                      selected && value === "going" && "border-lime bg-lime text-lime-ink",
-                      selected && value === "maybe" && "border-amber bg-amber text-amber-ink",
-                      selected && value === "declined" && "border-danger bg-danger text-danger-ink",
-                    )}
+                    className="vote-pill"
                   >
                     {label}
                   </button>
@@ -192,7 +193,7 @@ export function PlanDetailPage() {
             {locked && <p className="mt-2.5 text-[13px] text-faint">{t.plans.detail.attendance.locked}</p>}
           </section>
 
-          <dl className="mt-4 divide-y divide-line">
+          <dl className="plan-facts mt-4 divide-y divide-line rounded-card border border-white/[0.08] px-4 sm:px-5">
             <Fact icon={<IconPlans aria-hidden />} label={t.plans.detail.what}>
               <span className="font-semibold">{plan.title}</span>
               <span className="mt-0.5 block text-sm text-muted">{organizer}</span>
@@ -276,11 +277,11 @@ export function PlanDetailPage() {
                         <span aria-hidden className={cn("size-2 rounded-full", GROUP_DOT[status])} />
                         {t.plans.detail.attendance.groups[status]} ({group.length})
                       </p>
-                      <ul className="mt-1.5 flex flex-wrap gap-x-4 gap-y-2">
+                      <ul className="mt-2 flex flex-wrap gap-2">
                         {group.map((p) => {
                           const person = people.lookup(p.user_id);
                           return (
-                            <li key={p.user_id} className={cn("flex items-center gap-2 text-sm", status === "going" ? "font-semibold text-fg" : "text-muted")}>
+                            <li key={p.user_id} data-status={status} className={cn("who-chip inline-flex h-9 items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm", status === "going" ? "font-semibold text-fg" : status === "maybe" ? "text-fg" : "text-muted")}>
                               <Avatar person={person} size="xs" decorative />
                               {p.user_id === user.id ? t.states.you : (person?.display_name ?? t.states.formerMember)}
                             </li>
@@ -318,7 +319,7 @@ export function PlanDetailPage() {
 
         {canManage && !locked && (
           <aside className="lg:sticky lg:top-10 lg:self-start">
-            <div className="rounded-card border border-line bg-surface p-4">
+            <div className="plan-manage rounded-card border border-white/[0.08] p-4">
               <h2 className="mb-3 text-[17px] font-bold text-fg">{t.plans.detail.manage.title}</h2>
               <div className="flex flex-col gap-2.5">
                 {plan.status === "proposed" && (

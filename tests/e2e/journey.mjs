@@ -1098,23 +1098,32 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   const answerOf = (user) => user.page.locator(".ticket-feature-wrap").getAttribute("data-answer");
   await bob.page.locator('.ticket-feature-wrap[data-answer="going"]').waitFor();
   check((await bob.page.locator(".ticket-feature .ticket-stamp").innerText()).toLowerCase() === "dabei", "Zusage: grünes Ticket mit Stempel „Dabei“");
+  // V2 Etappe 3c: „Bist du dabei?“ ist eine Karte in der Farbe der eigenen Antwort, die Antworten sind Pillen.
+  await bob.page.locator('.answer-card[data-answer="yes"]').waitFor();
+  check((await bob.page.locator(".answer-card .vote-pill[aria-checked=true]").innerText()) === "Bin dabei", "Zusage: Antwort-Karte grün, „Bin dabei“ als gewählte Pille");
+  check((await bob.page.locator(".plan-facts").count()) === 1, "Was/Wann/Wo stehen auf einer Karte");
   await shot(bob, "16-plan");
   await carol.page.goto(`${APP}/plans/${ids.plan}`);
   await carol.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
   check((await answerOf(carol)) === "invited" && (await carol.page.locator(".ticket-feature .ticket-stamp").count()) === 0, "Ohne Antwort: graues Ticket mit Strichcode statt Stempel");
+  check((await carol.page.locator(".answer-card.answer-open:not([data-answer])").count()) === 1, "Ohne Antwort: Antwort-Karte aus Glas mit Lime-Rand");
+  await shot(carol, "16f-plan-ohne-antwort");
   await carol.page.getByRole("radiogroup", { name: "Bist du dabei?" }).getByRole("radio", { name: "Vielleicht" }).click();
   await carol.page.locator('.ticket-feature-wrap[data-answer="maybe"]').waitFor();
+  await carol.page.locator('.answer-card[data-answer="maybe"]').waitFor();
   check((await carol.page.locator(".ticket-feature .ticket-stamp").innerText()).toLowerCase() === "vielleicht", "Vielleicht: gelbes Ticket mit Stempel");
   await toast(carol, "Antwort gespeichert.");
   await shot(carol, "16b-plan-vielleicht");
   await carol.page.getByRole("radiogroup", { name: "Bist du dabei?" }).getByRole("radio", { name: "Kann nicht" }).click();
   await carol.page.locator('.ticket-feature-wrap[data-answer="declined"]').waitFor();
+  await carol.page.locator('.answer-card[data-answer="no"]').waitFor();
   check((await carol.page.locator(".ticket-feature .ticket-stamp").innerText()).toLowerCase() === "abgesagt", "Absage: rotes Ticket mit Stempel „Abgesagt“");
   await shot(carol, "16-plan");
   await alice.page.reload();
   await alice.page.getByText("Dabei (2)").waitFor();
   await alice.page.getByText("Abgesagt (1)").waitFor();
   check(true, "Organisatorin sieht Zu- und Absagen");
+  check((await alice.page.locator('.who-chip[data-status="going"]').count()) === 2 && (await alice.page.locator('.who-chip[data-status="declined"]').count()) === 1, "Wer kommt: Personen als Pillen in der Farbe ihrer Antwort");
   check((await carol.page.getByRole("button", { name: "Plan absagen" }).count()) === 0, "Mitglieder können den Plan nicht absagen");
   // D0: Nach der Zusage ist der Plan das große Ticket auf Home, die Überschrift zählt herunter.
   await bob.page.goto(`${APP}/home`);
