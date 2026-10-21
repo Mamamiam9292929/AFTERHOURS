@@ -518,6 +518,7 @@
     --color-line: rgb(11 11 16 / 0.2);
     --color-line-strong: rgb(11 11 16 / 0.35);
     --color-lime: #0b0b10;
+    --color-lime-press: #23232b;
     --color-amber: #0b0b10;
     --color-danger: #0b0b10;
   }
@@ -539,6 +540,11 @@
     box-shadow: 0 22px 44px -26px #ff6b5eb3;
     --color-lime-ink: #ff6b5e;
     --vote-accent: #ff6b5e;
+  }
+  /* Glas-Knöpfe (secondary) auf der farbigen Ergebnis-Karte: dunkler Rand statt weißem, sonst unsichtbar. */
+  .result-card[data-answer] [class*="bg-white/"] {
+    border-color: rgb(11 11 16 / 0.35);
+    background: rgb(11 11 16 / 0.06);
   }
   .vote-card-win {
     border-color: color-mix(in srgb, var(--color-lime) 70%, transparent);
@@ -566,15 +572,15 @@
   .vote-pill:active {
     transform: scale(0.96);
   }
-  .vote-card:not([data-answer]) .vote-pill[data-response="yes"]:hover {
+  :is(.vote-card:not([data-answer]), .quick-answer) .vote-pill[data-response="yes"]:hover {
     border-color: #c8ff2e;
     color: #c8ff2e;
   }
-  .vote-card:not([data-answer]) .vote-pill[data-response="maybe"]:hover {
+  :is(.vote-card:not([data-answer]), .quick-answer) .vote-pill[data-response="maybe"]:hover {
     border-color: #ffc93d;
     color: #ffc93d;
   }
-  .vote-card:not([data-answer]) .vote-pill[data-response="no"]:hover {
+  :is(.vote-card:not([data-answer]), .quick-answer) .vote-pill[data-response="no"]:hover {
     border-color: #ff6b5e;
     color: #ff6b5e;
   }
@@ -588,6 +594,20 @@
   }
   .vote-pill:disabled {
     opacity: 0.6;
+  }
+  /* V2 Etappe 3d · Zusage auf Home: die angetippte Pille füllt sich sofort in ihrer Antwortfarbe. */
+  .quick-answer .vote-pill[data-chosen] {
+    opacity: 1;
+    border-color: var(--a);
+    background: var(--a);
+    color: #0b0b10;
+    --a: #c8ff2e;
+  }
+  .quick-answer .vote-pill[data-chosen][data-response="maybe"] {
+    --a: #ffc93d;
+  }
+  .quick-answer .vote-pill[data-chosen][data-response="no"] {
+    --a: #ff6b5e;
   }
   @media (min-width: 640px) {
     .vote-pill {
