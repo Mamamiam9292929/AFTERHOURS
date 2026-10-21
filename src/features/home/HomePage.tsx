@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { IconCalendarPlus, IconPinOff, IconPlans, IconSpinner, IconVote } from "@/components/icons";
 import { Section, SectionLink } from "@/components/layout/Page";
 import { ButtonLink } from "@/components/ui/Button";
@@ -68,6 +68,21 @@ export function HomePage() {
   const people = usePeople();
   const { ideas, isPending: ideasPending, city: ideasCity, importing: ideasImporting } = useIdeas();
   const spontaneous = useSpontaneousAsks(Boolean(crews.data && crews.data.length > 0));
+  // S4 Etappe 2: App-Kurzbefehl „Heute noch wer?“ (Manifest) öffnet das Sheet direkt.
+  const [params, setParams] = useSearchParams();
+  const askFromShortcut = params.get("frage") === "heute";
+  const clearShortcut = useCallback(
+    () =>
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete("frage");
+          return next;
+        },
+        { replace: true },
+      ),
+    [setParams],
+  );
 
   const crewById = useMemo(() => new Map((crews.data ?? []).map((c) => [c.id, c])), [crews.data]);
   const membersOf = (crewId: string) => crewById.get(crewId)?.members.map((m) => m.user_id) ?? [];
@@ -127,7 +142,7 @@ export function HomePage() {
           <div className="mt-7 flex max-w-2xl flex-col gap-3">
             <QuickPollLauncher crews={crews.data} />
             <div className="flex flex-wrap gap-2">
-              {spontaneous.data && <SpontaneousLauncher crews={crews.data} asks={spontaneous.data} now={now} />}
+              {spontaneous.data && <SpontaneousLauncher crews={crews.data} asks={spontaneous.data} now={now} autoOpen={askFromShortcut} onAutoOpened={clearShortcut} />}
               <ButtonLink to="/polls/new" size="sm" variant="secondary" icon={<IconVote className="size-4" aria-hidden />}>
                 {t.home.startPoll}
               </ButtonLink>
