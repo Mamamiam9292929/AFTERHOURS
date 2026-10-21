@@ -609,6 +609,12 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   await answer(bob, "Strike District Bowling", "Bin dabei").click();
   await answer(bob, "Grillen bei Bob", "Bin nicht dabei").click();
   await optionCard(bob, "Strike District Bowling").getByText("1 Zusage").waitFor();
+  // V2 Etappe 3b: Jeder Vorschlag trägt Bobs Antwort als Farbe; zurückgezogen wird er wieder dunkles Glas.
+  await bob.page.locator('.vote-card[data-answer="yes"]').filter({ hasText: "Strike District Bowling" }).waitFor();
+  await bob.page.locator('.vote-card[data-answer="maybe"]').filter({ hasText: "Lichtspielhaus Nord" }).waitFor();
+  check(true, "Abstimmung: „Bin dabei“ färbt den Vorschlag grün, „Vielleicht“ gelb");
+  await bob.page.locator(".vote-card:not([data-answer])").filter({ hasText: "Grillen bei Bob" }).waitFor();
+  check(true, "Abstimmung: zurückgezogene Antwort – Vorschlag wieder ohne Farbe");
   await shot(bob, "11-abstimmen");
 
   await carol.page.goto(`${APP}/polls/${ids.poll}`);
@@ -758,6 +764,9 @@ await step("W3 Etappe 1 – Gäste stimmen ohne Konto per Link mit", async () =>
     await answer(guest, "Grillen bei Bob", "Bin dabei").click();
     await answer(guest, "Lichtspielhaus Nord", "Vielleicht").click();
     await guest.page.getByLabel("Dein Name").fill("Dana");
+    // V2 Etappe 3b: Der Stimmzettel färbt jeden Vorschlag in Danas Antwort – grün, gelb, ohne Antwort Glas.
+    const ballotColor = (option) => guest.page.getByTestId("ballot-option").filter({ hasText: option }).getAttribute("data-answer");
+    check((await ballotColor("Grillen bei Bob")) === "yes" && (await ballotColor("Lichtspielhaus Nord")) === "maybe" && (await ballotColor("Strike District Bowling")) === null, "Gast: Vorschläge in der Farbe der eigenen Antwort");
     await shot(guest, "11c-gast-stimmzettel");
     await guest.page.getByRole("button", { name: "Abstimmen" }).click();
     await guest.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Dana" }).waitFor();
