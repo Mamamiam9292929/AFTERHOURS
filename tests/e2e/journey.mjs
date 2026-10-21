@@ -190,13 +190,14 @@ async function a11y(user, name) {
 }
 
 async function shot(user, name) {
-  await noOverflow(user, name);
-  await a11y(user, name);
-  if (!SHOTS) return;
-  // Laufende Übergänge (Farbwechsel, Stempel, Seitenwechsel) erst zu Ende laufen lassen – sonst zeigt das Bild einen Zwischenstand.
+  // Laufende Übergänge (Farbwechsel, Stempel, Seitenwechsel) erst zu Ende laufen lassen – sonst zeigt das Bild einen
+  // Zwischenstand und die Kontrastprüfung misst eine Mischfarbe (z. B. ein gerade abgewählter roter Knopf).
   await user.page
     .evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))))
     .catch(() => undefined);
+  await noOverflow(user, name);
+  await a11y(user, name);
+  if (!SHOTS) return;
   await user.page.screenshot({ path: path.join(SHOTS, `${name}-${user.viewport}.png`) });
 }
 const dialog = (user) => user.page.getByRole("dialog");
