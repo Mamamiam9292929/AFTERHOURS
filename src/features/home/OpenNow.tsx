@@ -40,7 +40,7 @@ export function OpenNowPlaces({ crewId, note, now }: { crewId: string; note: str
   if (!city) {
     return (
       <section className="ask-open mt-4" aria-labelledby={headingId} data-testid="open-now">
-        <h4 id={headingId} className="text-[13px] font-bold uppercase tracking-wide text-fg">
+        <h4 id={headingId} className="text-[15px] font-bold text-fg">
           {tx.titleNoCity}
         </h4>
         <p className="mt-1 text-sm text-muted">{tx.noCity}</p>
@@ -56,7 +56,7 @@ export function OpenNowPlaces({ crewId, note, now }: { crewId: string; note: str
 
   return (
     <section className="ask-open mt-4" aria-labelledby={headingId} aria-busy={search.isPending || undefined} data-testid="open-now">
-      <h4 id={headingId} className="text-[13px] font-bold uppercase tracking-wide text-fg">
+      <h4 id={headingId} className="text-[15px] font-bold text-fg">
         {pick && pick.open.length === 0 && pick.unknown.length > 0 ? tx.titleUnknown(city) : tx.title(city)}
       </h4>
 
