@@ -66,6 +66,17 @@ export const crews = {
     places: "Eure Stammorte",
     placeCount: (n: number) => `${n}×`,
     hint: "Gezählt werden abgeschlossene Pläne der Crew.",
+    // P9 Etappe 2: Rückblick als Bild – nur Zahlen.
+    share: {
+      action: "Als Bild teilen",
+      working: "Bild entsteht …",
+      privacy: "Nur Zahlen – keine Namen, keine Orte.",
+      kicker: "Unser Rückblick",
+      footer: "Geplant mit AFTERHOURS",
+      text: "Unser Rückblick – geplant mit AFTERHOURS",
+      saved: "Bild gespeichert – schick es in euren Gruppenchat.",
+      failed: "Das Bild ließ sich gerade nicht erstellen.",
+    },
   },
   /** P3 Etappe 3 · Offene Beträge aller Abende der Crew (nur Übersicht, ausgeglichen wird je Plan). */
   balances: {
