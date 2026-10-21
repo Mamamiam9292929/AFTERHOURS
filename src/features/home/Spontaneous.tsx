@@ -1,6 +1,6 @@
 import { Dialog as HeadlessDialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { IconCalendarPlus, IconClose, IconSparkles, IconSpinner, IconTimer, IconVote } from "@/components/icons";
 import { Avatar, type Person } from "@/components/ui/Avatar";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
@@ -12,6 +12,7 @@ import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { crewsFreeToAsk, formatLeft, minutesLeft, summarizeAsk, type SpontaneousAnswerValue, type SpontaneousAsk } from "@/lib/spontaneous";
 import { supabase } from "@/lib/supabase";
+import { OpenNowPlaces } from "./OpenNow";
 
 const tx = t.home.spontaneous;
 const CREW_KEY = "afterhours.spontaneous.crew";
@@ -50,10 +51,31 @@ function rememberedCrew(): string | null {
  * S4 · Knopf „Heute noch wer?“ neben „Was geht?“. Öffnet ein kleines Sheet: optional ein Stichwort,
  * bei mehreren Crews die Crew – dann bekommt die Crew Bescheid. Crews mit laufender Frage fallen weg.
  */
-export function SpontaneousLauncher({ crews, asks, now }: { crews: CrewWithMembers[]; asks: SpontaneousAsk[]; now: Date }) {
-  const [open, setOpen] = useState(false);
+export function SpontaneousLauncher({
+  crews,
+  asks,
+  now,
+  autoOpen = false,
+  onAutoOpened,
+}: {
+  crews: CrewWithMembers[];
+  asks: SpontaneousAsk[];
+  now: Date;
+  /** S4 Etappe 2: Start über den App-Kurzbefehl („/home?frage=heute“) öffnet das Sheet sofort. */
+  autoOpen?: boolean;
+  onAutoOpened?: () => void;
+}) {
   const free = crewsFreeToAsk(crews, asks, now);
-  if (free.length === 0) return null;
+  const canAsk = free.length > 0;
+  const [open, setOpen] = useState(() => autoOpen && canAsk);
+  useEffect(() => {
+    if (!autoOpen) return;
+    // Auch wenn Home schon offen war (App aus dem Hintergrund über den Kurzbefehl).
+    if (canAsk) setOpen(true);
+    // Den Kurzbefehl nur einmal auswerten – Neuladen oder Zurück öffnet das Sheet nicht erneut.
+    onAutoOpened?.();
+  }, [autoOpen, canAsk, onAutoOpened]);
+  if (!canAsk) return null;
   return (
     <>
       <Button variant="secondary" size="sm" icon={<IconSparkles className="size-4" aria-hidden />} onClick={() => setOpen(true)} aria-haspopup="dialog" data-testid="spontaneous-launcher">
@@ -305,6 +327,9 @@ export function SpontaneousCard({
           )}
         </div>
       )}
+
+      {/* S4 Etappe 2: Steht die Runde, was hat gerade offen? */}
+      {summary.matched && crew && <OpenNowPlaces crewId={crew.id} note={ask.note} now={now} />}
     </article>
   );
 }

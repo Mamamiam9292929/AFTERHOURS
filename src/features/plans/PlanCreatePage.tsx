@@ -26,6 +26,8 @@ export function PlanCreatePage() {
   const create = useCreatePlan();
   const [crewId, setCrewId] = useState(params.get("crew") ?? "");
   const [confirmed, setConfirmed] = useState(false);
+  // S4 Etappe 2: „Plan hier“ aus „Heute noch wer?“ – heute, in einer halben Stunde (auf die Viertelstunde).
+  const [soonStart] = useState(() => (params.get("soon") === "1" ? soonStartsAt(new Date()) : null));
 
   useEffect(() => {
     if (!crews.data || crews.data.length === 0) return;
@@ -51,7 +53,7 @@ export function PlanCreatePage() {
         <PlanForm
           // Sobald der Ort geladen ist, das Formular mit dessen Werten neu aufbauen.
           key={place?.id ?? "blank"}
-          initial={{ title: place?.name ?? "", address: place?.address ?? "", costPerPersonCents: place ? typicalPriceCents(place) : null }}
+          initial={{ title: place?.name ?? "", address: place?.address ?? "", costPerPersonCents: place ? typicalPriceCents(place) : null, startsAt: soonStart }}
           submitLabel={t.plans.create.submit}
           pending={create.isPending}
           error={create.isError ? errorMessage(create.error) : null}
@@ -115,4 +117,10 @@ export function PlanCreatePage() {
       </div>
     </>
   );
+}
+
+/** In 30 Minuten, aufgerundet auf die nächste Viertelstunde – für einen Plan, der heute noch losgeht. */
+function soonStartsAt(now: Date): string {
+  const quarter = 15 * 60_000;
+  return new Date(Math.ceil((now.getTime() + 30 * 60_000) / quarter) * quarter).toISOString();
 }
