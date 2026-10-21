@@ -8,16 +8,19 @@ import { useSetAttendance } from "./api";
 
 type Answer = Exclude<AttendanceStatus, "invited">;
 
-const ANSWERS: { value: Answer; label: string; tone: string }[] = [
-  { value: "going", label: t.plans.detail.attendance.going, tone: "hover:border-lime hover:text-lime focus-visible:border-lime" },
-  { value: "maybe", label: t.plans.detail.attendance.maybe, tone: "hover:border-amber hover:text-amber focus-visible:border-amber" },
-  { value: "declined", label: t.plans.detail.attendance.declined, tone: "hover:border-danger hover:text-danger focus-visible:border-danger" },
+/** V2: gleiche Farbnamen wie die Pillen der Abstimm- und Planseiten-Karten (`.vote-pill[data-response]`). */
+const ANSWERS: { value: Answer; label: string; response: "yes" | "maybe" | "no" }[] = [
+  { value: "going", label: t.plans.detail.attendance.going, response: "yes" },
+  { value: "maybe", label: t.plans.detail.attendance.maybe, response: "maybe" },
+  { value: "declined", label: t.plans.detail.attendance.declined, response: "no" },
 ];
 
 /**
  * D6 · Zusage direkt auf Home: drei Knöpfe unter dem Ticket eines Plans, auf den deine Antwort fehlt.
  * Gleiche RPC wie auf der Planseite (`set_attendance`); danach rutscht der Plan aus „Deine Antwort fehlt“,
  * und sein Ticket trägt die Farbe deiner Antwort.
+ * V2 Etappe 3d: Antworten als Pillen wie auf Planseite und Abstimmung; die angetippte Pille füllt sich
+ * sofort in ihrer Antwortfarbe (grün dabei, gelb vielleicht, rot kann nicht), während gespeichert wird.
  */
 export function PlanQuickAnswer({ plan, className }: { plan: Pick<Plan, "id" | "title">; className?: string }) {
   const toast = useToast();
@@ -36,8 +39,8 @@ export function PlanQuickAnswer({ plan, className }: { plan: Pick<Plan, "id" | "
   }
 
   return (
-    <div role="group" aria-label={t.plans.quickAnswer(plan.title)} className={cn("grid grid-cols-3 gap-2", className)}>
-      {ANSWERS.map(({ value, label, tone }) => {
+    <div role="group" aria-label={t.plans.quickAnswer(plan.title)} className={cn("quick-answer grid grid-cols-3 gap-2", className)}>
+      {ANSWERS.map(({ value, label, response }) => {
         const busy = setAttendance.isPending && chosen === value;
         return (
           <button
@@ -45,11 +48,10 @@ export function PlanQuickAnswer({ plan, className }: { plan: Pick<Plan, "id" | "
             type="button"
             disabled={setAttendance.isPending}
             aria-busy={busy || undefined}
+            data-response={response}
+            data-chosen={chosen === value || undefined}
             onClick={() => answer(value)}
-            className={cn(
-              "inline-flex h-11 items-center justify-center gap-1.5 rounded-control border border-line-strong px-1 text-center text-sm font-semibold leading-tight text-fg transition-[border-color,color,transform] duration-200 active:scale-[0.96] disabled:opacity-60",
-              tone,
-            )}
+            className="vote-pill gap-1.5"
           >
             {busy && <IconSpinner className="size-4 shrink-0 animate-spin" aria-hidden />}
             {label}

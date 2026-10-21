@@ -633,6 +633,9 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   check((await alice.page.getByRole("heading", { level: 1 }).locator(".text-lime").innerText()).toLowerCase() === keyword.toLowerCase(), `Überschrift hebt „${keyword}“ hervor`);
   check(await optionCard(alice, "Strike District Bowling").getByText("Vorn", { exact: true }).isVisible(), "führende Option trägt „Vorn“");
   check((await optionCard(alice, "Lichtspielhaus Nord").getByText("Vorn", { exact: true }).count()) === 0, "nur die führende Option trägt „Vorn“");
+  // V2 Etappe 3d: Kopf der Abstimmung als Pillen – Frist in Lime, Beteiligung mit Balken.
+  check((await alice.page.getByTestId("poll-ends").innerText()).startsWith("Endet"), "Kopf: Frist als Lime-Pille");
+  check(/^(\d+) von \1 haben abgestimmt$/.test((await alice.page.getByTestId("poll-turnout").innerText()).trim()), "Kopf: Beteiligung als Pille mit Balken");
   await shot(alice, "12-abstimmung-zwischenstand");
   await carol.page.reload();
   await optionCard(carol, "Strike District Bowling").getByText("3 Zusagen").waitFor();
@@ -1043,6 +1046,8 @@ await step("Schritt 7 – Abstimmung beenden, Ergebnis", async () => {
   await page.getByRole("heading", { name: "Es wird Strike District Bowling" }).waitFor();
   check(true, "Ergebnis: die Option mit den meisten Zusagen gewinnt");
   check((await page.getByRole("radiogroup").count()) === 0, "nach dem Ende kann niemand mehr abstimmen");
+  // V2 Etappe 3d: Ergebnis als Karte ganz in Lime, sobald es einen Gewinner gibt.
+  check((await page.locator('.result-card[data-answer="yes"]').filter({ hasText: "Es wird Strike District Bowling" }).count()) === 1, "Ergebnis: Karte in Lime mit Gewinner");
   await shot(alice, "13-ergebnis");
   await bob.page.reload();
   await bob.page.getByRole("heading", { name: "Es wird Strike District Bowling" }).waitFor();
@@ -1743,6 +1748,8 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await bob.page.goto(`${APP}/home`);
   const quick = bob.page.getByRole("group", { name: "Deine Antwort zu „Schwarzlicht Minigolf 18“" });
   await quick.waitFor();
+  // V2 Etappe 3d: Antworten als Pillen in den Farbnamen der Plan- und Abstimm-Karten.
+  check((await quick.locator('.vote-pill[data-response="yes"], .vote-pill[data-response="maybe"], .vote-pill[data-response="no"]').count()) === 3, "Zusage auf Home: drei Antwort-Pillen");
   await shot(bob, "32-home-zusage");
   await quick.getByRole("button", { name: "Vielleicht" }).click();
   await toast(bob, "Antwort gespeichert.");

@@ -51,6 +51,9 @@ import { activeWherePoll, dateOptionLabel, GUEST_PREFIX, isGuestId, summarizePol
 
 const RESPONSES: VoteResponse[] = ["yes", "maybe", "no"];
 
+/** V2 Etappe 3d: Eigenschaften im Kopf der Abstimmung als Glas-Pillen (gleiche Höhe wie die Frist). */
+const HEAD_PILL = "h-8 border border-white/15 bg-white/[0.06] px-3 text-[13px] text-fg";
+
 function optionWhen(option: PollOption): string {
   if (!option.proposed_date) return t.polls.detail.dateOpen;
   const date = formatPlainDate(option.proposed_date);
@@ -666,32 +669,42 @@ export function PollDetailPage() {
         back={crew ? { to: `/crews/${crew.id}`, label: t.polls.detail.backToCrew(`${crew.emoji} ${crew.name}`) } : { to: "/plans", label: t.polls.detail.back }}
         actions={!summary.isOver ? <ShareButton label={t.share.poll} content={() => pollShare(poll, shareToken.data)} /> : undefined}
         lead={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          // V2 Etappe 3d: Kopf der Abstimmung als Reihe aus Pillen – Frist in Lime, Beteiligung mit kleinem
+          // Balken, Eigenschaften der Abstimmung als Glas-Pillen.
+          <span className="poll-head flex flex-wrap items-center gap-2">
             {summary.isOver ? (
-              <Badge tone="neutral" icon={<IconHourglass className="size-3.5" aria-hidden />}>
+              <Badge tone="neutral" className={HEAD_PILL} icon={<IconHourglass className="size-3.5" aria-hidden />}>
                 {t.enums.pollStatus.closed}
               </Badge>
             ) : (
-              <span className="inline-flex h-8 items-center gap-2 rounded-full bg-lime/15 px-3 text-sm font-semibold text-lime">
-                <span aria-hidden className="size-2 rounded-full bg-lime" />
+              <span className="inline-flex h-8 items-center gap-2 rounded-full bg-lime px-3 text-[13px] font-bold text-lime-ink" data-testid="poll-ends">
+                <span aria-hidden className="size-2 animate-pulse rounded-full bg-lime-ink motion-reduce:animate-none" />
                 {t.polls.status.endsIn(formatRelative(poll.ends_at, now))}
               </span>
             )}
-            {poll.kind === "date" && <Badge tone="outline">{t.polls.detail.dateBadge}</Badge>}
-            {poll.parent_poll_id && <Badge tone="outline">{t.polls.runoffBadge}</Badge>}
+            {!summary.isOver && (
+              <span className={cn(HEAD_PILL, "inline-flex items-center gap-2 rounded-full font-semibold")} data-testid="poll-turnout">
+                <span aria-hidden className="relative h-1.5 w-10 overflow-hidden rounded-full bg-white/15">
+                  <span className="absolute inset-y-0 left-0 rounded-full bg-lime" style={{ width: `${memberIds.length ? Math.round((votedCount / memberIds.length) * 100) : 0}%` }} />
+                </span>
+                {t.polls.participation(votedCount, memberIds.length)}
+              </span>
+            )}
+            {poll.kind === "date" && <Badge tone="outline" className={HEAD_PILL}>{t.polls.detail.dateBadge}</Badge>}
+            {poll.parent_poll_id && <Badge tone="outline" className={HEAD_PILL}>{t.polls.runoffBadge}</Badge>}
             {poll.date_poll_id && (
               <Link to={`/polls/${poll.date_poll_id}`} className="inline-flex min-h-8 items-center font-semibold text-fg underline decoration-lime underline-offset-4" data-testid="poll-from-date">
                 {dateWinner ? t.polls.detail.fromDatePoll(dateOptionLabel(dateWinner)) : t.polls.create.linkedWhen.back}
               </Link>
             )}
-            {poll.guests_allowed && !summary.isOver && <Badge tone="outline">{t.polls.detail.guestsBadge}</Badge>}
-            {poll.auto_decide && !summary.isOver && <Badge tone="outline">{t.polls.detail.auto.badge}</Badge>}
+            {poll.guests_allowed && !summary.isOver && <Badge tone="outline" className={HEAD_PILL}>{t.polls.detail.guestsBadge}</Badge>}
+            {poll.auto_decide && !summary.isOver && <Badge tone="outline" className={HEAD_PILL}>{t.polls.detail.auto.badge}</Badge>}
             {poll.series?.active && (
-              <Badge tone="outline" icon={<IconRepeat className="size-3.5" aria-hidden />}>
+              <Badge tone="outline" className={HEAD_PILL} icon={<IconRepeat className="size-3.5" aria-hidden />}>
                 {t.polls.detail.repeat.badge}
               </Badge>
             )}
-            <span>{summary.isOver ? t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now)) : t.polls.participation(votedCount, memberIds.length)}</span>
+            {summary.isOver && <span className="text-sm">{t.polls.status.ended(formatAgo(poll.closed_at ?? poll.ends_at, now))}</span>}
           </span>
         }
       />
@@ -700,9 +713,10 @@ export function PollDetailPage() {
         <div className="min-w-0">
           {!summary.isOver && shareToken.data && <GuestClaimCard pollId={poll.id} token={shareToken.data} />}
           {closed && (
-            <div className={cn("mb-6 rounded-card border p-5", winner ? "border-lime bg-lime/10" : "border-line bg-surface")}>
+            // V2 Etappe 3d: Ergebnis als Karte – mit Gewinner ganz in Lime (wie „dabei“), sonst dunkles Glas.
+            <div className="vote-card result-card mb-6 p-5" data-answer={winner ? "yes" : undefined}>
               <p className="text-sm font-semibold text-muted">{t.polls.detail.result.title}</p>
-              <h2 className="display mt-1.5 text-[24px] text-fg sm:text-[29px]">
+              <h2 className={cn("display mt-1.5 text-[24px] uppercase sm:text-[29px]", winner ? "text-fg" : "chrome")}>
                 {winner ? t.polls.detail.result.winner(winner.title) : poll.is_tie ? t.polls.detail.result.tie : t.polls.detail.result.none}
               </h2>
               <p className="mt-2 max-w-prose text-[15px] leading-snug text-muted">
