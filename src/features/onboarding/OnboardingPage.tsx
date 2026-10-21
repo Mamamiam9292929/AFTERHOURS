@@ -310,19 +310,20 @@ export function OnboardingPage() {
   );
 }
 
-/** Die Einladung als kleines Ticket über dem Profil: Crew, wer einlädt, wie viele schon dabei sind. */
+/**
+ * Die Einladung als kleine Karte über dem Profil (V2 Etappe 3f, wie auf der Einladungs-Landingpage):
+ * Crew-Symbol in einer Lime-Kachel, wer einlädt, der Crew-Name in Chrom, wie viele schon dabei sind.
+ */
 function InvitePass({ invite }: { invite: ValidInvite }) {
   return (
-    <section aria-label={t.onboarding.invite.label} className="ticket">
-      <div className="ticket-stub flex flex-col items-center justify-center gap-1 bg-lime px-2 py-4 text-center text-lime-ink">
-        <span className="text-[36px] leading-none" aria-hidden>
-          {invite.crew.emoji}
-        </span>
-        <span className="text-[12px] font-bold uppercase tracking-wide">{t.crews.landing.admit}</span>
-      </div>
-      <div className="min-w-0 p-4 sm:p-5">
+    <section aria-label={t.onboarding.invite.label} className="vote-card flex items-center gap-4 overflow-hidden rounded-[28px] p-4 sm:p-5" data-testid="onboarding-invite">
+      <span aria-hidden className="pointer-events-none absolute -right-12 -top-16 size-40 rounded-full bg-lime/15 blur-3xl" />
+      <span aria-hidden className="relative grid size-16 shrink-0 place-items-center rounded-[20px] bg-lime text-[32px] leading-none">
+        {invite.crew.emoji}
+      </span>
+      <div className="relative min-w-0">
         <p className="text-[13px] text-muted">{invite.invited_by ? t.crews.landing.invitedBy(invite.invited_by) : t.crews.landing.invitedAnonymous}</p>
-        <p className="display mt-1 break-words text-[22px] uppercase text-fg">{invite.crew.name}</p>
+        <p className="display chrome mt-1 break-words text-[22px] uppercase">{invite.crew.name}</p>
         <p className="mt-1 text-[14px] text-muted">{t.onboarding.invite.members(t.members(invite.crew.member_count))}</p>
       </div>
     </section>

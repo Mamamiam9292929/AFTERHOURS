@@ -4,6 +4,7 @@ import { IconVote } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
+import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
 import { AuthLayout } from "@/features/auth/AuthLayout";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { clearNext, rememberNext } from "@/features/auth/next";
@@ -99,9 +100,6 @@ export function SharedPollPage() {
   );
 }
 
-/** V2 Etappe 3e: Eigenschaften im Kopf als Glas-Pillen – wie im Kopf der Abstimmung in der App. */
-const HEAD_PILL = "inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3.5 text-[14px] font-semibold text-muted";
-
 /**
  * Die geteilte Abstimmung als Karte (V2 Etappe 3e): oben auf dem Stapel, Frist als Lime-Pille, die Frage als
  * Chrom-Plakat, darunter Vorschläge und Stimmen als Glas-Pillen. Ist sie vorbei, liegt sie gedämpft allein da.
@@ -117,12 +115,9 @@ function SharedPollTicket({ data }: { data: Valid }) {
         <div className="relative">
           <div className="flex flex-wrap items-center gap-2">
             {open ? (
-              <span className="inline-flex h-9 items-center gap-2 rounded-full bg-lime px-3.5 text-[13px] font-bold text-lime-ink" data-testid="shared-poll-ends">
-                <span aria-hidden className="size-2 animate-pulse rounded-full bg-lime-ink motion-reduce:animate-none" />
-                {t.polls.status.endsIn(formatRelative(poll.ends_at, now))}
-              </span>
+              <LivePill testId="shared-poll-ends">{t.polls.status.endsIn(formatRelative(poll.ends_at, now))}</LivePill>
             ) : (
-              <span className={HEAD_PILL}>
+              <span className={GLASS_PILL}>
                 <IconVote className="size-4" aria-hidden />
                 {t.polls.shared.closed}
               </span>
@@ -137,11 +132,11 @@ function SharedPollTicket({ data }: { data: Valid }) {
           </p>
           {poll.kind === "date" && poll.dates && poll.dates.length > 0 && <SlotList dates={poll.dates} />}
           <div className="mt-5 flex flex-wrap gap-2">
-            <p className={HEAD_PILL}>
+            <p className={GLASS_PILL}>
               <span className="font-display text-[17px] font-extrabold leading-none text-fg">{poll.option_count}</span>
               {t.polls.shared.options(poll.option_count, poll.kind)}
             </p>
-            <p className={HEAD_PILL}>
+            <p className={GLASS_PILL}>
               {poll.voter_count > 0 && <span className="font-display text-[17px] font-extrabold leading-none text-lime">{poll.voter_count}</span>}
               {t.polls.shared.voters(poll.voter_count, open)}
             </p>
