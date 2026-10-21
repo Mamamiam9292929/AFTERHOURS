@@ -431,7 +431,7 @@
   }
 
   /*
-   * Licht statt Fläche (D0): dezenter Lime-Schein oben auf Home mit feinem Korn. Läuft zu den Rändern
+   * Licht statt Fläche (D0): dezenter Lime-Schein oben auf Home. Das Korn aus D0 ist mit 2.0 entfallen (Aurora übernimmt, spart CSS beim Start). Läuft zu den Rändern
    * transparent aus, damit keine Kante entsteht; liegt hinter dem Inhalt (Eltern-Element mit isolation).
    */
   .home-glow {
@@ -441,7 +441,7 @@
     z-index: -1;
     pointer-events: none;
     background: radial-gradient(ellipse 70% 80% at 35% 0%, color-mix(in srgb, var(--color-violet) 18%, transparent), transparent 75%);
-    /* Maske blendet Schein und Korn zu allen Rändern aus – keine sichtbare Kante, auch nicht auf dem Desktop. */
+    /* Maske blendet den Schein zu allen Rändern aus – keine sichtbare Kante, auch nicht auf dem Desktop. */
     -webkit-mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
     mask: radial-gradient(ellipse 50% 100% at 50% 0%, #000, rgb(0 0 0 / 0.45) 55%, #0000);
   }
@@ -449,13 +449,6 @@
     .home-glow {
       inset: -2.5rem -2.5rem auto;
     }
-  }
-  .home-glow::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    opacity: 0.05;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   /*
@@ -467,58 +460,34 @@
   }
   /*
    * Planseite (V2 Etappe 3c). „Bist du dabei?“ ist eine `.vote-card` (Farbe deiner Antwort, Pillen);
-   * fehlt die Antwort noch, trägt die Karte einen Lime-Rand mit leichtem Schimmer.
+   * ohne Antwort mit Lime-Rand. Was/Wann/Wo und „Organisieren“ sind Glas-Karten; unter „Wer“ ist jede
+   * Person eine Pille in der Farbe ihrer Antwort (gedämpft, Schrift bleibt hell). Form über Utilities,
+   * hier nur die Farben – wegen des CSS-Budgets beim Start.
    */
   .vote-card.answer-open {
     border-color: color-mix(in srgb, var(--color-lime) 50%, transparent);
-    background: linear-gradient(160deg, color-mix(in srgb, var(--color-lime) 10%, var(--color-surface)), color-mix(in srgb, var(--color-violet) 12%, var(--color-surface)) 55%, var(--color-surface));
     box-shadow: 0 22px 44px -30px color-mix(in srgb, var(--color-lime) 55%, transparent);
   }
-  /* Was / Wann / Wo als eine Karte aus dunklem Glas statt loser Zeilen. */
-  .plan-facts {
-    border-radius: var(--radius-ticket);
-    padding: 2px 16px;
-    background: linear-gradient(160deg, color-mix(in srgb, var(--color-violet) 10%, var(--color-surface)), var(--color-surface) 65%);
-    border: 1px solid rgb(255 255 255 / 0.08);
-  }
-  @media (min-width: 640px) {
-    .plan-facts {
-      padding: 4px 20px;
-    }
-  }
-  /* „Organisieren“: Glas mit Pink-Violett-Licht, damit es sich von den Inhaltskarten abhebt. */
+  .plan-facts,
   .plan-manage {
-    border-radius: var(--radius-ticket);
-    background: linear-gradient(150deg, color-mix(in srgb, var(--color-pink) 14%, var(--color-surface)), color-mix(in srgb, var(--color-violet) 12%, var(--color-surface)) 55%, var(--color-surface));
-    border: 1px solid rgb(255 255 255 / 0.1);
+    background: linear-gradient(160deg, color-mix(in srgb, var(--c) 12%, var(--color-surface)), var(--color-surface) 65%);
+    --c: var(--color-violet);
   }
-  /* Wer kommt: jede Person als Pille in der Farbe ihrer Antwort (gedämpft, Schrift bleibt hell). */
+  .plan-manage {
+    --c: var(--color-pink);
+  }
   .who-chip {
-    display: inline-flex;
-    min-height: 36px;
-    align-items: center;
-    gap: 8px;
-    border-radius: 999px;
-    padding: 3px 12px 3px 4px;
-    font-size: 14px;
-    color: var(--color-muted);
-    background: rgb(255 255 255 / 0.05);
-    border: 1px solid var(--color-line);
+    background: color-mix(in srgb, var(--c, #fff) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c, #fff) 30%, transparent);
   }
   .who-chip[data-status="going"] {
-    color: var(--color-fg);
-    font-weight: 600;
-    background: color-mix(in srgb, var(--color-lime) 14%, transparent);
-    border-color: color-mix(in srgb, var(--color-lime) 45%, transparent);
+    --c: var(--color-lime);
   }
   .who-chip[data-status="maybe"] {
-    color: var(--color-fg);
-    background: color-mix(in srgb, var(--color-amber) 12%, transparent);
-    border-color: color-mix(in srgb, var(--color-amber) 40%, transparent);
+    --c: var(--color-amber);
   }
   .who-chip[data-status="declined"] {
-    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
-    border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+    --c: var(--color-danger);
   }
   /*
    * V2 Etappe 3b · Vorschlag in der Abstimmung (Crew und Gast-Stimmzettel): eine Karte wie die Plan-Karte.

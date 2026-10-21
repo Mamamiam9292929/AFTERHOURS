@@ -193,7 +193,7 @@ export function PlanDetailPage() {
             {locked && <p className="mt-2.5 text-[13px] text-faint">{t.plans.detail.attendance.locked}</p>}
           </section>
 
-          <dl className="plan-facts mt-4 divide-y divide-line">
+          <dl className="plan-facts mt-4 divide-y divide-line rounded-card border border-white/[0.08] px-4 sm:px-5">
             <Fact icon={<IconPlans aria-hidden />} label={t.plans.detail.what}>
               <span className="font-semibold">{plan.title}</span>
               <span className="mt-0.5 block text-sm text-muted">{organizer}</span>
@@ -281,7 +281,7 @@ export function PlanDetailPage() {
                         {group.map((p) => {
                           const person = people.lookup(p.user_id);
                           return (
-                            <li key={p.user_id} className="who-chip" data-status={status}>
+                            <li key={p.user_id} data-status={status} className={cn("who-chip inline-flex h-9 items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm", status === "going" ? "font-semibold text-fg" : status === "maybe" ? "text-fg" : "text-muted")}>
                               <Avatar person={person} size="xs" decorative />
                               {p.user_id === user.id ? t.states.you : (person?.display_name ?? t.states.formerMember)}
                             </li>
@@ -319,7 +319,7 @@ export function PlanDetailPage() {
 
         {canManage && !locked && (
           <aside className="lg:sticky lg:top-10 lg:self-start">
-            <div className="plan-manage p-4">
+            <div className="plan-manage rounded-card border border-white/[0.08] p-4">
               <h2 className="mb-3 text-[17px] font-bold text-fg">{t.plans.detail.manage.title}</h2>
               <div className="flex flex-col gap-2.5">
                 {plan.status === "proposed" && (
