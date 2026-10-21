@@ -1550,6 +1550,35 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     await bobRecap.scrollIntoViewIfNeeded();
     await noOverflow(bob, "Crew-Rückblick");
     await shot(bob, "21c-crew-rueckblick");
+
+    // P9 Etappe 2: Rückblick als Bild – mit Teilen-Menü für Dateien direkt ins Teilen …
+    await bob.page.evaluate(() => {
+      window.__shared = [];
+      Object.defineProperty(navigator, "canShare", { configurable: true, value: (data) => Boolean(data?.files?.length) });
+      Object.defineProperty(navigator, "share", { configurable: true, value: async (data) => void window.__shared.push(data) });
+    });
+    await bob.page.getByRole("button", { name: "Als Bild teilen" }).click();
+    await bob.page.waitForFunction(() => window.__shared?.length === 1, null, { timeout: 20_000 });
+    const card = await bob.page.evaluate(async () => {
+      const data = window.__shared[0];
+      const file = data.files?.[0];
+      const bitmap = await createImageBitmap(file);
+      return { name: file.name, type: file.type, width: bitmap.width, height: bitmap.height, words: `${data.title ?? ""} ${data.text ?? ""}` };
+    });
+    check(card.type === "image/png" && card.width === 1080 && card.height === 1350, `Rückblick-Bild: PNG 1080 × 1350 (${card.type}, ${card.width} × ${card.height})`);
+    check(/^afterhours-rueckblick-\d{4}-\d\d-\d\d\.png$/.test(card.name), `Rückblick-Bild: Dateiname mit Datum (${card.name})`);
+    check(!/Alice|Bob|Carol|Weekend|Bowling/.test(card.words), `Rückblick-Bild: Begleittext ohne Namen und Orte („${card.words}“)`);
+    // … ohne Teilen-Menü als Download.
+    await bob.page.evaluate(() => {
+      Object.defineProperty(navigator, "canShare", { configurable: true, value: undefined });
+      Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+    });
+    const download = bob.page.waitForEvent("download");
+    await bob.page.getByRole("button", { name: "Als Bild teilen" }).click();
+    const saved = await download;
+    check(/^afterhours-rueckblick-\d{4}-\d\d-\d\d\.png$/.test(saved.suggestedFilename()), "Rückblick-Bild: ohne Teilen-Menü als Download");
+    await toast(bob, "Bild gespeichert – schick es in euren Gruppenchat.");
+    if (SHOTS) await saved.saveAs(path.join(SHOTS, "21d-rueckblick-bild.png"));
   } else {
     check((await alice.page.getByTestId("crew-recap").count()) === 0, "ohne abgeschlossenen Plan kein Rückblick");
   }

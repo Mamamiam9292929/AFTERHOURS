@@ -1,10 +1,16 @@
+import { useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { IconShare } from "@/components/icons";
 import { Section } from "@/components/layout/Page";
+import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Toast";
 import type { PlanWithParticipants } from "@/features/plans/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { crewRecap } from "@/lib/recap";
+import { crewRecap, type CrewRecap as Recap } from "@/lib/recap";
+import { recapCardFileName, recapCardModel, type RecapCardFact } from "@/lib/recapcard";
 import { formatMonthYear } from "@/lib/time";
+import { RECAP_IMAGE_BAR_MAX, renderRecapImage } from "./recapImage";
 
 const tx = t.crews.recap;
 const narrowMonth = new Intl.DateTimeFormat("de-DE", { month: "narrow", timeZone: "UTC" });
@@ -89,7 +95,81 @@ export function CrewRecap({ plans }: { plans: readonly PlanWithParticipants[] })
           </div>
         )}
       </div>
+      <div className="mt-3 flex max-w-2xl flex-wrap items-center gap-x-4 gap-y-2">
+        <RecapShareButton recap={recap} />
+        <p className="text-[13px] leading-snug text-faint">{tx.share.privacy}</p>
+      </div>
       <p className="mt-2 max-w-2xl text-[13px] leading-snug text-faint">{tx.hint}</p>
     </Section>
+  );
+}
+
+function factText(fact: RecapCardFact): { label: string; value: string } {
+  if (fact.kind === "streak") return { label: tx.streak, value: tx.streakValue(fact.value) };
+  if (fact.kind === "round") return { label: tx.biggestRound, value: tx.biggestRoundValue(fact.value) };
+  return { label: tx.favoriteDay, value: tx.weekdays[fact.value] ?? "" };
+}
+
+/** Adresse fürs Bild nur, wenn die echte Adresse feststeht (sonst stünde dort „127.0.0.1“). */
+function publicHost(): string {
+  const configured = import.meta.env.VITE_SITE_URL?.trim();
+  if (!configured) return "";
+  try {
+    return new URL(configured).host;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * P9 Etappe 2 · Rückblick als Bild zum Teilen: entsteht im Browser (Canvas), nur Zahlen – keine Namen,
+ * keine Crew-Bezeichnung, keine Orte. Mit Teilen-Menü (Dateien) ins Teilen, sonst als Download.
+ */
+function RecapShareButton({ recap }: { recap: Recap }) {
+  const toast = useToast();
+  const share = useMutation({
+    mutationFn: async (): Promise<"shared" | "cancelled" | "downloaded"> => {
+      const model = recapCardModel(recap, RECAP_IMAGE_BAR_MAX);
+      const blob = await renderRecapImage(model, {
+        kicker: tx.share.kicker,
+        eveningsLabel: tx.evenings(model.evenings),
+        since: model.firstAt ? tx.since(formatMonthYear(model.firstAt)) : null,
+        facts: model.facts.map(factText),
+        monthsTitle: tx.monthsTitle,
+        monthLetters: model.bars.map((bar) => narrowMonth.format(monthDate(bar.key))),
+        footer: tx.share.footer,
+        host: publicHost(),
+      });
+      const name = recapCardFileName(new Date());
+      const file = new File([blob], name, { type: "image/png" });
+      if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: tx.share.kicker, text: tx.share.text });
+          return "shared";
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+          // Teilen gescheitert: dann eben speichern.
+        }
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      return "downloaded";
+    },
+    onSuccess: (outcome) => {
+      if (outcome === "downloaded") toast.success(tx.share.saved);
+    },
+    onError: () => toast.error(tx.share.failed),
+  });
+
+  return (
+    <Button variant="secondary" size="sm" icon={<IconShare className="size-4" aria-hidden />} loading={share.isPending} onClick={() => share.mutate()} data-testid="recap-share">
+      {share.isPending ? tx.share.working : tx.share.action}
+    </Button>
   );
 }
