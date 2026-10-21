@@ -709,6 +709,10 @@ await step("W2 Etappe 2 – Geteilte Abstimmung: Vorschau im Messenger und für 
     const text = await card.innerText();
     check(/3\s*Vorschläge/.test(text) && /3\s*haben abgestimmt/.test(text) && /Abstimmen bis/.test(text), `Gast sieht Vorschläge, Stimmen und Frist („${text.replace(/\s+/g, " ")}“)`);
     check(!/Alice|Bob|Carol|Strike|Lichtspielhaus|Grillen|U-Bahn/.test(await guest.page.locator("body").innerText()), "Gast sieht keine Namen, keine Vorschläge, keinen Treffpunkt");
+    // V2 Etappe 3e: Kopf im neuen Stil – Frist als Lime-Pille, Frage als Chrom-Plakat, Aurora dahinter.
+    check(/^Endet \S/.test((await guest.page.getByTestId("shared-poll-ends").innerText()).trim()), "V2: Frist als Pille („Endet in …“)");
+    check(await card.locator("#shared-poll-title.chrome").isVisible(), "V2: Frage als Chrom-Plakat");
+    check((await guest.page.locator(".aurora").count()) === 1, "V2: Aurora hinter der geteilten Abstimmung");
     check(await guest.page.getByRole("link", { name: "Konto erstellen" }).isVisible(), "Gast: Konto erstellen");
     await shot(guest, "11b-geteilte-abstimmung-gast");
     for (const viewport of ["tablet", "desktop"]) {

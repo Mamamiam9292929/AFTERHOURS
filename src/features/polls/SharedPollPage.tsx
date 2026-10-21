@@ -2,16 +2,16 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { IconVote } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { Badge, ErrorState, PageSpinner } from "@/components/ui/Feedback";
+import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { AuthLayout } from "@/features/auth/AuthLayout";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { clearNext, rememberNext } from "@/features/auth/next";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { useDocumentTitle } from "@/lib/hooks";
+import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { errorMessage } from "@/lib/errors";
-import { formatDateTime, formatPlainDate, formatPlainTime, ticketDate } from "@/lib/time";
+import { formatDateTime, formatPlainDate, formatPlainTime, formatRelative } from "@/lib/time";
 import type { VoteResponse } from "@/lib/types";
 import { type BallotOption, guestSecret, rememberedGuestName, rememberGuestName, type SharedPollPreview, useGuestJoin, useGuestVote, useSharedPollBallot, useSharedPollPreview } from "./api";
 
@@ -99,44 +99,50 @@ export function SharedPollPage() {
   );
 }
 
-/** Die geteilte Abstimmung als Karte: Frist im Abriss, Frage als Plakat, Vorschläge und Stimmen als Zahlen. */
+/** V2 Etappe 3e: Eigenschaften im Kopf als Glas-Pillen – wie im Kopf der Abstimmung in der App. */
+const HEAD_PILL = "inline-flex h-9 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3.5 text-[14px] font-semibold text-muted";
+
+/**
+ * Die geteilte Abstimmung als Karte (V2 Etappe 3e): oben auf dem Stapel, Frist als Lime-Pille, die Frage als
+ * Chrom-Plakat, darunter Vorschläge und Stimmen als Glas-Pillen. Ist sie vorbei, liegt sie gedämpft allein da.
+ */
 function SharedPollTicket({ data }: { data: Valid }) {
   const poll = data.poll;
   const open = poll.status === "open";
-  const date = ticketDate(poll.ends_at);
+  const now = useNow(60_000);
   return (
-    <section aria-labelledby="shared-poll-title" className={cn("ticket-feature-wrap", !open && "ticket-feature-past")}>
-      <div className="ticket ticket-feature">
-        <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", open ? "bg-lime text-lime-ink" : "bg-raised text-muted")}>
-          <span className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-80">{t.polls.shared.stubLabel}</span>
-          <span className="text-[13px] font-bold uppercase tracking-wide">{date.weekday}</span>
-          <span className="font-display text-[46px] font-extrabold leading-[0.9] sm:text-[55px]">{date.day}</span>
-          <span className="text-[13px] font-bold uppercase tracking-wide">{date.month}</span>
-          <span className="ticket-barcode mt-3" aria-hidden />
-        </div>
-        <div className="flex min-w-0 flex-col justify-between gap-4 p-5 sm:p-6">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={open ? "lime" : "neutral"} icon={<IconVote className="size-3.5" aria-hidden />}>
-                {open ? t.polls.shared.open : t.polls.shared.closed}
-              </Badge>
-              <span className="text-[13px] text-muted">{t.polls.shared.kicker}</span>
-            </div>
-            <p id="shared-poll-title" className="display mt-3 break-words text-[23px] uppercase text-fg sm:text-[29px]">
-              {poll.title}
-            </p>
-            <p className="mt-2 text-[15px] font-semibold text-fg">
-              {open ? t.polls.shared.until(formatDateTime(poll.ends_at)) : t.polls.shared.closedOn(formatDateTime(poll.ends_at))}
-            </p>
-            {poll.kind === "date" && poll.dates && poll.dates.length > 0 && <SlotList dates={poll.dates} />}
+    <section aria-labelledby="shared-poll-title" className={cn("ticket-feature-wrap", !open && "ticket-feature-past")} data-testid="shared-poll-card">
+      <div className={cn("vote-card overflow-hidden rounded-[32px] p-5 sm:p-7", !open && "opacity-80")}>
+        <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-pink/25 blur-3xl" />
+        <div className="relative">
+          <div className="flex flex-wrap items-center gap-2">
+            {open ? (
+              <span className="inline-flex h-9 items-center gap-2 rounded-full bg-lime px-3.5 text-[13px] font-bold text-lime-ink" data-testid="shared-poll-ends">
+                <span aria-hidden className="size-2 animate-pulse rounded-full bg-lime-ink motion-reduce:animate-none" />
+                {t.polls.status.endsIn(formatRelative(poll.ends_at, now))}
+              </span>
+            ) : (
+              <span className={HEAD_PILL}>
+                <IconVote className="size-4" aria-hidden />
+                {t.polls.shared.closed}
+              </span>
+            )}
           </div>
-          <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 border-t border-dashed border-line pt-4 text-[15px] font-semibold text-muted">
-            <p className="flex items-baseline gap-1.5">
-              <span className="font-display text-[24px] font-extrabold leading-none text-fg">{poll.option_count}</span>
+          <p className="mt-5 text-[13px] font-semibold uppercase tracking-[0.12em] text-faint">{t.polls.shared.kicker}</p>
+          <p id="shared-poll-title" className="display chrome mt-2 break-words text-[27px] uppercase sm:text-[34px]">
+            {poll.title}
+          </p>
+          <p className="mt-3 text-[15px] font-semibold text-fg">
+            {open ? t.polls.shared.until(formatDateTime(poll.ends_at)) : t.polls.shared.closedOn(formatDateTime(poll.ends_at))}
+          </p>
+          {poll.kind === "date" && poll.dates && poll.dates.length > 0 && <SlotList dates={poll.dates} />}
+          <div className="mt-5 flex flex-wrap gap-2">
+            <p className={HEAD_PILL}>
+              <span className="font-display text-[17px] font-extrabold leading-none text-fg">{poll.option_count}</span>
               {t.polls.shared.options(poll.option_count, poll.kind)}
             </p>
-            <p className="flex items-baseline gap-1.5">
-              {poll.voter_count > 0 && <span className="font-display text-[24px] font-extrabold leading-none text-lime">{poll.voter_count}</span>}
+            <p className={HEAD_PILL}>
+              {poll.voter_count > 0 && <span className="font-display text-[17px] font-extrabold leading-none text-lime">{poll.voter_count}</span>}
               {t.polls.shared.voters(poll.voter_count, open)}
             </p>
           </div>
@@ -146,16 +152,16 @@ function SharedPollTicket({ data }: { data: Valid }) {
   );
 }
 
-/** P1 Etappe 2 · Termine einer Termin-Abstimmung als kleine Abrisse – sie verraten weder Namen noch Orte. */
+/** P1 Etappe 2 · Termine einer Termin-Abstimmung als Glas-Pillen – sie verraten weder Namen noch Orte. */
 function SlotList({ dates }: { dates: { date: string; time: string | null }[] }) {
   return (
     <div className="mt-4">
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{t.polls.shared.datesLabel}</p>
       <ul className="mt-2 flex flex-wrap gap-2" data-testid="shared-poll-dates">
         {dates.map((slot) => (
-          <li key={`${slot.date}-${slot.time ?? ""}`} className="rounded-control border border-dashed border-line-strong bg-raised/60 px-3 py-1.5 text-[13px] font-semibold text-fg">
+          <li key={`${slot.date}-${slot.time ?? ""}`} className="inline-flex min-h-9 items-center rounded-full border border-white/15 bg-white/[0.06] px-3.5 text-[13px] font-semibold text-fg">
             {formatPlainDate(slot.date)}
-            {slot.time && <span className="font-normal text-muted"> · {formatPlainTime(slot.time)}</span>}
+            {slot.time && <span className="font-normal text-muted">&nbsp;· {formatPlainTime(slot.time)}</span>}
           </li>
         ))}
       </ul>
@@ -341,7 +347,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
 
         {open && oneTap && knownName && (
           <div className="space-y-3" data-testid="guest-one-tap">
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-card border border-line bg-surface px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-[28px] border border-white/15 bg-white/[0.06] py-1.5 pl-5 pr-3">
               <p className="text-[15px] text-muted">
                 {t.polls.shared.ballot.votingAs} <span className="font-bold text-fg">{knownName}</span>
               </p>
@@ -414,7 +420,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
       {me && loaded.poll.can_join ? (
         <GuestJoinCard token={token} secret={secret} name={me.name} />
       ) : !signedIn && (me || !open) && (
-        <div className="mt-8 rounded-card border border-dashed border-line-strong p-5">
+        <div className="vote-card mt-8 p-5 sm:p-6">
           <p className="text-[17px] font-bold text-fg">{t.polls.shared.ballot.ctaTitle}</p>
           <p className="mt-1.5 text-[15px] leading-snug text-muted">{t.polls.shared.ballot.ctaBody}</p>
           <ButtonLink to="/register" variant="secondary" block className="mt-4">

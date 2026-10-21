@@ -5,22 +5,25 @@ import { Logo } from "@/components/ui/Logo";
 import { t } from "@/i18n";
 
 /**
- * Rahmen für Anmeldung und Registrierung. Ab Desktop steht links die Marke mit dem Ticket-Motiv,
+ * Rahmen für Anmeldung und Registrierung (V2: Aurora dahinter, Seitenleiste aus Glas). Ab Desktop steht links die Marke mit dem Ticket-Motiv,
  * rechts das Formular; auf dem Smartphone nur Logo und Formular. `hero` steht über der Überschrift
  * (Einladungs-Landingpage: das Ticket der Crew).
  */
 export function AuthLayout({ title, intro, hero, children, footer }: { title: string; intro?: ReactNode; hero?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-      <aside className="relative hidden overflow-hidden bg-nav lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+    <div className="relative isolate grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+      {/* V2 Etappe 3e: Aurora auch hier – Gäste aus dem Gruppenchat sehen zuerst diese Seiten. */}
+      <div className="aurora" aria-hidden />
+      <aside className="relative hidden overflow-hidden border-r border-white/[0.06] bg-nav/55 lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
         <div aria-hidden className="pointer-events-none absolute -right-40 -top-40 size-[520px] rounded-full bg-lime/10 blur-3xl" />
         <Link to="/" className="relative self-start rounded-control" aria-label={t.auth.toStart}>
           <Logo />
         </Link>
         <div className="relative space-y-8">
-          <h2 className="display text-[37px] text-fg xl:text-[49px]">
+          {/* Darf umbrechen: Unbounded ist breit, ohne Umbruch lief „Was machen wir?“ aus der Spalte. */}
+          <h2 className="display chrome text-[34px] xl:text-[42px]">
             {t.auth.brand.headline.map((line) => (
-              <span key={line} className="block whitespace-nowrap">
+              <span key={line} className="block">
                 {line}
               </span>
             ))}
