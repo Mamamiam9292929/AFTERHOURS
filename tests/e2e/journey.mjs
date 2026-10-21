@@ -2930,7 +2930,8 @@ await step("S4 – „Heute noch wer?“: Spontan-Frage an die Crew (Bob, Alice,
   const manifest = await (await fetch(`${APP}/manifest.webmanifest`)).json();
   check(manifest.shortcuts?.some((s) => s.url === "/home?frage=heute" && s.name === "Heute noch wer?"), "Manifest bietet den Kurzbefehl „Heute noch wer?“");
   await page.goto(`${APP}/home?frage=heute`);
-  await page.getByRole("dialog", { name: "Heute noch wer?" }).waitFor();
+  // Die Hülle des Dialogs selbst hat keine Größe – sichtbar ist das Feld darin.
+  await page.getByRole("dialog", { name: "Heute noch wer?" }).getByLabel("Worauf hast du Lust? (optional)").waitFor();
   await page.waitForFunction(() => !location.search.includes("frage="));
   check(true, "Kurzbefehl öffnet das Sheet, die Adresse vergisst ihn");
   await page.keyboard.press("Escape");
