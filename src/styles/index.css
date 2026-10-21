@@ -294,6 +294,44 @@
       padding: 22px 24px 20px;
     }
   }
+  /* S4 Etappe 2: „Jetzt offen“ auf der Karte – trennt sich mit einer feinen Linie ab. */
+  .ask-open {
+    border-top: 1px solid var(--color-line);
+    padding-top: 14px;
+  }
+  .ask-open-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-weight: 700;
+    background: var(--color-lime);
+    color: var(--color-lime-ink);
+  }
+  .ask-card[data-answer] .ask-open-pill {
+    background: #0b0b10;
+    color: var(--ask-accent, #c8ff2e);
+  }
+  .ask-open-link {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    border: 1px solid var(--color-line-strong);
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-fg);
+    transition: background-color 0.2s, transform 0.2s;
+  }
+  .ask-open-link:hover {
+    background: var(--color-raised);
+  }
+  .ask-open-link:active {
+    transform: scale(0.96);
+  }
 
   /*
    * Große Plan-Karte (Home, Planseite, Crew): oben auf einem angedeuteten Stapel (zwei Karten dahinter,

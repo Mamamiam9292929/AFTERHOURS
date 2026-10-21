@@ -2871,7 +2871,47 @@ await step("S4 – „Heute noch wer?“: Spontan-Frage an die Crew (Bob, Alice,
   check((await carolCard.getByRole("button", { name: "Frage beenden" }).count()) === 0, "einfache Mitglieder beenden fremde Fragen nicht");
   check((await carolCard.getByRole("link", { name: "Plan erstellen" }).getAttribute("href"))?.includes("/plans/new?crew="), "„Plan erstellen“ mit der Crew");
   await shot(carol, "49-heute-noch-wer-runde");
-  const match = (await api(bob, "GET", "notifications?type=eq.spontaneous_match&select=payload")).json ?? [];
+
+  // S4 Etappe 2: Steht die Runde, zeigt die Karte, was laut OpenStreetMap gerade offen hat – nie Geschlossenes,
+  // Unbekanntes als unbekannt. Was offen ist, hängt von der Uhrzeit des Laufs ab; geprüft wird die Ehrlichkeit.
+  let planHere = null;
+  for (const [user, cardOf] of [[alice, aliceCard], [carol, carolCard]]) {
+    if (user === alice) await alice.page.reload();
+    await cardOf.getByText("Ihr seid eine Runde – macht was draus!").waitFor();
+    const section = cardOf.getByTestId("open-now");
+    await section.waitFor();
+    await user.page.waitForFunction(() => !document.querySelector('[data-testid="open-now"][aria-busy]'), null, { timeout: 30_000 });
+    const text = (await section.innerText()).replace(/\s+/g, " ");
+    const places = section.getByTestId("open-now-place");
+    const n = await places.count();
+    check(n <= 3, `${user.name}: höchstens drei Orte (${n})`);
+    for (let i = 0; i < n; i++) {
+      const row = places.nth(i);
+      const rowText = (await row.innerText()).replace(/\s+/g, " ");
+      if ((await row.getAttribute("data-open")) === "true") check(/Geöffnet bis \d\d:\d\d Uhr/.test(rowText), `${user.name}: offener Ort nennt, bis wann („${rowText}“)`);
+      else check(/Öffnungszeiten/.test(rowText) && !/Geschlossen/.test(rowText), `${user.name}: Ort ohne bekannte Öffnungszeiten ist so beschriftet („${rowText}“)`);
+      const href = await row.getByRole("link", { name: /^Plan hier/ }).getAttribute("href");
+      check(/^\/plans\/new\?crew=[^&]+&activity=[^&]+&soon=1$/.test(href ?? ""), `${user.name}: „Plan hier“ mit Crew, Ort und „gleich“ (${href})`);
+      planHere ??= { user, href, name: (await row.getByRole("link").first().innerText()).trim() };
+    }
+    if (n > 0) check(text.includes("Öffnungszeiten laut OpenStreetMap"), `${user.name}: Quelle der Öffnungszeiten steht dabei`);
+    else check(/Wähl in Discover deine Stadt|hat laut OpenStreetMap gerade nichts Passendes offen|noch keine Orte geladen/.test(text), `${user.name}: ohne Orte ein ehrlicher Hinweis („${text}“)`);
+    check(!/Geschlossen/.test(text), `${user.name}: keine geschlossenen Orte`);
+  }
+  await noOverflow(carol, "Heute noch wer? – jetzt offen");
+  await shot(alice, "49b-heute-noch-wer-jetzt-offen");
+  if (planHere) {
+    // „Plan hier“: Formular mit Ort als Titel und Beginn in gut einer halben Stunde.
+    await planHere.user.page.goto(`${APP}${planHere.href}`);
+    const title = planHere.user.page.locator('input[name="title"]');
+    await title.waitFor();
+    check((await title.inputValue()) === planHere.name, `„Plan hier“ übernimmt den Ort als Titel (${planHere.name})`);
+    const date = await planHere.user.page.locator('input[name="date"]').inputValue();
+    const time = await planHere.user.page.locator('input[name="time"]').inputValue();
+    check(/^\d{4}-\d\d-\d\d$/.test(date) && /^\d\d:(00|15|30|45)$/.test(time), `„Plan hier“ setzt Tag und Uhrzeit auf die Viertelstunde (${date} ${time})`);
+    await planHere.user.page.goto(`${APP}/home`);
+  }
+  const match =(await api(bob, "GET", "notifications?type=eq.spontaneous_match&select=payload")).json ?? [];
   check(match.length === 1 && match[0].payload?.in_count === 3, "Bob erfährt: ihr seid drei");
   await page.goto(`${APP}/home`);
   await card.getByText("Ihr seid eine Runde – macht was draus!").waitFor();
@@ -2885,6 +2925,20 @@ await step("S4 – „Heute noch wer?“: Spontan-Frage an die Crew (Bob, Alice,
   check((await page.getByTestId("spontaneous-card").count()) === 0, "beendete Frage verschwindet von Home");
   const after = await api(carol, "POST", "rpc/answer_spontaneous", { p_ask_id: askId, p_answer: "out" });
   check(after.status >= 400 && after.json?.message === "spontaneous_over", "nach dem Beenden keine Antwort mehr");
+
+  // S4 Etappe 2: App-Kurzbefehl im Manifest öffnet „Heute noch wer?“ direkt – nur einmal.
+  const manifest = await (await fetch(`${APP}/manifest.webmanifest`)).json();
+  check(manifest.shortcuts?.some((s) => s.url === "/home?frage=heute" && s.name === "Heute noch wer?"), "Manifest bietet den Kurzbefehl „Heute noch wer?“");
+  await page.goto(`${APP}/home?frage=heute`);
+  // Die Hülle des Dialogs selbst hat keine Größe – sichtbar ist das Feld darin.
+  await page.getByRole("dialog", { name: "Heute noch wer?" }).getByLabel("Worauf hast du Lust? (optional)").waitFor();
+  await page.waitForFunction(() => !location.search.includes("frage="));
+  check(true, "Kurzbefehl öffnet das Sheet, die Adresse vergisst ihn");
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+  await page.reload();
+  await page.getByRole("button", { name: "Heute noch wer?" }).waitFor();
+  check((await page.getByRole("dialog").count()) === 0, "Neuladen öffnet das Sheet nicht erneut");
 
   // Nach 2 Stunden verschwindet eine Frage von selbst.
   if (DB_URL) {

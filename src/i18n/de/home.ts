@@ -157,6 +157,22 @@ export const home = {
     closed: "Frage beendet.",
     savedIn: "Du hast Bock – die Crew sieht es.",
     savedOut: "Alles klar, vielleicht nächstes Mal.",
+    // S4 Etappe 2: Steht die Runde, zeigt die Karte, was gerade offen hat.
+    openNow: {
+      title: (city: string) => `Jetzt offen in ${city}`,
+      titleUnknown: (city: string) => `Orte in ${city}`,
+      titleNoCity: "Was hat jetzt offen?",
+      loading: "Offene Orte werden gesucht …",
+      source: "Öffnungszeiten laut OpenStreetMap – vor Ort kann es anders sein.",
+      none: (city: string) => `In ${city} hat laut OpenStreetMap gerade nichts Passendes offen, das noch mindestens eine Stunde aufhat.`,
+      noPlaces: (city: string) => `Für ${city} sind noch keine Orte geladen.`,
+      noCity: "Wähl in Discover deine Stadt, dann siehst du hier, was gerade offen hat.",
+      noCityAction: "Stadt wählen",
+      toDiscover: "In Discover suchen",
+      error: "Orte gerade nicht abrufbar.",
+      planHere: "Plan hier",
+      planHereLabel: (name: string) => `Plan hier: ${name}, heute`,
+    },
   },
 
 };
