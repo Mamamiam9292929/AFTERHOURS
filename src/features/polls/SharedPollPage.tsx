@@ -290,7 +290,8 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
             const key = String(option.key);
             const mine = answers[key] ?? null;
             return (
-              <div key={key} className={cn("rounded-card border bg-surface p-4", mine === "yes" ? "border-lime" : "border-line")}>
+              // V2 Etappe 3b: Der Vorschlag trägt die eigene Antwort – grün, gelb oder rot (wie in der Crew).
+              <div key={key} className="vote-card p-4 sm:p-5" data-answer={open && mine ? mine : undefined} data-testid="ballot-option">
                 <p className="display break-words text-[17px] uppercase text-fg">{option.title}</p>
                 <p className="mt-1 text-sm text-muted">
                   {optionWhen(option, isDate)} · {t.polls.shared.ballot.counts(option.yes, option.maybe)}
@@ -305,6 +306,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
                           type="button"
                           role="radio"
                           aria-checked={selected}
+                          data-response={response}
                           onClick={() => {
                             if (oneTap) {
                               tap(key, selected ? null : response);
@@ -314,13 +316,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
                             setSaved(false);
                             setErrors((prev) => ({ ...prev, answers: null }));
                           }}
-                          className={cn(
-                            "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-[13px] font-semibold leading-tight transition-colors sm:text-[15px]",
-                            !selected && "border-transparent bg-raised text-fg/85 hover:border-line-strong hover:text-fg",
-                            selected && response === "yes" && "border-lime bg-lime text-lime-ink",
-                            selected && response === "maybe" && "border-lime bg-transparent text-lime",
-                            selected && response === "no" && "border-fg/40 bg-raised text-fg",
-                          )}
+                          className="vote-pill"
                         >
                           {t.enums.vote[response]}
                         </button>

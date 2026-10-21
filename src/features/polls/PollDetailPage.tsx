@@ -82,13 +82,14 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
     ? [option.proposed_time ? formatPlainTime(option.proposed_time) : t.polls.detail.timeOpen]
     : [optionWhen(option), option.estimated_price_cents != null ? t.polls.detail.priceEstimate(formatEuro(option.estimated_price_cents)) : t.polls.detail.priceOpen];
   const leadingOpen = tally.leading && poll.status === "open";
+  // V2 Etappe 3b: Solange abgestimmt wird, trägt die Karte deine Antwort – grün, gelb oder rot.
+  const answerColor = !disabled && tally.mine ? tally.mine : undefined;
 
   return (
     <li
-      className={cn(
-        "poll-option relative overflow-hidden rounded-card border",
-        isWinner ? "border-lime bg-lime/10" : leadingOpen ? "poll-option-leading border-lime/45" : "border-line bg-surface",
-      )}
+      className={cn("vote-card poll-option relative overflow-hidden", !answerColor && (isWinner || leadingOpen) && "vote-card-win")}
+      data-answer={answerColor}
+      data-testid="poll-option"
     >
       <div className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
@@ -112,7 +113,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
         <OptionWeather title={option.title} weather={weather} loading={weatherLoading} />
 
         {/* Stand als Balken: Anteil der Zusagen an der Crew, eigene Zusage mit Lime-Rahmen. */}
-        <div className={cn("relative mt-3.5 flex min-h-14 items-center gap-3 overflow-hidden rounded-control border bg-raised/70 py-2 pl-3 pr-4", tally.mine === "yes" ? "border-lime" : "border-transparent")}>
+        <div className="relative mt-3.5 flex min-h-14 items-center gap-3 overflow-hidden rounded-control bg-raised/70 py-2 pl-3 pr-4">
           <div aria-hidden className="poll-bar-fill absolute inset-y-0 left-0" style={{ width: `${tally.yesShare * 100}%` }} />
           <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
             <AvatarStack people={tally.yes.map((id) => lookup(id))} max={5} ringColor="var(--color-raised)" />
@@ -161,15 +162,10 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
                   type="button"
                   role="radio"
                   aria-checked={selected}
+                  data-response={response}
                   onClick={() => onVote(selected ? null : response)}
-                  className={cn(
-                    "inline-flex h-12 items-center justify-center rounded-control border px-1 text-center text-[13px] font-semibold leading-tight transition-colors sm:text-[15px]",
-                    !selected && "border-transparent bg-raised text-fg/85 hover:border-line-strong hover:text-fg",
-                    selected && response === "yes" && "border-lime bg-lime text-lime-ink",
-                    // V2: gleiche Antwortfarben wie die Plan-Karten – grün dabei, gelb vielleicht, rot nicht dabei.
-                    selected && response === "maybe" && "border-amber bg-amber text-amber-ink",
-                    selected && response === "no" && "border-danger bg-danger text-danger-ink",
-                  )}
+                  // V2: Pillen wie auf den Plan-Karten; die Karte selbst trägt die Antwortfarbe.
+                  className="vote-pill"
                 >
                   {t.enums.vote[response]}
                 </button>

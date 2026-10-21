@@ -465,12 +465,114 @@
   .poll-option {
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
   }
-  .poll-option-leading {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--color-lime) 7%, var(--color-surface)), var(--color-surface) 60%);
-  }
   /* Planseite (D0 Etappe 5a): fehlt die eigene Antwort, trägt die Frage einen Lime-Schimmer. */
   .attendance-open {
     background: linear-gradient(180deg, color-mix(in srgb, var(--color-lime) 9%, var(--color-surface)), var(--color-surface) 70%);
+  }
+  /*
+   * V2 Etappe 3b · Vorschlag in der Abstimmung (Crew und Gast-Stimmzettel): eine Karte wie die Plan-Karte.
+   * Ohne Antwort dunkles Glas, mit deiner Antwort ganz in ihrer Farbe – grün dabei, gelb vielleicht,
+   * rot nicht dabei. Auf Farbe werden die Token umgestellt (dunkle Schrift; Lime, Amber und Rot im Inneren
+   * werden dunkel, damit Abzeichen, Balken und Hinweise lesbar bleiben).
+   */
+  .vote-card {
+    position: relative;
+    border-radius: var(--radius-ticket);
+    background: linear-gradient(160deg, color-mix(in srgb, var(--color-violet) 14%, var(--color-surface)), var(--color-surface) 60%);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    color: var(--color-fg);
+    transition:
+      background-color 0.45s var(--ease-out-soft),
+      box-shadow 0.45s var(--ease-out-soft),
+      transform 0.3s var(--ease-out-soft);
+  }
+  .vote-card[data-answer="yes"],
+  .vote-card[data-answer="maybe"],
+  .vote-card[data-answer="no"] {
+    border-color: transparent;
+    --color-fg: #0b0b10;
+    --color-muted: rgb(11 11 16 / 0.78);
+    --color-faint: rgb(11 11 16 / 0.7);
+    --color-surface: rgb(11 11 16 / 0.12);
+    --color-raised: rgb(11 11 16 / 0.14);
+    --color-line: rgb(11 11 16 / 0.2);
+    --color-line-strong: rgb(11 11 16 / 0.35);
+    --color-lime: #0b0b10;
+    --color-amber: #0b0b10;
+    --color-danger: #0b0b10;
+  }
+  .vote-card[data-answer="yes"] {
+    /* Feste Werte: die Farb-Token werden auf dieser Karte selbst umgestellt. */
+    background: #c8ff2e;
+    box-shadow: 0 22px 44px -26px #c8ff2eb3;
+    --color-lime-ink: #c8ff2e;
+    --vote-accent: #c8ff2e;
+  }
+  .vote-card[data-answer="maybe"] {
+    background: #ffc93d;
+    box-shadow: 0 22px 44px -26px #ffc93db3;
+    --color-lime-ink: #ffc93d;
+    --vote-accent: #ffc93d;
+  }
+  .vote-card[data-answer="no"] {
+    background: #ff6b5e;
+    box-shadow: 0 22px 44px -26px #ff6b5eb3;
+    --color-lime-ink: #ff6b5e;
+    --vote-accent: #ff6b5e;
+  }
+  .vote-card-win {
+    border-color: color-mix(in srgb, var(--color-lime) 70%, transparent);
+  }
+  /* Antwort-Knöpfe als Pillen; die gewählte Antwort ist dunkel mit der Farbe der Karte als Schrift. */
+  .vote-pill {
+    display: inline-flex;
+    height: 48px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1.5px solid var(--color-line-strong);
+    padding: 0 4px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--color-fg);
+    transition:
+      background-color 0.2s,
+      border-color 0.2s,
+      color 0.2s,
+      transform 0.2s;
+  }
+  .vote-pill:active {
+    transform: scale(0.96);
+  }
+  .vote-card:not([data-answer]) .vote-pill[data-response="yes"]:hover {
+    border-color: #c8ff2e;
+    color: #c8ff2e;
+  }
+  .vote-card:not([data-answer]) .vote-pill[data-response="maybe"]:hover {
+    border-color: #ffc93d;
+    color: #ffc93d;
+  }
+  .vote-card:not([data-answer]) .vote-pill[data-response="no"]:hover {
+    border-color: #ff6b5e;
+    color: #ff6b5e;
+  }
+  .vote-card[data-answer] .vote-pill:not([aria-checked="true"]):hover {
+    background: rgb(11 11 16 / 0.1);
+  }
+  .vote-pill[aria-checked="true"] {
+    border-color: #0b0b10;
+    background: #0b0b10;
+    color: var(--vote-accent, #c8ff2e);
+  }
+  .vote-pill:disabled {
+    opacity: 0.6;
+  }
+  @media (min-width: 640px) {
+    .vote-pill {
+      font-size: 15px;
+    }
   }
   .poll-bar-fill {
     background: linear-gradient(90deg, color-mix(in srgb, var(--color-lime) 24%, transparent), color-mix(in srgb, var(--color-lime) 9%, transparent));
