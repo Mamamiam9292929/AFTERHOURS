@@ -111,7 +111,7 @@ export function BookingPanel({ plan, activity, canManage }: { plan: PlanWithPart
       ) : (
         <div
           data-testid="booking-card"
-          className={cn(PANEL_ITEM, "p-4", latest.status === "confirmed" && "border-lime/55 bg-lime/[0.06] shadow-[0_22px_44px_-30px_var(--color-lime)]")}
+          className={cn(PANEL_ITEM, "p-4", latest.status === "confirmed" && "border-lime/50 bg-lime/[0.04]")}
         >
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <StatusPill tone={TONE[latest.status]} testId="booking-status">
@@ -153,7 +153,7 @@ export function BookingPanel({ plan, activity, canManage }: { plan: PlanWithPart
                     ] as [Outcome, string][]
                   ).map(([value, label]) => (
                     // V2: Antworten des Anbieters als Pillen; die gewählte trägt den Lime-Rand.
-                    <label key={value} className={cn("flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border px-3.5 text-sm font-semibold transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-lime", outcome === value ? "border-lime bg-lime/10 text-fg" : "border-white/15 bg-white/[0.04] text-muted hover:border-white/30")}>
+                    <label key={value} className={cn("flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border px-3.5 text-sm font-semibold transition-colors", outcome === value ? "border-lime bg-lime/10 text-fg" : "border-white/15 bg-white/[0.04] text-muted hover:border-white/30")}>
                       <input type="radio" name="outcome" value={value} checked={outcome === value} onChange={() => setOutcome(value)} className="size-4 shrink-0 accent-[var(--color-lime)]" />
                       {label}
                     </label>

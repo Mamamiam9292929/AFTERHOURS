@@ -80,8 +80,8 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
             className={cn(
               PANEL_ITEM,
               "p-4 sm:p-5",
-              summary.balance > 0 && "border-lime/45 bg-lime/[0.06]",
-              summary.balance < 0 && "border-amber/45 bg-amber/[0.06]",
+              summary.balance > 0 && "border-lime/50 bg-lime/[0.04]",
+              summary.balance < 0 && "border-amber/50",
             )}
           >
             <dl className="grid grid-cols-3 gap-3">
@@ -105,13 +105,13 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                 {tx.allSettled}
               </Notice>
             ) : (
-              <ul className={cn(PANEL_ITEM, "divide-y divide-white/10 overflow-hidden")}>
+              <ul className={cn(PANEL_ITEM, "divide-y divide-line overflow-hidden")}>
                 {summary.transfers.map((transfer) => {
                   const text = transferText(transfer);
                   const amount = formatEuro(transfer.cents);
                   const involved = transfer.from === userId || transfer.to === userId;
                   return (
-                    <li key={`${transfer.from}-${transfer.to}`} className={cn("flex items-center gap-3 px-4 py-3", involved && "bg-lime/[0.06]")}>
+                    <li key={`${transfer.from}-${transfer.to}`} className={cn("flex items-center gap-3 px-4 py-3", involved && "bg-lime/[0.04]")}>
                       <span className="flex shrink-0 items-center gap-1" aria-hidden>
                         <Avatar person={lookup(transfer.from)} size="sm" decorative />
                         <IconForward className="size-3.5 text-faint" />

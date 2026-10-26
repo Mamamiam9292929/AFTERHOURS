@@ -119,7 +119,7 @@ export function PlanDetailPage() {
   const organizer = plan.created_by === user.id ? t.plans.detail.organizerYou : t.plans.detail.organizer(people.lookup(plan.created_by)?.display_name ?? t.states.formerMember);
 
   const expensesSection = (
-    <PlanPanel id="kosten" title={t.plans.expenses.title} icon={<IconWallet />} tone="lime">
+    <PlanPanel id="kosten" title={t.plans.expenses.title} icon={<IconWallet className="size-5" />} tone="lime">
       <ExpensesPanel plan={plan} userId={user.id} memberIds={crew?.members.map((m) => m.user_id) ?? []} canManageCrew={canManageCrew(myRole(crew, user.id))} lookup={people.lookup} />
     </PlanPanel>
   );
@@ -306,11 +306,11 @@ export function PlanDetailPage() {
           {(started || locked) && expensesSection}
 
           {/* V2 Etappe 3g: Kosten, Reservierung und Fahrten als Glas-Karten im Deck, je mit eigenem Schein. */}
-          <PlanPanel id="reservierung" title={t.plans.detail.booking} icon={<IconCalendarCheck />} tone="violet">
+          <PlanPanel id="reservierung" title={t.plans.detail.booking} icon={<IconCalendarCheck className="size-5" />} tone="violet">
             <BookingPanel plan={plan} activity={place} canManage={canManage && !locked} />
           </PlanPanel>
 
-          <PlanPanel id="fahrten" title={t.plans.detail.rides} icon={<IconCar />} tone="pink">
+          <PlanPanel id="fahrten" title={t.plans.detail.rides} icon={<IconCar className="size-5" />} tone="pink">
             <RidesPanel plan={plan} userId={user.id} locked={locked} lookup={people.lookup} />
           </PlanPanel>
 

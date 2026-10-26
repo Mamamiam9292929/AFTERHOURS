@@ -103,17 +103,17 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                       {o.return_trip && `, ${t.plans.rides.withReturn}`}
                     </p>
                     {o.note && <p className="mt-1 text-sm text-fg">{o.note}</p>}
+                    {/* V2 Etappe 3g: die Plätze als Punkte – gefüllt, wer schon mitfährt, als Ring, was frei ist. */}
+                    <p aria-hidden className="mt-2.5 flex flex-wrap gap-1.5" data-testid="ride-seat-dots">
+                      {Array.from({ length: o.available_seats }, (_, index) => (
+                        <span key={index} className={cn("size-3 rounded-full border-2", index < o.available_seats - free ? "border-transparent bg-pink" : "border-white/30")} />
+                      ))}
+                    </p>
                   </div>
                   <StatusPill tone={free > 0 ? "lime" : "glass"} testId="ride-seats">
                     {t.plans.rides.seatsFree(free)}
                   </StatusPill>
                 </div>
-                {/* V2 Etappe 3g: die Plätze als Punkte – gefüllt, wer schon mitfährt, als Ring, was frei ist. */}
-                <p aria-hidden className="mt-3 flex flex-wrap gap-1.5 pl-[52px]" data-testid="ride-seat-dots">
-                  {Array.from({ length: o.available_seats }, (_, index) => (
-                    <span key={index} className={cn("size-3 rounded-full border-2", index < o.available_seats - free ? "border-pink bg-pink" : "border-white/30")} />
-                  ))}
-                </p>
 
                 {isMine ? (
                   <div className="mt-3 border-t border-white/10 pt-3">

@@ -478,13 +478,9 @@
   .plan-panel[data-tone="pink"] {
     --c: var(--color-pink);
   }
-  /* V2 Etappe 3g: Kosten, Reservierung, Fahrten – je Bereich ein eigener Schein, das Symbol in einer Kachel. */
+  /* V2 Etappe 3g: Kosten, Reservierung, Fahrten – je Bereich ein eigener Schein. */
   .plan-panel[data-tone="lime"] {
     --c: var(--color-lime);
-  }
-  .plan-panel-icon {
-    background: color-mix(in srgb, var(--c) 18%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
   }
   .who-chip {
     background: color-mix(in srgb, var(--c, #fff) 8%, transparent);
