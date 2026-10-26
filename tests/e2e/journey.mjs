@@ -2405,9 +2405,25 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   await page.getByRole("heading", { name: "Standortfreigabe" }).waitFor();
   check(await page.getByRole("radio", { name: /Standort nicht teilen/ }).isChecked(), "Standortfreigabe ist standardmäßig aus");
   check(await page.getByText("Noch nicht aktiv").isVisible(), "die App behauptet keine Live-Standorte");
+  // V2 Etappe 3k: Bereiche als Glas-Karten mit Farbschein, Stand als Pille, Sprung-Pillen oben.
+  const tones = await page.locator("main section.plan-panel").evaluateAll((els) => els.map((el) => `${el.id}:${el.dataset.tone}`));
+  check(tones.join(",") === "profile:violet,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: sechs Glas-Karten mit Farbschein (${tones.join(", ")})`);
+  check((await page.getByTestId("location-status").innerText()).trim() === "Aus", "Standort-Pille sagt „Aus“");
+  check((await page.getByTestId("calendar-status").innerText()).trim() === "Kein Abo", "Kalender-Pille: „Kein Abo“");
+  const jump = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
+  check((await jump.getByRole("link").count()) === 6, "sechs Sprung-Pillen");
+  await jump.getByRole("link", { name: "Kalender-Abo" }).click();
+  await page.waitForURL(/#calendar$/);
+  check(true, "Sprung-Pille führt zum Kalender-Abo");
+  check(await page.getByTestId("account-danger").isVisible(), "Konto löschen steht in der Gefahrenzone");
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Einstellungen ohne seitliches Scrollen");
+  await page.evaluate(() => window.scrollTo(0, 0));
   await shot(bob, "27-einstellungen");
+  const statusBefore = (await page.getByTestId("notifications-status").innerText()).trim();
   await page.getByRole("switch", { name: "Neue Abstimmungen" }).click();
   await toast(bob, "Benachrichtigungen gespeichert.");
+  const statusAfter = (await page.getByTestId("notifications-status").innerText()).trim();
+  check(statusBefore !== statusAfter && /^(\d+ von \d+ an|Alle (an|aus))$/.test(statusAfter), `Benachrichtigungs-Pille zählt mit (${statusBefore} → ${statusAfter})`);
   await page.reload();
   check(!(await page.getByRole("switch", { name: "Neue Abstimmungen" }).isChecked()), "Benachrichtigungseinstellung bleibt gespeichert");
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Daten herunterladen" }).click()]);
@@ -2435,6 +2451,7 @@ await step("P2 Etappe 2 – Kalender-Abo: Link anlegen, Kalender abrufen, ersetz
   const google = await card.getByRole("link", { name: /Google Kalender/ }).getAttribute("href");
   check(google?.startsWith("https://calendar.google.com/calendar/render?cid=webcal%3A%2F%2F") ?? false, "Google: Abo-Link als cid");
   check(await card.getByText("Noch von keinem Kalender abgerufen.").isVisible(), "noch nie abgerufen");
+  check((await card.getByTestId("calendar-status").innerText()).trim() === "Abo läuft", "Kalender-Pille: „Abo läuft“ in Lime");
   await shot(bob, "27b-kalender-abo");
   await page.reload();
   check((await page.locator("section#calendar").getByLabel("Dein Abo-Link").inputValue()) === link, "nach dem Neuladen: derselbe Link");

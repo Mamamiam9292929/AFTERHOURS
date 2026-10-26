@@ -1,19 +1,21 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconInfo, IconLock, IconLogout, IconRefresh } from "@/components/icons";
+import { IconBell, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconInfo, IconLock, IconLogout, IconPin, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { Chip, SwitchRow } from "@/components/ui/Controls";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorState, Notice, PageSpinner, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, SelectField, TextField } from "@/components/ui/Field";
+import { GLASS_PILL } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { CITY_NAMES } from "@/data/cities";
 import { CATEGORIES, INTERESTS } from "@/data/options";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { forgetNext } from "@/features/auth/next";
 import { useCrews } from "@/features/crews/api";
+import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
@@ -29,15 +31,58 @@ import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "./notificationGro
 
 const toggle = <T,>(list: T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
-function Card({ id, title, lead, children }: { id: string; title: string; lead?: string; children: React.ReactNode }) {
+type Tone = "violet" | "pink" | "lime";
+
+/**
+ * V2 Etappe 3k · Bereich der Einstellungen als Glas-Karte aus dem Deck – wie die Bereiche der Planseite
+ * (`plan-panel`): eigener Farbschein je Bereich (nur Licht, nie Textfarbe), Symbol auf einer Glas-Kachel,
+ * Überschrift in der Display-Schrift, rechts der aktuelle Stand als Pille. Die Überschrift bleibt ein `h2`,
+ * die Sprungziele (#calendar, #notifications …) bleiben gleich.
+ */
+function Card({ id, title, lead, icon, tone, status, children }: { id: string; title: string; lead?: string; icon: React.ReactNode; tone: Tone; status?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24 rounded-card border border-line bg-surface p-5 sm:p-6">
-      <h2 id={`${id}-title`} className="display text-[20px] text-fg">
-        {title}
-      </h2>
-      {lead && <p className="mt-2 text-sm leading-snug text-muted">{lead}</p>}
+    <section id={id} aria-labelledby={`${id}-title`} data-tone={tone} className="plan-panel scroll-mt-24 rounded-[28px] border border-white/[0.08] p-4 sm:p-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-fg">
+          {icon}
+        </span>
+        <h2 id={`${id}-title`} className="display mr-auto text-[17px] uppercase text-fg sm:text-[19px]">
+          {title}
+        </h2>
+        {status}
+      </div>
+      {lead && <p className="mt-3 max-w-prose text-sm leading-snug text-muted">{lead}</p>}
       <div className="mt-5">{children}</div>
     </section>
+  );
+}
+
+/** Innere Karte eines Bereichs (Unterabschnitt, Auswahl): dunkles Glas wie auf der Planseite. */
+const ITEM = PANEL_ITEM;
+
+const SECTIONS = [
+  { id: "profile", title: t.settings.profile.title },
+  { id: "preferences", title: t.settings.preferences.title },
+  { id: "location", title: t.settings.location.title },
+  { id: "notifications", title: t.settings.notifications.title },
+  { id: "calendar", title: t.settings.calendar.title },
+  { id: "account", title: t.settings.account.title },
+] as const;
+
+/** Sprung-Pillen oben: auf dem Handy ist die Seite lang – ein Tipp springt zum Bereich. */
+function SectionNav() {
+  return (
+    <nav aria-label={t.settings.jumpLabel} className="-mx-4 mb-5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <ul className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
+        {SECTIONS.map((section) => (
+          <li key={section.id}>
+            <a href={`#${section.id}`} className={cn(GLASS_PILL, "h-11 whitespace-nowrap hover:border-lime/60 hover:text-fg")}>
+              {section.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -60,7 +105,7 @@ function ProfileCard({ profile }: { profile: Profile }) {
   }
 
   return (
-    <Card id="profile" title={t.settings.profile.title}>
+    <Card id="profile" title={t.settings.profile.title} icon={<IconUser className="size-5" />} tone="violet">
       <form onSubmit={submit} noValidate className="space-y-5">
         <AvatarPicker userId={profile.id} name={name} value={avatar} onChange={setAvatar} />
         <TextField label={t.onboarding.profile.name} name="display_name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} error={nameError} required />
@@ -114,7 +159,7 @@ function PreferencesCard({ profile, settings }: { profile: Profile; settings: Us
   }
 
   return (
-    <Card id="preferences" title={t.settings.preferences.title}>
+    <Card id="preferences" title={t.settings.preferences.title} icon={<IconSparkles className="size-5" />} tone="pink">
       <form onSubmit={(e) => void submit(e)} noValidate className="space-y-6">
         <fieldset>
           <legend className="mb-3 text-sm font-medium text-fg">{t.onboarding.interests.interests}</legend>
@@ -172,7 +217,18 @@ function LocationCard({ settings }: { settings: UserSettings }) {
   }
 
   return (
-    <Card id="location" title={t.settings.location.title} lead={t.settings.location.lead}>
+    <Card
+      id="location"
+      title={t.settings.location.title}
+      lead={t.settings.location.lead}
+      icon={<IconPin className="size-5" />}
+      tone="violet"
+      status={
+        <StatusPill testId="location-status" tone={settings.location_sharing_mode === "off" ? "glass" : "amber"}>
+          {settings.location_sharing_mode === "off" ? t.settings.location.statusOff : t.settings.location.statusNoted}
+        </StatusPill>
+      }
+    >
       <Notice tone="amber" icon={<IconInfo aria-hidden />} title={t.settings.location.notLive.title} className="mb-5">
         {t.settings.location.notLive.body}
       </Notice>
@@ -180,7 +236,7 @@ function LocationCard({ settings }: { settings: UserSettings }) {
         <fieldset className="space-y-2.5">
           <legend className="sr-only">{t.settings.location.title}</legend>
           {LOCATION_MODES.map((option) => (
-            <label key={option} className={cn("flex cursor-pointer gap-3 rounded-control border p-3.5 transition-colors", mode === option ? "border-lime bg-lime/5" : "border-line hover:border-line-strong")}>
+            <label key={option} className={cn(ITEM, "flex min-h-14 cursor-pointer gap-3 p-3.5 transition-colors", mode === option ? "border-lime/70 bg-lime/[0.06]" : "hover:border-white/25")}>
               <input type="radio" name="location_mode" value={option} checked={mode === option} onChange={() => setMode(option)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-lime)]" />
               <span>
                 <span className="block font-semibold text-fg">{t.enums.locationMode[option].title}</span>
@@ -216,6 +272,7 @@ function NotificationsCard({ settings }: { settings: UserSettings }) {
   const toast = useToast();
   const update = useUpdateSettings();
   const [preferences, setPreferences] = useState(settings.notification_preferences);
+  const enabledCount = NOTIFICATION_GROUPS.filter((group) => isGroupEnabled(preferences, group.types)).length;
 
   function change(types: (typeof NOTIFICATION_GROUPS)[number]["types"], enabled: boolean) {
     const next = setGroup(preferences, types, enabled);
@@ -225,8 +282,19 @@ function NotificationsCard({ settings }: { settings: UserSettings }) {
   }
 
   return (
-    <Card id="notifications" title={t.settings.notifications.title} lead={t.settings.notifications.lead}>
-      <div className="divide-y divide-line">
+    <Card
+      id="notifications"
+      title={t.settings.notifications.title}
+      lead={t.settings.notifications.lead}
+      icon={<IconBell className="size-5" />}
+      tone="pink"
+      status={
+        <StatusPill testId="notifications-status" tone={enabledCount === 0 ? "glass" : "lime"}>
+          {t.settings.notifications.status(enabledCount, NOTIFICATION_GROUPS.length)}
+        </StatusPill>
+      }
+    >
+      <div className={cn(ITEM, "divide-y divide-white/10 px-4")}>
         {NOTIFICATION_GROUPS.map((group) => (
           <SwitchRow key={group.key} label={t.settings.notifications.groups[group.key].title} description={t.settings.notifications.groups[group.key].body} checked={isGroupEnabled(preferences, group.types)} onChange={(enabled) => change(group.types, enabled)} />
         ))}
@@ -295,14 +363,14 @@ function CalendarCard() {
         <Notice tone="amber" icon={<IconLock aria-hidden />}>
           {t2.secret}
         </Notice>
-        <div className="space-y-1.5 text-sm leading-snug text-muted">
+        <div className={cn(ITEM, "space-y-1.5 p-4 text-sm leading-snug text-muted")}>
           <p>{t2.whatsIn}</p>
           <p>
             {t2.delay} {t2.googleNote}
           </p>
           <p className="font-semibold text-fg">{feed.data.last_used_at ? t2.lastUsed(formatAgo(feed.data.last_used_at, now)) : t2.neverUsed}</p>
         </div>
-        <div className="flex flex-wrap gap-2 border-t border-line pt-5">
+        <div className="flex flex-wrap gap-2 border-t border-white/10 pt-5">
           <Button variant="ghost" size="sm" icon={<IconRefresh className="size-4" aria-hidden />} onClick={() => setConfirm("renew")}>
             {t2.renew}
           </Button>
@@ -315,7 +383,20 @@ function CalendarCard() {
   }
 
   return (
-    <Card id="calendar" title={t2.title} lead={t2.lead}>
+    <Card
+      id="calendar"
+      title={t2.title}
+      lead={t2.lead}
+      icon={<IconCalendarPlus className="size-5" />}
+      tone="lime"
+      status={
+        feed.isSuccess && (
+          <StatusPill testId="calendar-status" tone={feed.data ? "lime" : "glass"}>
+            {feed.data ? t2.statusOn : t2.statusOff}
+          </StatusPill>
+        )
+      }
+    >
       {body}
       <ConfirmDialog
         open={confirm === "renew"}
@@ -419,13 +500,13 @@ function AccountCard() {
   }
 
   return (
-    <Card id="account" title={t.settings.account.title}>
-      <dl className="mb-6 text-[15px]">
+    <Card id="account" title={t.settings.account.title} icon={<IconLock className="size-5" />} tone="violet">
+      <dl className={cn(ITEM, "mb-4 p-4 text-[15px]")}>
         <dt className="text-sm text-muted">{t.settings.account.email}</dt>
         <dd className="mt-0.5 break-all font-semibold text-fg">{user?.email}</dd>
       </dl>
 
-      <form onSubmit={submitPassword} noValidate className="space-y-4 border-t border-line pt-6">
+      <form onSubmit={submitPassword} noValidate className={cn(ITEM, "space-y-4 p-4 sm:p-5")}>
         <h3 className="text-[17px] font-bold text-fg">{t.settings.account.passwordTitle}</h3>
         <TextField label={t.auth.fields.newPassword} name="new_password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} error={passwordErrors.password} hint={t.auth.fields.passwordHint} />
         <TextField label={t.auth.fields.repeatPassword} name="repeat_password" type="password" autoComplete="new-password" value={repeat} onChange={(e) => setRepeat(e.target.value)} error={passwordErrors.repeat} />
@@ -435,7 +516,7 @@ function AccountCard() {
         </Button>
       </form>
 
-      <div className="mt-6 space-y-3 border-t border-line pt-6">
+      <div className={cn(ITEM, "mt-4 space-y-3 p-4 sm:p-5")}>
         <h3 className="text-[17px] font-bold text-fg">{t.settings.account.exportTitle}</h3>
         <p className="text-sm leading-snug text-muted">{t.settings.account.exportBody}</p>
         <Button variant="secondary" loading={exportData.isPending} onClick={() => exportData.mutate()} icon={<IconDownload className="size-4" aria-hidden />}>
@@ -443,8 +524,12 @@ function AccountCard() {
         </Button>
       </div>
 
-      <div className="mt-6 space-y-3 border-t border-line pt-6">
-        <h3 className="text-[17px] font-bold text-fg">{t.settings.account.deleteTitle}</h3>
+      {/* Gefahrenzone: roter Rand, damit niemand aus Versehen hier landet. */}
+      <div data-testid="account-danger" className={cn(ITEM, "mt-4 space-y-3 border-danger/40 p-4 sm:p-5")}>
+        <h3 className="flex items-center gap-2 text-[17px] font-bold text-fg">
+          <IconTrash className="size-4 text-danger" aria-hidden />
+          {t.settings.account.deleteTitle}
+        </h3>
         <p className="text-sm leading-snug text-muted">{t.settings.account.deleteBody}</p>
         <Button
           variant="danger"
@@ -458,7 +543,7 @@ function AccountCard() {
         </Button>
       </div>
 
-      <div className="mt-6 border-t border-line pt-6">
+      <div className="mt-4">
         <Button variant="ghost" onClick={() => void signOut().then(() => navigate("/login", { replace: true }))} icon={<IconLogout className="size-4" aria-hidden />}>
           {t.settings.account.signOut}
         </Button>
@@ -502,6 +587,9 @@ export function SettingsPage() {
   return (
     <>
       <PageHeader title={t.settings.title} back={{ to: "/profile", label: t.settings.back }} />
+      <div className="max-w-2xl">
+        <SectionNav />
+      </div>
       <div className="max-w-2xl space-y-5">
         <ProfileCard profile={profile.data} />
         <PreferencesCard profile={profile.data} settings={settings.data} />
