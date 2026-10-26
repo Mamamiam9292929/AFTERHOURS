@@ -1680,6 +1680,27 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await crewsTitle.waitFor();
   check(/^\d+ Freunde? in \d+ Crews?$/i.test((await crewsTitle.innerText()).trim()), `Crews-Überschrift zählt echte Freunde und Crews („${(await crewsTitle.innerText()).trim()}“)`);
   check(/^\d+ Freunde?$/i.test((await crewsTitle.locator(".text-lime").innerText()).trim()), "Crews-Überschrift hebt die Zahl der Freunde hervor");
+  // V2 Etappe 3i: Crew-Zeilen als Glas-Karten in der Farbwelt der Crew; was läuft, steht als Pille daneben.
+  {
+    const rows = alice.page.getByTestId("crew-row");
+    const worlds = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("data-world")));
+    check(worlds.length >= 1 && worlds.every((w) => ["violet", "pink", "lime", "amber"].includes(w ?? "")), `Crew-Zeilen tragen eine Farbwelt (${worlds.join(", ")})`);
+    const first = rows.first();
+    check((await first.evaluate((el) => getComputedStyle(el).backgroundImage)).includes("radial-gradient"), "Crew-Zeile leuchtet in ihrer Farbwelt");
+    const nameFont = await first.locator(".font-display").first().evaluate((el) => getComputedStyle(el).fontFamily);
+    check(/Unbounded/i.test(nameFont), `Crew-Name in Unbounded („${nameFont}“)`);
+    const pulses = await rows.evaluateAll((els) => els.map((el) => [el.getAttribute("data-pulse"), el.querySelector("[data-testid=crew-row-status]")?.textContent?.trim() ?? ""]));
+    check(
+      pulses.every(([pulse, label]) => (pulse === "polls" && /Abstimmungen? läuf/.test(label)) || (pulse === "plans" && /Pläne? steh/.test(label)) || (pulse === "quiet" && label === "Gerade nichts geplant")),
+      `Pille der Crew-Zeile passt zum Stand (${pulses.map((p) => p.join(": ")).join("; ")})`,
+    );
+    const lime = await rows.evaluateAll((els) => els.filter((el) => el.getAttribute("data-pulse") === "polls").map((el) => getComputedStyle(el.querySelector("[data-testid=crew-row-status]")).backgroundColor));
+    check(lime.every((bg) => bg === "rgb(200, 255, 46)"), "laufende Abstimmung leuchtet als Lime-Pille");
+    const box = await first.boundingBox();
+    const vw = alice.page.viewportSize()?.width ?? 0;
+    check(!!box && box.x >= 0 && box.x + box.width <= vw + 1, `Crew-Zeile passt in die Breite (${vw} px)`);
+    check((await alice.page.getByTestId("crew-join").count()) === 1, "„Einladung erhalten?“ als Glas-Karte");
+  }
   await shot(alice, "21-crews");
   for (const user of [alice, bob, carol]) {
     await user.page.goto(`${APP}/plans`);

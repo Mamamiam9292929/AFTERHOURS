@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { IconChevronRight, IconPlus } from "@/components/icons";
 import { PageHeader, PosterLine, Section } from "@/components/layout/Page";
 import { AvatarStack } from "@/components/ui/Avatar";
+import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/Feedback";
@@ -14,26 +15,55 @@ import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
+import { cn } from "@/lib/cn";
+import { crewPulse, crewWorld, type CrewPulse } from "@/lib/crewWorld";
 import { errorMessage } from "@/lib/errors";
 import { useDocumentTitle } from "@/lib/hooks";
 import { extractInviteToken, useCreateCrew, useCrews, type CrewWithMembers } from "./api";
 import { CrewForm } from "./CrewForm";
 
-export function CrewRow({ crew, status }: { crew: CrewWithMembers; status?: string }) {
+/** Hervorhebung auf der Crew-Zeile (nur Crews-Übersicht): laufende Abstimmung leuchtet Lime, Plan als Glas-Pille. */
+export type CrewRowStatus = { pulse: CrewPulse; label: string };
+
+/**
+ * V2 Etappe 3i: Die Crew-Zeile ist eine Glas-Karte in der Farbwelt der Crew (fest aus der ID), das Symbol
+ * auf einer Kachel im selben Licht, der Name in Unbounded. Was gerade läuft, steht als Pille daneben.
+ */
+export function CrewRow({ crew, status }: { crew: CrewWithMembers; status?: CrewRowStatus }) {
   const people = usePeople();
   return (
-    <Link to={`/crews/${crew.id}`} className="flex items-center gap-4 rounded-card border border-line bg-surface p-4 transition-colors hover:border-line-strong">
-      <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-raised text-[28px]" aria-hidden>
+    <Link
+      to={`/crews/${crew.id}`}
+      data-testid="crew-row"
+      data-world={crewWorld(crew.id)}
+      data-pulse={status?.pulse}
+      className="crew-world flex items-center gap-4 rounded-[28px] border border-white/10 p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] transition-[transform,border-color] duration-300 hover:border-white/20 motion-safe:hover:-translate-y-0.5"
+    >
+      <span className="crew-world-tile flex size-14 shrink-0 items-center justify-center rounded-[20px] text-[28px]" aria-hidden>
         {crew.emoji}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[17px] font-bold text-fg">{crew.name}</span>
-        <span className="mt-1 flex items-center gap-2 text-[13px] text-muted">
-          <AvatarStack people={crew.members.map((m) => people.lookup(m.user_id))} max={4} size="xs" />
-          <span className="truncate">
-            {t.members(crew.members.length)}
-            {status ? `, ${status}` : ""}
+        <span className="block truncate font-display text-[16px] font-extrabold uppercase leading-tight tracking-[-0.01em] text-fg sm:text-[17px]">{crew.name}</span>
+        <span className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-2 text-[13px] text-muted">
+          <span className="flex items-center gap-2">
+            <AvatarStack people={crew.members.map((m) => people.lookup(m.user_id))} max={4} size="xs" />
+            <span className="whitespace-nowrap">{t.members(crew.members.length)}</span>
           </span>
+          {status ? (
+            status.pulse === "polls" ? (
+              <LivePill className="h-7 px-3 text-[12px]" testId="crew-row-status">
+                {status.label}
+              </LivePill>
+            ) : status.pulse === "plans" ? (
+              <span className={cn(GLASS_PILL, "h-7 px-3 text-[12px] text-fg")} data-testid="crew-row-status">
+                {status.label}
+              </span>
+            ) : (
+              <span className="text-faint" data-testid="crew-row-status">
+                {status.label}
+              </span>
+            )
+          ) : null}
         </span>
       </span>
       <IconChevronRight className="size-5 shrink-0 text-faint" aria-hidden />
@@ -61,11 +91,12 @@ export function CrewsPage() {
 
   const status = useMemo(() => {
     const now = new Date();
-    const map = new Map<string, string>();
+    const map = new Map<string, CrewRowStatus>();
     for (const crew of crews.data ?? []) {
       const openPolls = (polls.data ?? []).filter((p) => p.crew_id === crew.id && !isPollOver(p, now)).length;
       const upcoming = (plans.data ?? []).filter((p) => p.crew_id === crew.id && isUpcoming(p, now)).length;
-      map.set(crew.id, openPolls > 0 ? t.crews.card.openPolls(openPolls) : upcoming > 0 ? t.crews.card.upcomingPlans(upcoming) : t.crews.card.quiet);
+      const pulse = crewPulse(openPolls, upcoming);
+      map.set(crew.id, { pulse, label: pulse === "polls" ? t.crews.card.openPolls(openPolls) : pulse === "plans" ? t.crews.card.upcomingPlans(upcoming) : t.crews.card.quiet });
     }
     return map;
   }, [crews.data, polls.data, plans.data]);
@@ -113,7 +144,7 @@ export function CrewsPage() {
       )}
 
       <Section title={t.crews.joinTitle} className="max-w-xl">
-        <form onSubmit={openInvite} noValidate className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <form onSubmit={openInvite} noValidate data-testid="crew-join" className="flex flex-col gap-3 rounded-[28px] border border-white/10 bg-white/[0.04] p-4 sm:flex-row sm:items-start sm:p-5">
           <TextField
             fieldClassName="flex-1"
             label={t.crews.joinLabel}
