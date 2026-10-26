@@ -388,9 +388,11 @@ await step("Barrierefreiheit – Anmeldung nur mit der Tastatur (Bob)", async ()
   await page.getByRole("heading", { level: 1 }).waitFor();
   // Mit Tab vorwärts, bis das gesuchte Element den Fokus hat; jeder Halt muss sichtbar markiert sein.
   const focusInfo = () =>
-    page.evaluate(() => {
+    page.evaluate(async () => {
       const el = document.activeElement;
       if (!el || el === document.body) return null;
+      // Laufende Übergänge (transition-colors) zu Ende abwarten – eine feste Pause reicht unter Last nicht immer.
+      await Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {})));
       const style = getComputedStyle(el);
       const label = el.labels?.[0]?.textContent?.trim() ?? el.getAttribute("aria-label") ?? el.textContent?.trim() ?? "";
       const marked = (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0) || style.boxShadow !== "none" || style.borderColor === "rgb(200, 255, 46)";
