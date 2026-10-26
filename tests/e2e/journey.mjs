@@ -490,6 +490,13 @@ await step("Schritt 3 – Freunde registrieren sich über den Link und treten be
   check(true, "Alice sieht drei Mitglieder");
   await alice.page.getByRole("tab", { name: /Mitglieder/ }).click();
   await alice.page.getByText("Bob").first().waitFor();
+  // V2 Etappe 3j: Mitglieder als Glas-Karte, Rollen als Pillen (Owner in Lime).
+  {
+    const members = alice.page.getByTestId("crew-members");
+    check((await members.evaluate((el) => getComputedStyle(el).borderRadius)) === "28px", "Mitgliederliste als Glas-Karte");
+    const roles = await members.getByTestId("member-role").evaluateAll((els) => els.map((el) => [el.textContent?.trim(), getComputedStyle(el).backgroundColor]));
+    check(roles.some(([label, bg]) => label === "Owner" && bg === "rgb(200, 255, 46)"), `Owner-Rolle als Lime-Pille (${roles.map((r) => r.join(" ")).join("; ")})`);
+  }
   await shot(alice, "07-crew-mitglieder");
 });
 
@@ -1165,6 +1172,23 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   await crewTicket.waitFor();
   check((await crewTicket.getAttribute("href"))?.endsWith(`/plans/${ids.plan}`), "Crew-Seite zeigt den nächsten Plan als großes Ticket");
   check((await bob.page.getByRole("heading", { level: 1 }).locator(".text-lime").innerText()).toLowerCase() === "crew", "Crew-Name als Plakat mit Lime-Schlüsselwort");
+  // V2 Etappe 3j: Kopf der Crew-Seite als Karte in der Farbwelt der Crew, Name in Chrom, Zahlen als Pillen.
+  {
+    const pass = bob.page.getByTestId("crew-pass");
+    const world = await pass.getAttribute("data-world");
+    check(["violet", "pink", "lime", "amber"].includes(world ?? ""), `Crew-Kopf trägt die Farbwelt der Crew (${world})`);
+    check((await pass.evaluate((el) => getComputedStyle(el).backgroundImage)).includes("radial-gradient"), "Crew-Kopf leuchtet in seiner Farbwelt");
+    const h1 = pass.getByRole("heading", { level: 1 });
+    check((await h1.innerText()).trim().toLowerCase() === "weekend crew" && (await h1.getAttribute("class"))?.includes("chrome"), "Crew-Name in Chrom, ohne Symbol in der Überschrift");
+    check((await pass.getByTestId("crew-pass-members").innerText()).includes("3 Mitglieder"), "Mitgliederzahl als Glas-Pille");
+    check((await pass.getByTestId("crew-pass-role").innerText()).trim() === "Du bist Mitglied", "eigene Rolle als Glas-Pille");
+    check((await pass.getByRole("link", { name: "Abstimmung starten" }).count()) === 1 && (await pass.getByRole("button", { name: "Einladen" }).count()) === 0, "Aktionen im Kopf, Einladen nur für Owner/Admins");
+    const box = await pass.boundingBox();
+    const vw = bob.page.viewportSize()?.width ?? 0;
+    check(!!box && box.x >= 0 && box.x + box.width <= vw + 1, `Crew-Kopf passt in die Breite (${vw} px)`);
+    const clipped = await pass.locator("a, button").evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent?.trim()));
+    check(clipped.length === 0, `Knöpfe im Crew-Kopf schneiden nichts ab (${clipped.join(", ") || "keiner"})`);
+  }
   await shot(bob, "16c-crew-ticket");
   // Schritt 10 erwartet Bob wieder auf der Planseite.
   await bob.page.goto(`${APP}/plans/${ids.plan}`);
@@ -1566,6 +1590,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     // Der Plan wurde in Schritt 11 abgeschlossen – das ist der erste gemeinsame Abend.
     await alice.page.getByText("1 gemeinsamer Abend").waitFor();
     check(true, "Crew-Kopf zählt abgeschlossene Pläne als gemeinsame Abende");
+    check((await alice.page.getByTestId("crew-pass-evenings").evaluate((el) => getComputedStyle(el).backgroundColor)) === "rgb(200, 255, 46)", "V2: gemeinsame Abende als Lime-Pille im Crew-Kopf");
   }
   await shot(alice, "21-crew");
 
