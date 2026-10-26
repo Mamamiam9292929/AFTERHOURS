@@ -13,7 +13,7 @@ export function crewWorld(crewId: string): CrewWorld {
     hash ^= crewId.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193);
   }
-  return CREW_WORLDS[(hash >>> 0) % CREW_WORLDS.length];
+  return CREW_WORLDS[(hash >>> 0) % CREW_WORLDS.length] ?? "violet";
 }
 
 /** Was auf der Crew-Zeile hervorgehoben wird: laufende Abstimmung vor anstehendem Plan vor Ruhe. */
