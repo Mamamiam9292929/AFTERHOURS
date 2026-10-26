@@ -167,6 +167,7 @@ export const profile = {
 export const settings = {
   title: "Einstellungen",
   back: "Profil",
+  jumpLabel: "Bereiche der Einstellungen",
   profile: { title: "Profil", saved: "Profil gespeichert." },
   preferences: { title: "Vorlieben", saved: "Vorlieben gespeichert." },
   location: {
@@ -180,12 +181,15 @@ export const settings = {
     crewNone: "Du bist in keiner Crew.",
     selectedFriendsNote: "Die Auswahl einzelner Personen folgt zusammen mit der Standortfunktion.",
     saved: "Standortfreigabe gespeichert.",
+    statusOff: "Aus",
+    statusNoted: "Vorgemerkt",
     whatIsShared: "Was würde geteilt? Deine ungefähre Position, solange die Freigabe läuft – nie deine Adresse, nie dauerhaft.",
   },
   notifications: {
     title: "Benachrichtigungen",
     lead: "Wähle, worüber dich die App informiert.",
     saved: "Benachrichtigungen gespeichert.",
+    status: (on: number, all: number) => (on === 0 ? "Alle aus" : on === all ? "Alle an" : `${on} von ${all} an`),
     groups: {
       polls: { title: "Neue Abstimmungen", body: "Wenn jemand in deiner Crew eine Abstimmung startet." },
       reminders: { title: "Erinnerungen", body: "Wenn deine Antwort auf eine Abstimmung noch fehlt." },
@@ -205,6 +209,8 @@ export const settings = {
   calendar: {
     title: "Kalender-Abo",
     lead: "Alle Pläne deiner Crews im Kalender deines Handys – neue Pläne, Änderungen und Absagen kommen von selbst an.",
+    statusOn: "Abo läuft",
+    statusOff: "Kein Abo",
     create: "Abo-Link erstellen",
     created: "Abo-Link erstellt. Jetzt in deinem Kalender abonnieren.",
     inactive: "Noch kein Abo. Mit dem Link abonnierst du AFTERHOURS in Apple Kalender, Google Kalender oder Outlook.",
