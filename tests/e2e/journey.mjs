@@ -1834,9 +1834,30 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   check((await page.getByLabel("Adresse").inputValue()) === "Beispielufer 9, 10999 Berlin", "Plan-Formular übernimmt Titel und Adresse des Ortes");
   await page.getByRole("button", { name: "Plan erstellen" }).click();
   check(await page.getByText("Bitte wähle Datum und Uhrzeit.").isVisible(), "Plan-Formular verlangt ein Datum");
+  // V2 Etappe 3m: Abschnitte als Glas-Karten, oben die Datumskachel – ohne Datum ehrlich „fehlt noch“.
+  for (const id of ["plan-form-place", "plan-form-what", "plan-form-where", "plan-form-money", "plan-form-more", "plan-form-mode"]) {
+    check((await page.getByTestId(id).count()) === 1, `Plan-Formular: Abschnitt ${id}`);
+  }
+  check((await page.getByTestId("plan-form-what").getAttribute("data-tone")) === "lime", "Plan-Formular: „Was & wann“ mit Lime-Schein");
+  check((await page.getByTestId("plan-form-when").getAttribute("data-filled")) === "false" && (await page.getByTestId("plan-form-when").innerText()).includes("Tag und Uhrzeit fehlen noch."), "Plan-Formular: ohne Datum zeigt die Kachel, dass es fehlt");
   const inTenDays = new Date(Date.now() + 10 * 86400_000).toISOString().slice(0, 10);
   await page.getByLabel("Datum").fill(inTenDays);
+  const whenText = await page.getByTestId("plan-form-when").innerText();
+  check((await page.getByTestId("plan-form-when").getAttribute("data-filled")) === "true" && /19:00 Uhr/.test(whenText) && /In (9|10|11) Tagen/i.test(whenText), `Plan-Formular: Kachel zeigt Tag, Uhrzeit und Abstand („${whenText.replace(/\s+/g, " ")}“)`);
+  await page.getByText("Fest eingeplant", { exact: true }).click();
+  check((await page.getByRole("radio", { name: /Fest eingeplant/ }).isChecked()) && (await page.getByRole("radio", { name: /^Vorschlag/ }).isChecked()) === false, "Plan-Formular: Verbindlichkeit als Auswahlkarten umschaltbar");
+  await page.getByText("Vorschlag", { exact: true }).click();
+  check(await page.getByRole("radio", { name: /^Vorschlag/ }).isChecked(), "Plan-Formular: zurück auf Vorschlag");
+  await noOverflow(carol, "Plan erstellen");
   await shot(carol, "30-plan-erstellen");
+  // Auf dem Handy (390 px): dieselben Karten ohne seitlichen Überlauf.
+  await bob.page.goto(`${APP}/plans/new`);
+  await bob.page.getByTestId("plan-form-what").waitFor();
+  await noOverflow(bob, "Plan erstellen");
+  if ((await bob.page.getByTestId("plan-form-crew").count()) === 1) {
+    check((await bob.page.getByTestId("plan-form-crew").getByRole("radio", { checked: true }).count()) === 1, "Plan-Formular: genau eine Crew gewählt");
+  }
+  await shot(bob, "30b-plan-erstellen-mobile");
   await page.getByRole("button", { name: "Plan erstellen" }).click();
   await page.waitForURL(/\/plans\/[0-9a-f-]{36}/);
   await page.getByText("Dieser Plan ist ein Vorschlag und noch nicht bestätigt.").waitFor();
@@ -2590,6 +2611,11 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
 
   await page.getByLabel("Name der Crew").fill("Freitagsrunde");
   await page.getByRole("radio", { name: "🎳" }).click();
+  // V2 Etappe 3m: Vorschau der Crew wächst beim Tippen mit; eine neue Crew hat noch keine Farbwelt.
+  const crewPreview = page.getByTestId("crew-form-preview");
+  check((await crewPreview.innerText()).includes("Freitagsrunde") && (await crewPreview.innerText()).includes("🎳"), "Crew gründen: Vorschau zeigt Name und Symbol");
+  check((await crewPreview.getAttribute("data-world")) === null, "Crew gründen: Vorschau verspricht keine Farbe, bevor es die Crew gibt");
+  await noOverflow(dana, "Crew gründen");
   await page.getByRole("button", { name: "Crew gründen" }).click();
   await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
   check(/\/start\?crew=[0-9a-f-]{36}$/.test(page.url()), "Schritt 1: Crew gegründet, der Stand steht in der Adresse");

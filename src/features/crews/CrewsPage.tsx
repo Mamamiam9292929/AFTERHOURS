@@ -168,6 +168,7 @@ export function CrewsPage() {
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} title={t.crews.createTitle} description={t.crews.createBody} size="sm">
         <CrewForm
+          flat
           submitLabel={t.crews.create}
           pending={create.isPending}
           error={create.isError ? errorMessage(create.error) : null}
