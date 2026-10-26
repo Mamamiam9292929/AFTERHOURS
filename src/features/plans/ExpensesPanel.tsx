@@ -13,6 +13,7 @@ import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
 import { balances, isCustomSplit, settle, splitCustom, splitEvenly, type Transfer } from "@/lib/settle";
 import { formatDateTime } from "@/lib/time";
+import { PANEL_ITEM } from "./PlanPanel";
 import { useAddExpense, useDeleteExpense, usePlanExpenses, useRecordSettlement, type AddExpenseInput, type PlanExpenseWithShares, type PlanWithParticipants } from "./api";
 
 const tx = t.plans.expenses;
@@ -71,8 +72,18 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
         <p className="max-w-prose text-[15px] text-muted">{tx.intro}</p>
       ) : (
         <>
-          {/* Stand auf einen Blick: Zahlen in Display-Schrift, der eigene Saldo in Lime bzw. Gelb. */}
-          <div className="rounded-card border border-line bg-surface p-4 sm:p-5">
+          {/* Stand auf einen Blick: Zahlen in Display-Schrift, der eigene Saldo in Lime bzw. Gelb.
+              V2 Etappe 3g: die Karte trägt den Schein deines Saldos – Lime, wenn du bekommst, Gelb, wenn du gibst. */}
+          <div
+            data-testid="expense-balance"
+            data-balance={summary.balance > 0 ? "gets" : summary.balance < 0 ? "owes" : "even"}
+            className={cn(
+              PANEL_ITEM,
+              "p-4 sm:p-5",
+              summary.balance > 0 && "border-lime/45 bg-lime/[0.06]",
+              summary.balance < 0 && "border-amber/45 bg-amber/[0.06]",
+            )}
+          >
             <dl className="grid grid-cols-3 gap-3">
               <Stat label={tx.total} value={formatEuro(summary.total)} />
               <Stat label={tx.yourShare} value={formatEuro(summary.mine)} />
@@ -82,7 +93,7 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                 tone={summary.balance > 0 ? "lime" : summary.balance < 0 ? "amber" : undefined}
               />
             </dl>
-            <p className="mt-3 border-t border-line pt-3 text-sm font-semibold text-fg">
+            <p className="mt-3 border-t border-white/10 pt-3 text-sm font-semibold text-fg">
               {summary.balance > 0 ? tx.balanceGets(formatEuro(summary.balance)) : summary.balance < 0 ? tx.balanceOwes(formatEuro(-summary.balance)) : tx.balanceEven}
             </p>
           </div>
@@ -94,13 +105,13 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                 {tx.allSettled}
               </Notice>
             ) : (
-              <ul className="divide-y divide-line rounded-card border border-line bg-surface">
+              <ul className={cn(PANEL_ITEM, "divide-y divide-white/10 overflow-hidden")}>
                 {summary.transfers.map((transfer) => {
                   const text = transferText(transfer);
                   const amount = formatEuro(transfer.cents);
                   const involved = transfer.from === userId || transfer.to === userId;
                   return (
-                    <li key={`${transfer.from}-${transfer.to}`} className={cn("flex items-center gap-3 px-4 py-3", involved && "bg-lime/[0.04]")}>
+                    <li key={`${transfer.from}-${transfer.to}`} className={cn("flex items-center gap-3 px-4 py-3", involved && "bg-lime/[0.06]")}>
                       <span className="flex shrink-0 items-center gap-1" aria-hidden>
                         <Avatar person={lookup(transfer.from)} size="sm" decorative />
                         <IconForward className="size-3.5 text-faint" />
@@ -145,7 +156,7 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                     ? `${tx.entryPaid(name(e.paid_by), amount)} · ${split}`
                     : tx.settlementEntry(name(e.paid_by), people[0] === userId ? tx.youDative : name(people[0] ?? ""), amount);
                 return (
-                  <li key={e.id} className="flex items-start gap-3 rounded-card border border-line bg-surface px-4 py-3">
+                  <li key={e.id} className={cn(PANEL_ITEM, "flex items-start gap-3 px-4 py-3", e.kind === "settlement" && "border-dashed")}>
                     <Avatar person={lookup(e.paid_by)} size="sm" decorative />
                     <div className="min-w-0 flex-1">
                       <p className={cn("font-semibold", e.kind === "expense" ? "text-fg" : "text-muted")}>{title}</p>

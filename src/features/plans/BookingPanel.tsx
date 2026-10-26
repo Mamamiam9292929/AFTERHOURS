@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { IconInfo } from "@/components/icons";
+import { IconCheck, IconInfo } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
-import { Badge, ErrorState, Notice, Skeleton } from "@/components/ui/Feedback";
+import { ErrorState, Notice, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, TextAreaField, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
@@ -10,16 +10,18 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatPlainDate, formatPlainTime, today, zonedParts } from "@/lib/time";
 import type { Activity, BookingRequest, BookingStatus } from "@/lib/types";
+import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 import { ACTIVE_BOOKING_STATUSES, useBookings, useCancelBooking, useConfirmBooking, useCreateBooking, useRecordBookingOutcome, type PlanWithParticipants } from "./api";
 
-const TONE: Record<BookingStatus, "neutral" | "lime" | "amber" | "danger"> = {
-  not_started: "neutral",
+/** V2 Etappe 3g: Status als Pille – Lime gefüllt erst, wenn die Reservierung ausdrücklich bestätigt ist. */
+const TONE: Record<BookingStatus, "glass" | "lime" | "amber" | "danger"> = {
+  not_started: "glass",
   in_progress: "amber",
   awaiting_response: "amber",
   confirmed: "lime",
   unavailable: "danger",
   failed: "danger",
-  cancelled_by_user: "neutral",
+  cancelled_by_user: "glass",
 };
 
 type Outcome = "confirmed" | "awaiting_response" | "unavailable" | "failed";
@@ -107,10 +109,16 @@ export function BookingPanel({ plan, activity, canManage }: { plan: PlanWithPart
       {!latest ? (
         <p className="text-[15px] text-muted">{canManage ? (plan.status === "proposed" ? t.plans.booking.needsConfirmedPlan : t.plans.booking.none) : t.plans.booking.noneMember}</p>
       ) : (
-        <div className={cn("rounded-card border bg-surface p-4", latest.status === "confirmed" ? "border-lime/60" : "border-line")}>
+        <div
+          data-testid="booking-card"
+          className={cn(PANEL_ITEM, "p-4", latest.status === "confirmed" && "border-lime/55 bg-lime/[0.06] shadow-[0_22px_44px_-30px_var(--color-lime)]")}
+        >
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Badge tone={TONE[latest.status]}>{t.enums.bookingStatus[latest.status]}</Badge>
-            {latest.is_test && <Badge tone="outline" className="border-amber/50 text-amber">{t.states.demo}</Badge>}
+            <StatusPill tone={TONE[latest.status]} testId="booking-status">
+              {latest.status === "confirmed" && <IconCheck className="size-3.5" aria-hidden />}
+              {t.enums.bookingStatus[latest.status]}
+            </StatusPill>
+            {latest.is_test && <StatusPill tone="amber">{t.states.demo}</StatusPill>}
             {latest.status === "not_started" && <span className="text-[13px] text-muted">{t.plans.booking.draftHint}</span>}
           </div>
           <Summary booking={latest} activity={activity} />
@@ -127,7 +135,7 @@ export function BookingPanel({ plan, activity, canManage }: { plan: PlanWithPart
 
           {canManage && (latest.status === "in_progress" || latest.status === "awaiting_response") && (
             <form
-              className="mt-4 space-y-3 border-t border-line pt-4"
+              className="mt-4 space-y-3 border-t border-white/10 pt-4"
               onSubmit={(event) => {
                 event.preventDefault();
                 record.mutate({ bookingId: latest.id, status: outcome, reference: outcome === "confirmed" ? reference : null }, { onSuccess: saved, onError: failed });
@@ -144,7 +152,8 @@ export function BookingPanel({ plan, activity, canManage }: { plan: PlanWithPart
                       ["failed", t.plans.booking.outcomeFailed],
                     ] as [Outcome, string][]
                   ).map(([value, label]) => (
-                    <label key={value} className={cn("flex min-h-11 cursor-pointer items-center gap-2.5 rounded-control border px-3 text-sm font-medium", outcome === value ? "border-lime bg-lime/5 text-fg" : "border-line text-muted")}>
+                    // V2: Antworten des Anbieters als Pillen; die gewählte trägt den Lime-Rand.
+                    <label key={value} className={cn("flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border px-3.5 text-sm font-semibold transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-lime", outcome === value ? "border-lime bg-lime/10 text-fg" : "border-white/15 bg-white/[0.04] text-muted hover:border-white/30")}>
                       <input type="radio" name="outcome" value={value} checked={outcome === value} onChange={() => setOutcome(value)} className="size-4 shrink-0 accent-[var(--color-lime)]" />
                       {label}
                     </label>
@@ -164,7 +173,7 @@ export function BookingPanel({ plan, activity, canManage }: { plan: PlanWithPart
           )}
 
           {canManage && latest.status === "confirmed" && planOpen && (
-            <div className="mt-4 border-t border-line pt-4">
+            <div className="mt-4 border-t border-white/10 pt-4">
               <Button variant="secondary" size="sm" loading={cancel.isPending} onClick={() => cancel.mutate(latest.id, { onSuccess: saved, onError: failed })}>
                 {t.plans.booking.cancelConfirmed}
               </Button>

@@ -1368,6 +1368,11 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   // „Gebucht“ steht schon vorher in der Statusleiste – deshalb auf die gespeicherte Nummer warten.
   check(await page.getByText("TEST-4711").waitFor().then(() => true, () => false), "Bestätigungsnummer ist festgehalten");
   check(await page.getByText(/Testmodus: Dieser Plan gehört zu einem Demo-Ort/).isVisible(), "Demo-Reservierung ist als Testmodus gekennzeichnet");
+  // V2 Etappe 3g: Reservierung als Glas-Karte mit eigenem Schein, bestätigte Reservierung als Lime-Pille.
+  check((await page.locator('section.plan-panel[data-tone="violet"]').getByRole("heading", { name: "Reservierung" }).count()) === 1, "V2: Reservierung als Glas-Karte mit Überschrift");
+  check((await page.getByTestId("booking-status").getAttribute("data-tone")) === "lime", "V2: bestätigte Reservierung als Lime-Pille");
+  check((await page.locator("#reservierung .rounded-card").count()) === 0, "V2: keine alten Karten mehr in der Reservierung");
+  await page.locator("#reservierung").scrollIntoViewIfNeeded();
   await shot(alice, "17-reservierung");
 
   await page.getByRole("button", { name: "Fahrt anbieten" }).click();
@@ -1381,6 +1386,12 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   await page.reload();
   await page.getByRole("button", { name: "Mitnehmen" }).click();
   await page.getByText("1 Platz frei").waitFor();
+  // V2 Etappe 3g: Plätze als Punkte – einer belegt (Bob), einer frei; „frei“ als Lime-Pille.
+  const dots = page.getByTestId("ride-seat-dots").locator("span");
+  check((await dots.count()) === 2 && (await page.getByTestId("ride-seat-dots").locator("span.bg-pink").count()) === 1, "V2: Fahrt zeigt 2 Plätze als Punkte, einer belegt");
+  check((await page.getByTestId("ride-seats").getAttribute("data-tone")) === "lime", "V2: freie Plätze als Lime-Pille");
+  await page.locator("#fahrten").scrollIntoViewIfNeeded();
+  await shot(alice, "17a-fahrten");
   await bob.page.reload();
   await bob.page.getByText("Deine Anfrage: Bestätigt").waitFor();
   check(true, "Mitfahrt: Anfrage und Bestätigung durch die Fahrerin");
@@ -1467,6 +1478,9 @@ await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async
   await rowOf(b, "Du gibst Alice").filter({ hasText: "14 €" }).waitFor();
   check(await rowOf(b, "Carol gibt Alice").filter({ hasText: "5 €" }).isVisible(), "vereinfacht: Carol gibt Alice 5 €");
   check(await b.getByText("Du gibst noch 14 €").isVisible(), "Bob sieht seinen Stand: gibt 14 €");
+  // V2 Etappe 3g: Kosten als Glas-Karte mit Lime-Schein, der Stand trägt die Farbe des eigenen Saldos.
+  check((await b.locator('section#kosten.plan-panel[data-tone="lime"]').count()) === 1, "V2: Kosten teilen als Glas-Karte");
+  check((await b.getByTestId("expense-balance").getAttribute("data-balance")) === "owes", "V2: Bobs Stand in Gelb (gibt noch)");
   check((await rowOf(b, "Carol gibt Alice").getByRole("button", { name: /erledigt/i }).count()) === 0, "„Erledigt“ nur für die eigenen Überweisungen");
   await noOverflow(bob, "Kosten teilen");
   await shot(bob, "17b-kosten");
@@ -1482,6 +1496,7 @@ await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async
   await page.reload();
   await rowOf(page, "Carol gibt dir").filter({ hasText: "5 €" }).waitFor();
   check(await page.getByText("Du bekommst noch 5 €").isVisible(), "Alice bekommt nur noch Carols 5 €");
+  check((await page.getByTestId("expense-balance").getAttribute("data-balance")) === "gets", "V2: Alices Stand in Lime (bekommt noch)");
   check(await page.getByText("für dich, Bob und Carol").isVisible(), "Beteiligte in Alltagssprache: „für dich, Bob und Carol“");
   await page.getByRole("heading", { name: "Kosten teilen" }).scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollBy(0, -24));

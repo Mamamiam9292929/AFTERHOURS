@@ -2,7 +2,7 @@ import { ShareButton } from "@/components/ui/ShareButton";
 import { planShare } from "@/lib/share";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { IconBack, IconCalendar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
+import { IconBack, IconCalendar, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
 import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -27,6 +27,7 @@ import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useSet
 import { BookingPanel } from "./BookingPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { PlanForm } from "./PlanForm";
+import { PlanPanel } from "./PlanPanel";
 import { RepeatCard, RepeatLine, SkippedNotice } from "./PlanRepeat";
 import { FeatureTicket } from "./PlanTicket";
 import { PlanWeather } from "./PlanWeather";
@@ -118,9 +119,9 @@ export function PlanDetailPage() {
   const organizer = plan.created_by === user.id ? t.plans.detail.organizerYou : t.plans.detail.organizer(people.lookup(plan.created_by)?.display_name ?? t.states.formerMember);
 
   const expensesSection = (
-    <Section id="kosten" title={t.plans.expenses.title}>
+    <PlanPanel id="kosten" title={t.plans.expenses.title} icon={<IconWallet />} tone="lime">
       <ExpensesPanel plan={plan} userId={user.id} memberIds={crew?.members.map((m) => m.user_id) ?? []} canManageCrew={canManageCrew(myRole(crew, user.id))} lookup={people.lookup} />
-    </Section>
+    </PlanPanel>
   );
 
   function changeStatus(status: PlanStatus, message: string) {
@@ -304,13 +305,14 @@ export function PlanDetailPage() {
           {/* P3: Nach dem Start steht das Abrechnen oben – davor ist es eher die Ausnahme (z. B. Tickets vorab). */}
           {(started || locked) && expensesSection}
 
-          <Section title={t.plans.detail.booking}>
+          {/* V2 Etappe 3g: Kosten, Reservierung und Fahrten als Glas-Karten im Deck, je mit eigenem Schein. */}
+          <PlanPanel id="reservierung" title={t.plans.detail.booking} icon={<IconCalendarCheck />} tone="violet">
             <BookingPanel plan={plan} activity={place} canManage={canManage && !locked} />
-          </Section>
+          </PlanPanel>
 
-          <Section title={t.plans.detail.rides}>
+          <PlanPanel id="fahrten" title={t.plans.detail.rides} icon={<IconCar />} tone="pink">
             <RidesPanel plan={plan} userId={user.id} locked={locked} lookup={people.lookup} />
-          </Section>
+          </PlanPanel>
 
           {!(started || locked) && expensesSection}
 
