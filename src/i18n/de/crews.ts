@@ -12,6 +12,11 @@ export const crews = {
   name: "Name der Crew",
   namePlaceholder: "z. B. Weekend Crew",
   emoji: "Symbol",
+  /** V2 Etappe 3m: Formular „Crew gründen“ als Glas-Karten. */
+  form: {
+    nameSection: "Wie heißt ihr?",
+    preview: "So sieht eure Crew aus",
+  },
   created: "Crew erstellt. Jetzt Freunde einladen.",
   joinTitle: "Einladung erhalten?",
   joinBody: "Füge den Einladungslink oder den Code ein.",

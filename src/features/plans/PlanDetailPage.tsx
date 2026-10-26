@@ -361,6 +361,7 @@ export function PlanDetailPage() {
           pending={update.isPending}
           error={update.isError ? errorMessage(update.error) : null}
           allowUnchangedPast
+          flat
           onSubmit={(values) =>
             update.mutate(values, {
               onSuccess: () => {

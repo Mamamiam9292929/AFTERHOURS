@@ -334,6 +334,7 @@ function Settings({ crew, role, onInvite }: { crew: CrewWithMembers; role: CrewR
           <CrewForm
             key={crew.updated_at}
             initial={{ name: crew.name, emoji: crew.emoji }}
+            crewId={crew.id}
             submitLabel={t.actions.saveChanges}
             pending={update.isPending}
             error={update.isError ? errorMessage(update.error) : null}

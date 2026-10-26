@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { IconCheck, IconCrews, IconSparkles } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { ButtonLink } from "@/components/ui/Button";
 import { DemoBadge, EmptyState, ErrorState, ListSkeleton } from "@/components/ui/Feedback";
-import { SelectField } from "@/components/ui/Field";
+import { CHOICE_CARD, CHOICE_CARD_ON, FormCard } from "@/components/ui/FormCard";
 import { useToast } from "@/components/ui/Toast";
 import { useCrews } from "@/features/crews/api";
 import { ActivityCover } from "@/features/discover/ActivityCard";
 import { typicalPriceCents, useActivity } from "@/features/discover/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { crewWorld } from "@/lib/crewWorld";
+import { categoryWorld } from "@/lib/stage";
 import { errorMessage } from "@/lib/errors";
 import { useDocumentTitle } from "@/lib/hooks";
 import { useCreatePlan } from "./api";
@@ -71,12 +74,13 @@ export function PlanCreatePage() {
           before={
             <>
               {place && (
-                <div className="flex items-center gap-3.5 rounded-card border border-line bg-surface p-3">
-                  <ActivityCover activity={place} className="size-16 shrink-0 rounded-control" />
+                // V2 Etappe 3m: der Ort als Karte in der Farbwelt seiner Kategorie – wie in Discover.
+                <div className="cat-world flex items-center gap-3.5 rounded-[28px] border border-white/[0.08] p-3" data-world={categoryWorld(place.category)} data-testid="plan-form-place">
+                  <ActivityCover activity={place} className="size-16 shrink-0 rounded-[18px]" />
                   <div className="min-w-0">
-                    <p className="text-[13px] text-muted">{t.plans.create.place}</p>
-                    <p className="flex items-center gap-2 font-bold text-fg">
-                      <span className="truncate">{place.name}</span>
+                    <p className="text-[13px] font-semibold text-muted">{t.plans.create.place}</p>
+                    <p className="flex items-center gap-2">
+                      <span className="display truncate text-[17px] text-fg">{place.name}</span>
                       {place.is_demo && <DemoBadge />}
                     </p>
                     <p className="truncate text-[13px] text-muted">{place.address ?? place.city}</p>
@@ -84,34 +88,57 @@ export function PlanCreatePage() {
                 </div>
               )}
               {crews.data.length > 1 && (
-                <SelectField label={t.plans.create.crew} value={crewId} onChange={(e) => setCrewId(e.target.value)}>
-                  {crews.data.map((crew) => (
-                    <option key={crew.id} value={crew.id}>
-                      {crew.emoji} {crew.name}
-                    </option>
-                  ))}
-                </SelectField>
+                <FormCard title={t.plans.create.crew} icon={<IconCrews className="size-[18px]" />} tone="pink" testId="plan-form-crew">
+                  {/* Crews als Pillen in ihrer eigenen Farbwelt (V2 Etappe 3i) statt einer Auswahlliste. */}
+                  <div role="radiogroup" aria-label={t.plans.create.crew} className="flex flex-wrap gap-2">
+                    {crews.data.map((crew) => {
+                      const on = crew.id === crewId;
+                      return (
+                        <button
+                          key={crew.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          onClick={() => setCrewId(crew.id)}
+                          className={cn("crew-world flex h-12 max-w-full items-center gap-2.5 rounded-full border py-1 pl-1 pr-4 text-left transition-colors", on ? "border-lime" : "border-white/10 hover:border-white/25")}
+                          data-world={crewWorld(crew.id)}
+                        >
+                          <span aria-hidden className="crew-world-tile grid size-10 shrink-0 place-items-center rounded-full text-[19px]">
+                            {crew.emoji}
+                          </span>
+                          <span className="truncate font-semibold text-fg">{crew.name}</span>
+                          {on && <IconCheck className="size-4 shrink-0 text-lime" aria-hidden />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FormCard>
               )}
             </>
           }
           after={
-            <fieldset>
-              <legend className="mb-2 text-sm font-medium text-fg">{t.plans.create.mode}</legend>
-              <div className="grid gap-2.5 sm:grid-cols-2">
+            <FormCard title={t.plans.create.mode} icon={<IconSparkles className="size-[18px]" />} tone="lime" testId="plan-form-mode">
+              <div role="radiogroup" aria-label={t.plans.create.mode} className="grid gap-2.5 sm:grid-cols-2">
                 {[
                   { value: false, title: t.plans.create.modeProposed, hint: t.plans.create.modeProposedHint },
                   { value: true, title: t.plans.create.modeConfirmed, hint: t.plans.create.modeConfirmedHint },
-                ].map((option) => (
-                  <label key={String(option.value)} className={cn("flex cursor-pointer gap-3 rounded-control border p-3.5 transition-colors", confirmed === option.value ? "border-lime bg-lime/5" : "border-line hover:border-line-strong")}>
-                    <input type="radio" name="mode" checked={confirmed === option.value} onChange={() => setConfirmed(option.value)} className="mt-0.5 size-5 shrink-0 accent-[var(--color-lime)]" />
-                    <span>
-                      <span className="block font-semibold text-fg">{option.title}</span>
-                      <span className="mt-0.5 block text-[13px] leading-snug text-muted">{option.hint}</span>
-                    </span>
-                  </label>
-                ))}
+                ].map((option) => {
+                  const on = confirmed === option.value;
+                  return (
+                    <label key={String(option.value)} className={cn(CHOICE_CARD, "flex cursor-pointer gap-3 p-3.5", on && CHOICE_CARD_ON)}>
+                      <input type="radio" name="mode" checked={on} onChange={() => setConfirmed(option.value)} className="peer sr-only" />
+                      <span aria-hidden className={cn("mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-lime", on ? "border-lime bg-lime text-lime-ink" : "border-white/25")}>
+                        {on && <IconCheck className="size-3.5" />}
+                      </span>
+                      <span>
+                        <span className="block font-semibold text-fg">{option.title}</span>
+                        <span className="mt-0.5 block text-[13px] leading-snug text-muted">{option.hint}</span>
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
-            </fieldset>
+            </FormCard>
           }
         />
       </div>

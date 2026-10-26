@@ -43,7 +43,15 @@ export const plans = {
   create: {
     title: "Plan erstellen",
     lead: "Wenn schon feststeht, was ihr macht: Plan anlegen, die Crew sagt zu.",
-    crew: "Crew",
+    crew: "Für welche Crew?",
+    /** V2 Etappe 3m: Abschnitte des Formulars als Glas-Karten. */
+    sections: {
+      what: "Was & wann",
+      where: "Wo",
+      money: "Kosten",
+      more: "Noch was?",
+    },
+    whenMissing: "Tag und Uhrzeit fehlen noch.",
     planTitle: "Was macht ihr?",
     planTitlePlaceholder: "z. B. Bowling-Abend",
     date: "Datum",
@@ -57,7 +65,7 @@ export const plans = {
     totalCostHint: "Nur ausfüllen, wenn es einen festen Gesamtpreis gibt (z. B. Bahnmiete).",
     notes: "Notizen",
     notesPlaceholder: "Was sollte die Crew wissen?",
-    mode: "Verbindlichkeit",
+    mode: "Wie fest ist das?",
     modeProposed: "Vorschlag",
     modeProposedHint: "Die Crew sieht den Plan und kann zusagen. Du bestätigst ihn später.",
     modeConfirmed: "Fest eingeplant",
