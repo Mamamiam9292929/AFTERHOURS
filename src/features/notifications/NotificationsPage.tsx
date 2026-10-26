@@ -127,9 +127,8 @@ export function NotificationsPage() {
             <div className="space-y-7">
               {groups.map((group) => (
                 <section key={group.key} aria-labelledby={`inbox-${group.key}`} data-testid="inbox-group" data-group={group.key}>
-                  <h2 id={`inbox-${group.key}`} className="display mb-3 flex items-center gap-2 text-[13px] uppercase tracking-[0.08em] text-muted">
+                  <h2 id={`inbox-${group.key}`} className="display mb-3 text-[13px] uppercase tracking-wide text-muted">
                     {t.notifications.groups[group.key]}
-                    <span aria-hidden className="h-px flex-1 bg-white/10" />
                   </h2>
                   <ul className="space-y-2.5">
                     {group.items.map((n) => {
@@ -145,7 +144,7 @@ export function NotificationsPage() {
                             {n.actor_id ? (
                               <>
                                 <Avatar person={actor} size="md" decorative />
-                                <span aria-hidden className="inbox-tile absolute -bottom-1 -right-1.5 grid size-6 place-items-center rounded-full text-fg ring-2 ring-surface">
+                                <span aria-hidden className="inbox-tile absolute -right-1 top-5 grid size-6 place-items-center rounded-full text-fg">
                                   <NotificationIcon type={n.type} className="size-3.5" />
                                 </span>
                               </>
@@ -157,7 +156,7 @@ export function NotificationsPage() {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex flex-wrap items-baseline gap-x-2 text-[12px] leading-tight">
-                              <span className="font-bold uppercase tracking-[0.06em] text-muted">{t.notifications.areas[area]}</span>
+                              <span className="font-bold uppercase tracking-wide text-muted">{t.notifications.areas[area]}</span>
                               <time dateTime={n.created_at} className="text-faint">
                                 {formatAgo(n.created_at, now)}
                               </time>
@@ -171,9 +170,9 @@ export function NotificationsPage() {
                         </>
                       );
                       return (
-                        <li key={n.id} className="inbox-card flex items-start gap-1 pr-1" data-testid="inbox-card" data-area={area} data-tone={tone} data-unread={isUnread ? "true" : "false"}>
+                        <li key={n.id} className="inbox-card flex items-start gap-1 rounded-[28px] border border-white/[0.08] pr-1" data-testid="inbox-card" data-area={area} data-tone={tone} data-unread={isUnread ? "true" : "false"}>
                           {to ? (
-                            <Link to={to} onClick={() => isUnread && markRead.mutate([n.id])} className="flex min-w-0 flex-1 items-start gap-3 rounded-[24px] px-3.5 py-3.5 sm:px-4">
+                            <Link to={to} onClick={() => isUnread && markRead.mutate([n.id])} className="flex min-w-0 flex-1 items-start gap-3 rounded-[28px] px-3.5 py-3.5 sm:px-4">
                               {content}
                             </Link>
                           ) : (
