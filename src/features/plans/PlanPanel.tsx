@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 export function PlanPanel({ id, title, icon, tone, children }: { id?: string; title: string; icon: ReactNode; tone: "lime" | "violet" | "pink"; children: ReactNode }) {
   const headingId = `${id ?? tone}-panel-heading`;
   return (
-    <section id={id} aria-labelledby={headingId} data-tone={tone} className={cn("plan-panel mt-6 rounded-[28px] border border-white/[0.08] p-4 sm:p-5", id && "scroll-mt-20 lg:scroll-mt-6")}>
+    <section id={id} aria-labelledby={headingId} data-tone={tone} className={cn("plan-panel mt-6 rounded-[28px] border border-white/[0.08] p-3 sm:p-5", id && "scroll-mt-20 lg:scroll-mt-6")}>
       <div className="mb-4 flex items-center gap-3">
         <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-fg">
           {icon}

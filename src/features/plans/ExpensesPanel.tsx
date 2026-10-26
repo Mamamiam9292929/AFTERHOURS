@@ -111,7 +111,7 @@ export function ExpensesPanel({ plan, userId, memberIds, canManageCrew, lookup }
                   const amount = formatEuro(transfer.cents);
                   const involved = transfer.from === userId || transfer.to === userId;
                   return (
-                    <li key={`${transfer.from}-${transfer.to}`} className={cn("flex items-center gap-3 px-4 py-3", involved && "bg-lime/[0.04]")}>
+                    <li key={`${transfer.from}-${transfer.to}`} className={cn("flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5", involved && "bg-lime/[0.04]")}>
                       <span className="flex shrink-0 items-center gap-1" aria-hidden>
                         <Avatar person={lookup(transfer.from)} size="sm" decorative />
                         <IconForward className="size-3.5 text-faint" />
