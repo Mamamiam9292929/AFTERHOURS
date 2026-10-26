@@ -7,11 +7,11 @@ import { DemoBadge, EmptyState, ErrorState, ListSkeleton } from "@/components/ui
 import { CHOICE_CARD, CHOICE_CARD_ON, FormCard } from "@/components/ui/FormCard";
 import { useToast } from "@/components/ui/Toast";
 import { useCrews } from "@/features/crews/api";
+import { CrewPicker } from "@/features/crews/CrewPicker";
 import { ActivityCover } from "@/features/discover/ActivityCard";
 import { typicalPriceCents, useActivity } from "@/features/discover/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { crewWorld } from "@/lib/crewWorld";
 import { categoryWorld } from "@/lib/stage";
 import { errorMessage } from "@/lib/errors";
 import { useDocumentTitle } from "@/lib/hooks";
@@ -89,29 +89,7 @@ export function PlanCreatePage() {
               )}
               {crews.data.length > 1 && (
                 <FormCard title={t.plans.create.crew} icon={<IconCrews className="size-[18px]" />} tone="pink" testId="plan-form-crew">
-                  {/* Crews als Pillen in ihrer eigenen Farbwelt (V2 Etappe 3i) statt einer Auswahlliste. */}
-                  <div role="radiogroup" aria-label={t.plans.create.crew} className="flex flex-wrap gap-2">
-                    {crews.data.map((crew) => {
-                      const on = crew.id === crewId;
-                      return (
-                        <button
-                          key={crew.id}
-                          type="button"
-                          role="radio"
-                          aria-checked={on}
-                          onClick={() => setCrewId(crew.id)}
-                          className={cn("crew-world flex h-12 max-w-full items-center gap-2.5 rounded-full border py-1 pl-1 pr-4 text-left transition-colors", on ? "border-lime" : "border-white/10 hover:border-white/25")}
-                          data-world={crewWorld(crew.id)}
-                        >
-                          <span aria-hidden className="crew-world-tile grid size-10 shrink-0 place-items-center rounded-full text-[19px]">
-                            {crew.emoji}
-                          </span>
-                          <span className="truncate font-semibold text-fg">{crew.name}</span>
-                          {on && <IconCheck className="size-4 shrink-0 text-lime" aria-hidden />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <CrewPicker crews={crews.data} value={crewId} onChange={setCrewId} label={t.plans.create.crew} />
                 </FormCard>
               )}
             </>

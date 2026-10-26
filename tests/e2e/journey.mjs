@@ -581,12 +581,33 @@ await step("Schritt 5 – Abstimmung für Samstag starten", async () => {
   await page.getByLabel("Mindestteilnehmerzahl").fill("2");
   ids.pollTitle = await page.getByLabel("Frage an die Crew").inputValue();
   check(/^Was machen wir am \p{L}+\?$/u.test(ids.pollTitle), `Titelvorschlag folgt dem Datum (${ids.pollTitle})`);
+  // V2 Etappe 3n: Abschnitte als Glas-Karten, Art als Auswahlkarten, Zähler, Frist als Lime-Pille.
+  for (const id of ["poll-form-question", "poll-form-when", "poll-form-options", "poll-form-ends", "poll-form-more"]) {
+    check((await page.getByTestId(id).count()) === 1, `Abstimmung-Formular: Abschnitt ${id}`);
+  }
+  check((await page.getByRole("tab", { name: /Was machen wir\?/ }).getAttribute("aria-selected")) === "true", "Abstimmung-Formular: „Was machen wir?“ ist als Karte gewählt");
+  check((await page.getByTestId("poll-form-option").count()) === 3 && (await page.getByTestId("poll-form-options").getByText("3 von 10").isVisible()), "Abstimmung-Formular: drei Vorschläge als Karten, Zähler „3 von 10“");
+  check((await page.getByTestId("poll-form-when-preview").getAttribute("data-filled")) === "true", "Abstimmung-Formular: Datumskachel zeigt den vorgeschlagenen Tag");
+  check((await page.getByTestId("poll-form-ends-at").innerText()).trim() === "Endet morgen, 12:00 Uhr", "Abstimmung-Formular: Frist als Lime-Pille („Endet morgen, 12:00 Uhr“)");
+  await page.getByRole("button", { name: "in 2 Stunden" }).click();
+  check(/^Endet (heute|morgen), \d{2}:\d{2} Uhr$/.test((await page.getByTestId("poll-form-ends-at").innerText()).trim()), "Abstimmung-Formular: Pille folgt der gewählten Frist");
+  await page.getByRole("button", { name: "morgen 12 Uhr" }).click();
   await shot(alice, "10-abstimmung-erstellen");
   await page.getByRole("button", { name: "Abstimmung starten" }).click();
   await page.waitForURL(/\/polls\/[0-9a-f-]{36}/);
   ids.poll = idFromUrl(page);
   await page.getByRole("heading", { name: ids.pollTitle }).waitFor();
   check((await page.getByRole("radiogroup").count()) === 3, "Abstimmung hat drei Optionen");
+  // Auf dem Handy (390 px): dieselben Karten ohne seitlichen Überlauf, auch bei „Wann könnt ihr?“.
+  await bob.page.goto(`${APP}/polls/new`);
+  await bob.page.getByTestId("poll-form-question").waitFor();
+  await noOverflow(bob, "Abstimmung starten");
+  await shot(bob, "10b-abstimmung-erstellen");
+  await bob.page.getByRole("tab", { name: /Wann könnt ihr\?/ }).click();
+  await bob.page.getByTestId("poll-form-dates").waitFor();
+  check((await bob.page.getByTestId("poll-form-slot").count()) === 3 && (await bob.page.getByTestId("poll-form-dates").getByText("3 von 10").isVisible()), "Termin-Abstimmung: drei Termine als Karten, Zähler „3 von 10“");
+  await noOverflow(bob, "Termin-Abstimmung starten");
+  await shot(bob, "10c-termin-abstimmung-erstellen");
 });
 
 const answer = (user, option, label) => user.page.getByRole("radiogroup", { name: `Deine Antwort für ${option}` }).getByRole("radio", { name: label, exact: true });

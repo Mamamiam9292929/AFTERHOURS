@@ -1,23 +1,28 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { IconPin, IconPlus, IconTrash } from "@/components/icons";
-import { PageHeader, Section } from "@/components/layout/Page";
+import { IconCalendar, IconCrews, IconEdit, IconHourglass, IconPin, IconPlus, IconSparkles, IconTrash, IconVote } from "@/components/icons";
+import { PageHeader } from "@/components/layout/Page";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
-import { Chip, Segmented } from "@/components/ui/Controls";
+import { Chip } from "@/components/ui/Controls";
 import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/Feedback";
-import { FormMessage, SelectField, TextAreaField, TextField } from "@/components/ui/Field";
+import { FormMessage, TextAreaField, TextField } from "@/components/ui/Field";
+import { CHOICE_CARD, CHOICE_CARD_ON, DateTile, FormCard } from "@/components/ui/FormCard";
+import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { useCrews } from "@/features/crews/api";
+import { CrewPicker } from "@/features/crews/CrewPicker";
 import { typicalPriceCents } from "@/features/discover/api";
 import { usePlans } from "@/features/plans/api";
+import { planCountdown } from "@/features/plans/PlanTicket";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { suggestDateSlots, type SuggestedSlot } from "@/lib/slots";
-import { addDays, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
-import type { Activity, PollKind } from "@/lib/types";
+import { categoryWorld } from "@/lib/stage";
+import { addDays, calendarDaysBetween, formatDateLong, formatTime, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
+import type { Activity, ActivityCategory, PollKind } from "@/lib/types";
 import { ActivityPicker } from "./ActivityPicker";
 import { useCreateDatePoll, useCreatePoll, useCreateWherePoll, usePoll, type PollOptionInput } from "./api";
 import { MAX_POLL_OPTIONS, usePollDraft } from "./draft";
@@ -26,6 +31,8 @@ import { dateOptionLabel, upcomingDateWinner } from "./logic";
 interface OptionRow {
   key: string;
   activityId: string | null;
+  /** Kategorie des Orts (nur bei Orten aus der Auswahl; aus Discover vorgemerkte haben keine) – für die Farbwelt. */
+  category: ActivityCategory | null;
   title: string;
   price: string;
   ownWhen: boolean;
@@ -112,7 +119,7 @@ export function PollCreatePage() {
   const [title, setTitle] = useState("");
   const titleTouched = useRef(false);
   const [options, setOptions] = useState<OptionRow[]>(() =>
-    draft.items.map((item) => ({ key: newKey(), activityId: item.activityId, title: item.title, price: centsToInput(item.priceCents), ownWhen: false, date: "", time: "" })),
+    draft.items.map((item) => ({ key: newKey(), activityId: item.activityId, category: null, title: item.title, price: centsToInput(item.priceCents), ownWhen: false, date: "", time: "" })),
   );
   const [endPreset, setEndPreset] = useState<EndPreset>("tomorrow");
   const [endCustom, setEndCustom] = useState(() => toLocalInputValue(new Date(Date.now() + 24 * 3600_000)));
@@ -156,7 +163,7 @@ export function PollCreatePage() {
     setOptions((rows) => {
       if (rows.some((r) => r.activityId === activity.id)) return rows.filter((r) => r.activityId !== activity.id);
       if (rows.length >= MAX_POLL_OPTIONS) return rows;
-      return [...rows, { key: newKey(), activityId: activity.id, title: activity.name, price: centsToInput(typicalPriceCents(activity)), ownWhen: false, date: "", time: "" }];
+      return [...rows, { key: newKey(), activityId: activity.id, category: activity.category, title: activity.name, price: centsToInput(typicalPriceCents(activity)), ownWhen: false, date: "", time: "" }];
     });
   }
   const patchOption = (key: string, update: Partial<OptionRow>) => setOptions((rows) => rows.map((r) => (r.key === key ? { ...r, ...update } : r)));
@@ -285,13 +292,15 @@ export function PollCreatePage() {
     );
   }
 
+  const endsAt = resolveEnd();
+  const whenPreview = linked ? null : sharedDate ? zonedToUtc(sharedDate, sharedTime || "12:00") : null;
+
   return (
     <>
       <PageHeader title={t.polls.create.title} lead={kind === "date" ? t.polls.create.dates.lead : t.polls.create.lead} back={{ to: "/plans", label: t.nav.plans }} />
-      <form onSubmit={submit} noValidate className="max-w-2xl">
-        {/* P1: Ort oder Termin – dieselbe Abstimmung, andere Optionen. */}
-        <Segmented<PollKind>
-          label={t.polls.create.kindLabel}
+      <form onSubmit={submit} noValidate className="max-w-2xl space-y-4">
+        {/* P1: Ort oder Termin – dieselbe Abstimmung, andere Optionen. V2 Etappe 3n: als zwei Auswahlkarten. */}
+        <KindSwitch
           value={kind}
           onChange={(value) => {
             setKind(value);
@@ -300,22 +309,16 @@ export function PollCreatePage() {
             setErrors({});
             setFormError(null);
           }}
-          options={[
-            { value: "place", label: t.polls.create.kinds.place },
-            { value: "date", label: t.polls.create.kinds.date },
-          ]}
-          className="mb-6"
         />
-        <div className="space-y-5">
-          {crews.data.length > 1 && !linked && (
-            <SelectField label={t.polls.create.crew} value={crewId} onChange={(e) => setCrewId(e.target.value)} error={errors.crew}>
-              {crews.data.map((crew) => (
-                <option key={crew.id} value={crew.id}>
-                  {crew.emoji} {crew.name}
-                </option>
-              ))}
-            </SelectField>
-          )}
+
+        {crews.data.length > 1 && !linked && (
+          <FormCard title={t.polls.create.crew} icon={<IconCrews className="size-[18px]" />} tone="pink" testId="poll-form-crew">
+            <CrewPicker crews={crews.data} value={crewId} onChange={setCrewId} label={t.polls.create.crew} />
+            {errors.crew && <FormMessage>{errors.crew}</FormMessage>}
+          </FormCard>
+        )}
+
+        <FormCard title={t.polls.create.sections.question} icon={<IconVote className="size-[18px]" />} tone="lime" testId="poll-form-question">
           <TextField
             label={t.polls.create.pollTitle}
             name="title"
@@ -328,14 +331,20 @@ export function PollCreatePage() {
             error={errors.title}
             required
           />
-        </div>
+        </FormCard>
 
         {kind === "date" ? (
-          <Section title={t.polls.create.dates.title}>
-            <p className="-mt-1 mb-3 text-[13px] text-muted">{t.polls.create.dates.hint}</p>
+          <FormCard title={t.polls.create.dates.title} icon={<IconCalendar className="size-[18px]" />} tone="violet" testId="poll-form-dates">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[13px] text-muted">{t.polls.create.dates.hint}</p>
+              <span className={cn(GLASS_PILL, "h-8 text-[13px]")}>{t.polls.create.count(slots.length, MAX_DATE_SLOTS)}</span>
+            </div>
             {suggestion && (
-              <div className="mb-4 rounded-card border border-lime/40 bg-lime/10 p-4" data-testid="date-suggestions">
-                <p className="text-sm font-semibold text-lime">{t.polls.create.dates.suggest.title}</p>
+              <div className="rounded-[20px] border border-lime/40 bg-lime/[0.08] p-4" data-testid="date-suggestions">
+                <p className="flex items-center gap-2 text-sm font-semibold text-lime">
+                  <IconSparkles className="size-4 shrink-0" aria-hidden />
+                  {t.polls.create.dates.suggest.title}
+                </p>
                 <p className="mt-1 text-[13px] text-fg">
                   {t.polls.create.dates.suggest.habit(
                     suggestion.weekdayCount,
@@ -362,8 +371,11 @@ export function PollCreatePage() {
             )}
             <ol className="space-y-3">
               {slots.map((row, index) => (
-                <li key={row.key} className="rounded-card border border-line bg-surface p-4">
-                  <div className="flex items-start gap-2">
+                <li key={row.key} className={cn(CHOICE_CARD, "p-3 sm:p-4")} data-testid="poll-form-slot">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-6 hidden min-[380px]:block">
+                      <DateTile at={row.date ? zonedToUtc(row.date, row.time || "12:00") : null} size="sm" />
+                    </div>
                     <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
                       <TextField
                         label={t.polls.create.dates.dateLabel(index + 1)}
@@ -377,12 +389,7 @@ export function PollCreatePage() {
                       />
                       <TextField label={t.polls.create.time} name={`slot-time-${index}`} type="time" value={row.time} onChange={(e) => patchSlot(row.key, { time: e.target.value })} optional />
                     </div>
-                    <IconButton
-                      label={t.polls.create.dates.remove(index + 1)}
-                      onClick={() => removeSlot(row.key)}
-                      disabled={slots.length <= MIN_DATE_SLOTS}
-                      className="mt-6"
-                    >
+                    <IconButton label={t.polls.create.dates.remove(index + 1)} onClick={() => removeSlot(row.key)} disabled={slots.length <= MIN_DATE_SLOTS} className="mt-6">
                       <IconTrash className="size-[18px] text-muted" aria-hidden />
                     </IconButton>
                   </div>
@@ -390,110 +397,141 @@ export function PollCreatePage() {
               ))}
             </ol>
             {errors.slots && <FormMessage>{errors.slots}</FormMessage>}
-            <Button variant="secondary" className="mt-3" onClick={addSlot} disabled={slots.length >= MAX_DATE_SLOTS} icon={<IconPlus className="size-4" aria-hidden />}>
+            <Button variant="secondary" onClick={addSlot} disabled={slots.length >= MAX_DATE_SLOTS} icon={<IconPlus className="size-4" aria-hidden />}>
               {t.polls.create.dates.add}
             </Button>
-          </Section>
+          </FormCard>
         ) : (
-        <>
-        <Section title={t.polls.create.whenTitle}>
-          {linked ? (
-            <div className="rounded-card border border-lime/40 bg-lime/10 p-4" data-testid="poll-linked-when">
-              <p className="text-sm font-semibold text-lime">{t.polls.create.linkedWhen.title}</p>
-              <p className="display mt-1 text-[19px] leading-none text-fg">{dateOptionLabel(linked.winner)}</p>
-              <p className="mt-2 text-[13px] leading-snug text-muted">{t.polls.create.linkedWhen.body}</p>
-              <Link to={`/polls/${linked.poll.id}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-fg underline decoration-lime underline-offset-4">
-                {t.polls.create.linkedWhen.back}
-              </Link>
-            </div>
-          ) : linkedLoading ? (
-            <p className="flex min-h-24 items-center text-sm text-muted" role="status">
-              {t.polls.create.linkedWhen.loading}
-            </p>
-          ) : (
           <>
-          <div className="grid grid-cols-2 gap-4">
-            <TextField label={t.polls.create.date} name="date" type="date" min={today()} value={sharedDate} onChange={(e) => setSharedDate(e.target.value)} optional />
-            <TextField label={t.polls.create.time} name="time" type="time" value={sharedTime} onChange={(e) => setSharedTime(e.target.value)} disabled={!sharedDate} optional />
-          </div>
-          <p className="mt-2 text-[13px] leading-snug text-muted">{t.polls.create.whenHint}</p>
-          </>
-          )}
-        </Section>
-
-        <Section title={t.polls.create.optionsTitle}>
-          <p className="-mt-1 mb-3 text-[13px] text-muted">{t.polls.create.optionsHint}</p>
-          {options.length > 0 && (
-            <ul className="mb-3 space-y-3">
-              {options.map((row, index) => (
-                <li key={row.key} className="rounded-card border border-line bg-surface p-4">
-                  <div className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      {row.activityId ? (
-                        <p className="flex min-h-11 items-center gap-2 text-[17px] font-bold leading-tight text-fg">
-                          <IconPin className="size-4 shrink-0 text-muted" aria-hidden />
-                          <span className="min-w-0 break-words">{row.title}</span>
-                        </p>
+            <FormCard title={t.polls.create.whenTitle} icon={<IconCalendar className="size-[18px]" />} tone="violet" testId="poll-form-when">
+              {linked ? (
+                <div className="flex items-center gap-3.5 rounded-[20px] border border-lime/40 bg-lime/[0.08] p-3.5" data-testid="poll-linked-when">
+                  <DateTile at={zonedToUtc(linked.winner.proposed_date ?? "", linked.winner.proposed_time?.slice(0, 5) ?? "12:00")} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-lime">{t.polls.create.linkedWhen.title}</p>
+                    <p className="display mt-1 text-[17px] leading-tight text-fg">{dateOptionLabel(linked.winner)}</p>
+                    <p className="mt-1.5 text-[13px] leading-snug text-muted">{t.polls.create.linkedWhen.body}</p>
+                    <Link to={`/polls/${linked.poll.id}`} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-fg underline decoration-lime underline-offset-4">
+                      {t.polls.create.linkedWhen.back}
+                    </Link>
+                  </div>
+                </div>
+              ) : linkedLoading ? (
+                <p className="flex min-h-24 items-center text-sm text-muted" role="status">
+                  {t.polls.create.linkedWhen.loading}
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3.5" data-testid="poll-form-when-preview" data-filled={whenPreview ? "true" : "false"}>
+                    <DateTile at={whenPreview} />
+                    <div className="min-w-0">
+                      {whenPreview ? (
+                        <>
+                          <p className="truncate font-semibold text-fg">{formatDateLong(whenPreview)}</p>
+                          <p className="mt-0.5 text-[14px] text-muted">
+                            {sharedTime ? formatTime(whenPreview) : t.polls.create.timeOpen}
+                            {whenCountdown(whenPreview) && <span className="ml-2 font-display text-[12px] font-extrabold uppercase tracking-wide text-lime">{whenCountdown(whenPreview)}</span>}
+                          </p>
+                        </>
                       ) : (
-                        <TextField
-                          label={t.polls.create.customLabel(index + 1)}
-                          name={`option-${index}`}
-                          value={row.title}
-                          onChange={(e) => patchOption(row.key, { title: e.target.value })}
-                          placeholder={t.polls.create.customPlaceholder}
-                          maxLength={120}
-                          error={errors[`title-${row.key}`]}
-                        />
+                        <p className="text-[14px] leading-snug text-muted">{t.polls.create.whenOpen}</p>
                       )}
                     </div>
-                    <IconButton label={t.polls.create.removeOption(row.title)} onClick={() => setOptions((rows) => rows.filter((r) => r.key !== row.key))} className={cn(!row.activityId && "mt-6")}>
-                      <IconTrash className="size-[18px] text-muted" aria-hidden />
-                    </IconButton>
                   </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <TextField
-                      label={t.polls.create.optionPrice}
-                      name={`price-${index}`}
-                      inputMode="decimal"
-                      value={row.price}
-                      onChange={(e) => patchOption(row.key, { price: e.target.value })}
-                      placeholder={t.polls.create.optionPricePlaceholder}
-                      error={errors[`price-${row.key}`]}
-                      hint={t.polls.create.optionPriceHint}
-                      trailing={<span className="pr-3 text-muted">€</span>}
-                      optional
-                    />
-                    {!linked && (
-                    <label className="flex min-h-11 cursor-pointer items-center gap-3 self-start text-sm text-fg sm:mt-7">
-                      <input type="checkbox" checked={row.ownWhen} onChange={(e) => patchOption(row.key, { ownWhen: e.target.checked, date: row.date || sharedDate, time: row.time || sharedTime })} className="size-5 shrink-0 accent-[var(--color-lime)]" />
-                      {t.polls.create.ownDate}
-                    </label>
-                    )}
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <TextField label={t.polls.create.date} name="date" type="date" min={today()} value={sharedDate} onChange={(e) => setSharedDate(e.target.value)} optional />
+                    <TextField label={t.polls.create.time} name="time" type="time" value={sharedTime} onChange={(e) => setSharedTime(e.target.value)} disabled={!sharedDate} optional />
                   </div>
-                  {row.ownWhen && !linked && (
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <TextField label={t.polls.create.date} type="date" min={today()} value={row.date} onChange={(e) => patchOption(row.key, { date: e.target.value })} />
-                      <TextField label={t.polls.create.time} type="time" value={row.time} onChange={(e) => patchOption(row.key, { time: e.target.value })} />
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {errors.options && <FormMessage>{errors.options}</FormMessage>}
-          <div className="mt-3 flex flex-wrap gap-2.5">
-            <Button variant="secondary" onClick={() => setPickerOpen(true)} disabled={full} icon={<IconPin className="size-4" aria-hidden />}>
-              {t.polls.create.addPlace}
-            </Button>
-            <Button variant="secondary" onClick={() => setOptions((rows) => [...rows, { key: newKey(), activityId: null, title: "", price: "", ownWhen: false, date: "", time: "" }])} disabled={full} icon={<IconPlus className="size-4" aria-hidden />}>
-              {t.polls.create.addCustom}
-            </Button>
-          </div>
-        </Section>
-        </>
+                  <p className="text-[13px] leading-snug text-muted">{t.polls.create.whenHint}</p>
+                </>
+              )}
+            </FormCard>
+
+            <FormCard title={t.polls.create.optionsTitle} icon={<IconPin className="size-[18px]" />} tone="pink" testId="poll-form-options">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[13px] text-muted">{t.polls.create.optionsHint}</p>
+                <span className={cn(GLASS_PILL, "h-8 text-[13px]", options.length > 0 && "border-lime/40 text-lime")}>{t.polls.create.count(options.length, MAX_POLL_OPTIONS)}</span>
+              </div>
+              {options.length > 0 && (
+                <ul className="space-y-3">
+                  {options.map((row, index) => (
+                    // Orte aus Discover in der Farbwelt ihrer Kategorie (wie dort), eigene Ideen als dunkles Glas.
+                    <li
+                      key={row.key}
+                      className={cn("rounded-[20px] border border-white/10 p-3.5 sm:p-4", row.category ? "cat-world" : "bg-white/[0.04]")}
+                      data-world={row.category ? categoryWorld(row.category) : undefined}
+                      data-testid="poll-form-option"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span aria-hidden className="mt-1.5 grid size-8 shrink-0 place-items-center rounded-full bg-lime font-display text-[14px] font-extrabold text-lime-ink">
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          {row.activityId ? (
+                            <div className="flex min-h-11 flex-col justify-center">
+                              <p className="text-[12px] font-semibold uppercase tracking-wide text-muted">{t.polls.create.optionPlace}</p>
+                              <p className="display break-words text-[16px] leading-tight text-fg">{row.title}</p>
+                            </div>
+                          ) : (
+                            <TextField
+                              label={t.polls.create.customLabel(index + 1)}
+                              name={`option-${index}`}
+                              value={row.title}
+                              onChange={(e) => patchOption(row.key, { title: e.target.value })}
+                              placeholder={t.polls.create.customPlaceholder}
+                              maxLength={120}
+                              error={errors[`title-${row.key}`]}
+                            />
+                          )}
+                        </div>
+                        <IconButton label={t.polls.create.removeOption(row.title)} onClick={() => setOptions((rows) => rows.filter((r) => r.key !== row.key))} className={cn(!row.activityId && "mt-6")}>
+                          <IconTrash className="size-[18px] text-muted" aria-hidden />
+                        </IconButton>
+                      </div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <TextField
+                          label={t.polls.create.optionPrice}
+                          name={`price-${index}`}
+                          inputMode="decimal"
+                          value={row.price}
+                          onChange={(e) => patchOption(row.key, { price: e.target.value })}
+                          placeholder={t.polls.create.optionPricePlaceholder}
+                          error={errors[`price-${row.key}`]}
+                          hint={t.polls.create.optionPriceHint}
+                          trailing={<span className="pr-3 text-muted">€</span>}
+                          optional
+                        />
+                        {!linked && (
+                          <label className="flex min-h-11 cursor-pointer items-center gap-3 self-start text-sm text-fg sm:mt-7">
+                            <input type="checkbox" checked={row.ownWhen} onChange={(e) => patchOption(row.key, { ownWhen: e.target.checked, date: row.date || sharedDate, time: row.time || sharedTime })} className="size-5 shrink-0 accent-[var(--color-lime)]" />
+                            {t.polls.create.ownDate}
+                          </label>
+                        )}
+                      </div>
+                      {row.ownWhen && !linked && (
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <TextField label={t.polls.create.date} type="date" min={today()} value={row.date} onChange={(e) => patchOption(row.key, { date: e.target.value })} />
+                          <TextField label={t.polls.create.time} type="time" value={row.time} onChange={(e) => patchOption(row.key, { time: e.target.value })} />
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {errors.options && <FormMessage>{errors.options}</FormMessage>}
+              <div className="flex flex-wrap gap-2.5">
+                <Button variant="secondary" onClick={() => setPickerOpen(true)} disabled={full} icon={<IconPin className="size-4" aria-hidden />}>
+                  {t.polls.create.addPlace}
+                </Button>
+                <Button variant="secondary" onClick={() => setOptions((rows) => [...rows, { key: newKey(), activityId: null, category: null, title: "", price: "", ownWhen: false, date: "", time: "" }])} disabled={full} icon={<IconPlus className="size-4" aria-hidden />}>
+                  {t.polls.create.addCustom}
+                </Button>
+              </div>
+            </FormCard>
+          </>
         )}
 
-        <Section title={t.polls.create.endsTitle}>
+        <FormCard title={t.polls.create.sections.ends} icon={<IconHourglass className="size-[18px]" />} tone="lime" testId="poll-form-ends">
           <div className="flex flex-wrap gap-2" role="group" aria-label={t.polls.create.endsTitle}>
             <Chip selected={endPreset === "twoHours"} onToggle={() => setEndPreset("twoHours")}>
               {t.polls.create.endsPresets.twoHours}
@@ -510,30 +548,34 @@ export function PollCreatePage() {
               {t.polls.create.endsPresets.custom}
             </Chip>
           </div>
-          {endPreset === "custom" && <TextField fieldClassName="mt-4 max-w-xs" label={t.polls.create.endsCustom} type="datetime-local" value={endCustom} onChange={(e) => setEndCustom(e.target.value)} min={toLocalInputValue(new Date())} />}
+          {endPreset === "custom" && <TextField fieldClassName="max-w-xs" label={t.polls.create.endsCustom} type="datetime-local" value={endCustom} onChange={(e) => setEndCustom(e.target.value)} min={toLocalInputValue(new Date())} />}
+          {/* Was gerade gilt, als Lime-Pille – wie die Frist im Kopf der Abstimmung (V2 Etappe 3d). */}
+          {endsAt && endsAt.getTime() > Date.now() && (
+            <p>
+              <LivePill testId="poll-form-ends-at">{t.polls.create.endsAt(endsLabel(endsAt))}</LivePill>
+            </p>
+          )}
           {errors.ends && (
-            <p role="alert" className="mt-2 text-[13px] text-danger">
+            <p role="alert" className="text-[13px] text-danger">
               {errors.ends}
             </p>
           )}
-        </Section>
+        </FormCard>
 
-        <Section title={t.polls.create.moreTitle}>
-          <div className="space-y-5">
-            {kind === "place" && (
+        <FormCard title={t.polls.create.sections.more} icon={<IconEdit className="size-[18px]" />} tone="violet" testId="poll-form-more">
+          {kind === "place" && (
             <>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TextField label={t.polls.create.budget} name="budget" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} error={errors.budget} hint={t.polls.create.budgetHint} trailing={<span className="pr-3 text-muted">€</span>} optional />
-              <TextField label={t.polls.create.minParticipants} name="min_participants" inputMode="numeric" value={minParticipants} onChange={(e) => setMinParticipants(e.target.value)} error={errors.min} hint={t.polls.create.minParticipantsHint} optional />
-            </div>
-            <TextField label={t.polls.create.meetingPoint} name="meeting_point" value={meetingPoint} onChange={(e) => setMeetingPoint(e.target.value)} placeholder={t.polls.create.meetingPointPlaceholder} maxLength={160} optional />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField label={t.polls.create.budget} name="budget" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} error={errors.budget} hint={t.polls.create.budgetHint} trailing={<span className="pr-3 text-muted">€</span>} optional />
+                <TextField label={t.polls.create.minParticipants} name="min_participants" inputMode="numeric" value={minParticipants} onChange={(e) => setMinParticipants(e.target.value)} error={errors.min} hint={t.polls.create.minParticipantsHint} optional />
+              </div>
+              <TextField label={t.polls.create.meetingPoint} name="meeting_point" value={meetingPoint} onChange={(e) => setMeetingPoint(e.target.value)} placeholder={t.polls.create.meetingPointPlaceholder} maxLength={160} optional />
             </>
-            )}
-            <TextAreaField label={t.polls.create.description} name="description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={2} optional />
-          </div>
-        </Section>
+          )}
+          <TextAreaField label={t.polls.create.description} name="description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} rows={2} optional />
+        </FormCard>
 
-        <div className="mt-8 space-y-4">
+        <div className="space-y-4 pt-4">
           {formError && <FormMessage>{formError}</FormMessage>}
           <Button type="submit" size="lg" block loading={createPoll.isPending || createDatePoll.isPending || createWherePoll.isPending}>
             {t.polls.create.submit}
@@ -543,5 +585,65 @@ export function PollCreatePage() {
 
       <ActivityPicker open={pickerOpen} onClose={() => setPickerOpen(false)} selectedIds={selectedActivityIds} onToggle={toggleActivity} />
     </>
+  );
+}
+
+/** „In 3 Tagen“, „Morgen“ … wie auf der Plan-Karte; nur bis knapp zwei Wochen voraus. */
+function whenCountdown(at: Date): string | null {
+  return at.getTime() > Date.now() ? planCountdown({ starts_at: at.toISOString(), status: "proposed" }, new Date()) : null;
+}
+
+/** „heute, 20:00 Uhr“, „morgen, 12:00 Uhr“, sonst „Freitag, 30. Oktober, 18:00 Uhr“ (Berliner Zeit). */
+function endsLabel(at: Date): string {
+  const days = calendarDaysBetween(new Date(), at);
+  const day = days === 0 ? t.polls.create.endsToday : days === 1 ? t.polls.create.endsTomorrow : formatDateLong(at);
+  return `${day}, ${formatTime(at)}`;
+}
+
+/**
+ * V2 Etappe 3n · Worüber abgestimmt wird – zwei Auswahlkarten statt Reitern, mit Symbol-Kachel und kurzer
+ * Beschreibung. Bleibt technisch eine Reiterleiste (`tablist`/`tab`, Pfeiltasten), wie bisher `Segmented`.
+ */
+function KindSwitch({ value, onChange }: { value: PollKind; onChange: (value: PollKind) => void }) {
+  const kinds: { value: PollKind; icon: ReactNode }[] = [
+    { value: "place", icon: <IconPin className="size-[18px]" /> },
+    { value: "date", icon: <IconCalendar className="size-[18px]" /> },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label={t.polls.create.kindLabel}
+      className="grid grid-cols-2 gap-2.5"
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+        event.preventDefault();
+        const next = value === "place" ? "date" : "place";
+        onChange(next);
+        event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next === "place" ? 0 : 1]?.focus();
+      }}
+    >
+      {kinds.map((kind) => {
+        const on = kind.value === value;
+        return (
+          <button
+            key={kind.value}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            tabIndex={on ? 0 : -1}
+            onClick={() => onChange(kind.value)}
+            className={cn(CHOICE_CARD, "flex min-w-0 flex-col items-start gap-2 p-3.5 text-left sm:flex-row sm:items-center sm:gap-3", on && CHOICE_CARD_ON)}
+          >
+            <span aria-hidden className={cn("grid size-10 shrink-0 place-items-center rounded-full border transition-colors", on ? "border-lime bg-lime text-lime-ink" : "border-white/15 bg-white/[0.06] text-fg")}>
+              {kind.icon}
+            </span>
+            <span className="min-w-0">
+              <span className="display block text-[15px] leading-tight text-fg">{t.polls.create.kinds[kind.value]}</span>
+              <span className="mt-0.5 block text-[12px] leading-snug text-muted">{t.polls.create.kindHints[kind.value]}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
