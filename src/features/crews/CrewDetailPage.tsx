@@ -1,12 +1,13 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { IconCalendar, IconCalendarPlus, IconMore, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
-import { PageHeader, PosterTitle, Section } from "@/components/layout/Page";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { IconBack, IconCalendar, IconCalendarPlus, IconMore, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
+import { PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Controls";
 import { ConfirmDialog } from "@/components/ui/Dialog";
+import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
 import { Badge, EmptyState, ErrorState, ListSkeleton, Notice, PageSpinner } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/features/auth/AuthProvider";
@@ -18,6 +19,7 @@ import { PollCard } from "@/features/polls/PollCard";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { crewWorld } from "@/lib/crewWorld";
 import { errorMessage } from "@/lib/errors";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { formatAgo, formatDateWithYear, formatRelative, formatTime } from "@/lib/time";
@@ -174,7 +176,7 @@ function Chat({ crew, role }: { crew: CrewWithMembers; role: CrewRole | null }) 
         </ol>
       )}
       <div ref={endRef} />
-      <form onSubmit={submit} className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] mt-6 flex items-end gap-2 rounded-card border border-line bg-surface p-2 lg:bottom-4">
+      <form onSubmit={submit} className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] mt-6 flex items-end gap-2 rounded-[28px] border border-white/10 bg-surface/80 p-2 backdrop-blur-md lg:bottom-4">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -225,7 +227,7 @@ function Members({ crew, role }: { crew: CrewWithMembers; role: CrewRole | null 
 
   return (
     <div className="max-w-2xl">
-      <ul className="divide-y divide-line rounded-card border border-line bg-surface">
+      <ul className="divide-y divide-line overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04]" data-testid="crew-members">
         {crew.members.map((member) => {
           const person = people.lookup(member.user_id);
           const name = person?.display_name ?? t.states.formerMember;
@@ -239,7 +241,17 @@ function Members({ crew, role }: { crew: CrewWithMembers; role: CrewRole | null 
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-fg">
                   <span className="truncate">{name}</span>
                   {isMe && <span className="text-[13px] font-normal text-muted">({t.crews.members.you})</span>}
-                  {member.role !== "member" && <Badge tone={member.role === "owner" ? "lime" : "outline"}>{t.enums.crewRole[member.role]}</Badge>}
+                  {member.role !== "member" && (
+                    <span
+                      data-testid="member-role"
+                      className={cn(
+                        "inline-flex h-7 items-center rounded-full px-3 text-[12px] font-bold",
+                        member.role === "owner" ? "bg-lime text-lime-ink" : "border border-white/15 bg-white/[0.06] text-fg",
+                      )}
+                    >
+                      {t.enums.crewRole[member.role]}
+                    </span>
+                  )}
                 </p>
                 <p className="text-[13px] text-muted">{t.crews.members.since(formatDateWithYear(member.joined_at))}</p>
               </div>
@@ -349,7 +361,7 @@ function Settings({ crew, role, onInvite }: { crew: CrewWithMembers; role: CrewR
         ) : invitations.data.length === 0 ? (
           <p className="text-[15px] text-muted">{t.crews.invite.listEmpty}</p>
         ) : (
-          <ul className="divide-y divide-line rounded-card border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04]">
             {invitations.data.map((inv) => {
               const state = invitationState(inv, now);
               return (
@@ -436,6 +448,8 @@ export function CrewDetailPage() {
   const people = usePeople();
   const crewQuery = useCrew(crewId);
   const plans = usePlans();
+  const polls = usePolls();
+  const now = useNow(60_000);
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>("overview");
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -470,41 +484,72 @@ export function CrewDetailPage() {
   const manage = canManageCrew(role);
   // Echte Zahl: abgeschlossene Pläne dieser Crew. Erscheint erst ab dem ersten gemeinsamen Abend.
   const evenings = (plans.data ?? []).filter((p) => p.crew_id === crew.id && p.status === "completed").length;
+  const openPolls = (polls.data ?? []).filter((p) => p.crew_id === crew.id && !isPollOver(p, now)).length;
 
   return (
     <>
-      <PageHeader
-        poster
-        title={<PosterTitle text={`${crew.emoji} ${crew.name}`} />}
-        back={{ to: "/crews", label: t.crews.detail.back }}
-        lead={
-          <span className="flex items-center gap-2.5">
-            <AvatarStack people={crew.members.map((m) => people.lookup(m.user_id))} max={6} ringColor="var(--color-base)" />
-            <span>
-              {t.members(crew.members.length)}
-              {evenings > 0 && ` · ${t.crews.detail.evenings(evenings)}`}
-            </span>
+      <Link to="/crews" className="-ml-1 mb-3 inline-flex h-9 items-center gap-1.5 rounded-control px-1 text-sm font-semibold text-muted hover:text-fg">
+        <IconBack className="size-4" aria-hidden />
+        {t.crews.detail.back}
+      </Link>
+      {/*
+        V2 Etappe 3j: Der Kopf der Crew-Seite ist eine Karte in der Farbwelt der Crew (dieselbe wie auf der
+        Crew-Zeile, fest aus der ID). Symbol auf leuchtender Kachel, Name in Chrom, Zahlen als Pillen –
+        Lime nur für das, was gerade läuft, und für erlebte Abende (erst ab dem ersten).
+      */}
+      <section
+        aria-labelledby="crew-name"
+        data-testid="crew-pass"
+        data-world={crewWorld(crew.id)}
+        className="crew-world relative mb-6 overflow-hidden rounded-[32px] border border-white/10 p-5 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] sm:p-7 lg:mb-8"
+      >
+        <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-faint">{t.crews.detail.kicker}</p>
+        <div className="mt-3 flex items-center gap-4">
+          <span className="crew-world-tile flex size-16 shrink-0 items-center justify-center rounded-[22px] text-[34px] sm:size-20 sm:text-[42px]" aria-hidden>
+            {crew.emoji}
           </span>
-        }
-        actions={
-          <>
-            <ButtonLink to={`/polls/new?crew=${crew.id}`} icon={<IconVote className="size-4" aria-hidden />}>
-              {t.crews.detail.startPoll}
-            </ButtonLink>
-            <ButtonLink to={`/polls/new?crew=${crew.id}&kind=date`} variant="secondary" icon={<IconCalendar className="size-4" aria-hidden />}>
-              {t.crews.detail.findDate}
-            </ButtonLink>
-            <ButtonLink to={`/plans/new?crew=${crew.id}`} variant="secondary" icon={<IconCalendarPlus className="size-4" aria-hidden />}>
-              {t.crews.detail.createPlan}
-            </ButtonLink>
-            {manage && (
-              <Button variant="secondary" onClick={() => setInviteOpen(true)} icon={<IconUserPlus className="size-4" aria-hidden />}>
-                {t.crews.detail.invite}
-              </Button>
-            )}
-          </>
-        }
-      />
+          <h1 id="crew-name" className="display chrome min-w-0 break-words text-[28px] uppercase sm:text-[42px]">
+            <PosterTitle text={crew.name} />
+          </h1>
+        </div>
+        <ul className="mt-5 flex flex-wrap gap-2" aria-label={t.crews.detail.kicker}>
+          <li className={cn(GLASS_PILL, "pl-1.5 text-fg")} data-testid="crew-pass-members">
+            <AvatarStack people={crew.members.map((m) => people.lookup(m.user_id))} max={5} size="xs" />
+            <span>{t.members(crew.members.length)}</span>
+          </li>
+          {evenings > 0 && (
+            <li className="inline-flex h-9 items-center rounded-full bg-lime px-3.5 text-[14px] font-bold text-lime-ink" data-testid="crew-pass-evenings">
+              {t.crews.detail.evenings(evenings)}
+            </li>
+          )}
+          {openPolls > 0 && (
+            <li>
+              <LivePill testId="crew-pass-polls">{t.crews.card.openPolls(openPolls)}</LivePill>
+            </li>
+          )}
+          {role && (
+            <li className={GLASS_PILL} data-testid="crew-pass-role">
+              {t.crews.detail.yourRole(t.enums.crewRole[role])}
+            </li>
+          )}
+        </ul>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <ButtonLink to={`/polls/new?crew=${crew.id}`} icon={<IconVote className="size-4" aria-hidden />}>
+            {t.crews.detail.startPoll}
+          </ButtonLink>
+          <ButtonLink to={`/polls/new?crew=${crew.id}&kind=date`} variant="secondary" icon={<IconCalendar className="size-4" aria-hidden />}>
+            {t.crews.detail.findDate}
+          </ButtonLink>
+          <ButtonLink to={`/plans/new?crew=${crew.id}`} variant="secondary" icon={<IconCalendarPlus className="size-4" aria-hidden />}>
+            {t.crews.detail.createPlan}
+          </ButtonLink>
+          {manage && (
+            <Button variant="secondary" onClick={() => setInviteOpen(true)} icon={<IconUserPlus className="size-4" aria-hidden />}>
+              {t.crews.detail.invite}
+            </Button>
+          )}
+        </div>
+      </section>
       <Segmented<Tab>
         label={t.crews.detail.tabs.label}
         value={tab}

@@ -39,6 +39,9 @@ export const crews = {
     upcomingPlans: "Anstehende Pläne",
     pastPlans: "Zuletzt",
     nextUp: "Als Nächstes",
+    /** V2 Etappe 3j: Kopf der Crew-Seite als Karte in der Farbwelt der Crew. */
+    kicker: "Eure Crew",
+    yourRole: (role: string) => `Du bist ${role}`,
     morePlans: "Danach",
     evenings: (n: number) => (n === 1 ? "1 gemeinsamer Abend" : `${n} gemeinsame Abende`),
     noPolls: "Keine laufende Abstimmung",
