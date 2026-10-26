@@ -1859,7 +1859,7 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   if ((await bob.page.getByTestId("plan-form-crew").count()) === 1) {
     check((await bob.page.getByTestId("plan-form-crew").getByRole("radio", { checked: true }).count()) === 1, "Plan-Formular: genau eine Crew gewählt");
   }
-  await shot(bob, "30b-plan-erstellen-mobile");
+  await shot(bob, "30b-plan-erstellen");
   await page.getByRole("button", { name: "Plan erstellen" }).click();
   await page.waitForURL(/\/plans\/[0-9a-f-]{36}/);
   await page.getByText("Dieser Plan ist ein Vorschlag und noch nicht bestätigt.").waitFor();
