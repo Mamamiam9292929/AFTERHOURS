@@ -189,7 +189,6 @@ export const crews = {
     pageTitle: (crew: string) => `Einladung zu ${crew}`,
     invitedBy: (name: string) => `${name} lädt dich ein`,
     invitedAnonymous: "Du bist eingeladen",
-    admit: "Einlass",
     crew: "Crew",
     members: (names: string[], total: number) => {
       const rest = total - names.length;
@@ -202,6 +201,9 @@ export const crews = {
     membersLabel: "Schon dabei",
     nextPlan: "Als Nächstes",
     nextPlanNone: "Noch kein Abend geplant – plant den ersten zusammen.",
+    /** V2 Etappe 3f: ruhige Glas-Pille, kein Countdown – die Frist ist Information, keine Verknappung. */
+    expires: (relative: string) => `Link läuft ${relative} ab`,
+    expiresOn: (date: string) => `Link gilt bis ${date}`,
     title: "Sei dabei",
     intro: "Konto erstellen, E-Mail bestätigen – danach trittst du der Crew mit einem Tipp bei.",
     submit: "Konto erstellen",

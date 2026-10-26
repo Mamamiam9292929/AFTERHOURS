@@ -468,6 +468,12 @@ await step("Schritt 3 – Freunde registrieren sich über den Link und treten be
     const already = friend === bob ? "Alice ist schon dabei" : "Alice und Bob sind schon dabei";
     check(await pass.getByText(already).isVisible(), `${friend.name}: Landingpage zeigt, wer schon dabei ist („${already}“)`);
     check(await pass.getByText("Noch kein Abend geplant").isVisible(), `${friend.name}: ohne Plan steht ehrlich „Noch kein Abend geplant“`);
+    // V2 Etappe 3f: Einladung als Karte – wer einlädt als Lime-Pille, Crew in Chrom, Frist ruhig als Glas-Pille.
+    check(/Alice lädt dich ein/.test(await pass.getByTestId("invite-by").innerText()), `${friend.name}: V2 – wer einlädt als Pille`);
+    check(await pass.locator("#invite-crew.chrome").isVisible(), `${friend.name}: V2 – Crew-Name als Chrom-Plakat`);
+    const expires = (await pass.getByTestId("invite-expires").innerText()).trim();
+    check(/^Link (läuft .+ ab|gilt bis .+)$/.test(expires), `${friend.name}: V2 – Frist des Links („${expires}“)`);
+    check((await pass.locator(".ticket-stub").count()) === 0, `${friend.name}: V2 – kein Ticket-Abriss mehr`);
     check((await page.getByRole("heading", { level: 1, name: "Sei dabei" }).count()) === 1, `${friend.name}: Registrierung direkt auf der Landingpage`);
     await shot(friend, "06a-einladung-landing");
     await register(friend, { here: true });
@@ -1314,6 +1320,10 @@ await step("W2 – Geteilter Plan: Vorschau im Messenger und für Freunde ohne K
     const ticket = guest.page.getByRole("region", { name: "Strike District Bowling" });
     await ticket.waitFor();
     check(/(\d+\s*sind dabei|ist dabei)/.test(await ticket.innerText()), "Gast sieht, wie viele dabei sind");
+    // V2 Etappe 3f: geteilter Plan als Karte – Titel in Chrom, Datum als Kachel, Aurora dahinter.
+    check(await ticket.locator("#shared-plan-title.chrome").isVisible(), "V2: Plan-Titel als Chrom-Plakat");
+    check(/^\S+\s+\d{1,2}\s+\S+$/.test((await guest.page.getByTestId("shared-plan-date").innerText()).replace(/\s+/g, " ").trim()), "V2: Datum als Kachel (Wochentag, Tag, Monat)");
+    check((await guest.page.locator(".aurora").count()) === 1 && (await ticket.locator(".ticket-stub").count()) === 0, "V2: Aurora dahinter, kein Ticket-Abriss mehr");
     check(!/Alice|Bob|Carol|Demochaussee/.test(await guest.page.locator("body").innerText()), "Gast sieht keine Namen und keine Adresse");
     check(await guest.page.getByRole("link", { name: "Konto erstellen" }).isVisible(), "Gast: Konto erstellen");
     await shot(guest, "16d-geteilter-plan-gast");
