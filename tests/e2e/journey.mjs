@@ -1423,6 +1423,23 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   await bob.page.getByText("Reservierung bestätigt").waitFor();
   await bob.page.getByText("Alice nimmt dich mit").waitFor();
   check(true, "Bob wurde über Reservierung und Mitfahrt benachrichtigt");
+  // V2 Etappe 3l: Benachrichtigungen als Glas-Karten, nach Tagen gruppiert, Farbschein je Bereich.
+  {
+    const p = bob.page;
+    const cards = p.getByTestId("inbox-card");
+    check((await cards.count()) >= 3, "Benachrichtigungen als Glas-Karten");
+    check((await p.getByTestId("inbox-group").first().getAttribute("data-group")) === "today", "erste Gruppe ist „Heute“");
+    check(await p.getByRole("heading", { name: "Heute", exact: true }).isVisible(), "Überschrift „Heute“");
+    const booking = cards.filter({ hasText: "Reservierung bestätigt" }).first();
+    check((await booking.getAttribute("data-area")) === "plan" && (await booking.getAttribute("data-tone")) === "lime", "Reservierung: Bereich Plan, Lime-Schein");
+    check(await booking.getByText("Plan", { exact: true }).isVisible(), "Karte nennt den Bereich");
+    const poll = cards.filter({ hasText: "hat eine Abstimmung gestartet" }).first();
+    if ((await poll.count()) > 0) check((await poll.getAttribute("data-tone")) === "violet", "Abstimmung: violetter Schein");
+    const unreadCards = await p.locator('[data-testid="inbox-card"][data-unread="true"]').count();
+    const status = (await p.getByTestId("inbox-status").innerText()).trim();
+    check(unreadCards > 0 ? status === (unreadCards === 1 ? "1 neu" : `${unreadCards} neu`) : status === "Alles gelesen", `Stand-Pille passt zu den ungelesenen (${status})`);
+    check(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Benachrichtigungen ohne seitliches Scrollen");
+  }
   await shot(bob, "18-benachrichtigungen");
 
   await page.getByRole("button", { name: "Plan bearbeiten" }).click();
@@ -1852,6 +1869,8 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await alice.page.goto(`${APP}/notifications`);
   await alice.page.getByText("Carol hat einen Plan abgesagt").waitFor();
   check(true, "Absage benachrichtigt die Crew");
+  const cancelCard = alice.page.getByTestId("inbox-card").filter({ hasText: "Carol hat einen Plan abgesagt" }).first();
+  check((await cancelCard.getAttribute("data-tone")) === "danger", "V2: Absage trägt den roten Schein");
   await shot(alice, "31-benachrichtigungen");
 });
 

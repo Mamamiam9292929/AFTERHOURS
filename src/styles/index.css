@@ -695,6 +695,42 @@
   .stage-art {
     touch-action: pan-y;
   }
+  /*
+   * V2 Etappe 3l · Benachrichtigung als Glas-Karte im Stapel. Der Bereich (src/lib/inbox.ts) gibt den
+   * Farbschein – nur Licht, nie Textfarbe. Ungelesen leuchtet die Karte stärker und trägt eine Lime-Kante,
+   * gelesen bleibt sie dunkles Glas mit leisem Schein.
+   */
+  .inbox-card {
+    --c: var(--color-violet);
+    position: relative;
+    border-radius: 24px;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    background: linear-gradient(150deg, color-mix(in srgb, var(--c) 7%, var(--color-surface)), var(--color-surface) 55%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  }
+  .inbox-card[data-unread="true"] {
+    border-color: color-mix(in srgb, var(--c) 32%, transparent);
+    background:
+      radial-gradient(70% 140% at 0% 0%, color-mix(in srgb, var(--c) 26%, transparent), transparent 70%),
+      var(--color-surface);
+    box-shadow: inset 3px 0 0 var(--color-lime), inset 0 1px 0 rgb(255 255 255 / 0.06), 0 16px 34px -24px rgb(0 0 0 / 0.8);
+  }
+  .inbox-card[data-tone="lime"] {
+    --c: var(--color-lime);
+  }
+  .inbox-card[data-tone="pink"] {
+    --c: var(--color-pink);
+  }
+  .inbox-card[data-tone="amber"] {
+    --c: var(--color-amber);
+  }
+  .inbox-card[data-tone="danger"] {
+    --c: var(--color-danger);
+  }
+  .inbox-tile {
+    background: color-mix(in srgb, var(--c) 22%, var(--color-raised));
+    border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  }
 
   .scroll-row {
     display: flex;
