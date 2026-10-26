@@ -2,11 +2,10 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { IconCalendar, IconEdit, IconEuro, IconPin } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { FormMessage, TextAreaField, TextField } from "@/components/ui/Field";
-import { FormCard } from "@/components/ui/FormCard";
+import { DateTile, FormCard } from "@/components/ui/FormCard";
 import { t } from "@/i18n";
-import { cn } from "@/lib/cn";
 import { centsToInput, parseEuroInput } from "@/lib/format";
-import { addDays, formatDateLong, formatTime, ticketDate, today, zonedParts, zonedToUtc } from "@/lib/time";
+import { addDays, formatDateLong, formatTime, today, zonedParts, zonedToUtc } from "@/lib/time";
 import type { PlanFormValues } from "./api";
 import { planCountdown } from "./PlanTicket";
 
@@ -118,15 +117,10 @@ export function PlanForm({ initial, submitLabel, pending, error, onSubmit, befor
  * Uhrzeit und wie weit es weg ist. Ohne Datum steht dort ehrlich, dass es noch fehlt.
  */
 function WhenPreview({ startsAt }: { startsAt: Date | null }) {
-  const date = startsAt ? ticketDate(startsAt) : null;
   const countdown = startsAt && startsAt.getTime() > Date.now() ? planCountdown({ starts_at: startsAt.toISOString(), status: "proposed" }, new Date()) : null;
   return (
     <div className="flex items-center gap-3.5" data-testid="plan-form-when" data-filled={startsAt ? "true" : "false"}>
-      <div aria-hidden className={cn("flex w-[62px] shrink-0 flex-col items-center justify-center rounded-[18px] py-2 text-center", startsAt ? "bg-lime text-lime-ink" : "border border-dashed border-white/25 text-muted")}>
-        <span className="text-[11px] font-bold uppercase tracking-wide">{date?.weekday ?? "–"}</span>
-        <span className="font-display text-[26px] font-extrabold leading-none">{date?.day ?? "?"}</span>
-        <span className="text-[11px] font-bold uppercase tracking-wide">{date?.month ?? "–"}</span>
-      </div>
+      <DateTile at={startsAt} />
       <div className="min-w-0">
         {startsAt ? (
           <>

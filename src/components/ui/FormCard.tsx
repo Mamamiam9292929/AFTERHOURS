@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { ticketDate } from "@/lib/time";
 
 /**
  * V2 Etappe 3m · Ein Abschnitt eines Formulars (Plan anlegen, Crew gründen) als Glas-Karte aus dem Deck –
@@ -48,3 +49,26 @@ export function FormCard({
 /** Auswahl in einem Formular (Crew, Verbindlichkeit, Symbol): dunkles Glas, gewählt mit Lime-Kante. */
 export const CHOICE_CARD = "rounded-[20px] border border-white/10 bg-white/[0.04] transition-colors hover:border-white/25";
 export const CHOICE_CARD_ON = "border-lime bg-lime/[0.08] hover:border-lime";
+
+/**
+ * Datumskachel wie auf der Plan-Karte („FR / 6 / NOV“) – in Lime, sobald ein Tag eingetragen ist, sonst
+ * gestrichelt mit Fragezeichen. Nur Bild (`aria-hidden`); der Tag steht daneben als Text.
+ * `sm`: kleine Kachel für Listen (Termine einer Abstimmung).
+ */
+export function DateTile({ at, size = "md" }: { at: Date | null; size?: "md" | "sm" }) {
+  const date = at ? ticketDate(at) : null;
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "flex shrink-0 flex-col items-center justify-center text-center",
+        size === "sm" ? "w-[50px] rounded-[14px] py-1.5" : "w-[62px] rounded-[18px] py-2",
+        at ? "bg-lime text-lime-ink" : "border border-dashed border-white/25 text-muted",
+      )}
+    >
+      <span className={cn("font-bold uppercase tracking-wide", size === "sm" ? "text-[10px]" : "text-[11px]")}>{date?.weekday ?? "–"}</span>
+      <span className={cn("font-display font-extrabold leading-none", size === "sm" ? "text-[20px]" : "text-[26px]")}>{date?.day ?? "?"}</span>
+      <span className={cn("font-bold uppercase tracking-wide", size === "sm" ? "text-[10px]" : "text-[11px]")}>{date?.month ?? "–"}</span>
+    </div>
+  );
+}
