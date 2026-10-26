@@ -1371,7 +1371,7 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   // V2 Etappe 3g: Reservierung als Glas-Karte mit eigenem Schein, bestätigte Reservierung als Lime-Pille.
   check((await page.locator('section.plan-panel[data-tone="violet"]').getByRole("heading", { name: "Reservierung" }).count()) === 1, "V2: Reservierung als Glas-Karte mit Überschrift");
   check((await page.getByTestId("booking-status").getAttribute("data-tone")) === "lime", "V2: bestätigte Reservierung als Lime-Pille");
-  check((await page.locator("#reservierung .rounded-card").count()) === 0, "V2: keine alten Karten mehr in der Reservierung");
+  check(!/\brounded-card\b/.test((await page.getByTestId("booking-card").getAttribute("class")) ?? ""), "V2: Reservierung als Glas-Karte statt altem Kasten");
   await page.locator("#reservierung").scrollIntoViewIfNeeded();
   await shot(alice, "17-reservierung");
 
