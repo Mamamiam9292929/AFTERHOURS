@@ -1186,6 +1186,8 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
     const box = await pass.boundingBox();
     const vw = bob.page.viewportSize()?.width ?? 0;
     check(!!box && box.x >= 0 && box.x + box.width <= vw + 1, `Crew-Kopf passt in die Breite (${vw} px)`);
+    const clipped = await pass.locator("a, button").evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent?.trim()));
+    check(clipped.length === 0, `Knöpfe im Crew-Kopf schneiden nichts ab (${clipped.join(", ") || "keiner"})`);
   }
   await shot(bob, "16c-crew-ticket");
   // Schritt 10 erwartet Bob wieder auf der Planseite.

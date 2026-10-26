@@ -533,18 +533,19 @@ export function CrewDetailPage() {
             </li>
           )}
         </ul>
-        <div className="mt-6 flex flex-wrap gap-2">
-          <ButtonLink to={`/polls/new?crew=${crew.id}`} icon={<IconVote className="size-4" aria-hidden />}>
+        {/* Auf dem Handy: Hauptknopf über die ganze Breite, die übrigen zu zweit nebeneinander (dort ohne Symbol, damit sie auch bei 360 px passen). */}
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <ButtonLink to={`/polls/new?crew=${crew.id}`} className="col-span-2" icon={<IconVote className="size-4" aria-hidden />}>
             {t.crews.detail.startPoll}
           </ButtonLink>
-          <ButtonLink to={`/polls/new?crew=${crew.id}&kind=date`} variant="secondary" icon={<IconCalendar className="size-4" aria-hidden />}>
+          <ButtonLink to={`/polls/new?crew=${crew.id}&kind=date`} variant="secondary" className="min-w-0 px-3 sm:px-5" icon={<IconCalendar className="hidden size-4 sm:block" aria-hidden />}>
             {t.crews.detail.findDate}
           </ButtonLink>
-          <ButtonLink to={`/plans/new?crew=${crew.id}`} variant="secondary" icon={<IconCalendarPlus className="size-4" aria-hidden />}>
+          <ButtonLink to={`/plans/new?crew=${crew.id}`} variant="secondary" className="min-w-0 px-3 sm:px-5" icon={<IconCalendarPlus className="hidden size-4 sm:block" aria-hidden />}>
             {t.crews.detail.createPlan}
           </ButtonLink>
           {manage && (
-            <Button variant="secondary" onClick={() => setInviteOpen(true)} icon={<IconUserPlus className="size-4" aria-hidden />}>
+            <Button variant="secondary" className="col-span-2" onClick={() => setInviteOpen(true)} icon={<IconUserPlus className="size-4" aria-hidden />}>
               {t.crews.detail.invite}
             </Button>
           )}
