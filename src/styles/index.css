@@ -469,12 +469,18 @@
     box-shadow: 0 22px 44px -30px color-mix(in srgb, var(--color-lime) 55%, transparent);
   }
   .plan-facts,
-  .plan-manage {
+  .plan-manage,
+  .plan-panel {
     background: linear-gradient(160deg, color-mix(in srgb, var(--c) 12%, var(--color-surface)), var(--color-surface) 65%);
     --c: var(--color-violet);
   }
-  .plan-manage {
+  .plan-manage,
+  .plan-panel[data-tone="pink"] {
     --c: var(--color-pink);
+  }
+  /* V2 Etappe 3g: Kosten, Reservierung, Fahrten – je Bereich ein eigener Schein. */
+  .plan-panel[data-tone="lime"] {
+    --c: var(--color-lime);
   }
   .who-chip {
     background: color-mix(in srgb, var(--c, #fff) 8%, transparent);

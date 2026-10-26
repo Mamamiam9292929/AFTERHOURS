@@ -3,12 +3,14 @@ import { IconCar } from "@/components/icons";
 import { Avatar, type Person } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
-import { Badge, ErrorState, Skeleton } from "@/components/ui/Feedback";
+import { ErrorState, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
+import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatDateTime, fromLocalInputValue, toLocalInputValue } from "@/lib/time";
+import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 import { useCancelRideOffer, useCancelRideRequest, useOfferRide, useRequestRide, useRespondRide, useRides, type PlanWithParticipants } from "./api";
 
 interface RidesPanelProps {
@@ -89,7 +91,7 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
             const pending = o.requests.filter((r) => r.status === "requested");
             const accepted = o.requests.filter((r) => r.status === "accepted");
             return (
-              <li key={o.id} className="rounded-card border border-line bg-surface p-4">
+              <li key={o.id} className={cn(PANEL_ITEM, "p-4")} data-testid="ride-card">
                 <div className="flex items-start gap-3">
                   <Avatar person={driver} size="md" decorative />
                   <div className="min-w-0 flex-1">
@@ -101,12 +103,20 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                       {o.return_trip && `, ${t.plans.rides.withReturn}`}
                     </p>
                     {o.note && <p className="mt-1 text-sm text-fg">{o.note}</p>}
+                    {/* V2 Etappe 3g: die Plätze als Punkte – gefüllt, wer schon mitfährt, als Ring, was frei ist. */}
+                    <p aria-hidden className="mt-2.5 flex flex-wrap gap-1.5" data-testid="ride-seat-dots">
+                      {Array.from({ length: o.available_seats }, (_, index) => (
+                        <span key={index} className={cn("size-3 rounded-full border-2", index < o.available_seats - free ? "border-transparent bg-pink" : "border-white/30")} />
+                      ))}
+                    </p>
                   </div>
-                  <Badge tone={free > 0 ? "lime" : "neutral"}>{t.plans.rides.seatsFree(free)}</Badge>
+                  <StatusPill tone={free > 0 ? "lime" : "glass"} testId="ride-seats">
+                    {t.plans.rides.seatsFree(free)}
+                  </StatusPill>
                 </div>
 
                 {isMine ? (
-                  <div className="mt-3 border-t border-line pt-3">
+                  <div className="mt-3 border-t border-white/10 pt-3">
                     <p className="mb-2 text-[13px] font-semibold text-muted">{t.plans.rides.requests}</p>
                     {pending.length + accepted.length === 0 ? (
                       <p className="text-sm text-muted">{t.plans.rides.noRequests}</p>
@@ -119,7 +129,7 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                               {lookup(r.passenger_user_id)?.display_name ?? t.states.formerMember}
                             </span>
                             {r.status === "accepted" ? (
-                              <Badge tone="lime">{t.enums.rideRequestStatus.accepted}</Badge>
+                              <StatusPill tone="lime">{t.enums.rideRequestStatus.accepted}</StatusPill>
                             ) : (
                               <span className="flex gap-2">
                                 <Button size="sm" disabled={locked || free < r.seats_requested} onClick={() => respond.mutate({ requestId: r.id, accept: true }, { onError: failed })}>
