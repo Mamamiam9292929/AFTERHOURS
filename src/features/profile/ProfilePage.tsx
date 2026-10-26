@@ -3,7 +3,8 @@ import { IconBell, IconBot, IconChevronRight, IconLogout, IconPin, IconSettings,
 import { PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { Badge, ErrorState, PageSpinner } from "@/components/ui/Feedback";
+import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
+import { GLASS_PILL } from "@/components/ui/Pill";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useCrews } from "@/features/crews/api";
 import { CrewRow } from "@/features/crews/CrewsPage";
@@ -51,35 +52,45 @@ export function ProfilePage() {
     <div className="relative isolate max-w-2xl">
       <div className="home-glow" aria-hidden />
       {/*
-        D0 Etappe 5c: Das Profil ist eine Stammkarte im Ticket-Stil – der eine große Moment der Seite.
-        Der Abriss zählt die erlebten Abende; lime wird er erst ab dem ersten gemeinsamen Abend.
+        V2 Etappe 3h: Das Profil ist eine Stammkarte im Stil 2.0 – oben auf dem Stapel, Name in Chrom,
+        Stadt und „Dabei seit“ als Glas-Pillen. Die erlebten Abende sind die große Kachel: lime erst ab dem
+        ersten gemeinsamen Abend, davor gestrichelt (keine falsche Feier).
       */}
-      <div className="ticket-feature-wrap">
-        <div className="ticket ticket-feature profile-pass">
-          <div className={cn("ticket-stub flex flex-col items-center justify-center gap-1 px-2 py-5 text-center", evenings > 0 ? "bg-lime text-lime-ink" : "bg-raised text-fg")}>
-            <p className="flex flex-col items-center">
-              <span className="font-display text-[55px] font-extrabold leading-[0.85] sm:text-[66px]">{count(plansReady, evenings)}</span>{" "}
-              <span className="mt-1 text-[13px] font-bold uppercase leading-tight tracking-wide">{t.profile.pass.evenings(evenings)}</span>
-            </p>
-            <span className="ticket-barcode mt-3" aria-hidden />
-          </div>
-          <div className="flex min-w-0 flex-col gap-4 p-5 sm:p-6">
-            <div className="flex flex-col items-start gap-3 sm:flex-row sm:gap-4">
+      <section aria-labelledby="profile-name" className="ticket-feature-wrap profile-pass" data-testid="profile-pass">
+        <div className="vote-card overflow-hidden rounded-[32px] p-5 sm:p-7">
+          <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-lime/15 blur-3xl" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 size-56 rounded-full bg-pink/20 blur-3xl" />
+          <div className="relative">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-faint">{t.profile.pass.label}</p>
+            <div className="mt-3 flex items-center gap-4">
               <Avatar person={me} size="lg" decorative className="shrink-0" />
-              <div className="min-w-0">
-                <h1 className="display chrome break-words text-[26px] uppercase sm:text-[37px]">
-                  <PosterTitle text={me.display_name} />
-                </h1>
-                <p className="mt-1.5 flex items-center gap-1.5 text-[15px] text-muted">
-                  <IconPin className="size-4 shrink-0" aria-hidden />
-                  <span className="min-w-0 truncate">{me.city ?? t.profile.noCity}</span>
-                </p>
-                <p className="mt-0.5 text-[13px] text-muted">{t.profile.pass.since(formatMonthYear(me.created_at))}</p>
-              </div>
+              <h1 id="profile-name" className="display chrome min-w-0 break-words text-[27px] uppercase sm:text-[34px]">
+                <PosterTitle text={me.display_name} />
+              </h1>
             </div>
-            <dl className="grid grid-cols-3 gap-2 border-t border-dashed border-line pt-4">
+            <div className="mt-4 flex flex-wrap gap-2">
+              <p className={cn(GLASS_PILL, "max-w-full")} data-testid="profile-city">
+                <IconPin className="size-4 shrink-0" aria-hidden />
+                <span className="min-w-0 truncate">{me.city ?? t.profile.noCity}</span>
+              </p>
+              <p className={GLASS_PILL} data-testid="profile-since">
+                {t.profile.pass.since(formatMonthYear(me.created_at))}
+              </p>
+            </div>
+            <p
+              data-testid="profile-evenings"
+              data-lit={evenings > 0 ? "true" : "false"}
+              className={cn(
+                "mt-5 flex items-center gap-4 rounded-[24px] p-4",
+                evenings > 0 ? "bg-lime text-lime-ink" : "border border-dashed border-white/20 bg-white/[0.04] text-fg",
+              )}
+            >
+              <span className="font-display text-[55px] font-extrabold leading-[0.85] sm:text-[66px]">{count(plansReady, evenings)}</span>{" "}
+              <span className="text-[15px] font-bold uppercase leading-tight tracking-wide">{t.profile.pass.evenings(evenings)}</span>
+            </p>
+            <dl className="mt-3 grid grid-cols-3 gap-2">
               {stats.map((stat) => (
-                <div key={stat.label} className="flex min-w-0 flex-col-reverse">
+                <div key={stat.label} className="flex min-w-0 flex-col-reverse rounded-[20px] border border-white/10 bg-white/[0.05] p-3">
                   <dt className="mt-1 truncate text-[13px] text-muted">{stat.label}</dt>
                   <dd className="font-display text-[22px] font-extrabold leading-none text-fg sm:text-[26px]">{stat.value}</dd>
                 </div>
@@ -87,7 +98,7 @@ export function ProfilePage() {
             </dl>
           </div>
         </div>
-      </div>
+      </section>
 
       <ButtonLink to="/settings" variant="secondary" className="mt-6" block>
         {t.profile.edit}
@@ -99,14 +110,14 @@ export function ProfilePage() {
         ) : (
           <div className="flex flex-wrap gap-2">
             {me.interests.map((interest) => (
-              <Badge key={interest} tone="outline" className="h-8 px-3 text-sm text-fg">
+              <span key={interest} className={cn(GLASS_PILL, "text-fg")}>
                 {t.enums.interest[interest]}
-              </Badge>
+              </span>
             ))}
             {me.favorite_categories.map((category) => (
-              <Badge key={category} className="h-8 px-3 text-sm">
+              <span key={category} className="inline-flex h-9 items-center rounded-full border border-lime/40 bg-lime/10 px-3.5 text-[14px] font-semibold text-fg">
                 {t.enums.category[category]}
-              </Badge>
+              </span>
             ))}
           </div>
         )}
@@ -122,10 +133,12 @@ export function ProfilePage() {
         </Section>
       )}
 
-      <nav className="mt-9 divide-y divide-line rounded-card border border-line bg-surface" aria-label={t.profile.title}>
+      <nav className="mt-9 divide-y divide-line overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04]" aria-label={t.profile.title} data-testid="profile-links">
         {links.map(({ to, label, icon: Icon }) => (
-          <Link key={to} to={to} className="flex h-14 items-center gap-3.5 px-4 font-medium text-fg hover:bg-raised/50">
-            <Icon className="size-5 text-muted" aria-hidden />
+          <Link key={to} to={to} className="flex h-16 items-center gap-3.5 px-4 font-medium text-fg hover:bg-raised">
+            <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-2xl bg-white/[0.06]">
+              <Icon className="size-5 text-muted" />
+            </span>
             <span className="flex-1">{label}</span>
             <IconChevronRight className="size-5 text-faint" aria-hidden />
           </Link>

@@ -1694,14 +1694,23 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     await shot(user, "23-home");
     await user.page.goto(`${APP}/profile`);
     await user.page.getByRole("heading", { level: 1, name: user.name }).waitFor();
-    // D0 Etappe 5c: Das Profil ist eine Stammkarte im Ticket-Stil; der Abriss zählt erlebte Abende.
-    const pass = user.page.locator(".profile-pass");
+    // V2 Etappe 3h: Das Profil ist eine Stammkarte im Stil 2.0 – Name in Chrom, Stadt und „Dabei seit“ als Pillen,
+    // erlebte Abende als große Kachel (lime erst ab dem ersten Abend), kein Ticket-Abriss mehr.
+    const pass = user.page.getByTestId("profile-pass");
     check((await pass.getByRole("heading", { level: 1 }).count()) === 1, `Profil-Name steht als Überschrift auf der Stammkarte (${user.name})`);
-    await pass.locator(".ticket-stub").getByText(/^\d+$/).waitFor();
-    const stub = (await pass.locator(".ticket-stub").innerText()).replace(/\s+/g, " ").trim();
-    check(/^\d+ abende? erlebt$/i.test(stub), `Abriss zählt erlebte Abende (${user.name}: „${stub}“)`);
-    if (DB_URL && user !== carol) check(!/^0 /.test(stub), `abgeschlossener Plan zählt als erlebter Abend (${user.name})`);
-    check(/dabei seit \S+ \d{4}/i.test(await pass.innerText()), "Stammkarte zeigt „Dabei seit“ aus dem Kontodatum");
+    check((await pass.locator("h1.chrome").count()) === 1, `Profil-Name in Chrom (${user.name})`);
+    check((await pass.locator(".ticket-stub, .ticket-barcode").count()) === 0, `Stammkarte ohne Ticket-Abriss (${user.name})`);
+    const evenings = pass.getByTestId("profile-evenings");
+    await evenings.getByText(/^\d+$/).waitFor();
+    const tile = (await evenings.innerText()).replace(/\s+/g, " ").trim();
+    check(/^\d+ abende? erlebt$/i.test(tile), `Kachel zählt erlebte Abende (${user.name}: „${tile}“)`);
+    check((await evenings.getAttribute("data-lit")) === (/^0 /.test(tile) ? "false" : "true"), `Kachel leuchtet lime erst ab dem ersten Abend (${user.name})`);
+    if (DB_URL && user !== carol) check(!/^0 /.test(tile), `abgeschlossener Plan zählt als erlebter Abend (${user.name})`);
+    check(/dabei seit \S+ \d{4}/i.test(await pass.getByTestId("profile-since").innerText()), "Stammkarte zeigt „Dabei seit“ aus dem Kontodatum als Pille");
+    check((await pass.getByTestId("profile-city").count()) === 1, "Stadt steht als Pille auf der Stammkarte");
+    const passBox = await pass.boundingBox();
+    const vw = user.page.viewportSize()?.width ?? 0;
+    check(!!passBox && passBox.x >= 0 && passBox.x + passBox.width <= vw + 1, `Stammkarte passt in die Breite (${user.name}, ${vw} px)`);
     await shot(user, "24-profil");
   }
 });

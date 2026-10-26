@@ -157,6 +157,7 @@ export const profile = {
   stats: { crews: "Crews", planned: "Geplant", completed: "Erlebt", points: "Punkte" },
   crews: "Deine Crews",
   pass: {
+    label: "Stammkarte",
     evenings: (n: number) => (n === 1 ? "Abend erlebt" : "Abende erlebt"),
     since: (monthYear: string) => `Dabei seit ${monthYear}`,
   },
