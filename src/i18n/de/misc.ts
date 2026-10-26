@@ -104,6 +104,12 @@ export const notifications = {
   someone: "Jemand",
   pushNote: "Push-Mitteilungen aufs Handy gibt es noch nicht. Benachrichtigungen erscheinen in der App.",
   manage: "Benachrichtigungen einstellen",
+  // V2 Etappe 3l: Stand oben, Tagesgruppen und Bereich je Karte.
+  statusUnread: (n: number) => (n === 1 ? "1 neu" : `${n} neu`),
+  statusAllRead: "Alles gelesen",
+  statusTotal: (n: number) => (n === 1 ? "1 Eintrag" : `${n} Einträge`),
+  groups: { today: "Heute", yesterday: "Gestern", week: "Diese Woche", older: "Früher" },
+  areas: { poll: "Abstimmung", plan: "Plan", crew: "Crew", money: "Kosten", spontaneous: "Heute noch wer?", reward: "Punkte" },
   text: notificationText,
 };
 

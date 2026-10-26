@@ -475,10 +475,12 @@
     --c: var(--color-violet);
   }
   .plan-manage,
+  .inbox-card[data-tone="pink"],
   .plan-panel[data-tone="pink"] {
     --c: var(--color-pink);
   }
   /* V2 Etappe 3g: Kosten, Reservierung, Fahrten – je Bereich ein eigener Schein. */
+  .inbox-card[data-tone="lime"],
   .plan-panel[data-tone="lime"] {
     --c: var(--color-lime);
   }
@@ -489,9 +491,11 @@
   .who-chip[data-status="going"] {
     --c: var(--color-lime);
   }
+  .inbox-card[data-tone="amber"],
   .who-chip[data-status="maybe"] {
     --c: var(--color-amber);
   }
+  .inbox-card[data-tone="danger"],
   .who-chip[data-status="declined"] {
     --c: var(--color-danger);
   }
@@ -694,6 +698,19 @@
   }
   .stage-art {
     touch-action: pan-y;
+  }
+  /* V2 Etappe 3l · Benachrichtigung: Schein des Bereichs (src/lib/inbox.ts); ungelesen stärker, mit Lime-Kante. */
+  .inbox-card {
+    --c: var(--color-violet);
+    background: linear-gradient(150deg, color-mix(in srgb, var(--c) 7%, var(--color-surface)), var(--color-surface) 55%);
+  }
+  .inbox-card[data-unread="true"] {
+    background: radial-gradient(70% 140% at 0% 0%, color-mix(in srgb, var(--c) 26%, transparent), transparent 70%), var(--color-surface);
+    box-shadow: inset 3px 0 0 var(--color-lime);
+  }
+  .inbox-tile {
+    background: color-mix(in srgb, var(--c) 22%, var(--color-raised));
+    border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
   }
 
   .scroll-row {
