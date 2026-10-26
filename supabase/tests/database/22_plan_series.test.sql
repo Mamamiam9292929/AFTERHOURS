@@ -118,7 +118,12 @@ select is((select count(*)::int from public.plan_series where crew_id = tests.va
 -- Zeit vergehen lassen: Termin und Serie zwei Wochen zurück. Der Termin vor einer Woche wurde verpasst
 -- (niemand hat die App geöffnet) und wird übersprungen.
 select tests.logout();
-update public.plans set starts_at = starts_at - interval '14 days', ends_at = ends_at - interval '14 days' where id = tests.var('plan')::uuid;
+-- In Berliner Wandzeit verschieben, nicht um 14 × 24 h: liegt die Zeitumstellung dazwischen, wäre der
+-- Termin sonst eine Stunde verrutscht (21:00 statt 20:00) – und der nächste erbt diese Uhrzeit.
+update public.plans
+set starts_at = ((starts_at at time zone 'Europe/Berlin') - interval '14 days') at time zone 'Europe/Berlin',
+    ends_at = ((ends_at at time zone 'Europe/Berlin') - interval '14 days') at time zone 'Europe/Berlin'
+where id = tests.var('plan')::uuid;
 update public.plan_series set last_on = last_on - 14 where id = tests.var('series')::uuid;
 delete from public.notifications;
 
@@ -152,7 +157,8 @@ select is((select count(*)::int from public.audit_log where action = 'plan_serie
 
 -- ---- Bearbeiten des letzten Termins ändert die folgenden ------------------------------------------
 select tests.logout();
-update public.plans set title = 'Stammtisch im Hof', starts_at = starts_at - interval '14 days' + interval '30 minutes', ends_at = null
+update public.plans set title = 'Stammtisch im Hof',
+  starts_at = ((starts_at at time zone 'Europe/Berlin') - interval '14 days' + interval '30 minutes') at time zone 'Europe/Berlin', ends_at = null
 where id = tests.var('next')::uuid;
 update public.plan_series set last_on = last_on - 14 where id = tests.var('series')::uuid;
 select tests.login_service();
