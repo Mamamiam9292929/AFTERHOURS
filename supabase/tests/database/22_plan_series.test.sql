@@ -116,9 +116,12 @@ select is((select count(*)::int from public.plan_series where crew_id = tests.va
 
 -- ---- Der Termin liegt zurück: der nächste entsteht genau einmal -----------------------------------
 -- Zeit vergehen lassen: Termin und Serie zwei Wochen zurück. Der Termin vor einer Woche wurde verpasst
--- (niemand hat die App geöffnet) und wird übersprungen.
+-- (niemand hat die App geöffnet) und wird übersprungen. Zurückgesetzt wird in Berliner Ortszeit – zwei Wochen
+-- als feste 336 Stunden verschieben die Uhrzeit, wenn dazwischen die Zeitumstellung liegt (20:00 würde 21:00).
 select tests.logout();
-update public.plans set starts_at = starts_at - interval '14 days', ends_at = ends_at - interval '14 days' where id = tests.var('plan')::uuid;
+create function tests.berlin_minus(ts timestamptz, days int) returns timestamptz
+language sql immutable as $$ select ((ts at time zone 'Europe/Berlin') - make_interval(days => days)) at time zone 'Europe/Berlin' $$;
+update public.plans set starts_at = tests.berlin_minus(starts_at, 14), ends_at = tests.berlin_minus(ends_at, 14) where id = tests.var('plan')::uuid;
 update public.plan_series set last_on = last_on - 14 where id = tests.var('series')::uuid;
 delete from public.notifications;
 
@@ -152,7 +155,7 @@ select is((select count(*)::int from public.audit_log where action = 'plan_serie
 
 -- ---- Bearbeiten des letzten Termins ändert die folgenden ------------------------------------------
 select tests.logout();
-update public.plans set title = 'Stammtisch im Hof', starts_at = starts_at - interval '14 days' + interval '30 minutes', ends_at = null
+update public.plans set title = 'Stammtisch im Hof', starts_at = tests.berlin_minus(starts_at, 14) + interval '30 minutes', ends_at = null
 where id = tests.var('next')::uuid;
 update public.plan_series set last_on = last_on - 14 where id = tests.var('series')::uuid;
 select tests.login_service();
