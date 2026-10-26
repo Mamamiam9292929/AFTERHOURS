@@ -638,66 +638,40 @@
       radial-gradient(70% 90% at 8% 100%, color-mix(in srgb, var(--world-b) 34%, transparent), transparent 70%),
       var(--color-surface);
   }
-  .cat-world[data-world="food"] {
-    --world-a: var(--color-amber);
-    --world-b: var(--color-pink);
-  }
-  .cat-world[data-world="night"] {
-    --world-a: var(--color-pink);
-    --world-b: var(--color-violet);
-  }
-  .cat-world[data-world="play"] {
-    --world-a: var(--color-violet);
-    --world-b: var(--color-lime);
-  }
-  .cat-world[data-world="outside"] {
-    --world-a: var(--color-lime);
-    --world-b: var(--color-amber);
-  }
-  /*
-   * V2 Etappe 3i · Crew-Zeile (Crews, Home, Profil): eine Glas-Karte mit der Farbwelt der Crew – zwei
-   * Lichter, fest aus der Crew-ID (src/lib/crewWorld.ts). Das Symbol sitzt auf einer Kachel im selben Licht.
-   */
-  .crew-world {
-    --world-a: var(--color-violet);
-    --world-b: var(--color-pink);
-    background:
-      radial-gradient(60% 120% at 0% 0%, color-mix(in srgb, var(--world-a) 30%, transparent), transparent 70%),
-      radial-gradient(55% 110% at 100% 100%, color-mix(in srgb, var(--world-b) 18%, transparent), transparent 70%),
-      var(--color-surface);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 18px 40px -28px rgb(0 0 0 / 0.85);
-    transition:
-      transform 0.3s var(--ease-out-soft),
-      border-color 0.3s var(--ease-out-soft);
-  }
-  .crew-world[data-world="pink"] {
-    --world-a: var(--color-pink);
-    --world-b: var(--color-amber);
-  }
-  .crew-world[data-world="lime"] {
-    --world-a: var(--color-lime);
-    --world-b: var(--color-violet);
-  }
+  .cat-world[data-world="food"],
   .crew-world[data-world="amber"] {
     --world-a: var(--color-amber);
     --world-b: var(--color-pink);
   }
-  .crew-world:hover {
-    transform: translateY(-2px);
+  .cat-world[data-world="night"],
+  .crew-world[data-world="pink"] {
+    --world-a: var(--color-pink);
+    --world-b: var(--color-violet);
+  }
+  .cat-world[data-world="play"],
+  .crew-world[data-world="violet"] {
+    --world-a: var(--color-violet);
+    --world-b: var(--color-lime);
+  }
+  .cat-world[data-world="outside"],
+  .crew-world[data-world="lime"] {
+    --world-a: var(--color-lime);
+    --world-b: var(--color-amber);
+  }
+  /*
+   * V2 Etappe 3i · Crew-Zeile (Crews, Home, Profil): Glas-Karte in der Farbwelt der Crew (fest aus der
+   * ID, src/lib/crewWorld.ts) – dieselben vier Lichter-Paare wie in Discover.
+   */
+  .crew-world {
+    --world-a: var(--color-violet);
+    --world-b: var(--color-lime);
+    background:
+      radial-gradient(60% 120% at 0% 0%, color-mix(in srgb, var(--world-a) 30%, transparent), transparent 70%),
+      radial-gradient(55% 110% at 100% 100%, color-mix(in srgb, var(--world-b) 18%, transparent), transparent 70%),
+      var(--color-surface);
   }
   .crew-world-tile {
-    background:
-      radial-gradient(120% 120% at 20% 10%, color-mix(in srgb, var(--world-a) 70%, transparent), transparent 75%),
-      radial-gradient(120% 120% at 100% 100%, color-mix(in srgb, var(--world-b) 55%, transparent), transparent 70%),
-      var(--color-raised);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .crew-world,
-    .crew-world:hover {
-      transition: none;
-      transform: none;
-    }
+    background: linear-gradient(135deg, color-mix(in srgb, var(--world-a) 70%, var(--color-raised)), color-mix(in srgb, var(--world-b) 50%, var(--color-raised)));
   }
   .deck-card {
     background: linear-gradient(160deg, color-mix(in srgb, var(--color-violet) 12%, var(--color-surface)), var(--color-surface) 55%);
