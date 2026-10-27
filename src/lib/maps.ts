@@ -13,6 +13,10 @@ export interface MapProvider {
   linkUrl(latitude: number, longitude: number): string;
   /** Link zur Routenplanung dorthin. */
   directionsUrl(latitude: number, longitude: number): string;
+  /** P6: Adresse einer 256-px-Kachel (Web-Mercator) für die Karte in Discover. */
+  tileUrl(z: number, x: number, y: number): string;
+  /** Seite mit Lizenz und Namensnennung – muss an jeder Karte mit Kacheln verlinkt sein. */
+  readonly copyrightUrl: string;
 }
 
 const openStreetMap: MapProvider = {
@@ -29,6 +33,33 @@ const openStreetMap: MapProvider = {
   directionsUrl(latitude, longitude) {
     return `https://www.openstreetmap.org/directions?to=${latitude.toFixed(5)}%2C${longitude.toFixed(5)}`;
   },
+  // Kachelserver der OSM Foundation: Nutzungsregeln (Namensnennung, Referer, keine Massenabrufe) sind mit
+  // einer Karte, die nur nach Einwilligung und nur den sichtbaren Ausschnitt lädt, eingehalten. Bei viel
+  // Verkehr auf einen eigenen oder kommerziellen Kachelanbieter wechseln (siehe ROADMAP, P6).
+  tileUrl(z, x, y) {
+    return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+  },
+  copyrightUrl: "https://www.openstreetmap.org/copyright",
 };
 
 export const mapProvider: MapProvider = openStreetMap;
+
+// P6: Einwilligung „Stadtplan laden“ in Discover – nur auf diesem Gerät, nie an den Server.
+const TILES_KEY = "afterhours.map.tiles";
+
+export function mapTilesAllowed(): boolean {
+  try {
+    return window.localStorage.getItem(TILES_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setMapTilesAllowed(on: boolean) {
+  try {
+    if (on) window.localStorage.setItem(TILES_KEY, "1");
+    else window.localStorage.removeItem(TILES_KEY);
+  } catch {
+    // Speicher gesperrt (privater Modus o. Ä.) – dann fragt die App beim nächsten Mal wieder.
+  }
+}

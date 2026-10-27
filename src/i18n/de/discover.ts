@@ -168,6 +168,28 @@ export const discover = {
     notFoundTitle: "Diesen Ort gibt es nicht mehr",
     notFoundBody: "Er wurde entfernt oder ist nicht mehr aktiv.",
   },
+  /** P6: Orte als Punkte auf einer Karte; der Stadtplan von OpenStreetMap kommt erst nach Einwilligung dazu. */
+  map: {
+    viewLabel: "Ansicht",
+    list: "Liste",
+    map: "Karte",
+    label: (city: string) => `Karte der Orte in ${city}`,
+    keys: "Ziehen oder Pfeiltasten verschieben die Karte, Plus und Minus zoomen. Alle Orte stehen auch in der Liste.",
+    zoomIn: "Näher heran",
+    zoomOut: "Weiter weg",
+    fit: "Alle Orte zeigen",
+    pin: (name: string, category: string) => `${name}, ${category}`,
+    pick: "Tippe auf einen Punkt – der Ort erscheint hier.",
+    missing: (n: number) => (n === 1 ? "1 Ort hat keinen Standort und steht nur in der Liste." : `${n} Orte haben keinen Standort und stehen nur in der Liste.`),
+    noneTitle: "Keiner dieser Orte hat einen Standort",
+    noneBody: "OpenStreetMap kennt für diese Auswahl keine Position. In der Liste findest du sie trotzdem.",
+    tilesOffer: "Die Punkte zeigen, wie die Orte zueinander liegen. Mit Stadtplan siehst du auch Straßen und Viertel.",
+    tilesLoad: "Stadtplan laden",
+    tilesPrivacy: "Der Stadtplan kommt von OpenStreetMap. Beim Laden gehen deine IP-Adresse und der Kartenausschnitt dorthin. Gilt für dieses Gerät.",
+    tilesOn: "Stadtplan von OpenStreetMap.",
+    tilesOff: "Stadtplan aus",
+    tilesFailed: "Stadtplan gerade nicht erreichbar – die Punkte stimmen trotzdem.",
+  },
   /** P7: Foto eines Ortes von Wikimedia Commons. */
   photo: {
     show: "Foto anzeigen",
