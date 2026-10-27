@@ -2599,8 +2599,10 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
 
     // Ein Ort: Punkt antippen zeigt ihn als Karte darunter, mit Link zur Seite des Ortes.
     await page.getByLabel("Ort oder Aktivität suchen").fill("pub 18");
-    await page.waitForFunction(() => document.querySelectorAll("[data-map-pin]").length === 1, null, { timeout: 15_000 }).catch(() => {});
-    check((await map.locator("[data-map-pin]").count()) === 1, "Suche gilt auch für die Karte");
+    // „pub 18“ findet auch „pub 180“ … – entscheidend ist, dass die Karte nur noch die Treffer zeigt.
+    await page.waitForFunction(() => document.querySelectorAll("[data-map-pin]").length < 20, null, { timeout: 15_000 }).catch(() => {});
+    const hits = await map.locator("[data-map-pin]").count();
+    check(hits >= 1 && hits < 20 && (await map.locator("[data-map-pin]").evaluateAll((pins) => pins.every((p) => p.dataset.mapPin.startsWith("pub 18")))), `Suche gilt auch für die Karte (${hits} Punkte)`);
     const pin = map.locator('[data-map-pin="pub 18"]');
     await pin.click();
     check((await pin.getAttribute("aria-pressed")) === "true", "angetippter Punkt ist gewählt");
@@ -2630,7 +2632,10 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     check(await pin.isVisible(), "Punkte bleiben ohne Stadtplan sichtbar");
     await page.getByRole("button", { name: "Stadtplan aus" }).click();
     tilesDown = false;
+    const zoomBefore = Number(await map.getAttribute("data-zoom"));
     await page.getByRole("button", { name: "Näher heran" }).click();
+    const zoom = Number(await map.getAttribute("data-zoom"));
+    check(zoom === zoomBefore + 1, `„Näher heran“ zoomt eine Stufe (${zoomBefore} → ${zoom})`);
     const requested = tiles.length;
     await page.getByRole("button", { name: "Stadtplan laden" }).click();
     await page.waitForFunction(() => {
@@ -2639,7 +2644,7 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     });
     const loaded = tiles.slice(requested);
     check(loaded.length > 0 && loaded.length <= 30, `Stadtplan lädt nur den sichtbaren Ausschnitt (${loaded.length} Kacheln)`);
-    check(loaded.every((u) => /^https:\/\/tile\.openstreetmap\.org\/17\/\d+\/\d+\.png$/.test(u)), "Kacheln in der gewählten Zoomstufe");
+    check(loaded.every((u) => new RegExp(`^https://tile\\.openstreetmap\\.org/${zoom}/\\d+/\\d+\\.png$`).test(u)), `Kacheln in der gewählten Zoomstufe (${zoom})`);
     check(!(await page.getByText("Stadtplan gerade nicht erreichbar").isVisible()), "kein Fehlerhinweis mehr, wenn Kacheln da sind");
     check((await map.getByRole("link", { name: "© OpenStreetMap-Mitwirkende" }).getAttribute("href")) === "https://www.openstreetmap.org/copyright", "Namensnennung von OpenStreetMap auf der Karte");
     check(await page.evaluate(() => localStorage.getItem("afterhours.map.tiles")) === "1", "Einwilligung „Stadtplan“ gilt für dieses Gerät");

@@ -142,6 +142,7 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
         role="region"
         aria-label={t.discover.map.label(cityName)}
         aria-describedby="place-map-keys"
+        data-zoom={view?.zoom}
         tabIndex={0}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
