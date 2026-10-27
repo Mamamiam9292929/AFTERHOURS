@@ -8,22 +8,72 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatDistance } from "@/lib/format";
 import { categoryWorld } from "@/lib/stage";
+import type { PlacePhoto } from "@/lib/commons";
 import type { Activity } from "@/lib/types";
 import { typicalPriceCents } from "./api";
 import { CategoryArt } from "./CategoryArt";
 import { openLabel, priceLabel } from "./display";
 
-/** Titelbild eines Ortes: echtes Foto, wenn vorhanden und ladbar – sonst die Kategorie-Grafik auf der Farbwelt ihrer Kategorie. */
-export function ActivityCover({ activity, className }: { activity: Pick<Activity, "image_url" | "category" | "name">; className?: string }) {
-  const [broken, setBroken] = useState(false);
+/**
+ * Titelbild eines Ortes: Foto von Wikimedia Commons (P7, nur mit Einwilligung geladen), sonst ein eigenes Bild,
+ * sonst die Kategorie-Grafik auf der Farbwelt ihrer Kategorie. Ein Commons-Foto trägt immer Urheber:in und Lizenz.
+ */
+export function ActivityCover({
+  activity,
+  className,
+  photo,
+  creditAt = "bottom",
+}: {
+  activity: Pick<Activity, "image_url" | "category" | "name">;
+  className?: string;
+  photo?: PlacePhoto | null;
+  creditAt?: "top" | "bottom";
+}) {
+  const [broken, setBroken] = useState<string | null>(null);
+  const commons = photo && broken !== photo.src ? photo : null;
+  const src = commons?.src ?? (activity.image_url && broken !== activity.image_url ? activity.image_url : null);
   return (
-    <div className={cn("cat-world overflow-hidden", className)} data-world={categoryWorld(activity.category)}>
-      {activity.image_url && !broken ? (
-        <img src={activity.image_url} alt="" loading="lazy" decoding="async" draggable={false} className="size-full object-cover" onError={() => setBroken(true)} />
+    <div className={cn("cat-world relative overflow-hidden", className)} data-world={categoryWorld(activity.category)}>
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          referrerPolicy={commons ? "no-referrer" : undefined}
+          data-commons={commons ? "" : undefined}
+          className="size-full object-cover"
+          onError={() => setBroken(src)}
+        />
       ) : (
         <CategoryArt category={activity.category} onLight />
       )}
+      {commons && <PhotoCredit photo={commons} className={creditAt === "top" ? "left-2.5 top-2.5" : "bottom-2.5 right-2.5"} />}
     </div>
+  );
+}
+
+/** Kurze Bildangabe auf einem Foto: „Foto: Lea · CC BY-SA 4.0“, verlinkt auf die Seite der Datei bei Commons. */
+function PhotoCredit({ photo, className }: { photo: PlacePhoto; className?: string }) {
+  const author = photo.author ?? t.discover.photo.unknownAuthor;
+  return (
+    <a
+      href={photo.pageUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid="card-photo-credit"
+      aria-label={t.discover.photo.creditLabel(author, photo.license)}
+      title={t.discover.photo.creditLabel(author, photo.license)}
+      // Über dem Link der ganzen Karte und ohne Wischgeste des Stapels auszulösen.
+      onPointerDown={(e) => e.stopPropagation()}
+      className={cn(
+        "absolute z-10 max-w-[calc(100%-1.25rem)] truncate rounded-full border border-white/10 bg-nav/85 px-2 py-0.5 text-[11px] font-medium text-fg backdrop-blur hover:border-lime focus-visible:outline-2 focus-visible:outline-lime",
+        className,
+      )}
+    >
+      {t.discover.photo.cardCredit(author, photo.license)}
+    </a>
   );
 }
 
@@ -41,14 +91,14 @@ export function usePollToggle(activity: Activity): { selected: boolean; toggle: 
   };
 }
 
-export function ActivityCard({ activity, distanceKm, compact = false }: { activity: Activity; distanceKm?: number | null; compact?: boolean }) {
+export function ActivityCard({ activity, distanceKm, compact = false, photo }: { activity: Activity; distanceKm?: number | null; compact?: boolean; photo?: PlacePhoto | null }) {
   const { selected, toggle } = usePollToggle(activity);
   const open = openLabel(activity);
 
   return (
     <article className={cn("deck-card group relative flex flex-col rounded-card border transition-[border-color,transform] duration-300", selected ? "border-lime" : "border-white/[0.08] hover:-translate-y-0.5 hover:border-white/20")}>
       <div className="relative p-1.5 pb-0">
-        <ActivityCover activity={activity} className={cn("rounded-[19px]", compact ? "aspect-[16/9]" : "aspect-[16/10]")} />
+        <ActivityCover activity={activity} photo={photo} creditAt="top" className={cn("rounded-[19px]", compact ? "aspect-[16/9]" : "aspect-[16/10]")} />
         <span className="glass absolute bottom-2.5 left-4 rounded-full border border-white/10 px-2.5 py-1 text-xs font-semibold text-fg">{t.enums.category[activity.category]}</span>
         {activity.is_demo && <DemoBadge className="absolute right-4 top-4 bg-nav/85" />}
         {/* Sitzt auf der Kante zwischen Bild und Text – so bleibt die Preiszeile frei. */}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { IconAlert, IconClose, IconFilter, IconInfo, IconRefresh, IconSearch, IconSpinner } from "@/components/icons";
+import { IconAlert, IconCamera, IconClose, IconFilter, IconInfo, IconRefresh, IconSearch, IconSpinner } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
 import { Chip, SwitchRow } from "@/components/ui/Controls";
@@ -9,6 +9,7 @@ import { SelectField } from "@/components/ui/Field";
 import { CATEGORIES } from "@/data/options";
 import { useProfile } from "@/features/profile/api";
 import { t } from "@/i18n";
+import { hasPhotoRef, photosAutoLoad, setPhotosAutoLoad } from "@/lib/commons";
 import { errorMessage } from "@/lib/errors";
 import { useDebouncedValue } from "@/lib/hooks";
 import { stepDeck } from "@/lib/stage";
@@ -16,6 +17,7 @@ import { dayPhase, formatDateWithYear } from "@/lib/time";
 import { ActivityCard } from "./ActivityCard";
 import { applyFilters, countActiveFilters, EMPTY_FILTERS, useActivitySearch, usePlaceRegion, type ActivityFilters } from "./api";
 import { CityField } from "./CityField";
+import { usePlacePhotos } from "./placePhotos";
 import { rememberCity, rememberedCity } from "./rememberedCity";
 import { StageDeck, stageDeck } from "./StageCard";
 
@@ -28,6 +30,12 @@ export function DiscoverPage() {
   const [filters, setFilters] = useState<ActivityFilters>(EMPTY_FILTERS);
   const [cityInitialized, setCityInitialized] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // P7: Fotos von Commons nur mit Einwilligung auf diesem Gerät (dieselbe wie auf der Seite eines Ortes).
+  const [photosOn, setPhotosOn] = useState(photosAutoLoad);
+  const togglePhotos = (on: boolean) => {
+    setPhotosAutoLoad(on);
+    setPhotosOn(on);
+  };
   // Position im Stapel – gilt nur für genau diesen Stapel; ändern sich Stadt, Kategorie oder Filter, geht es oben los.
   const [deckPosition, setDeckPosition] = useState({ key: "", index: 0 });
   const patch = (update: Partial<ActivityFilters>) => setFilters((f) => ({ ...f, ...update }));
@@ -71,6 +79,9 @@ export function DiscoverPage() {
   const stage = deck[deckIndex] ?? null;
   const rest = stage ? results.filter((r) => r !== stage) : results;
   const cityName = places.canonicalName ?? city;
+  const shownActivities = useMemo(() => results.map((r) => r.activity), [results]);
+  const photoRefs = useMemo(() => shownActivities.filter(hasPhotoRef).length, [shownActivities]);
+  const photos = usePlacePhotos(shownActivities, photosOn);
 
   return (
     <>
@@ -180,9 +191,20 @@ export function DiscoverPage() {
                     {t.discover.demoNotice.body}
                   </Notice>
                 )}
+                {!photosOn && photoRefs > 0 && (
+                  <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] leading-snug text-muted" data-testid="photo-offer">
+                    <IconCamera className="size-4 shrink-0 text-lime" aria-hidden />
+                    <p className="min-w-0 flex-1 basis-56">
+                      {t.discover.photo.discoverOffer(photoRefs)} {t.discover.photo.discoverPrivacy}
+                    </p>
+                    <Button variant="secondary" size="sm" onClick={() => togglePhotos(true)} icon={<IconCamera className="size-4" aria-hidden />}>
+                      {t.discover.photo.discoverLoad}
+                    </Button>
+                  </div>
+                )}
                 {stage && (
                   <div className="mb-9">
-                    <StageDeck deck={deck} index={deckIndex} onStep={(step) => setDeckPosition({ key: deckKey, index: stepDeck(deckIndex, deck.length, step) })} />
+                    <StageDeck deck={deck} index={deckIndex} photos={photos} onStep={(step) => setDeckPosition({ key: deckKey, index: stepDeck(deckIndex, deck.length, step) })} />
                   </div>
                 )}
                 {stage && rest.length > 0 && <h2 className="display mb-1.5 text-[20px] text-fg sm:text-[24px]">{t.discover.stage.more(cityName ?? "")}</h2>}
@@ -202,7 +224,7 @@ export function DiscoverPage() {
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {rest.map(({ activity, distanceKm }) => (
-                      <ActivityCard key={activity.id} activity={activity} distanceKm={distanceKm} />
+                      <ActivityCard key={activity.id} activity={activity} distanceKm={distanceKm} photo={photos.get(activity.id)} />
                     ))}
                   </div>
                 )}
@@ -216,6 +238,14 @@ export function DiscoverPage() {
                   {t.discover.sync.attribution}
                 </a>
                 , {t.discover.sync.license}
+              </p>
+            )}
+            {photosOn && photoRefs > 0 && (
+              <p className="mt-2 text-[13px] leading-snug text-faint">
+                {t.discover.photo.discoverOn}{" "}
+                <button type="button" onClick={() => togglePhotos(false)} className="underline decoration-line-strong underline-offset-4 hover:text-fg">
+                  {t.discover.photo.discoverOff}
+                </button>
               </p>
             )}
           </>
