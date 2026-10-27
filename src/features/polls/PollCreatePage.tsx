@@ -11,7 +11,7 @@ import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { useCrews } from "@/features/crews/api";
 import { CrewPicker } from "@/features/crews/CrewPicker";
-import { typicalPriceCents } from "@/features/discover/api";
+import { typicalPriceCents, useActivity } from "@/features/discover/api";
 import { usePlans } from "@/features/plans/api";
 import { planCountdown } from "@/features/plans/PlanTicket";
 import { t } from "@/i18n";
@@ -62,6 +62,17 @@ function linkedTime(value: string | null): string {
   return value && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : "";
 }
 
+/** P5 Etappe 3: Ort aus dem Link (`?place=<id>`) nur, wenn es eine gültige ID ist. */
+function linkedPlace(value: string | null): string | null {
+  return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
+/** „Wann könnt ihr zu Strike?“ – nur, wenn es in die 80 Zeichen des Titels passt. */
+function placeTitle(name: string): string {
+  const title = t.polls.create.dates.place.defaultTitle(name);
+  return title.length <= 80 ? title : t.polls.create.dates.defaultTitle;
+}
+
 let rowCounter = 0;
 const newKey = () => `opt-${++rowCounter}`;
 
@@ -89,7 +100,13 @@ export function PollCreatePage() {
   const whereId = params.get("where");
   const datePoll = usePoll(whereId ?? undefined);
   const linkedWinner = upcomingDateWinner(datePoll.data);
-  const [kind, setKind] = useState<PollKind>(params.get("kind") === "date" ? "date" : "place");
+  // P5 Etappe 3: „Termin finden“ in Discover bringt den Ort mit (?kind=date&place=<id>).
+  const [placeId, setPlaceId] = useState<string | null>(() => linkedPlace(params.get("place")));
+  const [kind, setKind] = useState<PollKind>(params.get("kind") === "date" || placeId ? "date" : "place");
+  const placeQuery = useActivity(kind === "date" ? placeId : null);
+  const [pickedPlace, setPickedPlace] = useState<Activity | null>(null);
+  const fixedPlace = kind === "date" && placeId ? (pickedPlace?.id === placeId ? pickedPlace : (placeQuery.data ?? null)) : null;
+  const placeMissing = kind === "date" && Boolean(placeId) && !fixedPlace && (placeQuery.isError || (placeQuery.isSuccess && !placeQuery.data));
   const [slots, setSlots] = useState<SlotRow[]>(defaultSlots);
   const [crewId, setCrewId] = useState(params.get("crew") ?? "");
   // P1 Etappe 3b: Hat die Crew eine Gewohnheit (Lieblingstag, übliche Uhrzeit), stehen deren nächste Termine
@@ -142,9 +159,10 @@ export function PollCreatePage() {
     const at = sharedDate ? zonedToUtc(sharedDate, "12:00") : null;
     return at ? t.polls.create.defaultTitle(t.weekdays[zonedParts(at).weekday]) : t.polls.create.pollTitlePlaceholder;
   }, [sharedDate]);
+  const dateTitle = fixedPlace ? placeTitle(fixedPlace.name) : t.polls.create.dates.defaultTitle;
   useEffect(() => {
-    if (!titleTouched.current) setTitle(kind === "date" ? t.polls.create.dates.defaultTitle : suggestedTitle);
-  }, [suggestedTitle, kind]);
+    if (!titleTouched.current) setTitle(kind === "date" ? dateTitle : suggestedTitle);
+  }, [suggestedTitle, kind, dateTitle]);
 
   const tonight = zonedToUtc(today(), "20:00");
   const tonightAvailable = Boolean(tonight && tonight.getTime() > Date.now() + 15 * 60_000);
@@ -207,6 +225,7 @@ export function PollCreatePage() {
       seen.add(`${row.date} ${row.time}`);
     }
     if (slots.length < MIN_DATE_SLOTS) next.slots = t.polls.create.dates.tooFew;
+    if (placeMissing) next.place = t.polls.create.dates.place.missing;
     const endsAt = resolveEnd();
     if (!endsAt) next.ends = t.validation.dateRequired;
     else if (endsAt.getTime() <= Date.now()) next.ends = t.validation.dateInPast;
@@ -215,7 +234,14 @@ export function PollCreatePage() {
     setFormError(null);
     if (Object.values(next).some(Boolean) || !endsAt) return;
     createDatePoll.mutate(
-      { crewId, title: title.trim(), endsAt, slots: slots.map((row) => ({ date: row.date, time: row.time || null })), description: description.trim() || null },
+      {
+        crewId,
+        title: title.trim(),
+        endsAt,
+        slots: slots.map((row) => ({ date: row.date, time: row.time || null })),
+        description: description.trim() || null,
+        activityId: placeId,
+      },
       {
         onSuccess: (pollId) => {
           toast.success(t.polls.create.started);
@@ -297,7 +323,11 @@ export function PollCreatePage() {
 
   return (
     <>
-      <PageHeader title={t.polls.create.title} lead={kind === "date" ? t.polls.create.dates.lead : t.polls.create.lead} back={{ to: "/plans", label: t.nav.plans }} />
+      <PageHeader
+        title={t.polls.create.title}
+        lead={kind === "date" ? (fixedPlace ? t.polls.create.dates.place.leadWithPlace(fixedPlace.name) : t.polls.create.dates.lead) : t.polls.create.lead}
+        back={{ to: "/plans", label: t.nav.plans }}
+      />
       <form onSubmit={submit} noValidate className="max-w-2xl space-y-4">
         {/* P1: Ort oder Termin – dieselbe Abstimmung, andere Optionen. V2 Etappe 3n: als zwei Auswahlkarten. */}
         <KindSwitch
@@ -305,7 +335,7 @@ export function PollCreatePage() {
           onChange={(value) => {
             setKind(value);
             // Titelvorschlag sofort mitwechseln (nicht erst im Effekt), solange niemand selbst getippt hat.
-            if (!titleTouched.current) setTitle(value === "date" ? t.polls.create.dates.defaultTitle : suggestedTitle);
+            if (!titleTouched.current) setTitle(value === "date" ? dateTitle : suggestedTitle);
             setErrors({});
             setFormError(null);
           }}
@@ -332,6 +362,20 @@ export function PollCreatePage() {
             required
           />
         </FormCard>
+
+        {kind === "date" && (
+          <DatePlaceCard
+            place={fixedPlace}
+            loading={Boolean(placeId) && !fixedPlace && placeQuery.isPending}
+            error={errors.place ?? (placeMissing ? t.polls.create.dates.place.missing : null)}
+            onPick={() => setPickerOpen(true)}
+            onRemove={() => {
+              setPlaceId(null);
+              setPickedPlace(null);
+              setErrors((current) => ({ ...current, place: null }));
+            }}
+          />
+        )}
 
         {kind === "date" ? (
           <FormCard title={t.polls.create.dates.title} icon={<IconCalendar className="size-[18px]" />} tone="violet" testId="poll-form-dates">
@@ -583,8 +627,69 @@ export function PollCreatePage() {
         </div>
       </form>
 
-      <ActivityPicker open={pickerOpen} onClose={() => setPickerOpen(false)} selectedIds={selectedActivityIds} onToggle={toggleActivity} />
+      {kind === "date" ? (
+        // P5 Etappe 3: genau ein Ort – antippen wählt ihn und schließt die Suche.
+        <ActivityPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          selectedIds={new Set(placeId ? [placeId] : [])}
+          onToggle={(activity) => {
+            const off = activity.id === placeId;
+            setPlaceId(off ? null : activity.id);
+            setPickedPlace(off ? null : activity);
+            setErrors((current) => ({ ...current, place: null }));
+            if (!off) setPickerOpen(false);
+          }}
+        />
+      ) : (
+        <ActivityPicker open={pickerOpen} onClose={() => setPickerOpen(false)} selectedIds={selectedActivityIds} onToggle={toggleActivity} />
+      )}
     </>
+  );
+}
+
+/**
+ * P5 Etappe 3 · Fester Ort für „Wann könnt ihr?“ (optional). Gewählt: Karte in der Farbwelt der Kategorie wie
+ * die Orts-Vorschläge; ohne Ort ein kurzer Hinweis und „Ort festlegen“.
+ */
+function DatePlaceCard({ place, loading, error, onPick, onRemove }: { place: Activity | null; loading: boolean; error: string | null; onPick: () => void; onRemove: () => void }) {
+  const copy = t.polls.create.dates.place;
+  return (
+    <FormCard title={copy.title} icon={<IconPin className="size-[18px]" />} tone="pink" testId="poll-form-date-place">
+      {place ? (
+        <div className="cat-world rounded-[20px] border border-white/10 p-3.5 sm:p-4" data-world={categoryWorld(place.category)} data-testid="poll-form-date-place-chosen">
+          <div className="flex items-start gap-3">
+            <span aria-hidden className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-lime text-lime-ink">
+              <IconPin className="size-[18px]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-semibold uppercase tracking-wide text-muted">{copy.fixed}</p>
+              <p className="display break-words text-[17px] leading-tight text-fg">{place.name}</p>
+              <p className="mt-1 text-[13px] text-muted">
+                {t.enums.category[place.category]}
+                {place.city ? `, ${place.city}` : ""}
+              </p>
+            </div>
+            <IconButton label={copy.remove} onClick={onRemove}>
+              <IconTrash className="size-[18px] text-muted" aria-hidden />
+            </IconButton>
+          </div>
+          {(place.latitude == null || place.longitude == null) && <p className="mt-3 text-[13px] leading-snug text-muted">{copy.noWeather}</p>}
+        </div>
+      ) : loading ? (
+        <p className="flex min-h-14 items-center text-sm text-muted" role="status">
+          {copy.loading}
+        </p>
+      ) : (
+        <p className="text-[13px] leading-snug text-muted">{copy.hint}</p>
+      )}
+      {error && <FormMessage>{error}</FormMessage>}
+      <div>
+        <Button variant="secondary" onClick={onPick} icon={<IconPin className="size-4" aria-hidden />}>
+          {place ? copy.change : copy.pick}
+        </Button>
+      </div>
+    </FormCard>
   );
 }
 

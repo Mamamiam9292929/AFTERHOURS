@@ -153,6 +153,8 @@ export const discover = {
     actionsTitle: "Mit der Crew",
     addToPoll: "In Abstimmung aufnehmen",
     createPlan: "Plan erstellen",
+    /** P5 Etappe 3: „Wann könnt ihr?“ für genau diesen Ort. */
+    findDate: "Termin finden",
     prepareBooking: "Reservierung vorbereiten",
     bookingDialogTitle: "Reservierung vorbereiten",
     bookingDialogBody: "Eine Reservierung gehört immer zu einem bestätigten Plan – dann stehen Datum, Uhrzeit und Personenzahl fest. Erstelle zuerst den Plan; die Reservierung bereitest du danach direkt dort vor.",

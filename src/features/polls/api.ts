@@ -106,19 +106,24 @@ export interface CreateDatePollInput {
   endsAt: Date;
   slots: { date: string; time: string | null }[];
   description?: string | null;
+  /** P5 Etappe 3: fester Ort aus Discover – jeder Termin trägt ihn, das Wetter kommt dann je Termin. */
+  activityId?: string | null;
 }
 
 export function useCreateDatePoll() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: async (input: CreateDatePollInput): Promise<string> => {
-      const { data, error } = await supabase.rpc("create_date_poll", {
+      const args = {
         p_crew_id: input.crewId,
         p_title: input.title,
         p_ends_at: input.endsAt.toISOString(),
         p_slots: input.slots,
         p_description: input.description ?? null,
-      });
+      };
+      const { data, error } = input.activityId
+        ? await supabase.rpc("create_place_date_poll", { ...args, p_activity_id: input.activityId })
+        : await supabase.rpc("create_date_poll", args);
       if (error) throw error;
       return data as string;
     },
