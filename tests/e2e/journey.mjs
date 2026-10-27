@@ -366,6 +366,27 @@ await step("W6 – Öffentliche Startseite ohne Anmeldung", async () => {
   check(true, "„Anmelden“ auf der Startseite führt zur Anmeldung");
 });
 
+// V2 Etappe 3o: Datenschutz-Seite ohne Anmeldung – Kopf als Karte, Abschnitte als Glas-Karten, Sprung-Pillen.
+await step("V2 – Datenschutz als Glas-Karten (ohne Anmeldung)", async () => {
+  for (const user of [alice, bob]) {
+    const { page } = user;
+    await page.goto(`${APP}/privacy`);
+    await page.getByRole("heading", { level: 1, name: "Datenschutz und deine Daten" }).waitFor();
+    const hero = page.getByTestId("privacy-hero");
+    for (const fact of ["Kein Tracking", "Keine Werbung", "Standort aus"]) await hero.getByText(fact, { exact: true }).waitFor();
+    check((await page.getByTestId("privacy-disclaimer").innerText()).includes("ersetzt keine rechtlich geprüfte Datenschutzerklärung"), `Datenschutz: Hinweis „nicht rechtlich geprüft“ steht in der Karte (${user.viewport})`);
+    check((await page.locator("section.plan-panel[data-tone]").count()) === 5, `Datenschutz: fünf Abschnitte als Glas-Karten mit Farbschein (${user.viewport})`);
+    const jump = page.getByRole("navigation", { name: "Springe zu" });
+    check((await jump.getByRole("link").count()) === 5, `Datenschutz: fünf Sprung-Pillen (${user.viewport})`);
+    await jump.getByRole("link", { name: "Standort" }).click();
+    await page.waitForFunction(() => location.hash === "#privacy-location");
+    check(await page.getByRole("heading", { level: 2, name: "Standort" }).isVisible(), `Datenschutz: Sprung-Pille führt zu „Standort“ (${user.viewport})`);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    check((await page.getByRole("link", { name: "Zur Anmeldung" }).count()) === 1, `Datenschutz ohne Konto führt zur Anmeldung (${user.viewport})`);
+    await shot(user, "00-datenschutz");
+  }
+});
+
 await step("Schutz ohne Anmeldung", async () => {
   await alice.page.goto(`${APP}/plans`);
   await alice.page.waitForURL(/\/login/);
@@ -1491,6 +1512,14 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   await page.goto(`${APP}/rewards`);
   await page.getByText("Plan organisiert").first().waitFor();
   check((await page.locator("section[aria-labelledby=balance-label]").innerText()).includes("40"), "Organisatorin erhält 30 + 10 Punkte");
+  // V2 Etappe 3o: Punktestand als Karte – Zahl in Chrom, Stufe als Lime-Pille, Leiter mit fünf Stufen.
+  check((await page.getByTestId("rewards-points").innerText()).trim() === "40", "V2: Punktestand steht groß auf der Karte");
+  check((await page.getByTestId("rewards-level").getAttribute("data-tone")) === "lime", "V2: Stufe als Lime-Pille, sobald es Punkte gibt");
+  const levels = page.getByTestId("rewards-levels").getByRole("listitem");
+  check((await levels.count()) === 5 && (await page.locator('[data-testid=rewards-levels] li[data-reached="true"]').count()) === 1, "V2: Leiter zeigt fünf Stufen, die erste erreicht");
+  check((await page.locator('[data-testid=rewards-levels] li[aria-current="step"]').innerText()).includes("Neu dabei"), "V2: eigene Stufe in der Leiter markiert");
+  check((await page.getByTestId("rewards-history").locator(".bg-lime").count()) === 2, "V2: Verlauf zeigt die Punkte als Lime-Pillen");
+  check((await page.locator('[data-testid=rewards-milestones] li[data-done="true"]').count()) === 2, "V2: zwei Meilensteine erreicht (erste Unternehmung, zum ersten Mal organisiert)");
   await shot(alice, "19-rewards");
   await bob.page.goto(`${APP}/rewards`);
   await bob.page.getByText("Dabei gewesen").first().waitFor();
@@ -1499,6 +1528,11 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   await carol.page.goto(`${APP}/rewards`);
   await carol.page.getByText("Noch keine Punkte").waitFor();
   check(true, "Carol (abgesagt) erhält keine Punkte");
+  check(
+    (await carol.page.getByTestId("rewards-level").getAttribute("data-tone")) === "glass" && (await carol.page.locator('[data-testid=rewards-levels] li[data-reached="true"]').count()) === 0,
+    "V2: ohne Punkte bleibt die Karte ruhig (Stufe als Glas-Pille, keine Stufe erreicht)",
+  );
+  await shot(carol, "19-rewards");
 });
 
 await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async () => {
