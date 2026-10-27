@@ -24,6 +24,8 @@ select tests.set_var('place', (select id::text from public.activities where exte
 select tests.set_var('inactive', (select id::text from public.activities where external_id = 'pdp-zu'));
 select tests.set_var('d1', ((now() at time zone 'Europe/Berlin')::date + 3)::text);
 select tests.set_var('d2', ((now() at time zone 'Europe/Berlin')::date + 4)::text);
+select tests.set_var('l1', app_private.german_date_label(tests.var('d1')::date));
+select tests.set_var('l2', app_private.german_date_label(tests.var('d2')::date));
 select tests.set_var('slots', jsonb_build_array(
   jsonb_build_object('date', tests.var('d1'), 'time', '19:30'),
   jsonb_build_object('date', tests.var('d2')))::text);
@@ -65,7 +67,7 @@ select is((select count(*)::int from public.poll_options where poll_id = tests.v
 select is((select count(*)::int from public.poll_options where poll_id = tests.var('poll')::uuid and activity_id = tests.var('place')::uuid), 2,
   'jeder Termin trägt den Ort');
 select is((select string_agg(title, ' | ' order by position) from public.poll_options where poll_id = tests.var('poll')::uuid),
-  app_private.german_date_label(tests.var('d1')::date) || ' | ' || app_private.german_date_label(tests.var('d2')::date),
+  tests.var('l1') || ' | ' || tests.var('l2'),
   'Titel der Optionen bleiben das Datum');
 select is((select count(*)::int from public.notifications where entity_id = tests.var('poll')::uuid and user_id = tests.uid('bob')), 1,
   'die Crew erfährt davon wie bei jeder Abstimmung');
