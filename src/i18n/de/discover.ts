@@ -182,5 +182,11 @@ export const discover = {
     privacy: "Das Foto kommt von Wikimedia Commons. Beim Laden wird deine IP-Adresse dorthin übertragen.",
     autoLabel: "Fotos von Orten immer laden",
     autoHint: "Nur auf diesem Gerät. Gezeigt werden nur Fotos mit freier Lizenz – immer mit Quelle und Lizenz.",
+    cardCredit: (author: string, license: string) => `Foto: ${author} · ${license}`,
+    creditLabel: (author: string, license: string) => `Foto: ${author}, Lizenz ${license} – Quelle bei Wikimedia Commons`,
+    discoverOffer: (n: number) => (n === 1 ? "Zu 1 Ort verweist OpenStreetMap auf ein Foto bei Wikimedia Commons." : `Zu ${n} Orten verweist OpenStreetMap auf ein Foto bei Wikimedia Commons.`),
+    discoverLoad: "Fotos zeigen",
+    discoverOn: "Fotos von Wikimedia Commons, Urheber:in und Lizenz stehen am Bild.",
+    discoverOff: "Fotos aus",
   },
 };

@@ -6,6 +6,7 @@ import { DemoBadge } from "@/components/ui/Feedback";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatDistance } from "@/lib/format";
+import type { PlacePhoto } from "@/lib/commons";
 import { openStateAt } from "@/lib/hours";
 import { rankStage, type Ranked } from "@/lib/stage";
 import { ActivityCover, usePollToggle } from "./ActivityCard";
@@ -27,6 +28,8 @@ interface StageDeckProps {
   index: number;
   onStep: (step: 1 | -1) => void;
   now?: Date;
+  /** P7: Fotos von Commons je Orts-ID (leer, solange „Fotos immer laden“ aus ist). */
+  photos?: ReadonlyMap<string, PlacePhoto>;
 }
 
 /**
@@ -34,7 +37,7 @@ interface StageDeckProps {
  * Name als Plakat, Eckdaten als Pillen, zwei klare Aktionen. Mit den Pfeilen oder per Wischen über das
  * Bild kommt der nächste Ort nach vorn; der vorige wandert zurück in die Liste darunter.
  */
-export function StageDeck({ deck, index, onStep, now = new Date() }: StageDeckProps) {
+export function StageDeck({ deck, index, onStep, now = new Date(), photos }: StageDeckProps) {
   const [entering, setEntering] = useState<"next" | "prev" | null>(null);
   const [drag, setDrag] = useState(0);
   const startX = useRef<number | null>(null);
@@ -71,6 +74,7 @@ export function StageDeck({ deck, index, onStep, now = new Date() }: StageDeckPr
           key={current.activity.id}
           activity={current.activity}
           distanceKm={current.distanceKm}
+          photo={photos?.get(current.activity.id) ?? null}
           now={now}
           entering={entering}
           drag={drag}
@@ -99,13 +103,14 @@ export function StageDeck({ deck, index, onStep, now = new Date() }: StageDeckPr
 }
 
 interface StageCardProps extends Ranked {
+  photo: PlacePhoto | null;
   now: Date;
   entering: "next" | "prev" | null;
   drag: number;
   artHandlers?: Pick<HTMLAttributes<HTMLDivElement>, "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel">;
 }
 
-function StageCard({ activity, distanceKm, now, entering, drag, artHandlers }: StageCardProps) {
+function StageCard({ activity, distanceKm, photo, now, entering, drag, artHandlers }: StageCardProps) {
   const { selected, toggle } = usePollToggle(activity);
   const state = openStateAt(activity.opening_hours, now);
   const isOpen = state.state === "open";
@@ -127,7 +132,7 @@ function StageCard({ activity, distanceKm, now, entering, drag, artHandlers }: S
       style={drag ? { transform: `translateX(${drag}px) rotate(${drag / 30}deg)` } : undefined}
     >
       <div className={cn("stage-art relative p-2 lg:pr-0", artHandlers && "cursor-grab active:cursor-grabbing")} {...artHandlers}>
-        <ActivityCover activity={activity} className="aspect-[16/10] rounded-[24px] lg:aspect-auto lg:h-full lg:min-h-[280px]" />
+        <ActivityCover activity={activity} photo={photo} className="aspect-[16/10] rounded-[24px] lg:aspect-auto lg:h-full lg:min-h-[280px]" />
         {isOpen && (
           <span className="glass absolute left-5 top-5 inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-[13px] font-semibold text-lime">
             <span className="size-2 rounded-full bg-lime" aria-hidden />

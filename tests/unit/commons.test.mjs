@@ -1,7 +1,10 @@
 // P7 · Fotos von Orten über Wikimedia Commons (src/lib/commons.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { hasPhotoRef, imageInfoUrl, loadPlacePhoto, parseImageInfo, parseWikidataImage, plainText, PhotoError, wikidataUrl } from "../../src/lib/commons.ts";
+import {
+  BATCH_SIZE, hasPhotoRef, imageInfoBatchUrl, imageInfoUrl, loadPlacePhoto, loadPlacePhotos, newPhotoCache, normalizeFile, parseImageInfo,
+  parseImageInfoBatch, parseWikidataBatch, parseWikidataImage, plainText, PhotoError, wikidataBatchUrl, wikidataUrl,
+} from "../../src/lib/commons.ts";
 
 const info = (over = {}, meta = {}) => ({
   query: {
@@ -135,4 +138,118 @@ test("Laden: Datei zuerst, dann Wikidata; Fehler sind Fehler, kein Foto ist null
   assert.equal(await loadPlacePhoto({ commons_file: null, wikidata_id: null }, fake({})), null);
   await assert.rejects(loadPlacePhoto({ commons_file: "File:A.jpg", wikidata_id: null }, fake({ "commons.wikimedia.org": 503 })), PhotoError);
   await assert.rejects(loadPlacePhoto({ commons_file: null, wikidata_id: "Q4" }, fake({ "www.wikidata.org": new TypeError("offline") })), PhotoError);
+});
+
+// Etappe 2: Sammelabfragen für Discover.
+
+const page = (title, meta = {}) => ({
+  title,
+  imageinfo: [{
+    thumburl: `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${encodeURIComponent(title.slice(5).replace(/ /g, "_"))}/640px-x.jpg`,
+    thumbwidth: 640, thumbheight: 427, mime: "image/jpeg",
+    descriptionurl: `https://commons.wikimedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`,
+    extmetadata: { Artist: { value: "Lea" }, LicenseShortName: { value: "CC BY 4.0" }, ...meta },
+  }],
+});
+
+/** Nachgestellte Wikimedia-APIs: zählt Anfragen, beantwortet Sammelabfragen wie die echten. */
+function fakeWikimedia({ freeFiles = [], images = {}, down = [] } = {}) {
+  const calls = [];
+  const fetcher = async (raw) => {
+    const url = new URL(raw);
+    calls.push(url);
+    const json = (body) => ({ ok: true, json: async () => body });
+    if (down.includes(url.host)) return { ok: false, json: async () => ({}) };
+    if (url.searchParams.get("action") === "wbgetentities") {
+      const entities = {};
+      for (const id of url.searchParams.get("ids").split("|")) {
+        entities[id] = images[id] ? { claims: { P18: [{ rank: "normal", mainsnak: { datavalue: { value: images[id] } } }] } } : { claims: {} };
+      }
+      return json({ entities });
+    }
+    const titles = url.searchParams.get("titles").split("|");
+    return json({ query: { pages: titles.map((t) => (freeFiles.includes(t) ? page(t) : page(t, { LicenseShortName: { value: "All rights reserved" } }))) } });
+  };
+  return { calls, fetcher };
+}
+
+test("Dateinamen wie Commons: Leerzeichen, großer Anfang, „File:“", () => {
+  assert.equal(normalizeFile("File:pub_18__Leipzig.jpg"), "File:Pub 18 Leipzig.jpg");
+  assert.equal(normalizeFile("file:Moritzbastei.JPG"), "File:Moritzbastei.JPG");
+});
+
+test("Sammelabfrage: ein Eintrag je angefragter Datei, auch über „normalized“ und für fehlende", () => {
+  const body = {
+    query: {
+      normalized: [{ from: "File:a_b.jpg", to: "File:A b.jpg" }],
+      pages: [page("File:A b.jpg"), { title: "File:Fehlt.jpg", missing: true }, page("File:Unfrei.jpg", { LicenseShortName: { value: "Fair use" } })],
+    },
+  };
+  const result = parseImageInfoBatch(body, ["File:a_b.jpg", "File:Fehlt.jpg", "File:Unfrei.jpg", "File:Nie gefragt.jpg"]);
+  assert.equal(result.get("File:a_b.jpg")?.author, "Lea");
+  assert.equal(result.get("File:Fehlt.jpg"), null);
+  assert.equal(result.get("File:Unfrei.jpg"), null);
+  assert.equal(result.get("File:Nie gefragt.jpg"), null);
+  assert.equal(parseImageInfoBatch(null, ["File:X.jpg"]).get("File:X.jpg"), null);
+});
+
+test("Sammel-URLs: Titel bzw. Einträge mit | getrennt, kleineres Vorschaubild", () => {
+  const url = new URL(imageInfoBatchUrl(["File:A.jpg", "File:B.jpg"]));
+  assert.equal(url.searchParams.get("titles"), "File:A.jpg|File:B.jpg");
+  assert.equal(url.searchParams.get("iiurlwidth"), "640");
+  assert.equal(url.searchParams.get("origin"), "*");
+  const wd = new URL(wikidataBatchUrl(["Q1", "Q2"]));
+  assert.equal(wd.searchParams.get("action"), "wbgetentities");
+  assert.equal(wd.searchParams.get("ids"), "Q1|Q2");
+  assert.equal(wd.searchParams.get("props"), "claims");
+  assert.deepEqual([...parseWikidataBatch({ entities: { Q1: { claims: { P18: [{ rank: "deprecated", mainsnak: { datavalue: { value: "Alt.jpg" } } }] } } } }, ["Q1", "Q2"])], [["Q1", null], ["Q2", null]]);
+});
+
+test("Fotos für viele Orte: Commons zuerst, Wikidata nur wo nötig, je Runde eine Anfrage", async () => {
+  const { calls, fetcher } = fakeWikimedia({ freeFiles: ["File:Pub 18.jpg", "File:Kino.jpg"], images: { Q7: "Kino.jpg", Q8: "Unfrei.jpg", Q9: "Pub_18.jpg" } });
+  const photos = await loadPlacePhotos([
+    { id: "a", commons_file: "File:Pub_18.jpg", wikidata_id: "Q9" },
+    { id: "b", commons_file: null, wikidata_id: "Q7" },
+    { id: "c", commons_file: "File:Unfrei2.jpg", wikidata_id: "Q8" },
+    { id: "d", commons_file: null, wikidata_id: null },
+    { id: "e", commons_file: "File:Logo.svg", wikidata_id: "Q99999999999999" },
+  ], fetcher, newPhotoCache());
+  assert.deepEqual([...photos.keys()].sort(), ["a", "b"]);
+  assert.equal(photos.get("a").file, "Pub 18.jpg");
+  assert.equal(photos.get("b").file, "Kino.jpg");
+  const commons = calls.filter((u) => u.host === "commons.wikimedia.org");
+  const wikidata = calls.filter((u) => u.host === "www.wikidata.org");
+  assert.equal(wikidata.length, 1, "eine Wikidata-Anfrage für alle Einträge");
+  assert.equal(wikidata[0].searchParams.get("ids"), "Q7|Q8", "Wikidata nur für Orte ohne freies Commons-Foto");
+  assert.equal(commons.length, 2, "Runde 1 (OSM-Dateien) und Runde 2 (Bilder aus Wikidata)");
+  assert.equal(commons[0].searchParams.get("titles"), "File:Pub 18.jpg|File:Unfrei2.jpg");
+  assert.equal(commons[1].searchParams.get("titles"), "File:Kino.jpg|File:Unfrei.jpg");
+});
+
+test("Zwischenspeicher: schon Gefragtes wird nicht noch einmal gefragt", async () => {
+  const { calls, fetcher } = fakeWikimedia({ freeFiles: ["File:A.jpg"] });
+  const cache = newPhotoCache();
+  await loadPlacePhotos([{ id: "a", commons_file: "File:A.jpg", wikidata_id: null }], fetcher, cache);
+  const again = await loadPlacePhotos([{ id: "a", commons_file: "File:A.jpg", wikidata_id: null }, { id: "b", commons_file: "File:B.jpg", wikidata_id: null }], fetcher, cache);
+  assert.equal(again.size, 1);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].searchParams.get("titles"), "File:B.jpg");
+});
+
+test("Mehr als 50 Orte: in Teilen; fällt ein Dienst aus, fehlen nur dessen Fotos", async () => {
+  const files = Array.from({ length: BATCH_SIZE + 3 }, (_, i) => `File:Ort ${i}.jpg`);
+  const { calls, fetcher } = fakeWikimedia({ freeFiles: files });
+  const photos = await loadPlacePhotos(files.map((f, i) => ({ id: String(i), commons_file: f, wikidata_id: null })), fetcher, newPhotoCache());
+  assert.equal(photos.size, BATCH_SIZE + 3);
+  assert.deepEqual(calls.map((u) => u.searchParams.get("titles").split("|").length), [BATCH_SIZE, 3]);
+
+  const down = fakeWikimedia({ freeFiles: ["File:A.jpg"], images: { Q1: "B.jpg" }, down: ["www.wikidata.org"] });
+  const cache = newPhotoCache();
+  const partial = await loadPlacePhotos([{ id: "a", commons_file: "File:A.jpg", wikidata_id: null }, { id: "b", commons_file: null, wikidata_id: "Q1" }], down.fetcher, cache);
+  assert.deepEqual([...partial.keys()], ["a"]);
+  assert.equal(cache.wikidata.has("Q1"), false, "Ausfall wird nicht als „kein Foto“ gemerkt");
+  const failing = async () => {
+    throw new TypeError("offline");
+  };
+  assert.equal((await loadPlacePhotos([{ id: "a", commons_file: "File:A.jpg", wikidata_id: null }], failing, newPhotoCache())).size, 0);
 });

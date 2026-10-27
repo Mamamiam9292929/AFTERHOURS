@@ -2575,6 +2575,10 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
   check(dialogs === 0, "Namen aus OSM werden als Text dargestellt, nicht als HTML");
 
   await page.getByLabel("Ort oder Aktivität suchen").fill("pub 18");
+  // P7 Etappe 2: Discover bietet Fotos an, lädt aber ohne Einwilligung nichts.
+  await page.getByTestId("photo-offer").waitFor();
+  check((await page.getByTestId("photo-offer").innerText()).includes("Zu 1 Ort verweist OpenStreetMap auf ein Foto bei Wikimedia Commons."), "Discover nennt, zu wie vielen Orten es ein Foto gibt");
+  check((await page.locator("img[data-commons]").count()) === 0, "ohne Einwilligung kein Commons-Foto in Discover");
   await page.getByRole("link", { name: "pub 18", exact: true }).click();
   await page.getByRole("heading", { name: "Auf einen Blick" }).waitFor();
   check(await page.getByText(/OpenStreetMap-Mitwirkende, Stand/).isVisible(), "Detailseite nennt OSM als Quelle");
@@ -2594,26 +2598,32 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     wikimedia.push(url);
     if (url.host === "upload.wikimedia.org") return route.fulfill({ status: 200, contentType: "image/png", body: PNG, headers: cors });
     if (url.host === "www.wikidata.org") {
+      // Etappe 2: Discover fragt alle Einträge gesammelt (wbgetentities).
+      if (url.searchParams.get("action") === "wbgetentities") {
+        const entities = Object.fromEntries((url.searchParams.get("ids") ?? "").split("|").map((id) => [id, id === "Q4711" ? { claims: { P18: [{ rank: "normal", mainsnak: { datavalue: { value: "Cinema 11 Leipzig.jpg" } } }] } } : { claims: {} }]));
+        return route.fulfill({ status: 200, contentType: "application/json", headers: cors, body: JSON.stringify({ entities }) });
+      }
       if (wikidataDown) {
         wikidataDown = false;
         return route.fulfill({ status: 429, contentType: "application/json", body: "{}", headers: cors });
       }
       return route.fulfill({ status: 200, contentType: "application/json", headers: cors, body: JSON.stringify({ claims: { P18: [{ rank: "normal", mainsnak: { datavalue: { value: "Cinema 11 Leipzig.jpg" } } }] } }) });
     }
-    const title = url.searchParams.get("titles") ?? "";
-    const file = encodeURIComponent(title.slice(5).replace(/ /g, "_"));
-    return route.fulfill({
-      status: 200, contentType: "application/json", headers: cors,
-      body: JSON.stringify({ query: { pages: [{ title, imageinfo: [{
-        thumburl: `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${file}/960px-${file}`, thumbwidth: 960, thumbheight: 640, mime: "image/jpeg",
+    // Eine oder mehrere Dateien je Anfrage (Discover sammelt bis zu 50 Titel, mit | getrennt).
+    const width = url.searchParams.get("iiurlwidth") ?? "960";
+    const pages = (url.searchParams.get("titles") ?? "").split("|").map((title) => {
+      const file = encodeURIComponent(title.slice(5).replace(/ /g, "_"));
+      return { title, imageinfo: [{
+        thumburl: `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${file}/${width}px-${file}`, thumbwidth: Number(width), thumbheight: Math.round(Number(width) * 2 / 3), mime: "image/jpeg",
         descriptionurl: `https://commons.wikimedia.org/wiki/File:${file}`,
         extmetadata: {
           Artist: { value: '<a href="//commons.wikimedia.org/wiki/User:Lea">Lea <b>Fotografin</b></a>' },
           LicenseShortName: { value: "CC BY-SA 4.0" }, LicenseUrl: { value: "https://creativecommons.org/licenses/by-sa/4.0" },
           AttributionRequired: { value: "true" },
         },
-      }] }] } }),
+      }] };
     });
+    return route.fulfill({ status: 200, contentType: "application/json", headers: cors, body: JSON.stringify({ query: { pages } }) });
   });
   if (DB_URL) {
     const refs = execFileSync("psql", [DB_URL, "-tAc",
@@ -2644,7 +2654,30 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
   // Das Feld wird erst gefüllt, wenn das Profil geladen ist.
   await page.waitForFunction(() => document.querySelector('input[aria-label="Stadt"]')?.value, null, { timeout: 15_000 }).catch(() => {});
   check((await page.getByLabel("Stadt", { exact: true }).inputValue()) === "Leipzig", "Discover merkt sich die zuletzt gewählte Stadt");
-  await page.getByLabel("Ort oder Aktivität suchen").fill("cinema 11");
+  {
+    // P7 Etappe 2: Mit „immer laden“ zeigen auch die Karten in Discover das Foto, mit Urheber:in und Lizenz.
+    await page.getByLabel("Ort oder Aktivität suchen").fill("pub 18");
+    const pubCard = page.getByRole("article").filter({ has: page.getByRole("link", { name: "pub 18", exact: true }) });
+    const cardPhoto = pubCard.locator("img[data-commons]");
+    await cardPhoto.waitFor();
+    const src = await cardPhoto.getAttribute("src");
+    check(src.startsWith("https://upload.wikimedia.org/") && src.includes("/640px-"), `Discover-Karte zeigt das Commons-Foto in Kartengröße (${src})`);
+    check((await cardPhoto.getAttribute("referrerpolicy")) === "no-referrer", "Kartenfoto ohne Referrer");
+    const cardCredit = pubCard.getByTestId("card-photo-credit");
+    check((await cardCredit.innerText()).trim() === "Foto: Lea Fotografin · CC BY-SA 4.0", `Urheber:in und Lizenz stehen auf der Karte (${await cardCredit.innerText()})`);
+    check((await cardCredit.getAttribute("href")) === "https://commons.wikimedia.org/wiki/File:Pub_18_Leipzig.jpg", "Bildangabe führt zur Datei bei Commons");
+    check(!(await page.getByTestId("photo-offer").isVisible()), "mit Einwilligung kein Foto-Angebot mehr");
+    await page.waitForFunction(() => [...document.querySelectorAll("img[data-commons]")].every((img) => img.complete));
+    await shot(alice, "35-discover-fotos");
+
+    await page.getByLabel("Ort oder Aktivität suchen").fill("cinema 11");
+    const cinemaCard = page.getByRole("article").filter({ has: page.getByRole("link", { name: "cinema 11", exact: true }) });
+    await cinemaCard.locator("img[data-commons]").waitFor();
+    const discoverWikidata = wikimedia.filter((u) => u.host === "www.wikidata.org");
+    check(discoverWikidata.length > 0 && discoverWikidata.every((u) => u.searchParams.get("action") === "wbgetentities"), "Discover fragt Wikidata gesammelt, nicht je Ort");
+    check(discoverWikidata.some((u) => (u.searchParams.get("ids") ?? "").split("|").includes("Q4711")), "Karte ohne Commons-Datei bekommt das Bild des Wikidata-Eintrags");
+    check(wikimedia.filter((u) => u.host === "commons.wikimedia.org" && u.searchParams.get("iiurlwidth") === "640").length <= 4, "Fotos für Discover kommen mit wenigen Sammelabfragen");
+  }
   await page.getByRole("link", { name: "cinema 11", exact: true }).click();
   await page.getByText("Laut OpenStreetMap (Originalangabe):").waitFor();
   check(await page.getByText("Mo-Fr 18:00+").isVisible(), "nicht übersetzbare Öffnungszeiten erscheinen im Original");
@@ -2670,6 +2703,13 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     await bob.page.goto(page.url());
     await bob.page.getByRole("button", { name: "Foto anzeigen" }).waitFor();
     await shot(bob, "34c-osm-foto-angebot");
+    // Discover auf 390 px: Angebot „Fotos zeigen“ ohne Überlauf, weiter ohne Anfrage.
+    await bob.page.evaluate(() => localStorage.setItem("afterhours.discover.city", "Leipzig"));
+    await bob.page.goto(`${APP}/discover`);
+    await bob.page.waitForFunction(() => document.querySelector('input[aria-label="Stadt"]')?.value === "Leipzig", null, { timeout: 15_000 });
+    await bob.page.getByLabel("Ort oder Aktivität suchen").fill("pub 18");
+    await bob.page.getByTestId("photo-offer").waitFor();
+    await shot(bob, "35b-discover-foto-angebot");
     check(bobWikimedia.length === 0, "Smartphone: ohne Tipp keine Anfrage an Wikimedia");
     await bob.page.unroute(WIKIMEDIA);
   }
