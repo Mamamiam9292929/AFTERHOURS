@@ -2652,10 +2652,17 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
         },
         [from, to],
       );
+    // Zeiger- und Rad-Ereignisse rendert React nicht sofort (anders als Klicks) – auf die neue Zoomstufe warten.
+    const zoomLeaves = (from) =>
+      page
+        .waitForFunction((z) => Number(document.querySelector('[role="region"][data-zoom]')?.dataset.zoom) !== z, from, { timeout: 5_000 })
+        .catch(() => {});
     await pinchBy(60, 150);
+    await zoomLeaves(fitZoom);
     const pinchIn = Number(await map.getAttribute("data-zoom"));
     check(pinchIn > fitZoom, `zwei Finger spreizen zoomt heran (${fitZoom} → ${pinchIn})`);
     await pinchBy(150, 60);
+    await zoomLeaves(pinchIn);
     const pinchOut = Number(await map.getAttribute("data-zoom"));
     check(pinchOut < pinchIn, `zwei Finger zusammenführen zoomt weiter weg (${pinchIn} → ${pinchOut})`);
 
@@ -2667,8 +2674,10 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
         return el.dispatchEvent(new WheelEvent("wheel", { deltaY: -120, ctrlKey: ctrl, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, cancelable: true }));
       }, ctrlKey);
     await wheel(false);
+    await page.waitForTimeout(300);
     check(Number(await map.getAttribute("data-zoom")) === fitZoom, "Mausrad ohne Strg zoomt die Karte nicht");
     const notCancelled = await wheel(true);
+    await zoomLeaves(fitZoom);
     check(Number(await map.getAttribute("data-zoom")) === fitZoom + 1 && notCancelled === false, "Strg + Mausrad zoomt eine Stufe, der Browser zoomt nicht die Seite");
 
     // Doppeltipp auf freie Fläche (unten links ist am Rand, dort liegt kein Ort): eine Stufe näher.
