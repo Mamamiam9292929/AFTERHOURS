@@ -1826,14 +1826,15 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     const settleButton = pairs.getByRole("button", { name: /^Du gibst Alice 38\s€: alles auf einmal als erledigt markieren$/ });
     await settleButton.click();
     const dialog = bob.page.getByRole("dialog", { name: "Alles auf einmal erledigt?" });
-    await dialog.waitFor();
+    const confirmPair = dialog.getByRole("button", { name: "Ja, alles erledigt" });
+    await confirmPair.waitFor();
     const body = await dialog.innerText();
     check(/Kino im Park\s−10\s€/.test(body) && /Strike District Bowling\s−28\s€/.test(body), "Rückfrage nennt jeden Abend mit Betrag");
     await shot(bob, "21h-alles-auf-einmal-rueckfrage");
 
     // Fehlerzustand: Alice trägt in der Zwischenzeit 2 € ein – die angezeigte Summe stimmt nicht mehr.
     await api(alice, "POST", "rpc/add_plan_expense", { p_plan_id: kino, p_description: "Popcorn", p_amount_cents: 200, p_paid_by: null, p_split_with: [aliceId, bobId] });
-    await dialog.getByRole("button", { name: "Ja, alles erledigt" }).click();
+    await confirmPair.click();
     await dialog.getByText("Inzwischen hat sich bei den Beträgen etwas geändert.", { exact: false }).waitFor();
     check(psql(`select count(*) from public.plan_expenses where kind = 'settlement' and plan_id = '${kino}'`) === "0", "veraltete Summe trägt nichts ein");
     await dialog.getByRole("button", { name: "Abbrechen" }).click();
@@ -1841,7 +1842,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     check(true, "nach dem Fehler steht die neue Summe da (39 €)");
 
     await pairs.getByRole("button", { name: /^Du gibst Alice 39\s€: alles auf einmal als erledigt markieren$/ }).click();
-    await dialog.getByRole("button", { name: "Ja, alles erledigt" }).click();
+    await confirmPair.click();
     await toast(bob, "Rückzahlungen bei 2 Abenden eingetragen.");
     await bob.page.getByTestId("crew-balances").waitFor({ state: "detached" });
     check(true, "danach ist bei Bob nichts mehr offen – die Karte verschwindet");

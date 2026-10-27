@@ -81,6 +81,8 @@ select is((select balance_cents from public.crew_open_balances(tests.var('crew')
 select is((select count(*)::int from public.plan_expenses e where e.kind = 'settlement' and e.plan_id = tests.var('carol_plan')::uuid), 0, 'dort wurde nichts eingetragen');
 
 -- Eine Benachrichtigung an Alice, nicht eine je Abend.
+-- (Gelesen ohne Rolle: Benachrichtigungen sieht per RLS nur die Empfängerin.)
+select tests.logout();
 select is((select count(*)::int from public.notifications n where n.user_id = tests.uid('alice') and n.type = 'plan_settlement'), 1, 'Alice bekommt genau eine Nachricht');
 select is((select n.payload from public.notifications n where n.user_id = tests.uid('alice') and n.type = 'plan_settlement'),
   jsonb_build_object('bundle', true, 'crew_name', 'Weekend Crew', 'amount_cents', 2800, 'plan_count', 3, 'direction', 'paid_you'),
@@ -89,6 +91,7 @@ select is((select n.entity_type || ':' || n.related_entity_id::text from public.
   'crew:' || tests.var('crew'), 'die Nachricht führt zur Crew');
 
 -- Zweiter Tipp: nichts mehr offen.
+select tests.login('bob');
 select throws_ok(format($$ select public.settle_crew_balances_with(%L, %L, 0) $$, tests.var('crew'), tests.uid('alice')), 'P0001', 'nothing_to_settle', 'zweimal geht nicht');
 
 -- ---- Genau verrechnet ----------------------------------------------------------------------------
@@ -109,8 +112,10 @@ select ok(public.add_plan_expense(tests.var('kino')::uuid, 'Popcorn', 1000, null
 select tests.login('alice');
 select is(public.settle_crew_balances_with(tests.var('crew')::uuid, tests.uid('bob'), 0),
   jsonb_build_object('plans', 2, 'net_cents', 0), 'gegenseitig 5 €: verrechnet, quitt');
+select tests.logout();
 select is((select n.payload ->> 'direction' from public.notifications n where n.user_id = tests.uid('bob') and n.type = 'plan_settlement' and n.payload ? 'bundle'), 'offset',
   'Bob erfährt, dass verrechnet wurde');
+select tests.login('alice');
 select is((select count(*)::int from public.crew_open_balances(tests.var('crew')::uuid)), 0, 'wieder alles ausgeglichen');
 
 -- Wer die Crew verlassen hat, kann nicht mehr ausgleichen.
