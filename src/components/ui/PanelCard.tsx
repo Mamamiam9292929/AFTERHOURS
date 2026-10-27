@@ -20,7 +20,7 @@ export function PanelCard({
   id: string;
   title: string;
   icon: ReactNode;
-  tone?: "violet" | "pink" | "lime";
+  tone?: "violet" | "pink" | "lime" | "amber";
   status?: ReactNode;
   lead?: ReactNode;
   testId?: string;
