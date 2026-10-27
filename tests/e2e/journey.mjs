@@ -2583,6 +2583,63 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
   check(await page.getByText(/Feiertage sind nicht berücksichtigt/).isVisible(), "Hinweis auf Grenzen der OSM-Öffnungszeiten");
   await shot(alice, "34-osm-ort");
 
+  // P7: Foto von Wikimedia Commons. pub 18 hat im OSM-Stellvertreter wikimedia_commons, cinema 11 nur wikidata.
+  // Commons, Wikidata und der Bildserver werden hier im Browser nachgestellt; gezählt wird jede Anfrage.
+  const wikimedia = [];
+  let wikidataDown = true;
+  const WIKIMEDIA = /^https:\/\/(commons\.wikimedia\.org|www\.wikidata\.org|upload\.wikimedia\.org)\//;
+  const cors = { "Access-Control-Allow-Origin": "*" };
+  await page.route(WIKIMEDIA, async (route) => {
+    const url = new URL(route.request().url());
+    wikimedia.push(url);
+    if (url.host === "upload.wikimedia.org") return route.fulfill({ status: 200, contentType: "image/png", body: PNG, headers: cors });
+    if (url.host === "www.wikidata.org") {
+      if (wikidataDown) {
+        wikidataDown = false;
+        return route.fulfill({ status: 429, contentType: "application/json", body: "{}", headers: cors });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", headers: cors, body: JSON.stringify({ claims: { P18: [{ rank: "normal", mainsnak: { datavalue: { value: "Cinema 11 Leipzig.jpg" } } }] } }) });
+    }
+    const title = url.searchParams.get("titles") ?? "";
+    const file = encodeURIComponent(title.slice(5).replace(/ /g, "_"));
+    return route.fulfill({
+      status: 200, contentType: "application/json", headers: cors,
+      body: JSON.stringify({ query: { pages: [{ title, imageinfo: [{
+        thumburl: `https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/${file}/960px-${file}`, thumbwidth: 960, thumbheight: 640, mime: "image/jpeg",
+        descriptionurl: `https://commons.wikimedia.org/wiki/File:${file}`,
+        extmetadata: {
+          Artist: { value: '<a href="//commons.wikimedia.org/wiki/User:Lea">Lea <b>Fotografin</b></a>' },
+          LicenseShortName: { value: "CC BY-SA 4.0" }, LicenseUrl: { value: "https://creativecommons.org/licenses/by-sa/4.0" },
+          AttributionRequired: { value: "true" },
+        },
+      }] }] } }),
+    });
+  });
+  if (DB_URL) {
+    const refs = execFileSync("psql", [DB_URL, "-tAc",
+      `select string_agg(name || '=' || coalesce(commons_file, '-') || '/' || coalesce(wikidata_id, '-'), ';' order by name) from public.activities where provider_id = 'osm' and city = 'Leipzig' and (commons_file is not null or wikidata_id is not null)`,
+    ], { encoding: "utf8" }).trim();
+    check(refs === "cinema 11=-/Q4711;pub 18=File:Pub 18 Leipzig.jpg/-;pub 26=File:Pub 26.jpg/-", `Foto-Verweise aus OSM übernommen, ungültige verworfen (${refs})`);
+  }
+  const showPhoto = page.getByRole("button", { name: "Foto anzeigen" });
+  check(await showPhoto.isVisible(), "Ort mit Commons-Verweis bietet „Foto anzeigen“ an");
+  check(await page.getByText("Das Foto kommt von Wikimedia Commons. Beim Laden wird deine IP-Adresse dorthin übertragen.").isVisible(), "Hinweis, was beim Laden des Fotos passiert");
+  check(wikimedia.length === 0, "ohne Tipp geht keine Anfrage an Wikimedia");
+  await showPhoto.click();
+  const pubPhoto = page.getByRole("img", { name: "Foto von pub 18" });
+  await pubPhoto.waitFor();
+  await page.waitForFunction(() => document.querySelector('img[alt="Foto von pub 18"]')?.complete);
+  check((await pubPhoto.getAttribute("referrerpolicy")) === "no-referrer", "Foto wird ohne Referrer geladen");
+  const credit = page.getByTestId("photo-credit");
+  check((await credit.innerText()).replace(/\s+/g, " ").trim() === "Foto: Lea Fotografin · CC BY-SA 4.0 · Wikimedia Commons", `Urheber:in und Lizenz stehen am Foto (${await credit.innerText()})`);
+  check((await credit.getByRole("link", { name: "CC BY-SA 4.0" }).getAttribute("href")) === "https://creativecommons.org/licenses/by-sa/4.0", "Lizenz ist verlinkt");
+  check((await credit.getByRole("link", { name: "Wikimedia Commons" }).getAttribute("href")) === "https://commons.wikimedia.org/wiki/File:Pub_18_Leipzig.jpg", "Commons-Seite der Datei ist verlinkt");
+  check((await credit.locator("b").count()) === 0, "Urheberangabe aus Commons wird als Text dargestellt, nicht als HTML");
+  check(wikimedia.every((u) => u.host !== "www.wikidata.org") && wikimedia.some((u) => u.host === "commons.wikimedia.org"), "mit Commons-Datei kein Umweg über Wikidata");
+  await shot(alice, "34b-osm-foto");
+  await page.getByRole("switch", { name: /Fotos von Orten immer laden/ }).click();
+  check(await page.evaluate(() => localStorage.getItem("afterhours.photos.auto")) === "1", "„Fotos immer laden“ gilt für dieses Gerät");
+
   await page.goto(`${APP}/discover`);
   // Das Feld wird erst gefüllt, wenn das Profil geladen ist.
   await page.waitForFunction(() => document.querySelector('input[aria-label="Stadt"]')?.value, null, { timeout: 15_000 }).catch(() => {});
@@ -2591,6 +2648,31 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
   await page.getByRole("link", { name: "cinema 11", exact: true }).click();
   await page.getByText("Laut OpenStreetMap (Originalangabe):").waitFor();
   check(await page.getByText("Mo-Fr 18:00+").isVisible(), "nicht übersetzbare Öffnungszeiten erscheinen im Original");
+  // P7: Mit „immer laden“ kommt das Foto ohne Tipp – hier über Wikidata (P18). Der erste Abruf scheitert.
+  await page.getByText("Foto gerade nicht abrufbar").waitFor();
+  check(true, "Fehlerzustand: Foto gerade nicht abrufbar");
+  await page.getByRole("button", { name: "Nochmal" }).click();
+  await page.getByRole("img", { name: "Foto von cinema 11" }).waitFor();
+  check(wikimedia.some((u) => u.host === "www.wikidata.org" && u.searchParams.get("entity") === "Q4711" && u.searchParams.get("property") === "P18"), "ohne Commons-Datei kommt das Foto über das Bild des Wikidata-Eintrags");
+  check(await page.getByTestId("photo-credit").getByRole("link", { name: "Wikimedia Commons" }).isVisible(), "auch dann mit Quelle und Lizenz");
+  await page.getByRole("switch", { name: /Fotos von Orten immer laden/ }).click();
+  await page.reload();
+  await page.getByRole("button", { name: "Foto anzeigen" }).waitFor();
+  check(true, "„Fotos immer laden“ lässt sich wieder ausschalten");
+  await page.unroute(WIKIMEDIA);
+  {
+    // Smartphone (390 px): Foto-Angebot ohne Überlauf; Bob hat nichts eingeschaltet, also keine Anfrage.
+    const bobWikimedia = [];
+    await bob.page.route(WIKIMEDIA, (route) => {
+      bobWikimedia.push(route.request().url());
+      return route.abort();
+    });
+    await bob.page.goto(page.url());
+    await bob.page.getByRole("button", { name: "Foto anzeigen" }).waitFor();
+    await shot(bob, "34c-osm-foto-angebot");
+    check(bobWikimedia.length === 0, "Smartphone: ohne Tipp keine Anfrage an Wikimedia");
+    await bob.page.unroute(WIKIMEDIA);
+  }
 
   await page.goto(`${APP}/discover`);
   await cityField.fill("frankfurt");

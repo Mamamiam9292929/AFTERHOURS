@@ -168,4 +168,19 @@ export const discover = {
     notFoundTitle: "Diesen Ort gibt es nicht mehr",
     notFoundBody: "Er wurde entfernt oder ist nicht mehr aktiv.",
   },
+  /** P7: Foto eines Ortes von Wikimedia Commons. */
+  photo: {
+    show: "Foto anzeigen",
+    loading: "Foto wird geladen …",
+    failed: "Foto gerade nicht abrufbar",
+    retry: "Nochmal",
+    none: "Kein freies Foto gefunden",
+    alt: (name: string) => `Foto von ${name}`,
+    by: "Foto:",
+    unknownAuthor: "Urheber:in unbekannt",
+    source: "Wikimedia Commons",
+    privacy: "Das Foto kommt von Wikimedia Commons. Beim Laden wird deine IP-Adresse dorthin übertragen.",
+    autoLabel: "Fotos von Orten immer laden",
+    autoHint: "Nur auf diesem Gerät. Gezeigt werden nur Fotos mit freier Lizenz – immer mit Quelle und Lizenz.",
+  },
 };
