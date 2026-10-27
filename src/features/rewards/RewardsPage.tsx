@@ -204,7 +204,7 @@ function BalanceCard({ points, levelIndex, progress, nextThreshold }: { points: 
             <div className="h-full rounded-full bg-lime shadow-[0_0_18px_var(--color-lime)]" style={{ width: `${Math.max(progress, 0.02) * 100}%` }} />
           </div>
           <p className="mt-2 text-sm text-muted">{nextThreshold ? t.rewards.nextLevel(nextThreshold - points, t.rewards.levels[levelIndex + 1] ?? "") : t.rewards.maxLevel}</p>
-          <ol aria-label={t.rewards.levelsLabel} className="mt-5 grid grid-cols-5 gap-1.5" data-testid="rewards-levels">
+          <ol aria-label={t.rewards.levelsLabel} lang="de" className="mt-5 grid grid-cols-5 gap-1.5" data-testid="rewards-levels">
             {t.rewards.levels.map((name, index) => {
               const reached = index <= levelIndex && points > 0;
               const current = index === levelIndex;
@@ -221,7 +221,7 @@ function BalanceCard({ points, levelIndex, progress, nextThreshold }: { points: 
                 >
                   <span className="font-display text-[13px] font-extrabold leading-none">{index + 1}</span>
                   {/* Auf dem Handy reicht der Platz nicht für „Organisationstalent“: Name nur für Screenreader, die eigene Stufe steht in der Pille. */}
-                  <span className="sr-only truncate text-[11px] font-bold uppercase tracking-wide sm:not-sr-only sm:mt-1">{name}</span>
+                  <span className="sr-only text-[11px] font-bold leading-tight sm:not-sr-only sm:mt-1 sm:break-words sm:hyphens-auto">{name}</span>
                   <span className={cn("mt-1 text-[11px] font-semibold", reached ? "text-lime-ink" : "text-muted")}>{t.rewards.levelFrom(LEVEL_THRESHOLDS[index] ?? 0)}</span>
                   <span className="sr-only">{current ? `, ${t.rewards.levelCurrent}` : reached ? `, ${t.rewards.levelReached}` : ""}</span>
                 </li>
