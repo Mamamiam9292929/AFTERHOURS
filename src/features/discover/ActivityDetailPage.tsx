@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { IconCalendarPlus, IconClock, IconCrews, IconEuro, IconExternal, IconFlag, IconGlobe, IconInfo, IconMap, IconPhone, IconPin, IconTimer, IconUser, IconVote } from "@/components/icons";
+import { IconCalendar, IconCalendarPlus, IconClock, IconCrews, IconEuro, IconExternal, IconFlag, IconGlobe, IconInfo, IconMap, IconPhone, IconPin, IconTimer, IconUser, IconVote } from "@/components/icons";
 import { Fact, PageHeader, Section } from "@/components/layout/Page";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
@@ -316,6 +316,9 @@ export function ActivityDetailPage() {
               </Button>
               <ButtonLink to={`/plans/new?activity=${a.id}`} variant="secondary" size="lg" block icon={<IconCalendarPlus className="size-5" aria-hidden />}>
                 {t.discover.detail.createPlan}
+              </ButtonLink>
+              <ButtonLink to={`/polls/new?kind=date&place=${a.id}`} variant="secondary" size="lg" block icon={<IconCalendar className="size-5" aria-hidden />}>
+                {t.discover.detail.findDate}
               </ButtonLink>
               <Button variant="ghost" block onClick={() => setBookingOpen(true)}>
                 {t.discover.detail.prepareBooking}

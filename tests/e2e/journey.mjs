@@ -2322,6 +2322,78 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   await shot(alice, "36e-termin-und-wo-entschieden");
 });
 
+await step("P5 Etappe 3 – „Wann könnt ihr?“ für einen festen Ort, mit Wetter je Termin (Alice, Bob)", async () => {
+  const { page } = alice;
+  const berlinDate = (offsetDays) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + offsetDays * 86_400_000));
+  const label = (date) => new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00Z`));
+  const [d1, d2] = [berlinDate(3), berlinDate(4)];
+  const [l1, l2] = [label(d1), label(d2)];
+
+  // Der Weg aus Discover: Ort ansehen → „Termin finden“ bringt den Ort mit.
+  await page.goto(`${APP}/polls/${ids.poll}`);
+  const placeHref = await optionCard(alice, "Strike District Bowling").getByRole("link", { name: "Ort ansehen" }).getAttribute("href");
+  await page.goto(`${APP}${placeHref}`);
+  await page.getByRole("link", { name: "Termin finden" }).click();
+  await page.waitForURL(/\/polls\/new\?kind=date&place=[0-9a-f-]{36}$/);
+  const chosen = page.getByTestId("poll-form-date-place-chosen");
+  await chosen.waitFor();
+  check((await chosen.innerText()).includes("Strike District Bowling"), "Termin finden: der Ort steht schon fest im Formular");
+  check((await page.getByRole("tab", { name: "Wann könnt ihr?" }).getAttribute("aria-selected")) === "true", "Termin finden: „Wann könnt ihr?“ ist gewählt");
+  check((await page.getByLabel("Frage an die Crew").inputValue()) === "Wann könnt ihr zu Strike District Bowling?", "Termin finden: Frage nennt den Ort");
+  const crewCard = page.getByTestId("poll-form-crew");
+  if (await crewCard.count()) await crewCard.getByRole("radio", { name: /Weekend Crew/ }).click();
+  while ((await page.getByLabel(/^Termin \d+$/).count()) > 2) {
+    await page.getByRole("button", { name: `Termin ${await page.getByLabel(/^Termin \d+$/).count()} entfernen` }).click();
+  }
+  await page.getByLabel("Termin 1", { exact: true }).fill(d1);
+  await page.getByLabel("Uhrzeit").first().fill("19:30");
+  await page.getByLabel("Termin 2", { exact: true }).fill(d2);
+  await page.getByLabel("Uhrzeit").nth(1).fill("");
+  await page.getByRole("button", { name: "in 2 Stunden" }).click();
+  await shot(alice, "36f-termin-fester-ort-erstellen");
+  await page.getByRole("button", { name: "Abstimmung starten" }).click();
+  await page.waitForURL(/\/polls\/[0-9a-f-]{36}$/);
+  const placePoll = idFromUrl(page);
+
+  // Bob: Ort im Kopf, Wetter bei jedem Termin, kein „Ort ansehen“ je Termin.
+  await bob.page.goto(`${APP}/polls/${placePoll}`);
+  const fixed = bob.page.getByTestId("poll-fixed-place");
+  await fixed.getByText("Bei Strike District Bowling").waitFor();
+  check((await fixed.getAttribute("href")) === placeHref, "Kopf: fester Ort als Pille, führt zum Ort");
+  for (const day of [l1, l2]) {
+    const weather = optionCard(bob, day).getByTestId("poll-option-weather");
+    await weather.waitFor();
+    check((await weather.innerText()).replace(/\s+/g, " ").trim() === "14 °C · Regen · 70 % Regenrisiko", `Wetter am Ort für ${day} (${await weather.innerText()})`);
+  }
+  check((await bob.page.getByRole("link", { name: "Ort ansehen" }).count()) === 0, "kein „Ort ansehen“ bei jedem Termin – der Ort steht einmal im Kopf");
+  await noOverflow(bob, "Termin-Abstimmung mit festem Ort");
+  await shot(bob, "36g-termin-fester-ort");
+  await answer(bob, l1, "Bin dabei").click();
+  await optionCard(bob, l1).getByText("1 Zusage").waitFor();
+
+  // Fehlerzustand: unbekannter Ort im Link – die Abstimmung startet erst, wenn ein anderer gewählt oder der Ort entfernt ist.
+  await bob.page.goto(`${APP}/polls/new?kind=date&place=00000000-0000-4000-8000-000000000000`);
+  await bob.page.getByText("Dieser Ort ist nicht mehr verfügbar.", { exact: false }).first().waitFor();
+  await bob.page.getByRole("button", { name: "Ort festlegen" }).waitFor();
+  check(true, "unbekannter Ort im Link: Hinweis statt stiller Termin-Abstimmung ohne Ort");
+
+  // Ergebnis: kein „Und wo?“ (der Ort steht fest), der Plan heißt wie der Ort und hat dessen Adresse.
+  await page.reload();
+  await page.getByRole("button", { name: "Abstimmung beenden" }).click();
+  await dialog(alice).getByRole("button", { name: "Abstimmung beenden" }).click();
+  await page.getByRole("heading", { name: `Es wird ${l1}` }).waitFor();
+  check((await page.getByTestId("poll-where").count()) === 0, "fester Ort: kein „Und wo?“ nach dem Termin");
+  await page.getByRole("button", { name: "Plan erstellen" }).click();
+  await dialog(alice).getByRole("heading", { name: "Plan festmachen" }).waitFor();
+  await page.waitForFunction(() => document.querySelector('input[name="plan_title"]')?.value === "Strike District Bowling");
+  await page.waitForFunction(() => document.querySelector('input[name="plan_address"]')?.value.includes("Demochaussee"));
+  check(true, "Plan aus dem Termin: Titel und Adresse vom festen Ort");
+  await dialog(alice).getByRole("button", { name: "Plan erstellen" }).click();
+  await page.waitForURL(/\/plans\/[0-9a-f-]{36}/);
+  await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  check(true, "Plan am festen Ort zum Gewinner-Termin");
+});
+
 await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", async () => {
   const { page } = mallory;
   // W1 Etappe 2: Mallory hat den Link, registriert sich darüber, tritt aber nicht bei – sie bleibt außen vor.

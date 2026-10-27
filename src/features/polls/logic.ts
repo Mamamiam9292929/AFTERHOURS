@@ -110,6 +110,16 @@ export function upcomingDateWinner(poll: PollWithDetails | null | undefined): Po
 }
 
 /**
+ * P5 Etappe 3: Ort einer Termin-Abstimmung für einen festen Ort – alle Termine tragen denselben Ort.
+ * Sonst (Orts-Abstimmung, Termine ohne Ort) null.
+ */
+export function datePollPlaceId(poll: Pick<PollWithDetails, "kind" | "options"> | null | undefined): string | null {
+  if (!poll || poll.kind !== "date" || poll.options.length === 0) return null;
+  const first = poll.options[0]?.activity_id ?? null;
+  return first && poll.options.every((o) => o.activity_id === first) ? first : null;
+}
+
+/**
  * P1 Etappe 3a: die Orts-Abstimmung, die zu einer Termin-Abstimmung zählt – die neueste, die läuft oder
  * ein Ergebnis bzw. einen Gleichstand hat. Endet „Und wo?“ ohne Zusage, zählt sie nicht (neuer Versuch).
  */

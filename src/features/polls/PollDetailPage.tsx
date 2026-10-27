@@ -47,7 +47,7 @@ import {
 } from "./api";
 import { OptionWeather, PollWeatherFooter } from "./PollWeather";
 import { ParticipationBar } from "./PollCard";
-import { activeWherePoll, dateOptionLabel, GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
+import { activeWherePoll, dateOptionLabel, datePollPlaceId, GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
 
 const RESPONSES: VoteResponse[] = ["yes", "maybe", "no"];
 
@@ -182,7 +182,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
           </p>
         )}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 empty:hidden">
-          {option.activity_id && (
+          {option.activity_id && !datePollPlaceId(poll) && (
             <Link to={`/activities/${option.activity_id}`} className="inline-flex h-9 items-center gap-1.5 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline">
               <IconPin className="size-4" aria-hidden />
               {t.polls.detail.showPlace}
@@ -201,6 +201,7 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
   const create = useCreatePlanFromPoll();
   const activity = useActivity(option?.activity_id);
   const [title, setTitle] = useState("");
+  const titleTouched = useRef(false);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("19:00");
   const [address, setAddress] = useState("");
@@ -222,6 +223,7 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
     setAddress("");
     setErrors({});
     addressTouched.current = false;
+    titleTouched.current = false;
     create.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [option?.id]);
@@ -229,6 +231,10 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
   useEffect(() => {
     if (!addressTouched.current && activity.data?.address) setAddress(activity.data.address);
   }, [activity.data?.address]);
+  // P5 Etappe 3: Termin für einen festen Ort – der Plan heißt wie der Ort, bis jemand selbst tippt.
+  useEffect(() => {
+    if (poll.kind === "date" && !titleTouched.current && activity.data?.name) setTitle(activity.data.name);
+  }, [poll.kind, activity.data?.name, option?.id]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -260,11 +266,14 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
           label={t.polls.detail.planDialog.planTitle}
           name="plan_title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            titleTouched.current = true;
+            setTitle(e.target.value);
+          }}
           maxLength={120}
           error={errors.title}
-          hint={poll.kind === "date" ? t.polls.detail.planDialog.planTitleDateHint : undefined}
-          placeholder={poll.kind === "date" ? t.polls.detail.planDialog.planTitleDatePlaceholder : undefined}
+          hint={poll.kind === "date" && !option?.activity_id ? t.polls.detail.planDialog.planTitleDateHint : undefined}
+          placeholder={poll.kind === "date" && !option?.activity_id ? t.polls.detail.planDialog.planTitleDatePlaceholder : undefined}
           required
         />
         <div className="grid grid-cols-2 gap-3">
@@ -605,6 +614,8 @@ export function PollDetailPage() {
   const weatherFor = (option: PollOption) => Boolean(option.activity_id && option.proposed_date);
   const weatherWanted = Boolean(poll && poll.status === "open" && new Date(poll.ends_at) > now && poll.options.some(weatherFor));
   const weather = usePollWeather(poll, weatherWanted);
+  // P5 Etappe 3: Name des festen Orts für den Kopf (nur bei Termin-Abstimmungen mit Ort).
+  const place = useActivity(datePollPlaceId(poll));
   useDocumentTitle(poll?.title);
 
   // Läuft die Frist ab, während die Seite offen ist: einmal neu laden – dabei wird das Ergebnis festgestellt.
@@ -642,6 +653,8 @@ export function PollDetailPage() {
   const runoff = allPolls.data?.find((p) => p.parent_poll_id === poll.id);
   // P1 Etappe 3a: Termin-Abstimmung ↔ Orts-Abstimmung. Entsteht der Plan aus „Und wo?“, zeigt auch der Termin ihn.
   const where = poll.kind === "date" ? activeWherePoll(poll.id, allPolls.data) : { active: null, failed: false };
+  // P5 Etappe 3: Termin-Abstimmung für einen festen Ort – der Ort steht im Kopf, „Und wo?“ entfällt.
+  const placeId = datePollPlaceId(poll);
   const shownPlan = plan ?? (where.active ? plans.data?.find((p) => p.poll_id === where.active?.id) : undefined);
   const datePoll = poll.date_poll_id ? allPolls.data?.find((p) => p.id === poll.date_poll_id) : undefined;
   const dateWinner = datePoll ? datePoll.options.find((o) => o.id === datePoll.winning_option_id) : undefined;
@@ -691,6 +704,16 @@ export function PollDetailPage() {
               </span>
             )}
             {poll.kind === "date" && <Badge tone="outline" className={HEAD_PILL}>{t.polls.detail.dateBadge}</Badge>}
+            {placeId && (
+              <Link
+                to={`/activities/${placeId}`}
+                className={cn(HEAD_PILL, "inline-flex items-center gap-1.5 rounded-full border border-lime/40 font-semibold text-lime hover:bg-lime/10")}
+                data-testid="poll-fixed-place"
+              >
+                <IconPin className="size-3.5 shrink-0" aria-hidden />
+                <span className="max-w-[16rem] truncate">{place.data?.name ? t.polls.detail.fixedPlace(place.data.name) : t.polls.detail.fixedPlaceLoading}</span>
+              </Link>
+            )}
             {poll.parent_poll_id && <Badge tone="outline" className={HEAD_PILL}>{t.polls.runoffBadge}</Badge>}
             {poll.date_poll_id && (
               <Link to={`/polls/${poll.date_poll_id}`} className="inline-flex min-h-8 items-center font-semibold text-fg underline decoration-lime underline-offset-4" data-testid="poll-from-date">
@@ -763,7 +786,7 @@ export function PollDetailPage() {
                 )}
               </div>
               {/* Erst wenn die Abstimmungen der Crew geladen sind – sonst blitzt „Ort abstimmen“ auf, obwohl „Und wo?“ schon läuft. */}
-              {poll.kind === "date" && winner && !runoff && allPolls.data &&
+              {poll.kind === "date" && !placeId && winner && !runoff && allPolls.data &&
                 (where.active ? (
                   <WhereLinked winner={winner} wherePoll={where.active} hasPlan={Boolean(shownPlan)} />
                 ) : (

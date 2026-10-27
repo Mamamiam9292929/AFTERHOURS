@@ -62,6 +62,20 @@ export const polls = {
         chip: (weekday: string, date: string, time: string) => `${weekday} ${date} · ${time}`,
         listLabel: "Termine, die zu euch passen",
       },
+      /** P5 Etappe 3: Steht der Ort schon fest, fragt die Abstimmung nur nach dem Tag – mit Wetter je Termin. */
+      place: {
+        title: "Wo? (optional)",
+        hint: "Steht schon fest, wo ihr hingeht? Dann fragt die Abstimmung nur nach dem Tag – und zeigt bei jedem Termin das Wetter dort.",
+        pick: "Ort festlegen",
+        change: "Anderen Ort wählen",
+        remove: "Ort entfernen",
+        fixed: "Fester Ort",
+        loading: "Ort wird geladen …",
+        missing: "Dieser Ort ist nicht mehr verfügbar. Wähl einen anderen oder lass das Feld leer.",
+        noWeather: "Für diesen Ort sind keine Koordinaten bekannt – deshalb gibt es hier kein Wetter.",
+        leadWithPlace: (name: string) => `Schlag ein paar Termine für ${name} vor – jeder sagt, wann er kann.`,
+        defaultTitle: (name: string) => `Wann könnt ihr zu ${name}?`,
+      },
     },
     optionsTitle: "Vorschläge",
     optionsHint: "1 bis 10 Vorschläge – Orte aus Discover oder eigene Ideen.",
@@ -127,6 +141,9 @@ export const polls = {
     dateBadge: "Termin-Abstimmung",
     /** P1 Etappe 3a: Rückweg von der Orts- zur Termin-Abstimmung. */
     fromDatePoll: (when: string) => `Termin aus „Wann könnt ihr?“: ${when}`,
+    /** P5 Etappe 3: Termin-Abstimmung für einen festen Ort. */
+    fixedPlace: (name: string) => `Bei ${name}`,
+    fixedPlaceLoading: "Fester Ort",
     dateOpen: "Termin offen",
     /** P5 Etappe 2: Wetter je Vorschlag einer laufenden Abstimmung. */
     weather: {
