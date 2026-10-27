@@ -356,6 +356,7 @@ export const admin = {
     saved: "Meldung aktualisiert.",
     status: { open: "Offen", resolved: "Erledigt", dismissed: "Verworfen" },
     target: (type: string) => `Betrifft: ${type}`,
+    openCount: (n: number) => (n === 0 ? "Nichts offen" : `${n} offen`),
   },
   audit: { empty: "Noch keine Einträge.", actor: "Auslöser", system: "System" },
   placeSync: {

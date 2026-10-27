@@ -1,14 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { IconInfo, IconWarning } from "@/components/icons";
+import { IconFlag, IconGlobe, IconInfo, IconMap, IconShield, IconWarning } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Controls";
-import { Badge, DemoBadge, EmptyState, ErrorState, ListSkeleton, Notice, PageSpinner } from "@/components/ui/Feedback";
+import { DemoBadge, EmptyState, ErrorState, ListSkeleton, Notice, PageSpinner } from "@/components/ui/Feedback";
+import { PanelCard } from "@/components/ui/PanelCard";
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/features/auth/AuthProvider";
+import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
 import { useIsAdmin } from "@/features/profile/api";
 import { t } from "@/i18n";
+import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { qk } from "@/lib/query";
@@ -27,17 +30,32 @@ function Overview() {
       return data as Record<keyof typeof t.admin.metrics, number>;
     },
   });
-  if (overview.isPending) return <ListSkeleton rows={2} height="h-24" />;
-  if (overview.isError) return <ErrorState error={overview.error} onRetry={() => void overview.refetch()} />;
   return (
-    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {(Object.keys(t.admin.metrics) as (keyof typeof t.admin.metrics)[]).map((key) => (
-        <div key={key} className="rounded-card border border-line bg-surface p-4">
-          <dd className="font-display text-[29px] font-extrabold leading-none text-fg">{formatNumber(overview.data[key] ?? 0)}</dd>
-          <dt className="mt-2 text-[13px] text-muted">{t.admin.metrics[key]}</dt>
-        </div>
-      ))}
-    </dl>
+    <PanelCard id="admin-overview" title={t.admin.tabs.overview} icon={<IconShield />} tone="violet">
+      {overview.isPending ? (
+        <ListSkeleton rows={2} height="h-24" />
+      ) : overview.isError ? (
+        <ErrorState error={overview.error} onRetry={() => void overview.refetch()} />
+      ) : (
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="admin-metrics">
+          {(Object.keys(t.admin.metrics) as (keyof typeof t.admin.metrics)[]).map((key) => {
+            const value = overview.data[key] ?? 0;
+            // Offene Meldungen sind das Einzige, was hier auf jemanden wartet – dann gelb, sonst ruhiges Glas.
+            const waiting = key === "open_reports" && value > 0;
+            return (
+              <div
+                key={key}
+                data-waiting={waiting ? "true" : undefined}
+                className={cn("flex min-w-0 flex-col-reverse rounded-[20px] border p-3.5", waiting ? "border-amber/50 bg-amber/[0.08]" : "border-white/10 bg-white/[0.05]")}
+              >
+                <dt className={cn("mt-1.5 truncate text-[13px]", waiting ? "font-semibold text-amber" : "text-muted")}>{t.admin.metrics[key]}</dt>
+                <dd className="font-display text-[26px] font-extrabold leading-none text-fg sm:text-[29px]">{formatNumber(value)}</dd>
+              </div>
+            );
+          })}
+        </dl>
+      )}
+    </PanelCard>
   );
 }
 
@@ -72,51 +90,69 @@ function PlaceSyncHealthCard() {
   });
   const tx = t.admin.placeSync;
   return (
-    <section aria-labelledby="place-sync-title" className="mt-6 rounded-card border border-line bg-surface p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="place-sync-title" className="font-display text-[16px] font-extrabold uppercase leading-none text-fg">{tx.title}</h2>
-        <p className="text-[13px] text-muted">{tx.period(health.data?.days ?? 7)}</p>
-      </div>
-      <div className="mt-4">
+    <PanelCard
+      id="place-sync"
+      title={tx.title}
+      icon={<IconGlobe />}
+      tone={health.data?.over_threshold ? "pink" : "lime"}
+      className="mt-4"
+      status={<StatusPill tone={health.data?.over_threshold ? "danger" : "glass"}>{tx.period(health.data?.days ?? 7)}</StatusPill>}
+    >
+      <div>
         {health.isPending && <ListSkeleton rows={1} height="h-16" />}
         {health.isError && <ErrorState error={health.error} onRetry={() => void health.refetch()} />}
         {health.data && health.data.runs === 0 && <p className="text-[15px] text-muted">{tx.empty}</p>}
         {health.data && health.data.runs > 0 && (
           <>
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               {[
                 { label: tx.runs, value: formatNumber(health.data.runs) },
                 { label: tx.failed, value: formatNumber(health.data.failed) },
-                { label: tx.rate, value: tx.rateValue(percentFormat.format(health.data.failure_rate ?? 0)) },
-                { label: tx.fallback, value: formatNumber(health.data.fallback_runs) },
-                ...(health.data.geocode_fallback_runs === undefined ? [] : [{ label: tx.geocodeFallback, value: formatNumber(health.data.geocode_fallback_runs) }]),
+                {
+                  label: tx.rate,
+                  value: tx.rateValue(percentFormat.format(health.data.failure_rate ?? 0)),
+                },
+                {
+                  label: tx.fallback,
+                  value: formatNumber(health.data.fallback_runs),
+                },
+                ...(health.data.geocode_fallback_runs === undefined
+                  ? []
+                  : [
+                      {
+                        label: tx.geocodeFallback,
+                        value: formatNumber(health.data.geocode_fallback_runs),
+                      },
+                    ]),
               ].map((item) => (
-                <div key={item.label}>
+                <div key={item.label} className="flex min-w-0 flex-col-reverse rounded-[20px] border border-white/10 bg-white/[0.05] p-3.5">
+                  <dt className="mt-1.5 text-[13px] text-muted">{item.label}</dt>
                   <dd className="font-display text-[23px] font-extrabold leading-none text-fg">{item.value}</dd>
-                  <dt className="mt-1 text-[13px] text-muted">{item.label}</dt>
                 </div>
               ))}
             </dl>
             {health.data.over_threshold && (
-              <Notice tone="amber" icon={<IconWarning aria-hidden />} className="mt-4">
+              <Notice tone="amber" icon={<IconWarning aria-hidden />} className="mt-4 rounded-[20px] bg-amber/[0.07]">
                 {tx.overThreshold(health.data.threshold)}
               </Notice>
             )}
             {health.data.last_failure_at && <p className="mt-3 text-[13px] text-muted">{tx.lastFailure(formatDateTime(health.data.last_failure_at))}</p>}
             {health.data.stages && <p className="mt-3 text-[13px] text-muted">{tx.stages(health.data.stages.geocode, health.data.stages.overpass)}</p>}
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {Object.keys(health.data.errors).length > 0 && (
-                <div>
+                <div className={cn(PANEL_ITEM, "min-w-0 p-3.5")}>
                   <h3 className="text-[13px] font-semibold text-fg">{tx.errorsTitle}</h3>
                   <ul className="mt-1 space-y-1 text-[13px] text-muted">
                     {Object.entries(health.data.errors).map(([code, n]) => (
-                      <li key={code}>{tx.errors[code] ?? code}: {formatNumber(n)}</li>
+                      <li key={code}>
+                        {tx.errors[code] ?? code}: {formatNumber(n)}
+                      </li>
                     ))}
                   </ul>
                 </div>
               )}
               {health.data.endpoints.length > 0 && (
-                <div>
+                <div className={cn(PANEL_ITEM, "min-w-0 p-3.5")}>
                   <h3 className="text-[13px] font-semibold text-fg">{tx.endpointsTitle}</h3>
                   <ul className="mt-1 space-y-1 text-[13px] text-muted">
                     {health.data.endpoints.map((endpoint) => (
@@ -128,7 +164,7 @@ function PlaceSyncHealthCard() {
                 </div>
               )}
               {health.data.geocoders && health.data.geocoders.length > 0 && (
-                <div>
+                <div className={cn(PANEL_ITEM, "min-w-0 p-3.5")}>
                   <h3 className="text-[13px] font-semibold text-fg">{tx.geocodersTitle}</h3>
                   <ul className="mt-1 space-y-1 text-[13px] text-muted">
                     {health.data.geocoders.map((geocoder) => (
@@ -143,7 +179,7 @@ function PlaceSyncHealthCard() {
           </>
         )}
       </div>
-    </section>
+    </PanelCard>
   );
 }
 
@@ -175,36 +211,44 @@ function Activities() {
   if (activities.isError) return <ErrorState error={activities.error} onRetry={() => void activities.refetch()} />;
   return (
     <>
-      <Notice icon={<IconInfo aria-hidden />} className="mb-4">
-        {t.admin.activities.demoHint} {t.admin.activities.osmNote} {t.admin.activities.partnerNote}
-      </Notice>
-      <ul className="divide-y divide-line rounded-card border border-line bg-surface">
-        {activities.data.map((activity) => (
-          <li key={activity.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
-            <div className="min-w-0">
-              <p className="flex flex-wrap items-center gap-2 font-semibold text-fg">
-                <span className="truncate">{activity.name}</span>
-                {activity.is_demo && <DemoBadge />}
-                <Badge tone={activity.is_active ? "lime" : "neutral"}>{activity.is_active ? t.admin.activities.active : t.admin.activities.inactive}</Badge>
-              </p>
-              <p className="text-[13px] text-muted">
-                {t.enums.category[activity.category]}
-                {activity.city ? `, ${activity.city}` : ""} – {activity.last_verified_at ? t.admin.activities.verified(formatDateWithYear(activity.last_verified_at)) : t.admin.activities.unverified}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {!activity.is_demo && (
-                <Button size="sm" variant="secondary" onClick={() => update.mutate({ id: activity.id, patch: { last_verified_at: new Date().toISOString() } })}>
-                  {t.admin.activities.verify}
+      <PanelCard id="admin-activities" title={t.admin.tabs.activities} icon={<IconMap />} tone="lime" status={<StatusPill>{formatNumber(activities.data.length)}</StatusPill>}>
+        <Notice icon={<IconInfo aria-hidden />} className="mb-4 rounded-[20px] border-white/10 bg-white/[0.04]">
+          {t.admin.activities.demoHint} {t.admin.activities.osmNote} {t.admin.activities.partnerNote}
+        </Notice>
+        <ul className="space-y-2">
+          {activities.data.map((activity) => (
+            <li
+              key={activity.id}
+              data-active={activity.is_active ? "true" : "false"}
+              className={cn(PANEL_ITEM, "flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3", !activity.is_active && "border-dashed")}
+            >
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-2 font-semibold text-fg">
+                  <span className="truncate font-display text-[15px] font-extrabold">{activity.name}</span>
+                  {activity.is_demo && <DemoBadge />}
+                  <StatusPill tone={activity.is_active ? "lime" : "glass"} className="h-7 px-2.5 text-[12px]">
+                    {activity.is_active ? t.admin.activities.active : t.admin.activities.inactive}
+                  </StatusPill>
+                </p>
+                <p className="text-[13px] text-muted">
+                  {t.enums.category[activity.category]}
+                  {activity.city ? `, ${activity.city}` : ""} – {activity.last_verified_at ? t.admin.activities.verified(formatDateWithYear(activity.last_verified_at)) : t.admin.activities.unverified}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {!activity.is_demo && (
+                  <Button size="sm" variant="secondary" onClick={() => update.mutate({ id: activity.id, patch: { last_verified_at: new Date().toISOString() } })}>
+                    {t.admin.activities.verify}
+                  </Button>
+                )}
+                <Button size="sm" variant="secondary" onClick={() => update.mutate({ id: activity.id, patch: { is_active: !activity.is_active } })}>
+                  {activity.is_active ? t.admin.activities.deactivate : t.admin.activities.activate}
                 </Button>
-              )}
-              <Button size="sm" variant="secondary" onClick={() => update.mutate({ id: activity.id, patch: { is_active: !activity.is_active } })}>
-                {activity.is_active ? t.admin.activities.deactivate : t.admin.activities.activate}
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </PanelCard>
     </>
   );
 }
@@ -235,30 +279,44 @@ function Reports() {
 
   if (reports.isPending) return <ListSkeleton rows={3} height="h-20" />;
   if (reports.isError) return <ErrorState error={reports.error} onRetry={() => void reports.refetch()} />;
-  if (reports.data.length === 0) return <EmptyState title={t.admin.reports.empty} />;
+  const open = reports.data.filter((report) => report.status === "open").length;
   return (
-    <ul className="divide-y divide-line rounded-card border border-line bg-surface">
-      {reports.data.map((report) => (
-        <li key={report.id} className="px-4 py-3.5">
-          <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
-            <Badge tone={report.status === "open" ? "amber" : "neutral"}>{t.admin.reports.status[report.status]}</Badge>
-            <span>{t.admin.reports.target(report.entity_type)}</span>
-            <time dateTime={report.created_at}>{formatDateTime(report.created_at)}</time>
-          </div>
-          <p className="mt-2 whitespace-pre-line break-words text-[15px] text-fg">{report.reason}</p>
-          {report.status === "open" && (
-            <div className="mt-3 flex gap-2">
-              <Button size="sm" onClick={() => update.mutate({ id: report.id, status: "resolved" })}>
-                {t.admin.reports.resolve}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => update.mutate({ id: report.id, status: "dismissed" })}>
-                {t.admin.reports.dismiss}
-              </Button>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
+    <PanelCard
+      id="admin-reports"
+      title={t.admin.tabs.reports}
+      icon={<IconFlag />}
+      tone="pink"
+      status={reports.data.length > 0 ? <StatusPill tone={open > 0 ? "amber" : "glass"}>{t.admin.reports.openCount(open)}</StatusPill> : undefined}
+    >
+      {reports.data.length === 0 ? (
+        <EmptyState title={t.admin.reports.empty} />
+      ) : (
+        <ul className="space-y-2">
+          {reports.data.map((report) => (
+            <li key={report.id} data-status={report.status} className={cn(PANEL_ITEM, "px-4 py-3.5", report.status === "open" && "border-amber/40 bg-amber/[0.05]")}>
+              <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
+                <StatusPill tone={report.status === "open" ? "amber" : "glass"} className="h-7 px-2.5 text-[12px]">
+                  {t.admin.reports.status[report.status]}
+                </StatusPill>
+                <span>{t.admin.reports.target(report.entity_type)}</span>
+                <time dateTime={report.created_at}>{formatDateTime(report.created_at)}</time>
+              </div>
+              <p className="mt-2 whitespace-pre-line break-words text-[15px] text-fg">{report.reason}</p>
+              {report.status === "open" && (
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" onClick={() => update.mutate({ id: report.id, status: "resolved" })}>
+                    {t.admin.reports.resolve}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => update.mutate({ id: report.id, status: "dismissed" })}>
+                    {t.admin.reports.dismiss}
+                  </Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </PanelCard>
   );
 }
 
@@ -273,21 +331,26 @@ function AuditLog() {
   });
   if (audit.isPending) return <ListSkeleton rows={5} height="h-12" />;
   if (audit.isError) return <ErrorState error={audit.error} onRetry={() => void audit.refetch()} />;
-  if (audit.data.length === 0) return <EmptyState title={t.admin.audit.empty} />;
   return (
-    <div className="overflow-x-auto rounded-card border border-line bg-surface">
-      <table className="w-full min-w-[560px] text-left text-sm">
-        <tbody className="divide-y divide-line">
-          {audit.data.map((entry) => (
-            <tr key={entry.id}>
-              <td className="whitespace-nowrap px-4 py-2.5 text-muted">{formatDateTime(entry.created_at)}</td>
-              <td className="px-4 py-2.5 font-mono text-[13px] text-fg">{entry.action}</td>
-              <td className="px-4 py-2.5 font-mono text-[12px] text-faint">{entry.actor_id ? entry.actor_id.slice(0, 8) : t.admin.audit.system}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <PanelCard id="admin-audit" title={t.admin.tabs.audit} icon={<IconShield />} tone="violet" status={audit.data.length > 0 ? <StatusPill>{formatNumber(audit.data.length)}</StatusPill> : undefined}>
+      {audit.data.length === 0 ? (
+        <EmptyState title={t.admin.audit.empty} />
+      ) : (
+        <div className={cn(PANEL_ITEM, "overflow-x-auto")}>
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <tbody className="divide-y divide-white/[0.08]">
+              {audit.data.map((entry) => (
+                <tr key={entry.id}>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-muted">{formatDateTime(entry.created_at)}</td>
+                  <td className="px-4 py-2.5 font-mono text-[13px] text-fg">{entry.action}</td>
+                  <td className="px-4 py-2.5 font-mono text-[12px] text-faint">{entry.actor_id ? entry.actor_id.slice(0, 8) : t.admin.audit.system}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </PanelCard>
   );
 }
 
