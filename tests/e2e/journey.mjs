@@ -2581,22 +2581,25 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     const TILES = /^https:\/\/tile\.openstreetmap\.org\//;
     await page.route(TILES, (route) => {
       tiles.push(route.request().url());
-      return tilesDown ? route.fulfill({ status: 503, body: "" }) : route.fulfill({ status: 200, contentType: "image/png", body: PNG });
+      // Ausfall als abgebrochene Verbindung (wie im Funkloch) – ein 5xx zählte als Serverfehler des Tests.
+      return tilesDown ? route.abort("failed") : route.fulfill({ status: 200, contentType: "image/png", body: PNG });
     });
     await page.getByLabel("Ort oder Aktivität suchen").fill("");
     await page.getByRole("tab", { name: "Karte" }).click();
     const map = page.getByRole("region", { name: "Karte der Orte in Leipzig" });
-    await map.locator("[data-map-pin]").first().waitFor();
+    // Die Suche wartet 300 ms auf weitere Eingaben – erst wenn die Ergebnisse da sind, steht jeder Punkt.
+    await page.waitForFunction(() => document.querySelectorAll("[data-map-pin]").length >= 250, null, { timeout: 15_000 }).catch(() => {});
     const pinCount = await map.locator("[data-map-pin]").count();
     check(pinCount >= 250, `Karte zeigt alle geladenen Orte mit Standort als Punkte (${pinCount})`);
     check(await page.getByText("Tippe auf einen Punkt – der Ort erscheint hier.").isVisible(), "Karte erklärt, was ein Tipp auf einen Punkt tut");
     check(tiles.length === 0, "ohne Einwilligung keine Anfrage an den Kachelserver");
     check((await page.getByRole("article").count()) === 0, "Kartenansicht ersetzt Stapel und Liste");
+    await map.scrollIntoViewIfNeeded();
     await shot(alice, "33b-discover-karte");
 
     // Ein Ort: Punkt antippen zeigt ihn als Karte darunter, mit Link zur Seite des Ortes.
     await page.getByLabel("Ort oder Aktivität suchen").fill("pub 18");
-    await map.locator("[data-map-pin]").first().waitFor();
+    await page.waitForFunction(() => document.querySelectorAll("[data-map-pin]").length === 1, null, { timeout: 15_000 }).catch(() => {});
     check((await map.locator("[data-map-pin]").count()) === 1, "Suche gilt auch für die Karte");
     const pin = map.locator('[data-map-pin="pub 18"]');
     await pin.click();
@@ -2640,6 +2643,7 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     check(!(await page.getByText("Stadtplan gerade nicht erreichbar").isVisible()), "kein Fehlerhinweis mehr, wenn Kacheln da sind");
     check((await map.getByRole("link", { name: "© OpenStreetMap-Mitwirkende" }).getAttribute("href")) === "https://www.openstreetmap.org/copyright", "Namensnennung von OpenStreetMap auf der Karte");
     check(await page.evaluate(() => localStorage.getItem("afterhours.map.tiles")) === "1", "Einwilligung „Stadtplan“ gilt für dieses Gerät");
+    await map.evaluate((el) => el.scrollIntoView({ block: "start" }));
     await shot(alice, "33c-discover-stadtplan");
     await page.getByRole("button", { name: "Stadtplan aus" }).click();
     check(await page.evaluate(() => localStorage.getItem("afterhours.map.tiles")) === null, "„Stadtplan aus“ nimmt die Einwilligung zurück");
@@ -2658,6 +2662,7 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     await bob.page.waitForFunction(() => document.querySelector('input[aria-label="Stadt"]')?.value === "Leipzig", null, { timeout: 15_000 });
     await bob.page.getByRole("tab", { name: "Karte" }).click();
     await bob.page.getByRole("region", { name: "Karte der Orte in Leipzig" }).locator("[data-map-pin]").first().waitFor();
+    await bob.page.getByRole("region", { name: "Karte der Orte in Leipzig" }).evaluate((el) => el.scrollIntoView({ block: "center" }));
     await shot(bob, "33d-discover-karte");
     check(bobTiles.length === 0, "Smartphone: Karte ohne Anfrage an den Kachelserver");
     await bob.page.getByRole("tab", { name: "Liste" }).click();
