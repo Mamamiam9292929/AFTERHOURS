@@ -2360,10 +2360,11 @@ await step("P5 Etappe 3 – „Wann könnt ihr?“ für einen festen Ort, mit We
   const fixed = bob.page.getByTestId("poll-fixed-place");
   await fixed.getByText("Bei Strike District Bowling").waitFor();
   check((await fixed.getAttribute("href")) === placeHref, "Kopf: fester Ort als Pille, führt zum Ort");
-  for (const day of [l1, l2]) {
+  // Mit Uhrzeit die Stunde des Termins, ohne Uhrzeit die Zusammenfassung für den Tag.
+  for (const [day, expected] of [[l1, "14 °C · Regen · 70 % Regenrisiko"], [l2, "Tagsüber · bis 14 °C · Regen · bis 70 % Regenrisiko"]]) {
     const weather = optionCard(bob, day).getByTestId("poll-option-weather");
     await weather.waitFor();
-    check((await weather.innerText()).replace(/\s+/g, " ").trim() === "14 °C · Regen · 70 % Regenrisiko", `Wetter am Ort für ${day} (${await weather.innerText()})`);
+    check((await weather.innerText()).replace(/\s+/g, " ").trim() === expected, `Wetter am Ort für ${day} (${await weather.innerText()})`);
   }
   check((await bob.page.getByRole("link", { name: "Ort ansehen" }).count()) === 0, "kein „Ort ansehen“ bei jedem Termin – der Ort steht einmal im Kopf");
   await noOverflow(bob, "Termin-Abstimmung mit festem Ort");

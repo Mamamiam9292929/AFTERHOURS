@@ -69,11 +69,11 @@ select is((select count(*)::int from public.poll_options where poll_id = tests.v
 select is((select string_agg(title, ' | ' order by position) from public.poll_options where poll_id = tests.var('poll')::uuid),
   tests.var('l1') || ' | ' || tests.var('l2'),
   'Titel der Optionen bleiben das Datum');
-select is((select count(*)::int from public.notifications where entity_id = tests.var('poll')::uuid and user_id = tests.uid('bob')), 1,
-  'die Crew erfährt davon wie bei jeder Abstimmung');
 
 -- ---- Wetter je Termin ---------------------------------------------------------------------------
 select tests.login('bob');
+select is((select count(*)::int from public.notifications where related_entity_id = tests.var('poll')::uuid and type = 'poll_created'), 1,
+  'die Crew erfährt davon wie bei jeder Abstimmung');
 select tests.set_var('weather', public.poll_weather(tests.var('poll')::uuid)::text);
 select is(jsonb_array_length(tests.var('weather')::jsonb -> 'options'), 2, 'Wetter für beide Termine');
 select is((select string_agg((o ->> 'day') || ' ' || coalesce(o ->> 'hour', '-') || ' ' || (o ->> 'setting'), ', ')
