@@ -195,7 +195,7 @@ export function DiscoverPage() {
                   <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] leading-snug text-muted" data-testid="photo-offer">
                     <IconCamera className="size-4 shrink-0 text-lime" aria-hidden />
                     <p className="min-w-0 flex-1 basis-56">
-                      {t.discover.photo.discoverOffer(photoRefs)} {t.discover.photo.privacy}
+                      {t.discover.photo.discoverOffer(photoRefs)} {t.discover.photo.discoverPrivacy}
                     </p>
                     <Button variant="secondary" size="sm" onClick={() => togglePhotos(true)} icon={<IconCamera className="size-4" aria-hidden />}>
                       {t.discover.photo.discoverLoad}

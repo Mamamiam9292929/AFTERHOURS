@@ -185,6 +185,7 @@ export const discover = {
     cardCredit: (author: string, license: string) => `Foto: ${author} · ${license}`,
     creditLabel: (author: string, license: string) => `Foto: ${author}, Lizenz ${license} – Quelle bei Wikimedia Commons`,
     discoverOffer: (n: number) => (n === 1 ? "Zu 1 Ort verweist OpenStreetMap auf ein Foto bei Wikimedia Commons." : `Zu ${n} Orten verweist OpenStreetMap auf ein Foto bei Wikimedia Commons.`),
+    discoverPrivacy: "Beim Laden geht deine IP-Adresse an Wikimedia.",
     discoverLoad: "Fotos zeigen",
     discoverOn: "Fotos von Wikimedia Commons, Urheber:in und Lizenz stehen am Bild.",
     discoverOff: "Fotos aus",
