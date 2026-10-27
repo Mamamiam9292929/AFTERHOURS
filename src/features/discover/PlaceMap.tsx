@@ -31,12 +31,12 @@ const PINCH_STEP = 0.5;
 /** Strg + Mausrad bzw. Pinch auf dem Trackpad: so viel `deltaY` ist eine Zoomstufe. */
 const WHEEL_STEP = 60;
 
-/** Rand eines Bündels in der Farbwelt seines besten Ortes. */
+/** Rand eines Bündels in der Farbwelt seines besten Ortes (als Stil, damit das Start-CSS nicht wächst). */
 const CLUSTER_RING: Record<CategoryWorld, string> = {
-  food: "border-amber",
-  night: "border-pink",
-  play: "border-violet",
-  outside: "border-lime",
+  food: "var(--color-amber)",
+  night: "var(--color-pink)",
+  play: "var(--color-violet)",
+  outside: "var(--color-lime)",
 };
 
 interface Placed {
@@ -337,11 +337,8 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
                 if (dragged.current) return;
                 openCluster(members);
               }}
-              className={cn(
-                "glass absolute z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 font-display text-[12px] font-bold tabular-nums text-fg shadow-[0_0_18px_rgba(0,0,0,0.55)] transition-transform duration-200 hover:scale-110",
-                CLUSTER_RING[categoryWorld(best.category)],
-              )}
-              style={{ left: at.x, top: at.y, width: diameter, height: diameter }}
+              className="glass absolute z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 font-display text-[12px] font-bold tabular-nums text-fg transition-transform duration-200 hover:scale-125"
+              style={{ left: at.x, top: at.y, width: diameter, height: diameter, borderColor: CLUSTER_RING[categoryWorld(best.category)] }}
             >
               {count}
             </button>
@@ -416,10 +413,8 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
                     setStackIds(null);
                     setSelectedId(ranked.activity.id);
                   }}
-                  className={cn(
-                    "glass inline-flex min-h-11 items-center gap-2 rounded-full border-2 px-4 text-sm font-semibold text-fg transition-colors hover:border-fg",
-                    CLUSTER_RING[categoryWorld(ranked.activity.category)],
-                  )}
+                  className="glass inline-flex min-h-11 items-center gap-2 rounded-full border-2 px-4 text-sm font-semibold text-fg"
+                  style={{ borderColor: CLUSTER_RING[categoryWorld(ranked.activity.category)] }}
                 >
                   {ranked.activity.name}
                 </button>
