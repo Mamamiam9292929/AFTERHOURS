@@ -2587,20 +2587,116 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     await page.getByLabel("Ort oder Aktivität suchen").fill("");
     await page.getByRole("tab", { name: "Karte" }).click();
     const map = page.getByRole("region", { name: "Karte der Orte in Leipzig" });
-    // Die Suche wartet 300 ms auf weitere Eingaben – erst wenn die Ergebnisse da sind, steht jeder Punkt.
-    await page.waitForFunction(() => document.querySelectorAll("[data-map-pin]").length >= 250, null, { timeout: 15_000 }).catch(() => {});
-    const pinCount = await map.locator("[data-map-pin]").count();
-    check(pinCount >= 250, `Karte zeigt alle geladenen Orte mit Standort als Punkte (${pinCount})`);
+    // Die Suche wartet 300 ms auf weitere Eingaben – erst wenn die Ergebnisse da sind, steht jeder Ort.
+    // P6 Etappe 2: Nahe Orte liegen als Bündel („12“) zusammen; Punkte und Bündel zusammen zählen jeden Ort.
+    const mapped = () =>
+      page.evaluate(() => {
+        const region = document.querySelector('[role="region"][data-zoom]');
+        const pins = region.querySelectorAll("[data-map-pin]").length;
+        const bundles = [...region.querySelectorAll("[data-map-cluster]")].map((b) => Number(b.dataset.mapCluster));
+        return { pins, bundles: bundles.length, places: pins + bundles.reduce((s, n) => s + n, 0) };
+      });
+    await page.waitForFunction(() => {
+      const region = document.querySelector('[role="region"][data-zoom]');
+      if (!region) return false;
+      const sum = [...region.querySelectorAll("[data-map-cluster]")].reduce((s, b) => s + Number(b.dataset.mapCluster), 0);
+      return region.querySelectorAll("[data-map-pin]").length + sum >= 250;
+    }, null, { timeout: 15_000 }).catch(() => {});
+    const overview = await mapped();
+    check(overview.places >= 250, `Karte zeigt alle geladenen Orte mit Standort (${overview.places} Orte in ${overview.pins} Punkten und ${overview.bundles} Bündeln)`);
+    check(overview.bundles > 0 && overview.pins + overview.bundles < overview.places / 2, `nahe Orte liegen als Bündel zusammen statt übereinander (${overview.pins + overview.bundles} Zeichen für ${overview.places} Orte)`);
     check(await page.getByText("Tippe auf einen Punkt – der Ort erscheint hier.").isVisible(), "Karte erklärt, was ein Tipp auf einen Punkt tut");
     check(tiles.length === 0, "ohne Einwilligung keine Anfrage an den Kachelserver");
     check((await page.getByRole("article").count()) === 0, "Kartenansicht ersetzt Stapel und Liste");
     await map.scrollIntoViewIfNeeded();
     await shot(alice, "33b-discover-karte");
 
+    // Tipp auf ein Bündel holt seine Orte heran – danach liegen dort mehr einzelne Punkte.
+    const fitZoom = Number(await map.getAttribute("data-zoom"));
+    // Das Bündel nächst der Mitte – am Rand könnten die Zoom-Knöpfe darüber liegen.
+    const middle = await map.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const all = [...el.querySelectorAll("[data-map-cluster]")].map((b) => {
+        const c = b.getBoundingClientRect();
+        return Math.hypot(c.left + c.width / 2 - (r.left + r.width / 2), c.top + c.height / 2 - (r.top + r.height / 2));
+      });
+      return all.indexOf(Math.min(...all));
+    });
+    const bundle = map.locator("[data-map-cluster]").nth(middle);
+    check(/^\d+ Orte hier – näher heran$/.test((await bundle.getAttribute("aria-label")) ?? ""), "Bündel sagt, wie viele Orte drin sind und was ein Tipp tut");
+    await bundle.click();
+    const bundleZoom = Number(await map.getAttribute("data-zoom"));
+    check(bundleZoom > fitZoom, `Tipp auf ein Bündel zoomt heran (${fitZoom} → ${bundleZoom})`);
+    check((await page.getByRole("article").count()) === 0, "Tipp auf ein Bündel wählt keinen einzelnen Ort");
+    await shot(alice, "33e-discover-buendel");
+
+    // Zwei Finger: Spreizen zoomt heran, Zusammenführen weiter weg – um die Mitte zwischen den Fingern.
+    await page.getByRole("button", { name: "Alle Orte zeigen" }).click();
+    const pinchBy = (from, to) =>
+      map.evaluate(
+        (el, [a, b]) => {
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
+          const fire = (type, id, dx) =>
+            el.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: "touch", isPrimary: id === 11, clientX: cx + dx, clientY: cy, bubbles: true, cancelable: true }));
+          fire("pointerdown", 11, -a / 2);
+          fire("pointerdown", 12, a / 2);
+          for (let i = 1; i <= 6; i++) {
+            const d = a + ((b - a) * i) / 6;
+            fire("pointermove", 11, -d / 2);
+            fire("pointermove", 12, d / 2);
+          }
+          fire("pointerup", 11, -b / 2);
+          fire("pointerup", 12, b / 2);
+        },
+        [from, to],
+      );
+    // Zeiger- und Rad-Ereignisse rendert React nicht sofort (anders als Klicks) – auf die neue Zoomstufe warten.
+    const zoomLeaves = (from) =>
+      page
+        .waitForFunction((z) => Number(document.querySelector('[role="region"][data-zoom]')?.dataset.zoom) !== z, from, { timeout: 5_000 })
+        .catch(() => {});
+    await pinchBy(60, 150);
+    await zoomLeaves(fitZoom);
+    const pinchIn = Number(await map.getAttribute("data-zoom"));
+    check(pinchIn > fitZoom, `zwei Finger spreizen zoomt heran (${fitZoom} → ${pinchIn})`);
+    await pinchBy(150, 60);
+    await zoomLeaves(pinchIn);
+    const pinchOut = Number(await map.getAttribute("data-zoom"));
+    check(pinchOut < pinchIn, `zwei Finger zusammenführen zoomt weiter weg (${pinchIn} → ${pinchOut})`);
+
+    // Strg + Mausrad (so meldet sich auch Pinch auf dem Trackpad); ohne Strg scrollt die Seite, die Karte bleibt.
+    await page.getByRole("button", { name: "Alle Orte zeigen" }).click();
+    const wheel = (ctrlKey) =>
+      map.evaluate((el, ctrl) => {
+        const r = el.getBoundingClientRect();
+        return el.dispatchEvent(new WheelEvent("wheel", { deltaY: -120, ctrlKey: ctrl, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, cancelable: true }));
+      }, ctrlKey);
+    await wheel(false);
+    await page.waitForTimeout(300);
+    check(Number(await map.getAttribute("data-zoom")) === fitZoom, "Mausrad ohne Strg zoomt die Karte nicht");
+    const notCancelled = await wheel(true);
+    await zoomLeaves(fitZoom);
+    check(Number(await map.getAttribute("data-zoom")) === fitZoom + 1 && notCancelled === false, "Strg + Mausrad zoomt eine Stufe, der Browser zoomt nicht die Seite");
+
+    // Doppeltipp auf freie Fläche (unten links ist am Rand, dort liegt kein Ort): eine Stufe näher.
+    await page.getByRole("button", { name: "Alle Orte zeigen" }).click();
+    const box = await map.boundingBox();
+    await page.mouse.dblclick(box.x + 10, box.y + box.height - 10);
+    check(Number(await map.getAttribute("data-zoom")) === fitZoom + 1, "Doppeltipp zoomt eine Stufe näher");
+    await page.getByRole("button", { name: "Alle Orte zeigen" }).click();
+    check(Number(await map.getAttribute("data-zoom")) === fitZoom, "„Alle Orte zeigen“ passt wieder ein");
+
     // Ein Ort: Punkt antippen zeigt ihn als Karte darunter, mit Link zur Seite des Ortes.
     await page.getByLabel("Ort oder Aktivität suchen").fill("pub 18");
     // „pub 18“ findet auch „pub 180“ … – entscheidend ist, dass die Karte nur noch die Treffer zeigt.
-    await page.waitForFunction(() => document.querySelectorAll("[data-map-pin]").length < 20, null, { timeout: 15_000 }).catch(() => {});
+    await page
+      .waitForFunction(() => {
+        const pins = [...document.querySelectorAll("[data-map-pin]")];
+        return pins.length > 0 && pins.every((p) => p.dataset.mapPin.startsWith("pub 18"));
+      }, null, { timeout: 15_000 })
+      .catch(() => {});
     const hits = await map.locator("[data-map-pin]").count();
     check(hits >= 1 && hits < 20 && (await map.locator("[data-map-pin]").evaluateAll((pins) => pins.every((p) => p.dataset.mapPin.startsWith("pub 18")))), `Suche gilt auch für die Karte (${hits} Punkte)`);
     const pin = map.locator('[data-map-pin="pub 18"]');

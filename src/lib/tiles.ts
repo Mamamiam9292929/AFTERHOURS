@@ -125,3 +125,74 @@ export function visibleTiles(view: MapView, width: number, height: number): Tile
   }
   return tiles;
 }
+
+/**
+ * Eine Stufe näher oder weiter weg, wobei der Ort unter `at` (Pixel im Ausschnitt, z. B. zwischen zwei Fingern
+ * oder unter dem Mauszeiger) an derselben Stelle bleibt.
+ */
+export function zoomAround(view: MapView, step: number, at: Pixel, width: number, height: number): MapView {
+  const zoom = clampZoom(view.zoom + step);
+  if (zoom === view.zoom) return view;
+  const offset = { x: at.x - width / 2, y: at.y - height / 2 };
+  const c = project(view.center, view.zoom);
+  const anchor = unproject({ x: c.x + offset.x, y: clamp(c.y + offset.y, 0, worldSize(view.zoom)) }, view.zoom);
+  const a = project(anchor, zoom);
+  return { zoom, center: unproject({ x: a.x - offset.x, y: clamp(a.y - offset.y, 0, worldSize(zoom)) }, zoom) };
+}
+
+/** P6 Etappe 2: Punkte, die näher als so viele Pixel beieinanderliegen, werden zu einem Bündel („12“). */
+export const CLUSTER_RADIUS = 36;
+
+export interface Cluster<T> {
+  /** In der Reihenfolge der Eingabe – der erste ist der am besten passende Ort. */
+  members: T[];
+  /** Mitte des Bündels (Durchschnitt der Pixel bei dieser Zoomstufe). */
+  point: GeoPoint;
+}
+
+/**
+ * Bündelt nahe Punkte bei dieser Zoomstufe. Gerechnet in Weltpixeln, also unabhängig vom Ausschnitt: Beim Ziehen
+ * bleiben die Bündel, wie sie sind, erst eine andere Zoomstufe bündelt neu. Gierig in der Reihenfolge der Eingabe –
+ * gleiche Eingabe, gleiche Bündel. Ein Punkt allein ist ein Bündel mit einem Mitglied.
+ */
+export function clusterPoints<T>(items: readonly T[], pointOf: (item: T) => GeoPoint, zoom: number, radius = CLUSTER_RADIUS): Cluster<T>[] {
+  const pixels = items.map((item) => project(pointOf(item), zoom));
+  const taken = new Uint8Array(items.length);
+  const clusters: Cluster<T>[] = [];
+  for (let i = 0; i < items.length; i++) {
+    if (taken[i]) continue;
+    taken[i] = 1;
+    const seed = pixels[i]!;
+    const members = [items[i]!];
+    let sx = seed.x;
+    let sy = seed.y;
+    for (let j = i + 1; j < items.length; j++) {
+      if (taken[j]) continue;
+      const p = pixels[j]!;
+      if (Math.abs(p.x - seed.x) > radius || Math.abs(p.y - seed.y) > radius || Math.hypot(p.x - seed.x, p.y - seed.y) > radius) continue;
+      taken[j] = 1;
+      members.push(items[j]!);
+      sx += p.x;
+      sy += p.y;
+    }
+    clusters.push({ members, point: members.length === 1 ? pointOf(items[i]!) : unproject({ x: sx / members.length, y: sy / members.length }, zoom) });
+  }
+  return clusters;
+}
+
+/**
+ * Was ein Tipp auf ein Bündel tut: so nah heran, dass alle seine Orte zu sehen sind (mindestens eine Stufe), oder –
+ * wenn sie auch ganz nah nicht auseinandergehen (gleiches Haus, gleiche Adresse) – die Orte als Liste zeigen.
+ */
+export function clusterAction(points: GeoPoint[], view: MapView, width: number, height: number, padding = 32, radius = CLUSTER_RADIUS): { kind: "zoom"; view: MapView } | { kind: "list" } {
+  const at = (zoom: number) => points.map((p) => project(p, zoom));
+  const spread = (pixels: Pixel[]) =>
+    Math.hypot(Math.max(...pixels.map((p) => p.x)) - Math.min(...pixels.map((p) => p.x)), Math.max(...pixels.map((p) => p.y)) - Math.min(...pixels.map((p) => p.y)));
+  if (points.length < 2 || view.zoom >= MAX_ZOOM || spread(at(MAX_ZOOM)) < radius) return { kind: "list" };
+  const fitted = fitView(points, width, height, padding);
+  if (fitted && fitted.zoom > view.zoom) return { kind: "zoom", view: fitted };
+  // Schon so nah wie beim Einpassen (FIT_MAX_ZOOM) – dann Stufe um Stufe weiter, Mitte auf das Bündel.
+  const pixels = at(view.zoom);
+  const mid = { x: pixels.reduce((s, p) => s + p.x, 0) / pixels.length, y: pixels.reduce((s, p) => s + p.y, 0) / pixels.length };
+  return { kind: "zoom", view: { center: unproject(mid, view.zoom), zoom: clampZoom(view.zoom + 1) } };
+}
