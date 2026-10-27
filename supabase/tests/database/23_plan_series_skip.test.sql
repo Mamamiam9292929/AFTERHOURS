@@ -46,7 +46,12 @@ select is(public.roll_plan_series(), 0, 'Bob öffnet die App 12 Tage vorher: nic
 
 -- Sechs Tage später: der nächste Termin ist sechs Tage entfernt.
 select tests.logout();
-update public.plans set starts_at = starts_at - interval '6 days', ends_at = ends_at - interval '6 days' where id = tests.var('first')::uuid;
+-- In Berliner Ortszeit verschieben: Ein Abzug in UTC rutscht über die Zeitumstellung hinweg um eine Stunde
+-- (20:00 MEZ minus 6 × 24 h = 21:00 MESZ), und die Serie übernimmt die Uhrzeit vom letzten Termin.
+update public.plans set
+  starts_at = ((starts_at at time zone 'Europe/Berlin') - interval '6 days') at time zone 'Europe/Berlin',
+  ends_at = ((ends_at at time zone 'Europe/Berlin') - interval '6 days') at time zone 'Europe/Berlin'
+where id = tests.var('first')::uuid;
 update public.plan_series set last_on = last_on - 6 where id = tests.var('series')::uuid;
 delete from public.notifications;
 select tests.login('mallory');
