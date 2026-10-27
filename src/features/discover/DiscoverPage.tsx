@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { IconAlert, IconCamera, IconClose, IconFilter, IconInfo, IconRefresh, IconSearch, IconSpinner } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
-import { Chip, SwitchRow } from "@/components/ui/Controls";
+import { Chip, Segmented, SwitchRow } from "@/components/ui/Controls";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState, ErrorState, Notice, Skeleton } from "@/components/ui/Feedback";
 import { SelectField } from "@/components/ui/Field";
@@ -17,6 +17,7 @@ import { dayPhase, formatDateWithYear } from "@/lib/time";
 import { ActivityCard } from "./ActivityCard";
 import { applyFilters, countActiveFilters, EMPTY_FILTERS, useActivitySearch, usePlaceRegion, type ActivityFilters } from "./api";
 import { CityField } from "./CityField";
+import { PlaceMap } from "./PlaceMap";
 import { usePlacePhotos } from "./placePhotos";
 import { rememberCity, rememberedCity } from "./rememberedCity";
 import { StageDeck, stageDeck } from "./StageCard";
@@ -24,6 +25,24 @@ import { StageDeck, stageDeck } from "./StageCard";
 const numberOrNull = (value: string) => (value === "" ? null : Number(value));
 
 const SUGGESTED_CITIES = ["Berlin", "Hamburg", "München", "Köln", "Frankfurt am Main", "Leipzig"];
+
+// P6: Liste oder Karte – merkt sich dieses Gerät (reine Bequemlichkeit, kein Stadtplan ohne eigene Einwilligung).
+type DiscoverView = "list" | "map";
+const VIEW_KEY = "afterhours.discover.view";
+function rememberedView(): DiscoverView {
+  try {
+    return window.localStorage.getItem(VIEW_KEY) === "map" ? "map" : "list";
+  } catch {
+    return "list";
+  }
+}
+function rememberView(view: DiscoverView) {
+  try {
+    window.localStorage.setItem(VIEW_KEY, view);
+  } catch {
+    // Speicher gesperrt – dann startet Discover eben mit der Liste.
+  }
+}
 
 export function DiscoverPage() {
   const profile = useProfile();
@@ -38,6 +57,11 @@ export function DiscoverPage() {
   };
   // Position im Stapel – gilt nur für genau diesen Stapel; ändern sich Stadt, Kategorie oder Filter, geht es oben los.
   const [deckPosition, setDeckPosition] = useState({ key: "", index: 0 });
+  const [view, setView] = useState<DiscoverView>(rememberedView);
+  const changeView = (next: DiscoverView) => {
+    rememberView(next);
+    setView(next);
+  };
   const patch = (update: Partial<ActivityFilters>) => setFilters((f) => ({ ...f, ...update }));
 
   // Start mit der zuletzt gewählten Stadt, sonst der aus dem Profil.
@@ -202,31 +226,54 @@ export function DiscoverPage() {
                     </Button>
                   </div>
                 )}
-                {stage && (
-                  <div className="mb-9">
-                    <StageDeck deck={deck} index={deckIndex} photos={photos} onStep={(step) => setDeckPosition({ key: deckKey, index: stepDeck(deckIndex, deck.length, step) })} />
-                  </div>
-                )}
-                {stage && rest.length > 0 && <h2 className="display mb-1.5 text-[20px] text-fg sm:text-[24px]">{t.discover.stage.more(cityName ?? "")}</h2>}
-                <p className="mb-3 text-sm text-muted" aria-live="polite">
-                  {page && page.total > items.length ? t.discover.resultsOf(results.length, page.total) : t.discover.results(results.length)}
-                </p>
-                {results.length === 0 ? (
-                  <EmptyState
-                    title={t.discover.empty.title}
-                    body={t.discover.empty.body}
-                    action={
-                      <Button variant="secondary" size="sm" onClick={() => setFilters((f) => ({ ...EMPTY_FILTERS, city: f.city }))}>
-                        {t.discover.resetFilters}
-                      </Button>
-                    }
+                {results.length > 0 && (
+                  <Segmented<DiscoverView>
+                    label={t.discover.map.viewLabel}
+                    value={view}
+                    onChange={changeView}
+                    className="mb-5"
+                    options={[
+                      { value: "list", label: t.discover.map.list },
+                      { value: "map", label: t.discover.map.map },
+                    ]}
                   />
+                )}
+                {view === "map" && results.length > 0 ? (
+                  <>
+                    <p className="mb-3 text-sm text-muted" aria-live="polite">
+                      {page && page.total > items.length ? t.discover.resultsOf(results.length, page.total) : t.discover.results(results.length)}
+                    </p>
+                    <PlaceMap results={results} cityName={cityName ?? ""} fallback={origin} photos={photos} />
+                  </>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {rest.map(({ activity, distanceKm }) => (
-                      <ActivityCard key={activity.id} activity={activity} distanceKm={distanceKm} photo={photos.get(activity.id)} />
-                    ))}
-                  </div>
+                  <>
+                  {stage && (
+                    <div className="mb-9">
+                      <StageDeck deck={deck} index={deckIndex} photos={photos} onStep={(step) => setDeckPosition({ key: deckKey, index: stepDeck(deckIndex, deck.length, step) })} />
+                    </div>
+                  )}
+                  {stage && rest.length > 0 && <h2 className="display mb-1.5 text-[20px] text-fg sm:text-[24px]">{t.discover.stage.more(cityName ?? "")}</h2>}
+                  <p className="mb-3 text-sm text-muted" aria-live="polite">
+                    {page && page.total > items.length ? t.discover.resultsOf(results.length, page.total) : t.discover.results(results.length)}
+                  </p>
+                  {results.length === 0 ? (
+                    <EmptyState
+                      title={t.discover.empty.title}
+                      body={t.discover.empty.body}
+                      action={
+                        <Button variant="secondary" size="sm" onClick={() => setFilters((f) => ({ ...EMPTY_FILTERS, city: f.city }))}>
+                          {t.discover.resetFilters}
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {rest.map(({ activity, distanceKm }) => (
+                        <ActivityCard key={activity.id} activity={activity} distanceKm={distanceKm} photo={photos.get(activity.id)} />
+                      ))}
+                    </div>
+                  )}
+                  </>
                 )}
               </>
             )}

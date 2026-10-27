@@ -314,6 +314,7 @@ export const privacy = {
         "In dieser Version wird kein Gerätestandort abgefragt oder gespeichert.",
         "Entfernungen werden aus der Stadt in deinem Profil geschätzt (Luftlinie ab Stadtmitte).",
         "Karten laden erst, wenn du auf „Karte laden“ tippst – dann geht eine Anfrage an OpenStreetMap.",
+        "Die Karte in Discover zeigt die Orte zunächst nur als Punkte. Den Stadtplan von OpenStreetMap lädt sie erst nach „Stadtplan laden“ (gilt für dieses Gerät, „Stadtplan aus“ nimmt das zurück).",
       ],
     },
     {

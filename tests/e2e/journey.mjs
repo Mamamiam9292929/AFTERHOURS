@@ -2574,6 +2574,101 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
   await page.getByRole("heading", { name: "<img src=x onerror=alert(1)>" }).waitFor();
   check(dialogs === 0, "Namen aus OSM werden als Text dargestellt, nicht als HTML");
 
+  {
+    // P6: Karte in Discover. Der Kachelserver von OpenStreetMap wird nachgestellt; gezählt wird jede Anfrage.
+    const tiles = [];
+    let tilesDown = true;
+    const TILES = /^https:\/\/tile\.openstreetmap\.org\//;
+    await page.route(TILES, (route) => {
+      tiles.push(route.request().url());
+      return tilesDown ? route.fulfill({ status: 503, body: "" }) : route.fulfill({ status: 200, contentType: "image/png", body: PNG });
+    });
+    await page.getByLabel("Ort oder Aktivität suchen").fill("");
+    await page.getByRole("tab", { name: "Karte" }).click();
+    const map = page.getByRole("region", { name: "Karte der Orte in Leipzig" });
+    await map.locator("[data-map-pin]").first().waitFor();
+    const pinCount = await map.locator("[data-map-pin]").count();
+    check(pinCount >= 250, `Karte zeigt alle geladenen Orte mit Standort als Punkte (${pinCount})`);
+    check(await page.getByText("Tippe auf einen Punkt – der Ort erscheint hier.").isVisible(), "Karte erklärt, was ein Tipp auf einen Punkt tut");
+    check(tiles.length === 0, "ohne Einwilligung keine Anfrage an den Kachelserver");
+    check((await page.getByRole("article").count()) === 0, "Kartenansicht ersetzt Stapel und Liste");
+    await shot(alice, "33b-discover-karte");
+
+    // Ein Ort: Punkt antippen zeigt ihn als Karte darunter, mit Link zur Seite des Ortes.
+    await page.getByLabel("Ort oder Aktivität suchen").fill("pub 18");
+    await map.locator("[data-map-pin]").first().waitFor();
+    check((await map.locator("[data-map-pin]").count()) === 1, "Suche gilt auch für die Karte");
+    const pin = map.locator('[data-map-pin="pub 18"]');
+    await pin.click();
+    check((await pin.getAttribute("aria-pressed")) === "true", "angetippter Punkt ist gewählt");
+    const placeCard = page.getByTestId("place-map").getByRole("article");
+    check(await placeCard.getByRole("link", { name: "pub 18", exact: true }).isVisible(), "gewählter Ort erscheint als Karte unter der Karte");
+
+    // Ziehen verschiebt die Karte – der Punkt wandert mit; „Alle Orte zeigen“ holt ihn zurück.
+    const before = await pin.boundingBox();
+    const frame = await map.boundingBox();
+    await page.mouse.move(frame.x + 60, frame.y + frame.height - 60);
+    await page.mouse.down();
+    await page.mouse.move(frame.x + 100, frame.y + frame.height - 90, { steps: 5 });
+    await page.mouse.move(frame.x + 140, frame.y + frame.height - 120, { steps: 5 });
+    await page.mouse.up();
+    const after = await pin.boundingBox();
+    check(Math.abs(after.x - before.x - 80) <= 2 && Math.abs(after.y - before.y + 60) <= 2, `Ziehen verschiebt die Karte (${Math.round(after.x - before.x)}/${Math.round(after.y - before.y)})`);
+    check((await pin.getAttribute("aria-pressed")) === "true", "Ziehen wählt keinen anderen Ort");
+    await page.getByRole("button", { name: "Alle Orte zeigen" }).click();
+    const back = await pin.boundingBox();
+    check(Math.abs(back.x - before.x) <= 1 && Math.abs(back.y - before.y) <= 1, "„Alle Orte zeigen“ passt die Karte wieder ein");
+
+    // Stadtplan: erst nach Tipp. Der erste Abruf scheitert (Fehlerzustand), danach kommen die Kacheln.
+    check(await page.getByTestId("map-tiles-offer").getByText(/Beim Laden gehen deine IP-Adresse und der Kartenausschnitt dorthin/).isVisible(), "Hinweis, was beim Laden des Stadtplans übertragen wird");
+    await page.getByRole("button", { name: "Stadtplan laden" }).click();
+    await page.getByText("Stadtplan gerade nicht erreichbar – die Punkte stimmen trotzdem.").waitFor();
+    check(true, "Fehlerzustand: Stadtplan nicht erreichbar, Punkte bleiben");
+    check(await pin.isVisible(), "Punkte bleiben ohne Stadtplan sichtbar");
+    await page.getByRole("button", { name: "Stadtplan aus" }).click();
+    tilesDown = false;
+    await page.getByRole("button", { name: "Näher heran" }).click();
+    const requested = tiles.length;
+    await page.getByRole("button", { name: "Stadtplan laden" }).click();
+    await page.waitForFunction(() => {
+      const imgs = [...document.querySelectorAll("img[data-map-tile]")];
+      return imgs.length > 0 && imgs.every((img) => img.complete && img.naturalWidth > 0);
+    });
+    const loaded = tiles.slice(requested);
+    check(loaded.length > 0 && loaded.length <= 30, `Stadtplan lädt nur den sichtbaren Ausschnitt (${loaded.length} Kacheln)`);
+    check(loaded.every((u) => /^https:\/\/tile\.openstreetmap\.org\/17\/\d+\/\d+\.png$/.test(u)), "Kacheln in der gewählten Zoomstufe");
+    check(!(await page.getByText("Stadtplan gerade nicht erreichbar").isVisible()), "kein Fehlerhinweis mehr, wenn Kacheln da sind");
+    check((await map.getByRole("link", { name: "© OpenStreetMap-Mitwirkende" }).getAttribute("href")) === "https://www.openstreetmap.org/copyright", "Namensnennung von OpenStreetMap auf der Karte");
+    check(await page.evaluate(() => localStorage.getItem("afterhours.map.tiles")) === "1", "Einwilligung „Stadtplan“ gilt für dieses Gerät");
+    await shot(alice, "33c-discover-stadtplan");
+    await page.getByRole("button", { name: "Stadtplan aus" }).click();
+    check(await page.evaluate(() => localStorage.getItem("afterhours.map.tiles")) === null, "„Stadtplan aus“ nimmt die Einwilligung zurück");
+    check((await page.locator("img[data-map-tile]").count()) === 0, "ohne Einwilligung keine Kacheln mehr");
+    await page.unroute(TILES);
+
+    // Smartphone (390 px): Karte ohne Überlauf, ohne Anfrage an den Kachelserver.
+    const bobTiles = [];
+    await bob.page.route(TILES, (route) => {
+      bobTiles.push(route.request().url());
+      return route.abort();
+    });
+    await bob.page.goto(`${APP}/discover`);
+    await bob.page.evaluate(() => localStorage.setItem("afterhours.discover.city", "Leipzig"));
+    await bob.page.reload();
+    await bob.page.waitForFunction(() => document.querySelector('input[aria-label="Stadt"]')?.value === "Leipzig", null, { timeout: 15_000 });
+    await bob.page.getByRole("tab", { name: "Karte" }).click();
+    await bob.page.getByRole("region", { name: "Karte der Orte in Leipzig" }).locator("[data-map-pin]").first().waitFor();
+    await shot(bob, "33d-discover-karte");
+    check(bobTiles.length === 0, "Smartphone: Karte ohne Anfrage an den Kachelserver");
+    await bob.page.getByRole("tab", { name: "Liste" }).click();
+    check(await bob.page.evaluate(() => localStorage.getItem("afterhours.discover.view")) === "list", "Ansicht wird auf dem Gerät gemerkt");
+    await bob.page.unroute(TILES);
+
+    await page.getByRole("tab", { name: "Liste" }).click();
+    await page.getByRole("article").first().waitFor();
+    check(true, "zurück zur Liste");
+  }
+
   await page.getByLabel("Ort oder Aktivität suchen").fill("pub 18");
   // P7 Etappe 2: Discover bietet Fotos an, lädt aber ohne Einwilligung nichts.
   await page.getByTestId("photo-offer").waitFor();
