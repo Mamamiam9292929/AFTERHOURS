@@ -66,7 +66,7 @@ export function CrewBalances({ crewId, userId, plans }: { crewId: string; userId
             </p>
             {total === 0 && <p className="mt-0.5 text-[13px] text-muted">{tx.othersOnly}</p>}
           </div>
-          <p className={cn("display shrink-0 text-[28px] leading-none sm:text-[34px]", total > 0 ? "text-lime" : total < 0 ? "text-amber" : "text-fg")}>
+          <p className={cn("display shrink-0 text-[26px] leading-none sm:text-[32px]", total > 0 ? "text-lime" : total < 0 ? "text-amber" : "text-fg")}>
             {sign}
             {formatEuro(Math.abs(total))}
           </p>
@@ -80,7 +80,7 @@ export function CrewBalances({ crewId, userId, plans }: { crewId: string; userId
                 <Link
                   to={`/plans/${planId}#kosten`}
                   aria-label={tx.open(title, state)}
-                  className={cn(PANEL_ITEM, "flex min-h-14 items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.08] focus-visible:bg-white/[0.08]")}
+                  className={cn(PANEL_ITEM, "flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-raised focus-visible:bg-raised")}
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-fg">{title}</span>
