@@ -25,6 +25,8 @@
  * Die CI trägt ihn als NOMINATIM_URL ein und den funktionierenden als PHOTON_URL – jede neue Stadt
  * wird also über Photon (/api, GeoJSON) gefunden. Photon liefert hier dieselben Relationen wie
  * Nominatim, damit die Overpass-Abfrage dieselbe bleibt.
+ * Fotos (Roadmap P7): pub 18, cinema 11 und pub 26 tragen Verweise auf Wikimedia Commons bzw. Wikidata,
+ * pub 34 und pub 42 ungültige (siehe leipzigElements).
  * Wetter (Roadmap P5): Unter /v1/forecast spielt er Open-Meteo (OPEN_METEO_URL der Edge Function
  * "weather"), /weather-calls listet die Abfragen.
  * Ohne Abhängigkeiten, nur Node.js.
@@ -69,6 +71,13 @@ function leipzigElements() {
         website: `https://example.org/ort/${i}`, phone: "+49 341 000000",
       });
     }
+    // P7: Foto-Verweise – pub 18 mit Commons-Datei, cinema 11 nur mit Wikidata, pub 26 als Commons-Adresse
+    // in `image`; pub 34 verweist auf eine fremde Seite und pub 42 auf eine Vektorgrafik (beides verworfen).
+    if (i === 18) tags.wikimedia_commons = "File:Pub_18_Leipzig.jpg";
+    if (i === 11) tags.wikidata = "Q4711";
+    if (i === 26) tags.image = "https://commons.wikimedia.org/wiki/File:Pub_26.jpg";
+    if (i === 34) tags.image = "https://example.org/pub34.jpg";
+    if (i === 42) tags.wikimedia_commons = "File:Pub 42.svg";
     // Gitter von etwa 6 × 6 km um die Stadtmitte.
     const lat = LEIPZIG.lat - 0.027 + (Math.floor(i / 52) % 50) * 0.0011;
     const lon = LEIPZIG.lon - 0.043 + (i % 52) * 0.00165;

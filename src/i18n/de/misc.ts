@@ -328,6 +328,7 @@ export const privacy = {
       title: "Dritte",
       items: [
         "Schriften und Icons liegen in der App selbst; es wird nichts von Schrift- oder Tracking-Diensten nachgeladen.",
+        "Fotos von Orten laden erst, wenn du auf „Foto anzeigen“ tippst oder „Fotos von Orten immer laden“ einschaltest (gilt nur auf diesem Gerät). Dann gehen Anfragen ohne Cookies an Wikimedia Commons und Wikidata – Wikimedia erfährt dabei deine IP-Adresse und welches Foto geladen wird.",
         "Es gibt keine Werbung und kein Tracking.",
         "Daten liegen bei Supabase (Datenbank und Anmeldung) in der Region, die der Betreiber wählt.",
       ],

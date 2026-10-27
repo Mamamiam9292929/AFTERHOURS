@@ -6,7 +6,7 @@ function eq(actual: unknown, expected: unknown, message = ""): void {
 function is(actual: unknown, expected: unknown, message = ""): void {
   if (!Object.is(actual, expected)) throw new Error(`${message} erwartet ${String(expected)}, erhalten ${String(actual)}`);
 }
-import { buildOverpassQuery, categorize, overpassAreaId, parseOpeningHours, selectPlaces, toPlace, type OsmElement } from "./osm.ts";
+import { buildOverpassQuery, categorize, commonsFileOf, overpassAreaId, parseOpeningHours, selectPlaces, toPlace, wikidataIdOf, type OsmElement } from "./osm.ts";
 
 Deno.test("Öffnungszeiten: einfache Regeln", () => {
   eq(parseOpeningHours("Mo-Fr 10:00-20:00; Sa 10:00-16:00"), {
@@ -121,4 +121,33 @@ Deno.test("Overpass-Abfrage", () => {
   const around = buildOverpassQuery({ kind: "around", lat: 50.1, lon: 8.6, radiusM: 4000 });
   is(around.includes("(around:4000,50.100000,8.600000);"), true);
   is(around.includes("area("), false);
+});
+
+Deno.test("Fotos (P7): Commons-Dateien aus wikimedia_commons und image", () => {
+  is(commonsFileOf("File:Moritzbastei_Leipzig.jpg"), "File:Moritzbastei Leipzig.jpg");
+  is(commonsFileOf("Datei:Völkerschlachtdenkmal.JPG"), "File:Völkerschlachtdenkmal.JPG");
+  is(commonsFileOf("https://commons.wikimedia.org/wiki/File:Moritzbastei_Leipzig_2.jpg"), "File:Moritzbastei Leipzig 2.jpg");
+  is(commonsFileOf("https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo%20bar.png"), "File:Foo bar.png");
+  is(commonsFileOf("https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Foo.jpg/640px-Foo.jpg"), "File:Foo.jpg");
+  is(commonsFileOf("File:Foo.jpg;File:Bar.jpg"), "File:Foo.jpg");
+  // Kategorien, fremde Seiten, Vektorgrafiken, Pfade und HTML werden nicht übernommen.
+  for (const bad of ["Category:Bars in Leipzig", "https://example.org/x.jpg", "File:Logo.svg", "File:a/b.jpg", "File:<script>.jpg", "", undefined]) {
+    is(commonsFileOf(bad), null, String(bad));
+  }
+});
+
+Deno.test("Fotos (P7): Wikidata-Kennung und Übernahme in den Ort", () => {
+  is(wikidataIdOf("Q42"), "Q42");
+  is(wikidataIdOf("q42;Q7"), "Q42");
+  is(wikidataIdOf("Q0"), null);
+  is(wikidataIdOf("P18"), null);
+  const place = toPlace({ type: "node", id: 7, lat: 51.3, lon: 12.4, tags: { amenity: "cinema", name: "Kino", image: "https://commons.wikimedia.org/wiki/File:Kino.jpg", wikidata: "Q5" } }, "Leipzig");
+  is(place?.commons_file, "File:Kino.jpg");
+  is(place?.wikidata_id, "Q5");
+  // wikimedia_commons hat Vorrang vor image.
+  const both = toPlace({ type: "node", id: 8, lat: 51.3, lon: 12.4, tags: { amenity: "pub", name: "Pub", wikimedia_commons: "File:A.jpg", image: "File:B.jpg" } }, "Leipzig");
+  is(both?.commons_file, "File:A.jpg");
+  const none = toPlace({ type: "node", id: 9, lat: 51.3, lon: 12.4, tags: { amenity: "pub", name: "Pub", image: "https://example.org/pub.jpg" } }, "Leipzig");
+  is(none?.commons_file, null);
+  is(none?.wikidata_id, null);
 });

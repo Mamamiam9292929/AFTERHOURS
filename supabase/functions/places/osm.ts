@@ -37,6 +37,10 @@ export interface Place {
   setting: "indoor" | "outdoor" | null;
   source_url: string;
   quality: number;
+  /** P7: Datei bei Wikimedia Commons („File:…“), aus `wikimedia_commons` oder `image`. */
+  commons_file: string | null;
+  /** P7: Wikidata-Eintrag („Q…“) – dessen Bild (P18) gilt, wenn keine Datei angegeben ist. */
+  wikidata_id: string | null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -163,6 +167,39 @@ function phoneOf(tags: Record<string, string>): string | null {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Fotos (Roadmap P7): nur Verweise auf Wikimedia Commons bzw. Wikidata. Das Bild selbst, Urheber
+// und Lizenz holt erst der Browser – und nur, wenn die Person es will (src/lib/commons.ts).
+// ---------------------------------------------------------------------------------------------
+const COMMONS_FILE = /^File:[^\]\/|#<>{}\[\u0000-\u001f]{1,240}\.(?:jpe?g|png|webp)$/i;
+
+/** „File:Foo bar.jpg“ aus „File:Foo_bar.jpg“, „Datei:…“, Commons-Seiten- oder Upload-Adressen. */
+export function commonsFileOf(raw: string | undefined | null): string | null {
+  let value = (raw ?? "").split(";")[0]?.trim() ?? "";
+  if (value === "") return null;
+  const url = value.match(/^https?:\/\/(?:commons\.(?:m\.)?wikimedia\.org\/wiki\/|upload\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/)([^?#]+)$/i);
+  if (url) {
+    // Bei Vorschaubildern („…/thumb/a/ab/Foo.jpg/640px-Foo.jpg“) zählt der Teil vor dem letzten „/“.
+    const path = url[1] ?? "";
+    const name = path.startsWith("File:") || path.startsWith("Datei:") ? path : path.split("/")[0] ?? "";
+    try {
+      value = decodeURIComponent(name);
+    } catch {
+      return null;
+    }
+    if (!/^(?:File|Datei):/i.test(value)) value = `File:${value}`;
+  } else if (/^https?:/i.test(value)) {
+    return null;
+  }
+  value = value.replace(/^(?:File|Datei|Image|Bild):\s*/i, "File:").replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  return COMMONS_FILE.test(value) ? value : null;
+}
+
+export function wikidataIdOf(raw: string | undefined | null): string | null {
+  const value = (raw ?? "").split(";")[0]?.trim().toUpperCase() ?? "";
+  return /^Q[1-9][0-9]{0,11}$/.test(value) ? value : null;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Öffnungszeiten (Teilmenge der OSM-Syntax; alles andere bleibt Originaltext)
 // ---------------------------------------------------------------------------------------------
 const DAY_TOKENS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const;
@@ -286,6 +323,8 @@ export function toPlace(element: OsmElement, regionName: string): Place | null {
     setting: settingOf(tags, category),
     source_url: `https://www.openstreetmap.org/${element.type}/${element.id}`,
     quality,
+    commons_file: commonsFileOf(tags.wikimedia_commons) ?? commonsFileOf(tags.image),
+    wikidata_id: wikidataIdOf(tags.wikidata),
   };
 }
 

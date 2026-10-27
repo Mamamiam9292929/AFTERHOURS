@@ -128,6 +128,10 @@ export interface Activity {
   /** Link zum Eintrag bei der Datenquelle (z. B. OpenStreetMap). */
   source_url: string | null;
   quality: number;
+  /** P7: Datei bei Wikimedia Commons („File:…“) laut OpenStreetMap. */
+  commons_file?: string | null;
+  /** P7: Wikidata-Eintrag („Q…“) laut OpenStreetMap – dessen Bild gilt, wenn keine Datei angegeben ist. */
+  wikidata_id?: string | null;
   created_at: string;
   updated_at: string;
 }

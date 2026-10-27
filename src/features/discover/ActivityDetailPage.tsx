@@ -19,9 +19,9 @@ import { mapProvider } from "@/lib/maps";
 import { supabase } from "@/lib/supabase";
 import { formatDateWithYear, zonedParts } from "@/lib/time";
 import type { Activity } from "@/lib/types";
-import { ActivityCover } from "./ActivityCard";
 import { typicalPriceCents, useActivity, usePlaceRegion } from "./api";
 import { openLabel, priceLabel } from "./display";
+import { PlacePhoto } from "./PlacePhoto";
 
 const externalLink = "inline-flex items-center gap-1.5 font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime";
 
@@ -191,7 +191,7 @@ export function ActivityDetailPage() {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
-          <ActivityCover activity={a} className="aspect-[16/9] rounded-card sm:aspect-[2/1]" />
+          <PlacePhoto activity={a} className="aspect-[16/9] rounded-card sm:aspect-[2/1]" />
 
           {a.is_demo && (
             <Notice tone="amber" icon={<IconInfo aria-hidden />} title={t.discover.demoNotice.title} className="mt-5">
