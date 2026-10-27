@@ -2363,11 +2363,18 @@ await step("Meldung abgeben und Admin-Bereich", async () => {
   const { page } = alice;
   await page.goto(`${APP}/admin`);
   await page.getByText("Offene Meldungen").waitFor();
+  // V2 Etappe 3p: Zahlen als Glas-Kacheln in einer Karte; offene Meldungen warten – die Kachel ist gelb.
+  check((await page.locator('[data-testid=admin-metrics] [data-waiting="true"]').innerText()).includes("Offene Meldungen"), "V2: offene Meldungen als gelbe Kachel hervorgehoben");
+  check((await page.locator("section.plan-panel#admin-overview").count()) === 1 && (await page.locator("section.plan-panel#place-sync").count()) === 1, "V2: Übersicht und Orte-Import als Glas-Karten");
   await shot(alice, "32-admin");
   await page.getByRole("tab", { name: "Meldungen" }).click();
   await page.getByText("Öffnungszeiten am Montag stimmen nicht.").waitFor();
+  const reports = page.locator("section#admin-reports");
+  check((await reports.getByText("1 offen", { exact: true }).count()) === 1 && (await reports.locator('li[data-status="open"]').count()) === 1, "V2: Meldungen als Glas-Karten, Stand „1 offen“ als Pille");
+  await shot(alice, "32-admin-meldungen");
   await page.getByRole("button", { name: "Erledigt" }).click();
   await toast(alice, "Meldung aktualisiert.");
+  await reports.getByText("Nichts offen", { exact: true }).waitFor();
   check(true, "Admin sieht und bearbeitet Meldungen");
   await page.getByRole("tab", { name: "Aktivitäten" }).click();
   const row = page.getByRole("listitem").filter({ hasText: "Café Morgenrot" });
