@@ -122,7 +122,7 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
     }
   };
   const twoFingers = () => {
-    const [a, b] = [...pointers.current.values()];
+    const [a = { x: 0, y: 0 }, b = a] = [...pointers.current.values()];
     return { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
   };
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
@@ -240,7 +240,7 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
   const gridOffset = view ? toScreen({ latitude: 0, longitude: 0 }, view, size.width, size.height) : { x: 0, y: 0 };
   const onScreen = ({ x, y }: Pixel) => x > -28 && y > -28 && x < size.width + 28 && y < size.height + 28;
   const pins = view
-    ? [...clusters.filter((c) => c.members.length === 1).map((c) => c.members[0]), ...(selected ? [selected] : [])]
+    ? [...clusters.flatMap((c) => (c.members.length === 1 ? c.members : [])), ...(selected ? [selected] : [])]
         .map((p) => ({ ...p, at: toScreen(p.point, view, size.width, size.height) }))
         // Der gewählte Punkt liegt obenauf (steht als letzter in der Liste).
         .filter(({ at }) => onScreen(at))
@@ -322,7 +322,7 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
           );
         })}
         {bundles.map(({ members, at }) => {
-          const best = members[0].ranked.activity;
+          const best = members[0]!.ranked.activity;
           const count = members.length;
           // Größer, je mehr Orte drin sind – aber nie so groß, dass es die Nachbarn verdeckt.
           const diameter = count < 10 ? 32 : count < 50 ? 38 : 44;

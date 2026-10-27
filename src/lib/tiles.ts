@@ -162,20 +162,20 @@ export function clusterPoints<T>(items: readonly T[], pointOf: (item: T) => GeoP
   for (let i = 0; i < items.length; i++) {
     if (taken[i]) continue;
     taken[i] = 1;
-    const seed = pixels[i];
-    const members = [items[i]];
+    const seed = pixels[i]!;
+    const members = [items[i]!];
     let sx = seed.x;
     let sy = seed.y;
     for (let j = i + 1; j < items.length; j++) {
       if (taken[j]) continue;
-      const p = pixels[j];
+      const p = pixels[j]!;
       if (Math.abs(p.x - seed.x) > radius || Math.abs(p.y - seed.y) > radius || Math.hypot(p.x - seed.x, p.y - seed.y) > radius) continue;
       taken[j] = 1;
-      members.push(items[j]);
+      members.push(items[j]!);
       sx += p.x;
       sy += p.y;
     }
-    clusters.push({ members, point: members.length === 1 ? pointOf(items[i]) : unproject({ x: sx / members.length, y: sy / members.length }, zoom) });
+    clusters.push({ members, point: members.length === 1 ? pointOf(items[i]!) : unproject({ x: sx / members.length, y: sy / members.length }, zoom) });
   }
   return clusters;
 }
