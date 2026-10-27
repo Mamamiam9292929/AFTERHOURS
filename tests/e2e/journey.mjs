@@ -1841,12 +1841,13 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     await pairs.getByText("Du gibst Alice 39 €").waitFor();
     check(true, "nach dem Fehler steht die neue Summe da (39 €)");
 
+    const settledBefore = Number(psql(`select count(*) from public.plan_expenses where kind = 'settlement' and created_by = '${bobId}' and plan_id in ('${kino}', '${ids.plan}')`));
     await pairs.getByRole("button", { name: /^Du gibst Alice 39\s€: alles auf einmal als erledigt markieren$/ }).click();
     await confirmPair.click();
     await toast(bob, "Rückzahlungen bei 2 Abenden eingetragen.");
     await bob.page.getByTestId("crew-balances").waitFor({ state: "detached" });
     check(true, "danach ist bei Bob nichts mehr offen – die Karte verschwindet");
-    check(psql(`select count(*) from public.plan_expenses where kind = 'settlement' and created_by = '${bobId}' and plan_id in ('${kino}', '${ids.plan}')`) === "2", "je Abend eine Rückzahlung");
+    check(Number(psql(`select count(*) from public.plan_expenses where kind = 'settlement' and created_by = '${bobId}' and plan_id in ('${kino}', '${ids.plan}')`)) === settledBefore + 2, "je Abend eine Rückzahlung");
     await bob.page.goto(`${APP}/plans/${ids.plan}#kosten`);
     await bob.page.getByRole("heading", { name: "Kosten teilen" }).waitFor();
     check((await bob.page.getByText("Du gibst noch 28 €").count()) === 0, "auch auf der Planseite ist der Abend ausgeglichen");
