@@ -1517,7 +1517,8 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   check((await page.getByTestId("rewards-level").getAttribute("data-tone")) === "lime", "V2: Stufe als Lime-Pille, sobald es Punkte gibt");
   const levels = page.getByTestId("rewards-levels").getByRole("listitem");
   check((await levels.count()) === 5 && (await page.locator('[data-testid=rewards-levels] li[data-reached="true"]').count()) === 1, "V2: Leiter zeigt fünf Stufen, die erste erreicht");
-  check((await page.locator('[data-testid=rewards-levels] li[aria-current="step"]').innerText()).includes("Neu dabei"), "V2: eigene Stufe in der Leiter markiert");
+  // innerText folgt `uppercase` – daher ohne Groß-/Kleinschreibung vergleichen.
+  check(/neu dabei/i.test(await page.locator('[data-testid=rewards-levels] li[aria-current="step"]').innerText()), "V2: eigene Stufe in der Leiter markiert");
   check((await page.getByTestId("rewards-history").locator(".bg-lime").count()) === 2, "V2: Verlauf zeigt die Punkte als Lime-Pillen");
   check((await page.locator('[data-testid=rewards-milestones] li[data-done="true"]').count()) === 2, "V2: zwei Meilensteine erreicht (erste Unternehmung, zum ersten Mal organisiert)");
   await shot(alice, "19-rewards");
