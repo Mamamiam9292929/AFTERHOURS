@@ -100,13 +100,7 @@ export function RewardsPage() {
               )}
             </PanelCard>
 
-            <PanelCard
-              id="rewards-partners"
-              title={t.rewards.partnersTitle}
-              icon={<IconSparkles />}
-              tone="pink"
-              status={<StatusPill tone="amber">{t.rewards.partnersStatus}</StatusPill>}
-            >
+            <PanelCard id="rewards-partners" title={t.rewards.partnersTitle} icon={<IconSparkles />} tone="pink" status={<StatusPill tone="amber">{t.rewards.partnersStatus}</StatusPill>}>
               <Notice tone="amber" icon={<IconInfo aria-hidden />} title={t.rewards.partnersNotice.title} className="mb-4 rounded-[20px] bg-amber/[0.07]">
                 {t.rewards.partnersNotice.body}
               </Notice>
@@ -206,14 +200,7 @@ function BalanceCard({ points, levelIndex, progress, nextThreshold }: { points: 
               {level}
             </StatusPill>
           </div>
-          <div
-            className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/10"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(progress * 100)}
-            aria-label={level}
-          >
+          <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)} aria-label={level}>
             <div className="h-full rounded-full bg-lime shadow-[0_0_18px_var(--color-lime)]" style={{ width: `${Math.max(progress, 0.02) * 100}%` }} />
           </div>
           <p className="mt-2 text-sm text-muted">{nextThreshold ? t.rewards.nextLevel(nextThreshold - points, t.rewards.levels[levelIndex + 1] ?? "") : t.rewards.maxLevel}</p>
@@ -235,9 +222,7 @@ function BalanceCard({ points, levelIndex, progress, nextThreshold }: { points: 
                   <span className="font-display text-[13px] font-extrabold leading-none">{index + 1}</span>
                   {/* Auf dem Handy reicht der Platz nicht für „Organisationstalent“: Name nur für Screenreader, die eigene Stufe steht in der Pille. */}
                   <span className="sr-only truncate text-[11px] font-bold uppercase tracking-wide sm:not-sr-only sm:mt-1">{name}</span>
-                  <span className={cn("mt-1 text-[11px] font-semibold", reached ? "text-lime-ink" : "text-muted")}>
-                    {t.rewards.levelFrom(LEVEL_THRESHOLDS[index] ?? 0)}
-                  </span>
+                  <span className={cn("mt-1 text-[11px] font-semibold", reached ? "text-lime-ink" : "text-muted")}>{t.rewards.levelFrom(LEVEL_THRESHOLDS[index] ?? 0)}</span>
                   <span className="sr-only">{current ? `, ${t.rewards.levelCurrent}` : reached ? `, ${t.rewards.levelReached}` : ""}</span>
                 </li>
               );
