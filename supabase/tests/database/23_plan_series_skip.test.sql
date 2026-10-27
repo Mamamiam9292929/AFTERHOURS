@@ -44,9 +44,13 @@ select is((select count(*)::int from public.plans where series_id = tests.var('s
 select tests.login('bob');
 select is(public.roll_plan_series(), 0, 'Bob öffnet die App 12 Tage vorher: nichts fällig');
 
--- Sechs Tage später: der nächste Termin ist sechs Tage entfernt.
+-- Sechs Tage später: der nächste Termin ist sechs Tage entfernt. In Berliner Ortszeit zurücksetzen – feste
+-- 6 × 24 Stunden verschieben die Uhrzeit, wenn dazwischen die Zeitumstellung liegt (20:00 würde 21:00).
 select tests.logout();
-update public.plans set starts_at = starts_at - interval '6 days', ends_at = ends_at - interval '6 days' where id = tests.var('first')::uuid;
+update public.plans
+set starts_at = ((starts_at at time zone 'Europe/Berlin') - interval '6 days') at time zone 'Europe/Berlin',
+    ends_at = ((ends_at at time zone 'Europe/Berlin') - interval '6 days') at time zone 'Europe/Berlin'
+where id = tests.var('first')::uuid;
 update public.plan_series set last_on = last_on - 6 where id = tests.var('series')::uuid;
 delete from public.notifications;
 select tests.login('mallory');
