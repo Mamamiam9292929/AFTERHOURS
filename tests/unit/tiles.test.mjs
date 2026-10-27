@@ -92,3 +92,81 @@ test("Kacheln: Welt bricht in West-Ost-Richtung um, keine Kacheln jenseits der P
   assert.ok(tiles.every((t) => t.y >= 0 && t.y < 32 && t.x >= 0 && t.x < 32));
   assert.ok(tiles.some((t) => t.x === 0) && tiles.some((t) => t.x === 31), "Kacheln von beiden Seiten der Datumsgrenze");
 });
+
+// P6 Etappe 2: Zoomen um einen Punkt, Bündeln, Tipp auf ein Bündel.
+import { CLUSTER_RADIUS, clusterAction, clusterPoints, zoomAround } from "../../src/lib/tiles.ts";
+
+test("Zoomen um einen Punkt: der Ort unter den Fingern bleibt stehen", () => {
+  const view = { center: LEIPZIG, zoom: 13 };
+  const at = { x: 300, y: 120 };
+  // Der Geopunkt, der gerade unter `at` liegt:
+  const c = project(view.center, 13);
+  const anchor = unproject({ x: c.x + at.x - 200, y: c.y + at.y - 200 }, 13);
+  for (const step of [1, -1, 2]) {
+    const next = zoomAround(view, step, at, 400, 400);
+    assert.equal(next.zoom, 13 + step);
+    const stays = toScreen(anchor, next, 400, 400);
+    assert.ok(Math.abs(stays.x - at.x) < 1e-6 && Math.abs(stays.y - at.y) < 1e-6, `Anker bleibt bei Stufe ${step}`);
+  }
+  // In der Mitte gezoomt = wie zoomBy
+  const mid = zoomAround(view, 1, { x: 200, y: 200 }, 400, 400);
+  assert.ok(near(mid.center.latitude, LEIPZIG.latitude) && near(mid.center.longitude, LEIPZIG.longitude));
+  // An der Grenze passiert nichts
+  const top = { center: LEIPZIG, zoom: MAX_ZOOM };
+  assert.equal(zoomAround(top, 1, at, 400, 400), top);
+});
+
+test("Bündeln: nahe Punkte werden eins, ferne bleiben einzeln, Reihenfolge bleibt", () => {
+  const pts = [
+    { id: "a", p: LEIPZIG },
+    { id: "b", p: { latitude: LEIPZIG.latitude + 0.0002, longitude: LEIPZIG.longitude + 0.0002 } },
+    { id: "c", p: { latitude: LEIPZIG.latitude + 0.05, longitude: LEIPZIG.longitude } },
+    { id: "d", p: { latitude: LEIPZIG.latitude - 0.0003, longitude: LEIPZIG.longitude } },
+  ];
+  const at13 = clusterPoints(pts, (x) => x.p, 13);
+  assert.deepEqual(at13.map((cl) => cl.members.map((m) => m.id)), [["a", "b", "d"], ["c"]]);
+  // Ein einzelner Punkt behält genau seine Koordinate, ein Bündel liegt in der Mitte seiner Orte.
+  assert.equal(at13[1].point, pts[2].p);
+  const mid = toScreen(at13[0].point, { center: LEIPZIG, zoom: 13 }, 400, 400);
+  const pa = toScreen(pts[0].p, { center: LEIPZIG, zoom: 13 }, 400, 400);
+  assert.ok(Math.abs(mid.x - pa.x) < CLUSTER_RADIUS && Math.abs(mid.y - pa.y) < CLUSTER_RADIUS);
+  // Ganz nah gehen sie auseinander.
+  assert.equal(clusterPoints(pts, (x) => x.p, 18).length, 4);
+  // Unabhängig vom Ausschnitt: gleiche Zoomstufe, gleiche Bündel.
+  assert.deepEqual(clusterPoints(pts, (x) => x.p, 13), at13);
+  assert.deepEqual(clusterPoints([], (x) => x, 13), []);
+});
+
+test("Bündeln: Gitter wie im OSM-Stellvertreter – weniger Bündel als Orte, keiner geht verloren", () => {
+  const grid = [];
+  for (let i = 0; i < 400; i++) grid.push({ latitude: LEIPZIG.latitude - 0.027 + Math.floor(i / 52) * 0.0011, longitude: LEIPZIG.longitude - 0.043 + (i % 52) * 0.00165 });
+  for (const zoom of [12, 13, 14]) {
+    const clusters = clusterPoints(grid, (p) => p, zoom);
+    assert.equal(clusters.reduce((s, cl) => s + cl.members.length, 0), 400);
+    assert.ok(clusters.length < 400);
+    // Keine zwei Bündel-Mitten liegen aufeinander.
+    const px = clusters.map((cl) => project(cl.point, zoom));
+    for (let i = 0; i < px.length; i++) for (let j = i + 1; j < px.length; j++) assert.ok(Math.hypot(px[i].x - px[j].x, px[i].y - px[j].y) > 4);
+  }
+  assert.equal(clusterPoints(grid, (p) => p, 17).length, 400);
+});
+
+test("Tipp auf ein Bündel: heran, bis alle zu sehen sind – oder als Liste, wenn sie nie auseinandergehen", () => {
+  const view = { center: LEIPZIG, zoom: 12 };
+  const spread = [LEIPZIG, { latitude: LEIPZIG.latitude + 0.003, longitude: LEIPZIG.longitude + 0.004 }];
+  const zoom = clusterAction(spread, view, 400, 400);
+  assert.equal(zoom.kind, "zoom");
+  assert.ok(zoom.view.zoom > 12);
+  for (const p of spread) {
+    const s = toScreen(p, zoom.view, 400, 400);
+    assert.ok(s.x >= 0 && s.x <= 400 && s.y >= 0 && s.y <= 400, "beide Orte im neuen Ausschnitt");
+  }
+  // Schon beim Einpassen-Maximum: eine Stufe weiter, mitten aufs Bündel.
+  const close = [LEIPZIG, { latitude: LEIPZIG.latitude + 0.0002, longitude: LEIPZIG.longitude }];
+  const step = clusterAction(close, { center: LEIPZIG, zoom: FIT_MAX_ZOOM }, 400, 400);
+  assert.equal(step.kind, "zoom");
+  assert.equal(step.view.zoom, FIT_MAX_ZOOM + 1);
+  // Gleiche Adresse: geht nie auseinander → Liste. Ganz nah: auch Liste.
+  assert.deepEqual(clusterAction([LEIPZIG, { ...LEIPZIG }], view, 400, 400), { kind: "list" });
+  assert.deepEqual(clusterAction(close, { center: LEIPZIG, zoom: MAX_ZOOM }, 400, 400), { kind: "list" });
+});

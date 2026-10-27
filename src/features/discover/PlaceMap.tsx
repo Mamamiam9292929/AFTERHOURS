@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { IconAlert, IconFit, IconMap, IconMinus, IconPlus } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/Feedback";
@@ -8,7 +8,7 @@ import type { PlacePhoto } from "@/lib/commons";
 import type { LatLng } from "@/lib/geo";
 import { mapProvider, mapTilesAllowed, setMapTilesAllowed } from "@/lib/maps";
 import { categoryWorld, type CategoryWorld } from "@/lib/stage";
-import { fitView, isGeoPoint, panBy, toScreen, visibleTiles, zoomBy, type GeoPoint, type MapView } from "@/lib/tiles";
+import { clusterAction, clusterPoints, fitView, isGeoPoint, panBy, toScreen, visibleTiles, zoomAround, zoomBy, type GeoPoint, type MapView, type Pixel } from "@/lib/tiles";
 import { ActivityCard } from "./ActivityCard";
 import type { RankedActivity } from "./api";
 
@@ -26,6 +26,18 @@ const PADDING = 44;
 const DRAG_THRESHOLD = 5;
 const PAN_STEP = 96;
 const GRID = 48;
+/** Zwei Finger: so viel Spreizen (log2 des Abstands, 0,5 ≈ 1,4-fach) ist eine Zoomstufe. */
+const PINCH_STEP = 0.5;
+/** Strg + Mausrad bzw. Pinch auf dem Trackpad: so viel `deltaY` ist eine Zoomstufe. */
+const WHEEL_STEP = 60;
+
+/** Rand eines Bündels in der Farbwelt seines besten Ortes. */
+const CLUSTER_RING: Record<CategoryWorld, string> = {
+  food: "border-amber",
+  night: "border-pink",
+  play: "border-violet",
+  outside: "border-lime",
+};
 
 interface Placed {
   ranked: RankedActivity;
@@ -74,6 +86,16 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = placed.find((p) => p.ranked.activity.id === selectedId) ?? null;
+  // Orte an derselben Stelle (Bündel, das auch ganz nah nicht auseinandergeht) – als Liste unter der Karte.
+  const [stackIds, setStackIds] = useState<string[] | null>(null);
+  const stack = stackIds ? placed.filter((p) => stackIds.includes(p.ranked.activity.id)) : [];
+
+  // P6 Etappe 2: nahe Orte als Bündel („12“). Gerechnet je Zoomstufe über alle Orte, nicht nur die sichtbaren –
+  // so bleiben die Bündel beim Ziehen stehen. Der gewählte Ort steht immer einzeln.
+  const clusters = useMemo(
+    () => (view ? clusterPoints(placed.filter((p) => p.ranked.activity.id !== selectedId), (p) => p.point, view.zoom) : []),
+    [pointsKey, view?.zoom, selectedId],
+  );
 
   const [tilesOn, setTilesOn] = useState(mapTilesAllowed);
   const [tileState, setTileState] = useState({ loaded: 0, failed: 0 });
@@ -83,14 +105,61 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
     setTileState({ loaded: 0, failed: 0 });
   };
 
+  // Ein Finger (oder Maus) zieht, zwei Finger zoomen um die Mitte zwischen ihnen und verschieben zugleich.
+  const pointers = useRef(new Map<number, Pixel>());
   const drag = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
+  const pinch = useRef<{ distance: number; mid: Pixel } | null>(null);
   const dragged = useRef(false);
+  const local = (x: number, y: number): Pixel => {
+    const rect = frame.current?.getBoundingClientRect();
+    return rect ? { x: x - rect.left, y: y - rect.top } : { x, y };
+  };
+  const capture = (el: Element, id: number) => {
+    try {
+      el.setPointerCapture(id);
+    } catch {
+      // Zeiger schon weg (z. B. Finger abgehoben) – dann gibt es nichts festzuhalten.
+    }
+  };
+  const twoFingers = () => {
+    const [a, b] = [...pointers.current.values()];
+    return { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+  };
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // Erster Finger bzw. Maus: Reste eines Zeigers, der außerhalb der Karte losgelassen wurde, vergessen.
+    if (e.isPrimary) pointers.current.clear();
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      // Zweiter Finger: aus dem Ziehen wird Zoomen; kein Tipp auf einen Punkt mehr.
+      drag.current = null;
+      dragged.current = true;
+      pinch.current = twoFingers();
+      for (const id of pointers.current.keys()) capture(e.currentTarget, id);
+      return;
+    }
+    if (pointers.current.size > 2) return;
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     dragged.current = false;
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = pinch.current;
+    if (p && pointers.current.size === 2) {
+      const now = twoFingers();
+      const dx = now.mid.x - p.mid.x;
+      const dy = now.mid.y - p.mid.y;
+      const scale = Math.log2(now.distance / p.distance);
+      const step = scale >= PINCH_STEP ? 1 : scale <= -PINCH_STEP ? -1 : 0;
+      const at = local(now.mid.x, now.mid.y);
+      move((current) => {
+        const panned = dx || dy ? panBy(current, -dx, -dy) : current;
+        return step ? zoomAround(panned, step, at, size.width, size.height) : panned;
+      });
+      pinch.current = { distance: step ? now.distance : p.distance, mid: now.mid };
+      return;
+    }
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     const dx = e.clientX - d.x;
@@ -99,15 +168,57 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
       d.moved = true;
       dragged.current = true;
-      e.currentTarget.setPointerCapture(e.pointerId);
+      capture(e.currentTarget, e.pointerId);
     }
     d.x = e.clientX;
     d.y = e.clientY;
     move((current) => panBy(current, -dx, -dy));
   };
-  const endDrag = () => {
+  const endPointer = (e: PointerEvent<HTMLDivElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    // Bleibt nach dem Zoomen ein Finger liegen, zieht er erst nach erneutem Aufsetzen – sonst springt die Karte.
     drag.current = null;
   };
+  // Doppeltipp (oder Doppelklick) auf freie Fläche: eine Stufe näher, dort, wo getippt wurde.
+  const onDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
+    if ((e.target as Element).closest("button, a")) return;
+    const at = local(e.clientX, e.clientY);
+    move((current) => zoomAround(current, 1, at, size.width, size.height));
+  };
+  // Strg + Mausrad und Pinch auf dem Trackpad (kommt als Rad mit Strg). Ohne Strg scrollt die Seite wie gewohnt.
+  // Als eigener Listener, weil React Rad-Ereignisse nur passiv anmeldet und der Browser sonst die Seite zoomt.
+  const wheel = useRef({ total: 0, handle: (_e: WheelEvent) => {} });
+  wheel.current.handle = (e: WheelEvent) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    wheel.current.total += e.deltaMode === 1 ? e.deltaY * 20 : e.deltaY;
+    const step = wheel.current.total <= -WHEEL_STEP ? 1 : wheel.current.total >= WHEEL_STEP ? -1 : 0;
+    if (!step) return;
+    wheel.current.total = 0;
+    const at = local(e.clientX, e.clientY);
+    move((current) => zoomAround(current, step, at, size.width, size.height));
+  };
+  useEffect(() => {
+    const el = frame.current;
+    if (!el) return;
+    const listener = (e: WheelEvent) => wheel.current.handle(e);
+    el.addEventListener("wheel", listener, { passive: false });
+    return () => el.removeEventListener("wheel", listener);
+  }, [noneWithLocation]);
+
+  const openCluster = (members: Placed[]) => {
+    if (!view) return;
+    const action = clusterAction(members.map((m) => m.point), view, size.width, size.height, PADDING);
+    if (action.kind === "zoom") {
+      setStackIds(null);
+      move(() => action.view);
+    } else {
+      setSelectedId(null);
+      setStackIds(members.map((m) => m.ranked.activity.id));
+    }
+  };
+
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return;
     const pan: Record<string, [number, number]> = { ArrowLeft: [-PAN_STEP, 0], ArrowRight: [PAN_STEP, 0], ArrowUp: [0, -PAN_STEP], ArrowDown: [0, PAN_STEP] };
@@ -127,12 +238,15 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
   const tilesDown = tilesOn && tileState.failed > 0 && tileState.loaded === 0;
   // Raster ohne Stadtplan wandert beim Ziehen mit – so fühlt sich die Karte auch ohne Kacheln wie eine Karte an.
   const gridOffset = view ? toScreen({ latitude: 0, longitude: 0 }, view, size.width, size.height) : { x: 0, y: 0 };
+  const onScreen = ({ x, y }: Pixel) => x > -28 && y > -28 && x < size.width + 28 && y < size.height + 28;
   const pins = view
-    ? placed
+    ? [...clusters.filter((c) => c.members.length === 1).map((c) => c.members[0]), ...(selected ? [selected] : [])]
         .map((p) => ({ ...p, at: toScreen(p.point, view, size.width, size.height) }))
-        .filter(({ at }) => at.x > -20 && at.y > -20 && at.x < size.width + 20 && at.y < size.height + 20)
-        // Der gewählte Punkt liegt obenauf.
-        .sort((a, b) => Number(a.ranked.activity.id === selectedId) - Number(b.ranked.activity.id === selectedId))
+        // Der gewählte Punkt liegt obenauf (steht als letzter in der Liste).
+        .filter(({ at }) => onScreen(at))
+    : [];
+  const bundles = view
+    ? clusters.filter((c) => c.members.length > 1).map((c) => ({ ...c, at: toScreen(c.point, view, size.width, size.height) })).filter(({ at }) => onScreen(at))
     : [];
 
   return (
@@ -146,8 +260,9 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
         tabIndex={0}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerUp={endPointer}
+        onPointerCancel={endPointer}
+        onDoubleClick={onDoubleClick}
         onKeyDown={onKeyDown}
         className="map-frame relative h-[440px] touch-none select-none overflow-hidden rounded-card border border-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime sm:h-[520px]"
         style={{ "--grid-x": `${(((gridOffset.x % GRID) + GRID) % GRID).toFixed(1)}px`, "--grid-y": `${(((gridOffset.y % GRID) + GRID) % GRID).toFixed(1)}px` } as CSSProperties}
@@ -189,6 +304,7 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
               data-map-pin={activity.name}
               onClick={() => {
                 if (dragged.current) return;
+                setStackIds(null);
                 setSelectedId(active ? null : activity.id);
               }}
               className="absolute z-10 inline-flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
@@ -202,6 +318,32 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
                 )}
                 aria-hidden
               />
+            </button>
+          );
+        })}
+        {bundles.map(({ members, at }) => {
+          const best = members[0].ranked.activity;
+          const count = members.length;
+          // Größer, je mehr Orte drin sind – aber nie so groß, dass es die Nachbarn verdeckt.
+          const diameter = count < 10 ? 32 : count < 50 ? 38 : 44;
+          return (
+            <button
+              key={`c-${best.id}`}
+              type="button"
+              tabIndex={-1}
+              aria-label={t.discover.map.cluster(count)}
+              data-map-cluster={count}
+              onClick={() => {
+                if (dragged.current) return;
+                openCluster(members);
+              }}
+              className={cn(
+                "glass absolute z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 font-display text-[12px] font-bold tabular-nums text-fg shadow-[0_0_18px_rgba(0,0,0,0.55)] transition-transform duration-200 hover:scale-110",
+                CLUSTER_RING[categoryWorld(best.category)],
+              )}
+              style={{ left: at.x, top: at.y, width: diameter, height: diameter }}
+            >
+              {count}
             </button>
           );
         })}
@@ -262,7 +404,30 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
         </div>
       )}
 
-      {selected ? (
+      {stack.length > 1 ? (
+        <div className="space-y-2" data-testid="map-stack">
+          <p className="text-sm text-muted">{t.discover.map.stack(stack.length)}</p>
+          <ul className="flex flex-wrap gap-2">
+            {stack.map(({ ranked }) => (
+              <li key={ranked.activity.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStackIds(null);
+                    setSelectedId(ranked.activity.id);
+                  }}
+                  className={cn(
+                    "glass inline-flex min-h-11 items-center gap-2 rounded-full border-2 px-4 text-sm font-semibold text-fg transition-colors hover:border-fg",
+                    CLUSTER_RING[categoryWorld(ranked.activity.category)],
+                  )}
+                >
+                  {ranked.activity.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : selected ? (
         <div className="max-w-sm">
           <ActivityCard activity={selected.ranked.activity} distanceKm={selected.ranked.distanceKm} photo={photos.get(selected.ranked.activity.id)} compact />
         </div>
