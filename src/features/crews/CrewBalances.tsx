@@ -1,17 +1,22 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { IconForward, IconWallet } from "@/components/icons";
 import { Section } from "@/components/layout/Page";
+import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 import { ErrorState } from "@/components/ui/Feedback";
 import { PanelCard } from "@/components/ui/PanelCard";
+import { useToast } from "@/components/ui/Toast";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
 import type { PlanWithParticipants } from "@/features/plans/api";
+import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
-import { openPlans } from "@/lib/settle";
+import { openPlans, pairTotals, type PairTotal } from "@/lib/settle";
 import { formatDateShort } from "@/lib/time";
-import { useCrewBalances } from "./api";
+import { useCrewBalances, useSettleWith } from "./api";
 
 const tx = t.crews.balances;
 
@@ -20,9 +25,15 @@ const tx = t.crews.balances;
  * ist – mit Sprung zu „Kosten teilen“ auf der Planseite. Erscheint erst, wenn etwas offen ist; solange
  * die Salden laden, bleibt der Platz leer (Crews ohne Ausgaben sollen nicht kurz einen Platzhalter sehen).
  * Seit D8 als Glas-Karte im Stil 2.0 (`PanelCard`), Beträge je Abend als Pillen in Lime bzw. Gelb.
+ * P3 Etappe 3c: Ist mit derselben Person bei mindestens zwei Abenden etwas offen, steht darunter
+ * „Mit einer Überweisung“ – die Summe über diese Abende und „Alles erledigt“ (`settle_crew_balances_with`).
  */
 export function CrewBalances({ crewId, userId, plans }: { crewId: string; userId: string; plans: readonly PlanWithParticipants[] }) {
   const balances = useCrewBalances(crewId);
+  const people = usePeople();
+  const toast = useToast();
+  const settleWith = useSettleWith(crewId);
+  const [confirming, setConfirming] = useState<PairTotal | null>(null);
   const summary = useMemo(() => {
     const { plans: open, total } = openPlans(balances.data ?? [], userId);
     const byId = new Map(plans.map((plan) => [plan.id, plan]));
@@ -30,7 +41,9 @@ export function CrewBalances({ crewId, userId, plans }: { crewId: string; userId
     const rows = open
       .map((entry) => ({ ...entry, plan: byId.get(entry.planId) ?? null }))
       .sort((a, b) => (b.plan?.starts_at ?? "").localeCompare(a.plan?.starts_at ?? ""));
-    return { rows, total };
+    // Zusammenfassen lohnt erst ab zwei Abenden; bei einem reicht „Erledigt“ auf der Planseite.
+    const pairs = pairTotals(open, userId).filter((pair) => pair.plans.length >= 2);
+    return { rows, total, pairs, byId };
   }, [balances.data, plans, userId]);
 
   if (balances.isPending) return null;
@@ -43,7 +56,16 @@ export function CrewBalances({ crewId, userId, plans }: { crewId: string; userId
   }
   if (summary.rows.length === 0) return null;
 
-  const { total, rows } = summary;
+  const { total, rows, pairs, byId } = summary;
+  const name = (id: string) => people.lookup(id)?.display_name ?? t.states.formerMember;
+  const pairText = (pair: PairTotal) =>
+    pair.net > 0 ? tx.pairGets(name(pair.other), formatEuro(pair.net)) : pair.net < 0 ? tx.pairOwes(name(pair.other), formatEuro(-pair.net)) : tx.pairEven(name(pair.other));
+  const pairPlansText = (pair: PairTotal) =>
+    pair.plans
+      .map(({ planId, cents }) =>
+        tx.pairPlanPart(byId.get(planId)?.title ?? tx.unknownPlan, `${cents > 0 ? "+" : "−"}${formatEuro(Math.abs(cents))}`),
+      )
+      .join(", ");
   const sign = total > 0 ? "+" : total < 0 ? "−" : "±";
 
   // V2 (D8): Glas-Karte wie die Bereiche der Planseite; der Schein folgt dem eigenen Stand
@@ -97,8 +119,59 @@ export function CrewBalances({ crewId, userId, plans }: { crewId: string; userId
             );
           })}
         </ul>
+        {pairs.length > 0 && (
+          <div className="mt-5" data-testid="crew-balances-pairs">
+            <h3 className="text-[13px] font-semibold tracking-wide text-muted uppercase">{tx.pairsTitle}</h3>
+            <ul className="mt-2 grid gap-1.5">
+              {pairs.map((pair) => {
+                const text = pairText(pair);
+                return (
+                  <li key={pair.other} className={cn(PANEL_ITEM, "flex flex-wrap items-center gap-3 px-4 py-3")}>
+                    <span className="min-w-0 flex-1">
+                      <span className={cn("block font-semibold", pair.net > 0 ? "text-lime" : pair.net < 0 ? "text-amber" : "text-fg")}>{text}</span>
+                      <span className="block text-[13px] text-muted">{pair.net === 0 ? tx.pairEvenPlans(pair.plans.length) : tx.pairPlans(pair.plans.length)}</span>
+                    </span>
+                    <Button size="sm" variant="secondary" onClick={() => setConfirming(pair)} aria-label={tx.pairSettleLabel(text)}>
+                      {tx.pairSettle}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </PanelCard>
-      <p className="mt-2 text-[13px] leading-snug text-faint">{tx.hint}</p>
+      <p className="mt-2 text-[13px] leading-snug text-faint">{pairs.length > 0 ? tx.pairsHint : tx.hint}</p>
+      <ConfirmDialog
+        open={confirming != null}
+        onClose={() => {
+          setConfirming(null);
+          settleWith.reset();
+        }}
+        title={tx.pairConfirmTitle}
+        description={
+          confirming
+            ? confirming.net === 0
+              ? tx.pairEvenConfirmBody(name(confirming.other), pairPlansText(confirming))
+              : tx.pairConfirmBody(pairText(confirming), pairPlansText(confirming))
+            : ""
+        }
+        confirmLabel={tx.pairConfirm}
+        loading={settleWith.isPending}
+        error={settleWith.isError ? errorMessage(settleWith.error) : null}
+        onConfirm={() =>
+          confirming &&
+          settleWith.mutate(
+            { other: confirming.other, expectedCents: confirming.net },
+            {
+              onSuccess: () => {
+                toast.success(tx.pairSettled(confirming.plans.length));
+                setConfirming(null);
+              },
+            },
+          )
+        }
+      />
     </div>
   );
 }

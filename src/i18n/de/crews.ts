@@ -112,6 +112,24 @@ export const crews = {
     unknownPlan: "Früherer Abend",
     open: (title: string, state: string) => `${title}: ${state} – Kosten ansehen`,
     hint: "Ausgeglichen wird je Abend: Tipp auf den Abend und dort bei „Wer gibt wem?“ auf „Erledigt“.",
+    // P3 Etappe 3c · Alles auf einmal ausgleichen
+    pairsTitle: "Mit einer Überweisung",
+    pairsHint: "Bei mehreren Abenden mit derselben Person offen? Eine Überweisung, einmal „Erledigt“ – jeder Abend wird einzeln ausgeglichen.",
+    pairGets: (name: string, amount: string) => `${name} gibt dir ${amount}`,
+    pairOwes: (name: string, amount: string) => `Du gibst ${name} ${amount}`,
+    pairEven: (name: string) => `Mit ${name} seid ihr quitt`,
+    pairPlans: (n: number) => `${n} Abende zusammengefasst`,
+    pairEvenPlans: (n: number) => `${n} Abende gegeneinander verrechnet – ohne Überweisung`,
+    pairSettle: "Alles erledigt",
+    pairSettleLabel: (text: string) => `${text}: alles auf einmal als erledigt markieren`,
+    pairConfirmTitle: "Alles auf einmal erledigt?",
+    pairConfirmBody: (text: string, plans: string) =>
+      `${text} – für ${plans}. Das trägt bei jedem dieser Abende die Rückzahlung ein, Geld fließt dabei nicht.`,
+    pairEvenConfirmBody: (name: string, plans: string) =>
+      `Was du ${name} und ${name} dir schuldet, hebt sich auf: ${plans}. Das trägt bei jedem dieser Abende die Rückzahlung ein, Geld fließt dabei nicht.`,
+    pairPlanPart: (title: string, text: string) => `${title} ${text}`,
+    pairConfirm: "Ja, alles erledigt",
+    pairSettled: (n: number) => `Rückzahlungen bei ${n} Abenden eingetragen.`,
   },
   chat: {
     empty: "Noch keine Nachrichten. Schreib die erste.",

@@ -1805,6 +1805,58 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P3 Etappe 3c – Alles auf einmal ausgleichen: Bob schuldet Alice bei zwei Abenden etwas und gleicht
+  // beides mit einem Tipp aus. Dazwischen kommt eine Ausgabe dazu – die veraltete Summe wird abgewiesen.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const uidOf = (user) => psql(`select id from auth.users where email = '${user.email}'`);
+    const [aliceId, bobId] = [uidOf(alice), uidOf(bob)];
+    const kino = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${aliceId}', 'Kino im Park', now() - interval '3 days', 'completed') returning id`).split("\n")[0];
+    const added = await api(alice, "POST", "rpc/add_plan_expense", { p_plan_id: kino, p_description: "Kinotickets", p_amount_cents: 2000, p_paid_by: null, p_split_with: [aliceId, bobId] });
+    check(added.status === 200, `Zweiter Abend mit Kosten: Bob gibt Alice 10 € (${added.status})`);
+
+    await bob.page.goto(`${APP}/crews/${ids.crew}`);
+    const pairs = bob.page.getByTestId("crew-balances-pairs");
+    await pairs.getByText("Du gibst Alice 38 €").waitFor();
+    check(await pairs.getByText("2 Abende zusammengefasst").isVisible(), "Alles auf einmal: Bob gibt Alice 38 € für 2 Abende");
+    await pairs.scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Alles auf einmal ausgleichen");
+    await shot(bob, "21g-crew-alles-auf-einmal");
+    const settleButton = pairs.getByRole("button", { name: /^Du gibst Alice 38\s€: alles auf einmal als erledigt markieren$/ });
+    await settleButton.click();
+    const dialog = bob.page.getByRole("dialog", { name: "Alles auf einmal erledigt?" });
+    await dialog.waitFor();
+    const body = await dialog.innerText();
+    check(/Kino im Park\s−10\s€/.test(body) && /Strike District Bowling\s−28\s€/.test(body), "Rückfrage nennt jeden Abend mit Betrag");
+    await shot(bob, "21h-alles-auf-einmal-rueckfrage");
+
+    // Fehlerzustand: Alice trägt in der Zwischenzeit 2 € ein – die angezeigte Summe stimmt nicht mehr.
+    await api(alice, "POST", "rpc/add_plan_expense", { p_plan_id: kino, p_description: "Popcorn", p_amount_cents: 200, p_paid_by: null, p_split_with: [aliceId, bobId] });
+    await dialog.getByRole("button", { name: "Ja, alles erledigt" }).click();
+    await dialog.getByText("Inzwischen hat sich bei den Beträgen etwas geändert.", { exact: false }).waitFor();
+    check(psql(`select count(*) from public.plan_expenses where kind = 'settlement' and plan_id = '${kino}'`) === "0", "veraltete Summe trägt nichts ein");
+    await dialog.getByRole("button", { name: "Abbrechen" }).click();
+    await pairs.getByText("Du gibst Alice 39 €").waitFor();
+    check(true, "nach dem Fehler steht die neue Summe da (39 €)");
+
+    await pairs.getByRole("button", { name: /^Du gibst Alice 39\s€: alles auf einmal als erledigt markieren$/ }).click();
+    await dialog.getByRole("button", { name: "Ja, alles erledigt" }).click();
+    await toast(bob, "Rückzahlungen bei 2 Abenden eingetragen.");
+    await bob.page.getByTestId("crew-balances").waitFor({ state: "detached" });
+    check(true, "danach ist bei Bob nichts mehr offen – die Karte verschwindet");
+    check(psql(`select count(*) from public.plan_expenses where kind = 'settlement' and created_by = '${bobId}' and plan_id in ('${kino}', '${ids.plan}')`) === "2", "je Abend eine Rückzahlung");
+    await bob.page.goto(`${APP}/plans/${ids.plan}#kosten`);
+    await bob.page.getByRole("heading", { name: "Kosten teilen" }).waitFor();
+    check((await bob.page.getByText("Du gibst noch 28 €").count()) === 0, "auch auf der Planseite ist der Abend ausgeglichen");
+
+    await alice.page.goto(`${APP}/notifications`);
+    const note = alice.page.getByRole("link", { name: /Bob hat dir 39\s€ auf einmal zurückgegeben/ });
+    await note.waitFor();
+    check(await note.getByText(/2 Abende ausgeglichen/).isVisible(), "Alice bekommt eine Nachricht für beide Abende");
+    check(psql(`select count(*) from public.notifications where type = 'plan_settlement' and user_id = '${aliceId}' and payload ? 'bundle'`) === "1", "genau eine Nachricht statt einer je Abend");
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });
@@ -2332,6 +2384,8 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   check(read.status === 200 && Array.isArray(read.json) && read.json.length === 0, "API: Außenstehende lesen keine Ausgaben");
   const balances = await api(mallory, "POST", "rpc/crew_open_balances", { p_crew_id: ids.crew });
   check(balances.status === 403, `API: Außenstehende lesen keine offenen Beträge der Crew (${balances.status})`);
+  const pairSettle = await api(mallory, "POST", "rpc/settle_crew_balances_with", { p_crew_id: ids.crew, p_other: null, p_expected_cents: 0 });
+  check(pairSettle.status === 403, `API: Außenstehende gleichen in fremden Crews nichts aus (${pairSettle.status})`);
   const settle = await api(mallory, "POST", "rpc/record_plan_settlement", { p_plan_id: ids.plan, p_from: null, p_to: null, p_amount_cents: 100 });
   check(settle.status === 403, `API: Außenstehende tragen keine Rückzahlung ein (${settle.status})`);
   if (ids.shareUrl) {

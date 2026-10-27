@@ -161,3 +161,33 @@ export function openPlans(rows: readonly BalanceRow[], userId: string): { plans:
   }
   return { plans, total };
 }
+
+/**
+ * P3 Etappe 3c · Alles auf einmal ausgleichen: Je Person, mit der du bei Abenden der Crew eine
+ * Überweisung offen hast, die Summe über alle diese Abende. Grundlage sind dieselben Überweisungen wie
+ * bei „Wer gibt wem?“ je Abend – der Server (`settle_crew_balances_with`) rechnet genauso und trägt je
+ * Abend die Rückzahlung ein. `net` aus deiner Sicht: positiv = du bekommst, negativ = du gibst, 0 = quitt
+ * nach Verrechnung. `plans` in der Reihenfolge von `open`, `cents` je Abend ebenfalls aus deiner Sicht.
+ */
+export interface PairTotal {
+  other: string;
+  net: number;
+  plans: { planId: string; cents: number }[];
+}
+
+export function pairTotals(open: readonly OpenPlan[], userId: string): PairTotal[] {
+  const byOther = new Map<string, PairTotal>();
+  for (const plan of open) {
+    for (const transfer of plan.transfers) {
+      const other = transfer.from === userId ? transfer.to : transfer.to === userId ? transfer.from : null;
+      if (other == null) continue;
+      const cents = transfer.to === userId ? transfer.cents : -transfer.cents;
+      const entry = byOther.get(other) ?? { other, net: 0, plans: [] };
+      entry.net += cents;
+      entry.plans.push({ planId: plan.planId, cents });
+      byOther.set(other, entry);
+    }
+  }
+  // Wer am meisten bekommt bzw. gibt, steht oben; bei gleichen Beträgen entscheidet die ID.
+  return [...byOther.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net) || b.plans.length - a.plans.length || (a.other < b.other ? -1 : a.other > b.other ? 1 : 0));
+}
