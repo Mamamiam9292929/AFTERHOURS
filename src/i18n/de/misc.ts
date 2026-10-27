@@ -68,6 +68,13 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
   }),
   plan_settlement: (actor, p) => {
     const amount = typeof p.amount_cents === "number" ? formatEuro(p.amount_cents) : "";
+    // P3 Etappe 3c: eine Nachricht für mehrere Abende („Alles auf einmal ausgleichen“).
+    if (p.bundle) {
+      const count = typeof p.plan_count === "number" ? p.plan_count : 0;
+      const body = [count > 0 ? `${count} Abende ausgeglichen` : "", str(p, "crew_name")].filter(Boolean).join(" · ");
+      if (p.direction === "offset") return { title: `${actor} hat eure offenen Beträge verrechnet – ihr seid quitt`, body };
+      return { title: p.direction === "received" ? `${actor} hat bestätigt, dass du ${amount} zurückgegeben hast` : `${actor} hat dir ${amount} auf einmal zurückgegeben`, body };
+    }
     return { title: p.direction === "received" ? `${actor} hat deine Rückzahlung von ${amount} bestätigt` : `${actor} hat dir ${amount} zurückgegeben`, body: str(p, "title") };
   },
   // S4 · „Heute noch wer?“

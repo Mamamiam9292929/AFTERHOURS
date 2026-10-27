@@ -310,3 +310,23 @@ export function useCrewBalances(crewId: string) {
     },
   });
 }
+
+/**
+ * P3 Etappe 3c · Alles auf einmal ausgleichen: trägt bei jedem Abend der Crew, an dem du mit `other`
+ * eine Überweisung offen hast, die Rückzahlung ein. `expectedCents` ist die angezeigte Summe aus deiner
+ * Sicht (positiv = du bekommst); rechnet der Server inzwischen anders, trägt er nichts ein.
+ */
+export function useSettleWith(crewId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { other: string; expectedCents: number }) => {
+      const { error } = await supabase.rpc("settle_crew_balances_with", { p_crew_id: crewId, p_other: input.other, p_expected_cents: input.expectedCents });
+      if (error) throw error;
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: qk.crewBalancesAll });
+      // Kosten der betroffenen Abende (`qk.planExpenses`) – welche, weiß nur der Server.
+      void client.invalidateQueries({ predicate: (query) => query.queryKey[0] === "plans" && query.queryKey[2] === "expenses" });
+    },
+  });
+}

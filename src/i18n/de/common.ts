@@ -163,6 +163,8 @@ export const errors = {
     invalid_expense_split: "Bezahlt und beteiligt sein können nur Mitglieder der Crew – wähle mindestens eine Person.",
     invalid_settlement: "Diese Rückzahlung lässt sich nicht eintragen. Lade die Seite neu und versuch es noch einmal.",
     expense_limit: "Dieser Plan hat schon 200 Einträge. Fasst kleinere Beträge zusammen.",
+    nothing_to_settle: "Zwischen euch ist nichts mehr offen.",
+    settlement_changed: "Inzwischen hat sich bei den Beträgen etwas geändert. Schau dir die neue Summe an und tippe noch einmal.",
     invalid_expense_share: "Jeder Anteil muss mindestens 0,01 € sein und darf den Betrag nicht übersteigen.",
     expense_shares_mismatch: "Die Anteile ergeben nicht genau den Betrag. Prüf die Beträge je Person.",
     ride_not_available: "Diese Fahrt ist nicht mehr verfügbar.",

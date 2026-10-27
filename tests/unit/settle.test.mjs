@@ -1,7 +1,7 @@
 // P3 · Kosten aufteilen: Salden und Überweisungen (src/lib/settle.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { balances, isCustomSplit, openPlans, settle, settleBalances, splitCustom, splitEvenly } from "../../src/lib/settle.ts";
+import { balances, isCustomSplit, openPlans, pairTotals, settle, settleBalances, splitCustom, splitEvenly } from "../../src/lib/settle.ts";
 
 const expense = (paid_by, shares) => ({ paid_by, shares: Object.entries(shares).map(([user_id, amount_cents]) => ({ user_id, amount_cents })) });
 
@@ -160,4 +160,47 @@ test("openPlans: eigener Stand je Abend und über alle Abende", () => {
 test("openPlans: nichts offen, Nullzeilen werden ignoriert", () => {
   assert.deepEqual(openPlans([], "alice"), { plans: [], total: 0 });
   assert.deepEqual(openPlans([{ plan_id: "x", user_id: "alice", balance_cents: 0 }], "alice"), { plans: [], total: 0 });
+});
+
+// P3 Etappe 3c · Alles auf einmal ausgleichen – dieselben Zahlen wie im pgTAP-Test 30_crew_settle_pair.
+test("pairTotals: Summe je Person über alle Abende, Gegenrichtung wird verrechnet", () => {
+  const rows = [
+    // Bowling: Bob gibt Alice 24 €.
+    { plan_id: "bowling", user_id: "alice", balance_cents: 2400 },
+    { plan_id: "bowling", user_id: "bob", balance_cents: -2400 },
+    // Kino: Bob und Carol geben Alice je 10 €.
+    { plan_id: "kino", user_id: "alice", balance_cents: 2000 },
+    { plan_id: "kino", user_id: "bob", balance_cents: -1000 },
+    { plan_id: "kino", user_id: "carol", balance_cents: -1000 },
+    // Pizza: Alice gibt Bob 6 €.
+    { plan_id: "pizza", user_id: "alice", balance_cents: -600 },
+    { plan_id: "pizza", user_id: "bob", balance_cents: 600 },
+    // Eis: Alice gibt Carol 10 €.
+    { plan_id: "eis", user_id: "alice", balance_cents: -1000 },
+    { plan_id: "eis", user_id: "carol", balance_cents: 1000 },
+  ];
+  const bob = pairTotals(openPlans(rows, "bob").plans, "bob");
+  assert.deepEqual(bob, [{ other: "alice", net: -2800, plans: [{ planId: "bowling", cents: -2400 }, { planId: "kino", cents: -1000 }, { planId: "pizza", cents: 600 }] }]);
+
+  const alice = pairTotals(openPlans(rows, "alice").plans, "alice");
+  assert.deepEqual(alice.map((p) => [p.other, p.net, p.plans.length]), [["bob", 2800, 3], ["carol", 0, 2]]);
+});
+
+test("pairTotals: nur Überweisungen mit dir zählen, nicht zwischen anderen", () => {
+  const rows = [
+    { plan_id: "a", user_id: "bob", balance_cents: 700 },
+    { plan_id: "a", user_id: "carol", balance_cents: -700 },
+  ];
+  assert.deepEqual(pairTotals(openPlans(rows, "alice").plans, "alice"), []);
+  assert.deepEqual(pairTotals([], "alice"), []);
+});
+
+test("pairTotals: folgt den Überweisungen je Abend, nicht den rohen Salden", () => {
+  // Alice bekommt 30 €, Bob gibt 20 €, Carol gibt 10 € – Carol zahlt an Alice, nicht an Bob.
+  const rows = [
+    { plan_id: "a", user_id: "alice", balance_cents: 3000 },
+    { plan_id: "a", user_id: "bob", balance_cents: -2000 },
+    { plan_id: "a", user_id: "carol", balance_cents: -1000 },
+  ];
+  assert.deepEqual(pairTotals(openPlans(rows, "carol").plans, "carol"), [{ other: "alice", net: -1000, plans: [{ planId: "a", cents: -1000 }] }]);
 });
