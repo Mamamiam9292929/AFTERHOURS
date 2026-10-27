@@ -138,3 +138,48 @@ export function crewRecap(plans: readonly RecapPlan[], now: Date = new Date()): 
     months,
   };
 }
+
+const yearPartsFormat = new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
+
+function berlinParts(value: string | Date): { year: number; month: number; day: number } {
+  const parts = Object.fromEntries(yearPartsFormat.formatToParts(new Date(value)).map((p) => [p.type, p.value]));
+  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day) };
+}
+
+/** Kalenderjahr in Berliner Zeit (Silvester 23:30 Uhr gehört zum alten Jahr). */
+export function berlinYear(value: string | Date): number {
+  return berlinParts(value).year;
+}
+
+/**
+ * P9 Etappe 3 · „Euer Jahr“: Welches Jahr der Rückblick anbietet und ob es hervorgehoben wird.
+ * Im Dezember ist es das laufende Jahr, bis zum 15. Januar noch das alte (Rückblicke werden auch
+ * nach Silvester geteilt) – dann öffnet der Rückblick gleich mit dem Jahr. Sonst gibt es das laufende
+ * Jahr als Auswahl neben „Insgesamt“. Ohne Abend im Jahr gibt es nichts (kein leeres „Euer Jahr“).
+ */
+export interface RecapYearChoice {
+  year: number;
+  highlight: boolean;
+}
+
+function isEvening(plan: RecapPlan): boolean {
+  return plan.status === "completed" && !Number.isNaN(new Date(plan.starts_at).getTime());
+}
+
+export function recapYearChoice(plans: readonly RecapPlan[], now: Date = new Date()): RecapYearChoice | null {
+  const years = new Set(plans.filter(isEvening).map((p) => berlinYear(p.starts_at)));
+  const today = berlinParts(now);
+  if (today.month === 1 && today.day <= 15 && years.has(today.year - 1)) return { year: today.year - 1, highlight: true };
+  if (years.has(today.year)) return { year: today.year, highlight: today.month === 12 };
+  return null;
+}
+
+/**
+ * P9 Etappe 3 · Rückblick nur über ein Kalenderjahr: dieselben Regeln wie `crewRecap`, aber nur Abende
+ * dieses Jahres, und die Monate sind Januar bis Dezember (statt der letzten zwölf).
+ */
+export function crewYearRecap(plans: readonly RecapPlan[], year: number): CrewRecap {
+  const inYear = plans.filter((p) => isEvening(p) && berlinYear(p.starts_at) === year);
+  // Mitte Dezember als „jetzt“: Die letzten zwölf Monate sind dann genau Januar bis Dezember.
+  return crewRecap(inYear, new Date(Date.UTC(year, 11, 15, 12)));
+}

@@ -74,6 +74,15 @@ export const crews = {
     places: "Eure Stammorte",
     placeCount: (n: number) => `${n}×`,
     hint: "Gezählt werden abgeschlossene Pläne der Crew.",
+    // P9 Etappe 3: „Euer Jahr“ – im Dezember (bis 15. Januar) hervorgehoben, sonst als Auswahl.
+    allTitle: "Alle eure Abende",
+    yearTitle: (year: number) => `Euer Jahr ${year}`,
+    viewLabel: "Zeitraum des Rückblicks",
+    viewAll: "Insgesamt",
+    inYear: (year: number) => `von Januar bis Dezember ${year}`,
+    yearMonthsTitle: (year: number) => `${year} Monat für Monat`,
+    yearHint: (year: number) => `Gezählt werden abgeschlossene Pläne der Crew im Jahr ${year}.`,
+    yearEnd: "Jahresrückblick",
     // P9 Etappe 2: Rückblick als Bild – nur Zahlen.
     share: {
       action: "Als Bild teilen",
@@ -82,6 +91,8 @@ export const crews = {
       kicker: "Unser Rückblick",
       footer: "Geplant mit AFTERHOURS",
       text: "Unser Rückblick – geplant mit AFTERHOURS",
+      yearKicker: (year: number) => `Unser Jahr ${year}`,
+      yearText: (year: number) => `Unser Jahr ${year} – geplant mit AFTERHOURS`,
       saved: "Bild gespeichert – schick es in euren Gruppenchat.",
       failed: "Das Bild ließ sich gerade nicht erstellen.",
     },
