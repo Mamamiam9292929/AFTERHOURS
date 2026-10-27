@@ -118,6 +118,10 @@ export const rewards = {
   lead: "Punkte gibt es für Unternehmungen, die wirklich stattgefunden haben.",
   points: (n: number) => (n === 1 ? "1 Punkt" : `${n} Punkte`),
   balanceLabel: "Dein Punktestand",
+  /** V2 Etappe 3o: Einheit neben der großen Zahl, Leiter der Stufen, Zahlen auf der Karte. */
+  pointsWord: (n: number) => (n === 1 ? "Punkt" : "Punkte"),
+  ladderLabel: (level: string) => `Stufe: ${level}`,
+  stats: { organized: "Organisiert", attended: "Dabei gewesen" },
   levels: ["Neu dabei", "Mitmacher", "Stammgast", "Organisationstalent", "Legende"],
   nextLevel: (points: number, level: string) => `Noch ${points} Punkte bis „${level}“`,
   maxLevel: "Höchste Stufe erreicht.",

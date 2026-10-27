@@ -1490,15 +1490,27 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   check(true, "abgeschlossener Plan schlägt Folgeaktivitäten vor");
   await page.goto(`${APP}/rewards`);
   await page.getByText("Plan organisiert").first().waitFor();
-  check((await page.locator("section[aria-labelledby=balance-label]").innerText()).includes("40"), "Organisatorin erhält 30 + 10 Punkte");
+  check((await page.getByTestId("rewards-points").innerText()).trim() === "40", "Organisatorin erhält 30 + 10 Punkte");
+  // V2 Etappe 3o: Punktestand als Karte auf dem Stapel, Stufe als Pille, Leiter, Verlauf und Meilensteine als Glas-Karten.
+  check((await page.getByTestId("rewards-level").innerText()).trim() === "Neu dabei" && (await page.getByTestId("rewards-level").getAttribute("data-tone")) === "lime", "Rewards: Stufe „Neu dabei“ als Lime-Pille, sobald es Punkte gibt");
+  const ladder = page.getByTestId("rewards-ladder");
+  check((await ladder.getAttribute("aria-valuenow")) === "80" && (await ladder.locator("[data-state=current]").count()) === 1 && (await ladder.locator("[data-state=open]").count()) === 4, "Rewards: Leiter zeigt 40 von 50 Punkten auf der ersten Stufe");
+  check((await page.getByTestId("rewards-next").innerText()).trim() === "Noch 10 Punkte bis „Mitmacher“", "Rewards: nächste Stufe genannt");
+  const entryPoints = (await page.getByTestId("rewards-entry-points").allInnerTexts()).map((s) => s.trim()).sort();
+  check(entryPoints.join(",") === "+10,+30", `Rewards: Verlauf mit Punkten als Pillen (${entryPoints.join(",")})`);
+  check((await page.locator("[data-testid=rewards-milestone][data-done=true]").count()) === 2, "Rewards: zwei Meilensteine erreicht (erste Unternehmung, zum ersten Mal organisiert)");
+  check((await page.getByTestId("rewards-partner-example").count()) === 3 && (await page.getByTestId("rewards-partner-example").getByText("Demo").count()) === 3, "Rewards: Partner-Prämien bleiben als Demo markiert");
   await shot(alice, "19-rewards");
   await bob.page.goto(`${APP}/rewards`);
   await bob.page.getByText("Dabei gewesen").first().waitFor();
-  check((await bob.page.locator("section[aria-labelledby=balance-label]").innerText()).includes("10"), "Bob (zugesagt) erhält 10 Punkte");
+  check((await bob.page.getByTestId("rewards-points").innerText()).trim() === "10", "Bob (zugesagt) erhält 10 Punkte");
+  await noOverflow(bob, "Rewards");
   await shot(bob, "19-rewards");
   await carol.page.goto(`${APP}/rewards`);
   await carol.page.getByText("Noch keine Punkte").waitFor();
-  check(true, "Carol (abgesagt) erhält keine Punkte");
+  check((await carol.page.getByTestId("rewards-points").innerText()).trim() === "0" && (await carol.page.getByTestId("rewards-level").getAttribute("data-tone")) === "glass", "Carol (abgesagt) erhält keine Punkte – Stufe ohne Lime");
+  check((await carol.page.locator("[data-testid=rewards-milestone][data-done=true]").count()) === 0, "Rewards: ohne Punkte kein Meilenstein erreicht");
+  await shot(carol, "19c-rewards-leer");
 });
 
 await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async () => {
