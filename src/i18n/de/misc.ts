@@ -119,6 +119,14 @@ export const rewards = {
   points: (n: number) => (n === 1 ? "1 Punkt" : `${n} Punkte`),
   balanceLabel: "Dein Punktestand",
   levels: ["Neu dabei", "Mitmacher", "Stammgast", "Organisationstalent", "Legende"],
+  /** V2 Etappe 3o: Stufen als Leiter auf der Punktekarte. */
+  levelsLabel: "Stufen",
+  levelFrom: (points: number) => (points === 0 ? "ab Start" : `ab ${points}`),
+  levelReached: "erreicht",
+  levelCurrent: "deine Stufe",
+  historyCount: (n: number) => (n === 1 ? "1 Eintrag" : `${n} Einträge`),
+  milestonesCount: (done: number, all: number) => `${done} von ${all}`,
+  partnersStatus: "Beispiele",
   nextLevel: (points: number, level: string) => `Noch ${points} Punkte bis „${level}“`,
   maxLevel: "Höchste Stufe erreicht.",
   rulesTitle: "So sammelst du Punkte",
@@ -267,6 +275,10 @@ export const settings = {
 
 export const privacy = {
   title: "Datenschutz und deine Daten",
+  /** V2 Etappe 3o: Kopf als Karte – Kennzeile, Kurzfassung als Pillen (stehen so auch unten im Text). */
+  label: "In einfachen Worten",
+  facts: ["Kein Tracking", "Keine Werbung", "Standort aus"],
+  jumpLabel: "Springe zu",
   disclaimer: "Diese Seite beschreibt in einfachen Worten, wie die App mit Daten umgeht. Sie ersetzt keine rechtlich geprüfte Datenschutzerklärung – die muss der Betreiber vor dem öffentlichen Start ergänzen.",
   sections: [
     {
