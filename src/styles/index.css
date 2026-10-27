@@ -492,6 +492,7 @@
     --c: var(--color-lime);
   }
   .inbox-card[data-tone="amber"],
+  .plan-panel[data-tone="amber"],
   .who-chip[data-status="maybe"] {
     --c: var(--color-amber);
   }
