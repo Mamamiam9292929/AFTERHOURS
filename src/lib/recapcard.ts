@@ -51,8 +51,12 @@ export function recapCardModel(recap: RecapCardInput, maxBarHeight = 200): Recap
   return { evenings: recap.evenings, firstAt: recap.firstAt, facts, bars };
 }
 
-/** Dateiname mit Datum in Berliner Zeit, z. B. „afterhours-rueckblick-2026-10-21.png“. */
-export function recapCardFileName(now: Date): string {
+/**
+ * Dateiname mit Datum in Berliner Zeit, z. B. „afterhours-rueckblick-2026-10-21.png“;
+ * für „Euer Jahr“ (P9 Etappe 3) „afterhours-jahr-2026.png“.
+ */
+export function recapCardFileName(now: Date, year?: number): string {
+  if (year !== undefined) return `afterhours-jahr-${year}.png`;
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
   return `afterhours-rueckblick-${day}.png`;
 }

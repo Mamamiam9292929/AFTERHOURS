@@ -1,7 +1,7 @@
 // P9 · Crew-Rückblick (src/lib/recap.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { berlinWeekday, crewRecap, monthKey } from "../../src/lib/recap.ts";
+import { berlinWeekday, berlinYear, crewRecap, crewYearRecap, monthKey, recapYearChoice } from "../../src/lib/recap.ts";
 
 let n = 0;
 const plan = (starts_at, extra = {}) => ({
@@ -113,4 +113,72 @@ test("Stammorte: ab zwei Abenden, nach Ort oder Titel, höchstens drei, jüngste
 test("Reihenfolge der Eingabe spielt keine Rolle", () => {
   const list = [plan("2026-03-06T18:00:00Z", { participants: going(2) }), plan("2026-01-09T18:00:00Z"), plan("2026-02-06T18:00:00Z")];
   assert.deepEqual(crewRecap(list, NOW), crewRecap([...list].reverse(), NOW));
+});
+
+// P9 Etappe 3 · „Euer Jahr“
+test("Jahr in Berliner Zeit: Silvester spät abends gehört zum alten Jahr", () => {
+  assert.equal(berlinYear("2026-12-31T22:30:00Z"), 2026); // 23:30 Uhr in Berlin
+  assert.equal(berlinYear("2026-12-31T23:30:00Z"), 2027); // 00:30 Uhr in Berlin
+});
+
+test("Jahresauswahl: Dezember hebt das laufende Jahr hervor, sonst nur als Auswahl", () => {
+  const plans = [plan("2026-03-06T18:00:00Z"), plan("2025-11-14T18:00:00Z")];
+  assert.deepEqual(recapYearChoice(plans, new Date("2026-10-27T10:00:00Z")), { year: 2026, highlight: false });
+  assert.deepEqual(recapYearChoice(plans, new Date("2026-12-01T00:30:00Z")), { year: 2026, highlight: true }); // 1. Dezember, 01:30 Uhr Berlin
+  assert.deepEqual(recapYearChoice(plans, new Date("2026-11-30T22:30:00Z")), { year: 2026, highlight: false }); // noch 30. November
+});
+
+test("Jahresauswahl: bis zum 15. Januar noch das alte Jahr, danach das neue", () => {
+  const plans = [plan("2026-03-06T18:00:00Z"), plan("2027-01-08T18:00:00Z")];
+  assert.deepEqual(recapYearChoice(plans, new Date("2027-01-15T12:00:00Z")), { year: 2026, highlight: true });
+  assert.deepEqual(recapYearChoice(plans, new Date("2027-01-16T12:00:00Z")), { year: 2027, highlight: false });
+  // Ohne Abend im alten Jahr: das neue, ohne Hervorhebung.
+  assert.deepEqual(recapYearChoice([plan("2027-01-08T18:00:00Z")], new Date("2027-01-10T12:00:00Z")), { year: 2027, highlight: false });
+});
+
+test("Jahresauswahl: ohne Abend im Jahr nichts – abgesagte und anstehende zählen nicht", () => {
+  const now = new Date("2026-12-10T12:00:00Z");
+  assert.equal(recapYearChoice([], now), null);
+  assert.equal(recapYearChoice([plan("2025-12-05T18:00:00Z")], now), null);
+  assert.equal(recapYearChoice([plan("2026-12-01T18:00:00Z", { status: "cancelled" }), plan("2026-12-20T18:00:00Z", { status: "confirmed" })], now), null);
+});
+
+test("Jahres-Rückblick: nur Abende des Jahres, Monate Januar bis Dezember", () => {
+  const recap = crewYearRecap(
+    [
+      plan("2025-12-31T22:30:00Z", { participants: going(9) }), // Silvester 23:30 Uhr: altes Jahr
+      plan("2026-01-09T18:00:00Z", { participants: going(4) }),
+      plan("2026-02-06T18:00:00Z", { participants: going(2) }),
+      plan("2026-02-20T18:00:00Z", { status: "cancelled", participants: going(7) }),
+      plan("2026-05-08T18:00:00Z"),
+      plan("2027-01-01T10:00:00Z"),
+    ],
+    2026,
+  );
+  assert.equal(recap.evenings, 3);
+  assert.equal(recap.firstAt, "2026-01-09T18:00:00Z");
+  assert.equal(recap.biggestRound, 4);
+  assert.equal(recap.longestStreak, 2);
+  assert.equal(recap.favoriteWeekday, 5); // alle drei freitags
+  assert.deepEqual(
+    recap.months.map((m) => m.key),
+    ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12"],
+  );
+  assert.deepEqual(
+    recap.months.map((m) => m.count),
+    [1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+  );
+});
+
+test("Jahres-Rückblick: Stammorte nur aus dem Jahr", () => {
+  const recap = crewYearRecap(
+    [
+      plan("2025-06-05T18:00:00Z", { activity_id: "a1", title: "Bowling" }),
+      plan("2026-06-05T18:00:00Z", { activity_id: "a1", title: "Bowling" }),
+      plan("2026-07-03T18:00:00Z", { activity_id: "a2", title: "Kino" }),
+      plan("2026-08-07T18:00:00Z", { activity_id: "a2", title: "Kino" }),
+    ],
+    2026,
+  );
+  assert.deepEqual(recap.places, [{ key: "a2", title: "Kino", count: 2 }]);
 });

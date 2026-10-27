@@ -1683,7 +1683,18 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   if (DB_URL) {
     const recap = alice.page.getByTestId("crew-recap");
     await recap.waitFor();
-    check(/^1\s*gemeinsamer Abend/.test((await recap.locator("p").first().innerText()).trim()), "Rückblick: 1 gemeinsamer Abend");
+    // P9 Etappe 3 – „Euer Jahr“: Der Abend liegt im laufenden Jahr, also gibt es neben „Insgesamt“ das Jahr.
+    // Im Dezember (und bis zum 15. Januar fürs alte Jahr) öffnet der Rückblick gleich mit dem Jahr.
+    const aliceYear = alice.page.getByRole("group", { name: "Zeitraum des Rückblicks" }).getByRole("button", { name: /^\d{4}$/ });
+    const recapYear = Number(await aliceYear.innerText());
+    const berlinToday = Object.fromEntries(
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "numeric", day: "numeric" }).formatToParts(new Date()).map((p) => [p.type, Number(p.value)]),
+    );
+    const yearFirst = berlinToday.month === 12 || (berlinToday.month === 1 && berlinToday.day <= 15 && recapYear === berlinToday.year - 1);
+    check(recapYear === berlinToday.year || recapYear === berlinToday.year - 1, `Rückblick: Jahr zur Auswahl (${recapYear})`);
+    check((await aliceYear.getAttribute("aria-pressed")) === String(yearFirst), `Rückblick: ${yearFirst ? "im Dezember gleich „Euer Jahr“" : "standardmäßig „Insgesamt“"}`);
+    if (yearFirst) await alice.page.getByRole("group", { name: "Zeitraum des Rückblicks" }).getByRole("button", { name: "Insgesamt" }).click();
+    check(/^1\s*gemeinsamer Abend/.test((await recap.getByTestId("recap-evenings").innerText()).trim()), "Rückblick: 1 gemeinsamer Abend");
     check(await recap.getByText(/^seit \S+ \d{4}$/).isVisible(), "Rückblick: seit Monat und Jahr des ersten Abends");
     check((await recap.getByRole("listitem").filter({ hasText: /: 1 Abend(?!e)/ }).count()) === 1, "Rückblick: ein Monat mit einem Abend in den letzten 12 Monaten");
     check((await recap.getByText("Eure Stammorte").count()) === 0, "Rückblick: ein einzelner Abend ist noch kein Stammort");
@@ -1692,6 +1703,8 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     await bob.page.getByRole("tab", { name: "Übersicht" }).click();
     const bobRecap = bob.page.getByTestId("crew-recap");
     await bobRecap.scrollIntoViewIfNeeded();
+    const recapView = bob.page.getByRole("group", { name: "Zeitraum des Rückblicks" });
+    if (yearFirst) await recapView.getByRole("button", { name: "Insgesamt" }).click();
     await noOverflow(bob, "Crew-Rückblick");
     await shot(bob, "21c-crew-rueckblick");
 
@@ -1723,6 +1736,24 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     check(/^afterhours-rueckblick-\d{4}-\d\d-\d\d\.png$/.test(saved.suggestedFilename()), "Rückblick-Bild: ohne Teilen-Menü als Download");
     await toast(bob, "Bild gespeichert – schick es in euren Gruppenchat.");
     if (SHOTS) await saved.saveAs(path.join(SHOTS, "21d-rueckblick-bild.png"));
+
+    // P9 Etappe 3 – „Euer Jahr“ (Jahr und Standard oben bei Alice geprüft).
+    await recapView.getByRole("button", { name: String(recapYear) }).click();
+    check((await bobRecap.getByTestId("recap-heading").innerText()).trim().toLowerCase() === `euer jahr ${recapYear}`, "Rückblick: Überschrift „Euer Jahr …“");
+    check(/^1\s*gemeinsamer Abend/.test((await bobRecap.getByTestId("recap-evenings").innerText()).trim()), "Euer Jahr: 1 gemeinsamer Abend");
+    check(await bobRecap.getByText(`von Januar bis Dezember ${recapYear}`).isVisible(), "Euer Jahr: Zeitraum statt „seit …“");
+    check(await bobRecap.getByRole("list", { name: `${recapYear} Monat für Monat` }).isVisible(), "Euer Jahr: Monate des Jahres");
+    check((await bobRecap.getByRole("listitem").filter({ hasText: new RegExp(`^Januar ${recapYear}:`) }).count()) === 1, "Euer Jahr: Balken beginnen im Januar");
+    check((await bobRecap.getByRole("listitem").filter({ hasText: new RegExp(`^Dezember ${recapYear}:`) }).count()) === 1, "Euer Jahr: Balken enden im Dezember");
+    await noOverflow(bob, "Euer Jahr");
+    await shot(bob, "21e-crew-euer-jahr");
+    const yearDownload = bob.page.waitForEvent("download");
+    await bob.page.getByRole("button", { name: "Als Bild teilen" }).click();
+    const yearSaved = await yearDownload;
+    check(yearSaved.suggestedFilename() === `afterhours-jahr-${recapYear}.png`, `Euer Jahr: Bild mit Jahr im Dateinamen (${yearSaved.suggestedFilename()})`);
+    if (SHOTS) await yearSaved.saveAs(path.join(SHOTS, "21f-euer-jahr-bild.png"));
+    await recapView.getByRole("button", { name: "Insgesamt" }).click();
+    check((await bobRecap.getByTestId("recap-heading").innerText()).trim().toLowerCase() === "alle eure abende", "Rückblick: zurück zu „Insgesamt“");
   } else {
     check((await alice.page.getByTestId("crew-recap").count()) === 0, "ohne abgeschlossenen Plan kein Rückblick");
   }

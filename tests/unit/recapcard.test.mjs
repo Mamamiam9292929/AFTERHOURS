@@ -47,3 +47,8 @@ test("aus echten Plänen: keine Titel, Orte oder Namen auf dem Bild", () => {
 test("Dateiname mit Berliner Datum", () => {
   assert.equal(recapCardFileName(new Date("2026-10-20T23:30:00Z")), "afterhours-rueckblick-2026-10-21.png");
 });
+
+test("Dateiname für „Euer Jahr“ nennt das Jahr (P9 Etappe 3)", () => {
+  assert.equal(recapCardFileName(new Date("2027-01-03T10:00:00Z"), 2026), "afterhours-jahr-2026.png");
+  assert.equal(recapCardFileName(new Date("2026-12-31T23:30:00Z")), "afterhours-rueckblick-2027-01-01.png");
+});
