@@ -108,6 +108,13 @@ export const errors = {
     spontaneous_over: "Diese Frage ist schon vorbei.",
     invalid_spontaneous_answer: "Antworte mit „Bock“ oder „Heute nicht“.",
     rate_limited: "Das waren zu viele Versuche in kurzer Zeit. Warte einen Moment und versuch es dann erneut.",
+    // P4: Push-Mitteilungen
+    invalid_push_subscription: "Dein Browser hat ein unbrauchbares Push-Abo geliefert. Lade die Seite neu und versuch es noch einmal.",
+    invalid_push_results: "Der Versand der Push-Mitteilungen hat ein unerwartetes Ergebnis gemeldet.",
+    push_unsupported: "Dieser Browser kann keine Push-Mitteilungen empfangen.",
+    push_not_configured: "Push-Mitteilungen sind auf diesem Server noch nicht eingerichtet.",
+    push_denied: "Du hast Mitteilungen nicht erlaubt. Erlaube sie in den Website-Einstellungen deines Browsers und versuch es dann noch einmal.",
+    push_unavailable: "Der Push-Dienst deines Browsers ist gerade nicht erreichbar. Versuch es später noch einmal.",
     invalid_city: "Diesen Stadtnamen können wir nicht verarbeiten. Bitte nur Buchstaben, Leerzeichen und Bindestriche.",
     city_not_found: "Diese Stadt haben wir in Deutschland nicht gefunden. Prüfe die Schreibweise.",
     osm_busy: "OpenStreetMap ist gerade ausgelastet. Versuch es in ein paar Minuten noch einmal.",

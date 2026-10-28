@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { kickPush } from "@/lib/push";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +21,8 @@ async function checkExpenseReminders(userId: string) {
   } catch {
     // Ohne Netz kommt die Erinnerung beim nächsten Start.
   }
+  // P4: Beim Start einmal die Push-Warteschlange anstoßen – falls seit dem letzten Mal etwas liegen blieb.
+  kickPush();
 }
 
 /** Die letzten 60 Benachrichtigungen. Aktualisiert sich per Realtime, ersatzweise alle 45 Sekunden. */

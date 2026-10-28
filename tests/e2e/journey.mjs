@@ -30,6 +30,7 @@
  *   Lockfile; die CI installiert es vor dem Lauf, lokal: `npm install --no-save axe-core@4.10.3`.
  */
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -301,6 +302,28 @@ async function api(user, method, pathAndQuery, body) {
     /* leer */
   }
   return { status: response.status, json };
+}
+
+/** P4: Push entschlüsseln wie ein Gerät (RFC 8291, aes128gcm) – Gegenprobe zur Edge Function. */
+function decryptWebPush(body, device, authSecret) {
+  const hmac = (key, data) => crypto.createHmac("sha256", key).update(data).digest();
+  const hkdf = (salt, ikm, info, length) => hmac(hmac(salt, ikm), Buffer.concat([info, Buffer.from([1])])).subarray(0, length);
+  const salt = body.subarray(0, 16);
+  const idLength = body[20];
+  const senderPublic = body.subarray(21, 21 + idLength);
+  const ciphertext = body.subarray(21 + idLength);
+  const devicePublic = device.getPublicKey();
+  const ecdhSecret = device.computeSecret(senderPublic);
+  const ikm = hkdf(authSecret, ecdhSecret, Buffer.concat([Buffer.from("WebPush: info\0"), devicePublic, senderPublic]), 32);
+  const cek = hkdf(salt, ikm, Buffer.from("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = hkdf(salt, ikm, Buffer.from("Content-Encoding: nonce\0"), 12);
+  const decipher = crypto.createDecipheriv("aes-128-gcm", cek, nonce);
+  decipher.setAuthTag(ciphertext.subarray(ciphertext.length - 16));
+  const record = Buffer.concat([decipher.update(ciphertext.subarray(0, ciphertext.length - 16)), decipher.final()]);
+  let end = record.length - 1;
+  while (end >= 0 && record[end] === 0) end--;
+  if (record[end] !== 2) throw new Error("Push: ungültiger Trenner");
+  return record.subarray(0, end).toString("utf8");
 }
 
 // ---- Journey ----------------------------------------------------------------------------------------
@@ -3820,6 +3843,157 @@ await step("S7 – Runde jede Woche von selbst: „Freitag, was geht?“ (Bob, C
     if (seriesId) psql(`delete from public.polls where series_id = '${seriesId}'; delete from public.poll_series where id = '${seriesId}'`);
     psql(`delete from public.polls where id = '${pollId}'`);
   }
+});
+
+await step("P4 – Push-Mitteilungen: Gerät anmelden, verschlüsselter Push, Mitteilung auf dem Gerät (Carol, Bob)", async () => {
+  // Headless-Chromium hat keinen Push-Dienst: Das Abo beim Dienst stellt die Journey nach (Schlüssel wie im
+  // Browser, Adresse beim Stellvertreter tests/e2e/push-stub.mjs). Alles andere ist echt: Speichern, Warteschlange,
+  // Edge Function mit Verschlüsselung und VAPID, Service Worker mit den Texten der App.
+  const stubHost = process.env.E2E_PUSH_STUB_HOST ?? "";
+  const stubUrl = process.env.E2E_PUSH_STUB_URL ?? "http://127.0.0.1:8091";
+  const device = crypto.createECDH("prime256v1");
+  device.generateKeys();
+  const authSecret = crypto.randomBytes(16);
+  const deviceName = `carol-${RUN}`;
+  const endpoint = `https://${stubHost || "fcm.googleapis.com"}/push/${deviceName}`;
+  const app = await newUser("Carol", "mobile", { serviceWorkers: "allow" });
+  const { page, context } = app;
+  await context.grantPermissions(["notifications"], { origin: APP });
+  await page.addInitScript(({ endpoint, p256dh, auth }) => {
+    const toBuffer = (text) => Uint8Array.from(atob(text.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (text.length % 4)) % 4)), (c) => c.charCodeAt(0)).buffer;
+    const toText = (buffer) => btoa(String.fromCharCode(...new Uint8Array(buffer))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const KEY = "afterhours.e2e.push";
+    const make = (serverKey) => ({
+      endpoint,
+      expirationTime: null,
+      options: { userVisibleOnly: true, applicationServerKey: toBuffer(serverKey) },
+      getKey: (name) => (name === "p256dh" ? toBuffer(p256dh) : name === "auth" ? toBuffer(auth) : null),
+      toJSON: () => ({ endpoint, expirationTime: null, keys: { p256dh, auth } }),
+      unsubscribe: async () => {
+        localStorage.removeItem(KEY);
+        return true;
+      },
+    });
+    PushManager.prototype.subscribe = async function (options) {
+      const key = options.applicationServerKey;
+      const serverKey = toText(key instanceof ArrayBuffer ? key : key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength));
+      localStorage.setItem(KEY, serverKey);
+      return make(serverKey);
+    };
+    PushManager.prototype.getSubscription = async function () {
+      const serverKey = localStorage.getItem(KEY);
+      return serverKey ? make(serverKey) : null;
+    };
+    PushManager.prototype.permissionState = async () => "granted";
+  }, { endpoint, p256dh: device.getPublicKey().toString("base64url"), auth: authSecret.toString("base64url") });
+
+  await login(app);
+  await page.waitForURL(/\/home/);
+  await page.goto(`${APP}/settings#notifications`);
+  const panel = page.getByTestId("push-panel");
+  await page.locator('[data-testid="push-panel"]:not([data-state="loading"])').waitFor({ timeout: 20_000 });
+  const initial = await panel.getAttribute("data-state");
+  if (initial === "not-configured") {
+    check(await panel.getByText("noch nicht eingerichtet").isVisible(), "ohne VAPID-Schlüssel sagt die App ehrlich, dass Push fehlt");
+    console.log("   (Push nicht eingerichtet – Versand wird übersprungen)");
+    return;
+  }
+  check(initial === "off", `Push ist auf dem Gerät erst aus (${initial})`);
+  check((await page.getByTestId("push-status").innerText()).trim() === "Aus", "Push-Pille sagt „Aus“");
+  const kicked = page.waitForRequest((r) => r.url().includes("/functions/v1/push") && (r.postData() ?? "").includes("send"), { timeout: 15_000 });
+  await panel.getByRole("switch", { name: /Mitteilungen auf diesem Gerät/ }).click();
+  await toast(app, "Push-Mitteilungen sind an.");
+  await page.locator('[data-testid="push-panel"][data-state="on"]').waitFor();
+  check((await page.getByTestId("push-status").innerText()).trim() === "An", "Push-Pille sagt „An“");
+  await kicked;
+  check(true, "nach der eigenen Aktion stößt die App den Versand an");
+  await panel.scrollIntoViewIfNeeded();
+  await shot(app, "60-push-an");
+  const saved = (await api(app, "GET", "push_subscriptions?select=endpoint,label")).json ?? [];
+  check(saved.length === 1 && saved[0].endpoint === endpoint && /^Chrome auf /.test(saved[0].label ?? ""), `Gerät gespeichert mit Namen (${saved[0]?.label})`);
+  const keys = await api(app, "GET", "push_subscriptions?select=p256dh,auth");
+  check(keys.status >= 400, `API: Geräteschlüssel sind nicht lesbar (${keys.status})`);
+  const foreign = (await api(bob, "GET", "push_subscriptions?select=endpoint")).json ?? [];
+  check(Array.isArray(foreign) && foreign.length === 0, "API: Bob sieht Carols Gerät nicht");
+  const claim = await api(bob, "POST", "rpc/claim_push_batch", { p_limit: 10 });
+  check(claim.status >= 400, `API: Angemeldete holen keine Pushs ab (${claim.status})`);
+
+  if (!stubHost || !DB_URL) {
+    console.log("   (Push-Stellvertreter oder E2E_DB_URL fehlt – Versand wird übersprungen)");
+  } else {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const title = `Push-Probe ${RUN}`;
+    const created = await api(bob, "POST", "rpc/create_poll", {
+      p_crew_id: ids.crew, p_title: title, p_ends_at: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+      p_options: [{ title: "Bowling" }, { title: "Kino" }],
+      p_description: null, p_meeting_point: null, p_budget_cents: null, p_min_participants: null,
+    });
+    if (created.status >= 300) throw new Error(`Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+    const pollId = created.json;
+    try {
+      check(psql(`select count(*) from app_private.push_outbox o join public.notifications n on n.id = o.notification_id where n.related_entity_id = '${pollId}'`) === "1",
+        "die neue Abstimmung liegt für Carols Gerät in der Warteschlange");
+      // Wie die App nach einer eigenen Aktion: Bob stößt den Versand an (Rate Limit aus den Schritten davor zurückgesetzt).
+      psql(`delete from public.rate_limit_hits where action = 'push_kick'`);
+      const response = await fetch(`${API}/functions/v1/push`, {
+        method: "POST",
+        headers: { apikey: ANON, Authorization: `Bearer ${await token(bob)}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send" }),
+      });
+      const sent = await response.json().catch(() => ({}));
+      check(response.status === 200 && sent.configured === true, `Function verschickt (${response.status} ${JSON.stringify(sent)})`);
+      let entries = [];
+      for (let i = 0; i < 20 && entries.length === 0; i++) {
+        entries = await (await fetch(`${stubUrl}/push-log/${deviceName}`)).json();
+        if (entries.length === 0) await page.waitForTimeout(500);
+      }
+      check(entries.length === 1, `genau ein Push beim Push-Dienst (${entries.length})`);
+      const entry = entries[0];
+      check(entry?.headers["content-encoding"] === "aes128gcm" && /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]{87}$/.test(entry?.headers.authorization ?? "") && entry?.headers.ttl === "43200",
+        "Push ist verschlüsselt (aes128gcm), mit VAPID signiert, 12 Stunden haltbar");
+      const body = Buffer.from(entry?.body ?? "", "base64");
+      check(!body.toString("latin1").includes(title), "der Push-Dienst sieht den Titel nicht im Klartext");
+      const plain = decryptWebPush(body, device, authSecret);
+      const message = JSON.parse(plain);
+      check(message.type === "poll_created" && message.actor === "Bob" && message.payload?.title === title && message.entity_id === pollId,
+        `das Gerät entschlüsselt Art, Name und Titel (${message.type}, ${message.actor})`);
+      check(!plain.includes("@example.com"), "keine E-Mail-Adressen im Push");
+      check(psql(`select count(*) from app_private.push_outbox o join public.notifications n on n.id = o.notification_id where n.related_entity_id = '${pollId}'`) === "0",
+        "nach dem Versand ist die Warteschlange leer");
+
+      // Service Worker: aus dem Push wird die Mitteilung des Geräts – mit den Texten der App.
+      const cdp = await context.newCDPSession(page);
+      const registrations = [];
+      cdp.on("ServiceWorker.workerRegistrationUpdated", (event) => registrations.push(...event.registrations));
+      await cdp.send("ServiceWorker.enable");
+      for (let i = 0; i < 20 && !registrations.some((r) => !r.isDeleted); i++) await page.waitForTimeout(250);
+      const registration = registrations.find((r) => !r.isDeleted && r.scopeURL.startsWith(APP));
+      await cdp.send("ServiceWorker.deliverPushMessage", { origin: APP, registrationId: registration?.registrationId ?? "", data: plain });
+      const shown = await page.evaluate(async () => {
+        const reg = await navigator.serviceWorker.ready;
+        for (let i = 0; i < 40; i++) {
+          const list = await reg.getNotifications();
+          if (list.length > 0) return list.map((n) => ({ title: n.title, body: n.body, url: n.data?.url ?? null, tag: n.tag }));
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+        return [];
+      });
+      check(shown.length === 1 && shown[0].title === "Bob hat eine Abstimmung gestartet" && shown[0].body === title,
+        `Mitteilung mit dem Text der App (${shown[0]?.title} – ${shown[0]?.body})`);
+      check(shown[0]?.url === `/polls/${pollId}` && shown[0]?.tag === message.id, "Antippen führt zur Abstimmung; gleiche Benachrichtigung ersetzt sich");
+      await cdp.detach();
+    } finally {
+      psql(`delete from public.polls where id = '${pollId}'`);
+    }
+  }
+
+  // Ausschalten: Gerät abgemeldet, beim Push-Dienst gekündigt.
+  await panel.getByRole("switch", { name: /Mitteilungen auf diesem Gerät/ }).click();
+  await toast(app, "Push-Mitteilungen auf diesem Gerät sind aus.");
+  await page.locator('[data-testid="push-panel"][data-state="off"]').waitFor();
+  check(((await api(app, "GET", "push_subscriptions?select=endpoint")).json ?? []).length === 0, "ausgeschaltet: Gerät ist abgemeldet");
+  check((await page.evaluate(() => localStorage.getItem("afterhours.e2e.push"))) === null, "und das Abo beim Push-Dienst gekündigt");
+  await context.close();
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {

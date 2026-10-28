@@ -10,24 +10,11 @@ import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { groupInbox, inboxArea, inboxTone } from "@/lib/inbox";
+import { notificationTarget } from "@/lib/pushview";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { formatAgo } from "@/lib/time";
-import type { AppNotification, NotificationType } from "@/lib/types";
+import type { NotificationType } from "@/lib/types";
 import { useDeleteNotification, useMarkNotificationsRead, useNotifications } from "./api";
-
-/** Wohin eine Benachrichtigung führt. */
-function targetOf(n: AppNotification): string | null {
-  if (n.type === "reward_earned") return "/rewards";
-  // S4: „Heute noch wer?“ wird auf Home beantwortet.
-  if (n.type === "spontaneous_ask" || n.type === "spontaneous_answer" || n.type === "spontaneous_match") return "/";
-  // P3 Etappe 3b: Die Erinnerung führt direkt zu „Kosten teilen“.
-  if (n.type === "plan_expense_reminder" && n.related_entity_id) return `/plans/${n.related_entity_id}#kosten`;
-  if (!n.related_entity_id) return n.crew_id ? `/crews/${n.crew_id}` : null;
-  if (n.entity_type === "poll") return `/polls/${n.related_entity_id}`;
-  if (n.entity_type === "plan") return `/plans/${n.related_entity_id}`;
-  if (n.entity_type === "crew") return `/crews/${n.related_entity_id}`;
-  return null;
-}
 
 /** Symbol je Art – zeigt auf einen Blick, worum es geht (Bereichsfarbe kommt aus `inboxTone`). */
 function NotificationIcon({ type, className }: { type: NotificationType; className?: string }) {
@@ -134,7 +121,7 @@ export function NotificationsPage() {
                     {group.items.map((n) => {
                       const actor = people.lookup(n.actor_id);
                       const text = t.notifications.text[n.type](actor?.display_name ?? t.notifications.someone, n.payload);
-                      const to = targetOf(n);
+                      const to = notificationTarget(n);
                       const isUnread = !n.read_at;
                       const area = inboxArea(n.type);
                       const tone = inboxTone(n.type, n.payload);

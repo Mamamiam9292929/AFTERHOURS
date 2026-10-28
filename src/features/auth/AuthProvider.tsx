@@ -1,6 +1,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { clearOfflineCache, startOfflineCache } from "@/lib/offline";
+import { forgetPushOnSignOut } from "@/lib/push";
 import { queryClient } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
 import { forgetNext } from "./next";
@@ -59,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         forgetNext();
         clearOfflineCache();
+        // P4: Dieses Gerät bekommt danach keine Pushs der bisherigen Person mehr.
+        await forgetPushOnSignOut();
         await supabase.auth.signOut();
         queryClient.clear();
         forgetNext();

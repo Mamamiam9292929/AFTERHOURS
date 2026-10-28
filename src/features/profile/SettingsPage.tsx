@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { IconBell, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconInfo, IconLock, IconLogout, IconPin, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
@@ -21,11 +21,13 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
 import { copyText, useDocumentTitle, useNow } from "@/lib/hooks";
+import { currentPushSubscription, disablePush, enablePush, loadPushConfig, pushSupport } from "@/lib/push";
+import { qk } from "@/lib/query";
 import { siteUrl, supabase } from "@/lib/supabase";
 import { formatAgo } from "@/lib/time";
 import { password as passwordRule, validate } from "@/lib/validation";
 import type { ActivityCategory, Interest, LocationSharingMode, Profile, UserSettings } from "@/lib/types";
-import { useCalendarFeed, useProfile, useRenewCalendarFeed, useRevokeCalendarFeed, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
+import { useCalendarFeed, useProfile, usePushDevices, useRenewCalendarFeed, useRevokeCalendarFeed, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
 import { AvatarPicker } from "./AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "./notificationGroups";
 
@@ -268,6 +270,118 @@ function LocationCard({ settings }: { settings: UserSettings }) {
   );
 }
 
+type PushState = "loading" | "unsupported" | "ios-install" | "not-configured" | "blocked" | "on" | "off";
+
+/**
+ * P4 · Push-Mitteilungen auf diesem Gerät: ein Schalter je Gerät (Abo beim Push-Dienst des Browsers).
+ * Was ankommt, bestimmt die Auswahl darunter – dieselbe wie für die App. Ehrlich, wenn es nicht geht:
+ * Browser ohne Push, iPhone ohne installierte App, Server ohne Schlüssel, im Browser blockiert.
+ */
+function PushPanel() {
+  const toast = useToast();
+  const client = useQueryClient();
+  const { user } = useAuth();
+  const support = pushSupport();
+  const config = useQuery({ queryKey: qk.pushConfig, queryFn: loadPushConfig, enabled: support === "supported", staleTime: 5 * 60_000 });
+  const devices = usePushDevices();
+  // Abo dieses Geräts beim Push-Dienst: undefined = wird noch nachgesehen.
+  const [endpoint, setEndpoint] = useState<string | null | undefined>(support === "supported" ? undefined : null);
+  const [permission, setPermission] = useState<NotificationPermission>(() => (typeof Notification === "undefined" ? "default" : Notification.permission));
+  const t2 = t.settings.push;
+
+  useEffect(() => {
+    if (support !== "supported") return;
+    let active = true;
+    void currentPushSubscription().then((subscription) => active && setEndpoint(subscription?.endpoint ?? null));
+    return () => {
+      active = false;
+    };
+  }, [support]);
+
+  const refreshDevices = () => void client.invalidateQueries({ queryKey: qk.pushDevices(user?.id ?? "anonymous") });
+  const enable = useMutation({
+    mutationFn: enablePush,
+    onSuccess: (next) => {
+      setEndpoint(next);
+      setPermission("granted");
+      refreshDevices();
+      toast.success(t2.enabled);
+    },
+    onError: (error) => {
+      if (typeof Notification !== "undefined") setPermission(Notification.permission);
+      toast.error(error);
+    },
+  });
+  const disable = useMutation({
+    mutationFn: disablePush,
+    onSuccess: () => {
+      setEndpoint(null);
+      refreshDevices();
+      toast.success(t2.disabled);
+    },
+    onError: (error) => toast.error(error),
+  });
+
+  const on = Boolean(endpoint && devices.data?.some((device) => device.endpoint === endpoint));
+  const others = (devices.data ?? []).filter((device) => device.endpoint !== endpoint).length;
+  let state: PushState;
+  if (support === "unsupported") state = "unsupported";
+  else if (support === "ios-install") state = "ios-install";
+  else if (config.isPending || endpoint === undefined || devices.isPending) state = "loading";
+  else if (!config.data?.configured) state = "not-configured";
+  else if (on) state = "on";
+  else if (permission === "denied") state = "blocked";
+  else state = "off";
+
+  const status: Record<Exclude<PushState, "loading">, { label: string; tone: "lime" | "glass" | "danger" }> = {
+    on: { label: t2.statusOn, tone: "lime" },
+    off: { label: t2.statusOff, tone: "glass" },
+    blocked: { label: t2.statusBlocked, tone: "danger" },
+    unsupported: { label: t2.statusUnavailable, tone: "glass" },
+    "ios-install": { label: t2.statusUnavailable, tone: "glass" },
+    "not-configured": { label: t2.statusUnavailable, tone: "glass" },
+  };
+  const message: Partial<Record<PushState, string>> = {
+    unsupported: t2.unsupported,
+    "ios-install": t2.iosInstall,
+    "not-configured": t2.notConfigured,
+    blocked: t2.blocked,
+  };
+
+  return (
+    <div className={cn(ITEM, "mb-4 p-4")} data-testid="push-panel" data-state={state}>
+      {state === "loading" ? (
+        <Skeleton className="h-16" />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="mr-auto font-semibold text-fg">{t2.title}</h3>
+            <StatusPill testId="push-status" tone={status[state].tone}>
+              {status[state].label}
+            </StatusPill>
+          </div>
+          {state === "on" || state === "off" || state === "blocked" ? (
+            <>
+              {state === "blocked" && <p className="mt-2 text-sm leading-snug text-danger">{t2.blocked}</p>}
+              <SwitchRow
+                label={t2.title}
+                description={state === "on" ? t2.on : t2.off}
+                checked={state === "on"}
+                disabled={state === "blocked" || enable.isPending || disable.isPending}
+                onChange={(next) => (next ? enable.mutate() : disable.mutate())}
+              />
+              <p className="mt-1 text-[13px] leading-snug text-faint">{t2.privacy}</p>
+            </>
+          ) : (
+            <p className="mt-2 text-sm leading-snug text-muted">{message[state]}</p>
+          )}
+          {others > 0 && <p className="mt-2 text-[13px] leading-snug text-muted">{t2.otherDevices(others)}</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 function NotificationsCard({ settings }: { settings: UserSettings }) {
   const toast = useToast();
   const update = useUpdateSettings();
@@ -294,12 +408,12 @@ function NotificationsCard({ settings }: { settings: UserSettings }) {
         </StatusPill>
       }
     >
+      <PushPanel />
       <div className={cn(ITEM, "divide-y divide-white/10 px-4")}>
         {NOTIFICATION_GROUPS.map((group) => (
           <SwitchRow key={group.key} label={t.settings.notifications.groups[group.key].title} description={t.settings.notifications.groups[group.key].body} checked={isGroupEnabled(preferences, group.types)} onChange={(enabled) => change(group.types, enabled)} />
         ))}
       </div>
-      <p className="mt-4 text-[13px] leading-snug text-faint">{t.notifications.pushNote}</p>
     </Card>
   );
 }

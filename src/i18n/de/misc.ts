@@ -109,7 +109,9 @@ export const notifications = {
   unread: "Ungelesen",
   delete: "Benachrichtigung löschen",
   someone: "Jemand",
-  pushNote: "Push-Mitteilungen aufs Handy gibt es noch nicht. Benachrichtigungen erscheinen in der App.",
+  pushNote: "Auch aufs Handy, wenn die App zu ist: Push-Mitteilungen schaltest du in den Einstellungen je Gerät ein.",
+  /** P4: Text im Service Worker, wenn ein Push unbekannt oder unvollständig ist. */
+  push: { fallbackTitle: "AFTERHOURS", fallbackBody: "Neues in deiner Crew" },
   manage: "Benachrichtigungen einstellen",
   // V2 Etappe 3l: Stand oben, Tagesgruppen und Bereich je Karte.
   statusUnread: (n: number) => (n === 1 ? "1 neu" : `${n} neu`),
@@ -226,6 +228,27 @@ export const settings = {
       rewards: { title: "Rewards", body: "Wenn du Punkte erhältst." },
     },
   },
+  /** P4: Push-Mitteilungen auf diesem Gerät. */
+  push: {
+    title: "Mitteilungen auf diesem Gerät",
+    on: "Was du unten eingeschaltet hast, kommt auch aufs Gerät – auch wenn die App zu ist.",
+    off: "Bekomm Bescheid, auch wenn die App zu ist: neue Abstimmungen, Pläne, Antworten. Es zählt deine Auswahl unten.",
+    statusOn: "An",
+    statusOff: "Aus",
+    statusBlocked: "Blockiert",
+    statusUnavailable: "Nicht verfügbar",
+    enabled: "Push-Mitteilungen sind an.",
+    disabled: "Push-Mitteilungen auf diesem Gerät sind aus.",
+    unsupported: "Dieser Browser kann keine Push-Mitteilungen empfangen. In Chrome, Edge, Firefox oder Safari (Mac) geht es.",
+    iosInstall: "Auf iPhone und iPad gibt es Push-Mitteilungen nur in der installierten App: in Safari auf Teilen tippen, dann „Zum Home-Bildschirm“ – danach hier einschalten.",
+    notConfigured: "Push-Mitteilungen sind auf diesem Server noch nicht eingerichtet. Benachrichtigungen erscheinen in der App.",
+    blocked: "Mitteilungen sind für AFTERHOURS im Browser blockiert. Erlaube sie in den Website-Einstellungen deines Browsers und schalte sie dann hier ein.",
+    privacy: "Der Inhalt jeder Mitteilung ist verschlüsselt – der Push-Dienst deines Browsers (Google, Apple, Mozilla oder Microsoft) sieht nur, dass etwas kommt. Auf dem Sperrbildschirm stehen Titel und Text, wie in der App.",
+    otherDevices: (n: number) => (n === 1 ? "Außerdem an auf 1 weiteren Gerät." : `Außerdem an auf ${n} weiteren Geräten.`),
+    device: (browser: string, platform: string) => `${browser} auf ${platform}`,
+    deviceBrowser: "Browser",
+    devicePlatform: "Gerät",
+  },
   /** P2 Etappe 2: persönlicher Abo-Link für Kalender-Apps. */
   calendar: {
     title: "Kalender-Abo",
@@ -295,6 +318,7 @@ export const privacy = {
         "Profil: Anzeigename, optional Profilbild, Stadt und Interessen.",
         "Aktivität: Crews, Nachrichten im Crew-Chat, Abstimmungen, Stimmen, Pläne, Zusagen, Reservierungsvermerke, Mitfahrten, Punkte und Benachrichtigungen.",
         "Einstellungen: Budget, Entfernung, Benachrichtigungen und deine Wahl zur Standortfreigabe.",
+        "Push-Mitteilungen (nur wenn du sie einschaltest): je Gerät die Adresse beim Push-Dienst deines Browsers, zwei öffentliche Schlüssel zum Verschlüsseln und ein Gerätename wie „Chrome auf Android“.",
       ],
     },
     {
@@ -330,6 +354,7 @@ export const privacy = {
       items: [
         "Schriften und Icons liegen in der App selbst; es wird nichts von Schrift- oder Tracking-Diensten nachgeladen.",
         "Fotos von Orten laden erst, wenn du auf „Foto anzeigen“ tippst oder „Fotos von Orten immer laden“ einschaltest (gilt nur auf diesem Gerät). Dann gehen Anfragen ohne Cookies an Wikimedia Commons und Wikidata – Wikimedia erfährt dabei deine IP-Adresse und welches Foto geladen wird.",
+        "Push-Mitteilungen gibt es nur, wenn du sie auf einem Gerät einschaltest. Dann läuft jede Mitteilung über den Push-Dienst deines Browsers (Google, Apple, Mozilla oder Microsoft) – Ende-zu-Ende verschlüsselt; der Dienst sieht nur, dass etwas an dein Gerät geht. Ausschalten oder Abmelden meldet das Gerät ab.",
         "Es gibt keine Werbung und kein Tracking.",
         "Daten liegen bei Supabase (Datenbank und Anmeldung) in der Region, die der Betreiber wählt.",
       ],
