@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/time";
 import type { Crew } from "@/lib/types";
 import { summarizePoll, type PollWithDetails } from "./logic";
+import "@/styles/motion.css";
 
 /** Balken für die Beteiligung an einer Abstimmung. */
 export function ParticipationBar({ voted, total, className }: { voted: number; total: number; className?: string }) {

@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { calendarDaysBetween, formatTime, ticketDate, zonedParts } from "@/lib/time";
 import type { AttendanceStatus, Crew, PlanStatus } from "@/lib/types";
 import type { PlanWithParticipants } from "./api";
+import "@/styles/motion.css";
 
 /** Eigene Antwort auf einem Ticket: offen (`none` = nicht eingeladen) oder `past` bei vergangenen/abgesagten Plänen. */
 export type TicketAnswer = AttendanceStatus | "none" | "past";

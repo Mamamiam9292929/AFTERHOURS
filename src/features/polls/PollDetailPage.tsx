@@ -48,6 +48,7 @@ import {
 import { OptionWeather, PollWeatherFooter } from "./PollWeather";
 import { ParticipationBar } from "./PollCard";
 import { activeWherePoll, dateOptionLabel, datePollPlaceId, GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
+import "@/styles/motion.css";
 
 const RESPONSES: VoteResponse[] = ["yes", "maybe", "no"];
 

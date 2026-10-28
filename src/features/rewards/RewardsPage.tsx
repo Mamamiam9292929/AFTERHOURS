@@ -14,6 +14,7 @@ import { qk } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
 import { formatDateWithYear } from "@/lib/time";
 import type { RewardTransaction } from "@/lib/types";
+import "@/styles/motion.css";
 
 const LEVEL_THRESHOLDS = [0, 50, 150, 300, 600];
 
