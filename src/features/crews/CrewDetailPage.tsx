@@ -1,7 +1,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { IconBack, IconCalendar, IconCalendarPlus, IconMore, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
+import { IconBack, IconCalendar, IconCalendarPlus, IconMore, IconPlans, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
 import { PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
@@ -76,7 +76,7 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
         ) : polls.isError ? (
           <ErrorState error={polls.error} onRetry={() => void polls.refetch()} />
         ) : openPolls.length === 0 ? (
-          <EmptyState title={t.crews.detail.noPolls} body={t.crews.detail.noPollsBody} action={<ButtonLink to={`/polls/new?crew=${crew.id}`} size="sm">{t.crews.detail.startPoll}</ButtonLink>} />
+          <EmptyState art={<IconVote aria-hidden />} title={t.crews.detail.noPolls} body={t.crews.detail.noPollsBody} action={<ButtonLink to={`/polls/new?crew=${crew.id}`} size="sm">{t.crews.detail.startPoll}</ButtonLink>} />
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {openPolls.map((poll) => (
@@ -92,7 +92,7 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
           ) : plans.isError ? (
             <ErrorState error={plans.error} onRetry={() => void plans.refetch()} />
           ) : upcoming.length === 0 ? (
-            <EmptyState title={t.crews.detail.noPlans} body={t.crews.detail.noPlansBody} />
+            <EmptyState art={<IconPlans aria-hidden />} title={t.crews.detail.noPlans} body={t.crews.detail.noPlansBody} />
           ) : (
             <div className="grid gap-5 lg:grid-cols-2">
               {rest.map((plan) => (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { IconCalendarPlus, IconVote } from "@/components/icons";
+import { IconCalendar, IconCalendarPlus, IconPlans, IconVote } from "@/components/icons";
 import { PageHeader, PosterLine } from "@/components/layout/Page";
 import { ButtonLink } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Controls";
@@ -77,7 +77,7 @@ export function PlansPage() {
           <ErrorState error={failed.error} onRetry={() => void failed.refetch()} />
         ) : tab === "upcoming" ? (
           upcoming.length === 0 ? (
-            <EmptyState title={t.plans.empty.upcomingTitle} body={t.plans.empty.upcomingBody} action={<ButtonLink to="/polls/new" size="sm">{t.plans.newPoll}</ButtonLink>} />
+            <EmptyState art={<IconPlans aria-hidden />} title={t.plans.empty.upcomingTitle} body={t.plans.empty.upcomingBody} action={<ButtonLink to="/polls/new" size="sm">{t.plans.newPoll}</ButtonLink>} />
           ) : (
             <div className="grid gap-5 lg:grid-cols-2">
               {upcoming.map((plan) => (
@@ -87,7 +87,7 @@ export function PlansPage() {
           )
         ) : tab === "voting" ? (
           openPolls.length + undecided.length === 0 ? (
-            <EmptyState title={t.plans.empty.votingTitle} body={t.plans.empty.votingBody} action={<ButtonLink to="/polls/new" size="sm">{t.plans.newPoll}</ButtonLink>} />
+            <EmptyState art={<IconVote aria-hidden />} title={t.plans.empty.votingTitle} body={t.plans.empty.votingBody} action={<ButtonLink to="/polls/new" size="sm">{t.plans.newPoll}</ButtonLink>} />
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
               {[...openPolls, ...undecided].map((poll) => (
@@ -96,7 +96,7 @@ export function PlansPage() {
             </div>
           )
         ) : past.length === 0 ? (
-          <EmptyState title={t.plans.empty.pastTitle} body={t.plans.empty.pastBody} />
+          <EmptyState art={<IconCalendar aria-hidden />} title={t.plans.empty.pastTitle} body={t.plans.empty.pastBody} />
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
             {past.map((plan) => (

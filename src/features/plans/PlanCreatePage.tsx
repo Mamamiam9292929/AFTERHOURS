@@ -43,7 +43,7 @@ export function PlanCreatePage() {
     return (
       <>
         <PageHeader title={t.plans.create.title} back={{ to: "/plans", label: t.plans.detail.back }} />
-        <EmptyState title={t.polls.create.needCrewTitle} body={t.polls.create.needCrewBody} action={<ButtonLink to="/crews?new=1">{t.polls.create.needCrewAction}</ButtonLink>} />
+        <EmptyState art={<IconCrews aria-hidden />} title={t.polls.create.needCrewTitle} body={t.polls.create.needCrewBody} action={<ButtonLink to="/crews?new=1">{t.polls.create.needCrewAction}</ButtonLink>} />
       </>
     );
   }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { IconChevronRight, IconPlus } from "@/components/icons";
+import { IconChevronRight, IconCrews, IconPlus } from "@/components/icons";
 import { PageHeader, PosterLine, Section } from "@/components/layout/Page";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
@@ -134,7 +134,7 @@ export function CrewsPage() {
       ) : crews.isError ? (
         <ErrorState error={crews.error} onRetry={() => void crews.refetch()} />
       ) : crews.data.length === 0 ? (
-        <EmptyState title={t.crews.empty.title} body={t.crews.empty.body} action={<Button onClick={() => setCreateOpen(true)}>{t.crews.create}</Button>} />
+        <EmptyState art={<IconCrews aria-hidden />} title={t.crews.empty.title} body={t.crews.empty.body} action={<Button onClick={() => setCreateOpen(true)}>{t.crews.create}</Button>} />
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           {crews.data.map((crew) => (

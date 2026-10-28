@@ -5,10 +5,63 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { Button } from "./Button";
 
-/** Leerer Zustand: sagt, was hier stehen wird, und bietet den nächsten Schritt an. */
-export function EmptyState({ icon, title, body, action, className }: { icon?: ReactNode; title: string; body?: ReactNode; action?: ReactNode; className?: string }) {
+/**
+ * D4 · Bild für leere Zustände im Stil 2.0: drei aufgefächerte Karten in den Farben der App (wie der Kartenstapel
+ * beim Abstimmen), vorne Lime mit dem Symbol des Bereichs. Kein Foto, keine Figur – nur Bausteine der App.
+ * Stile inline, damit das Start-CSS nicht wächst.
+ */
+const FAN = [
+  { rotate: -14, x: -22, y: 6, color: "var(--color-pink)" },
+  { rotate: 9, x: 20, y: 2, color: "var(--color-violet)" },
+] as const;
+
+export function EmptyArt({ children }: { children: ReactNode }) {
   return (
-    <div className={cn("flex flex-col items-start gap-3 rounded-card border border-dashed border-line-strong px-5 py-6", className)}>
+    <div aria-hidden data-empty-art="" className="relative mx-auto" style={{ width: 120, height: 92 }}>
+      <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(closest-side, color-mix(in srgb, var(--color-lime) 22%, transparent), transparent)", filter: "blur(6px)" }} />
+      {FAN.map((card) => (
+        <div
+          key={card.rotate}
+          className="absolute rounded-[16px] border border-white/15"
+          style={{
+            left: 34 + card.x,
+            top: 14 + card.y,
+            width: 52,
+            height: 66,
+            transform: `rotate(${card.rotate}deg)`,
+            background: `linear-gradient(160deg, color-mix(in srgb, ${card.color} 55%, transparent), color-mix(in srgb, ${card.color} 18%, transparent))`,
+          }}
+        />
+      ))}
+      <div
+        className="absolute flex items-center justify-center rounded-[16px] bg-lime text-lime-ink [&>svg]:size-6"
+        style={{ left: 34, top: 10, width: 52, height: 66, boxShadow: "0 14px 30px -14px var(--color-lime)" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Leerer Zustand: sagt, was hier stehen wird, und bietet den nächsten Schritt an. D4: als Glas-Karte; mit `art`
+ * (Symbol des Bereichs) steht darüber der aufgefächerte Kartenstapel, Text und Aktion mittig.
+ */
+export function EmptyState({ icon, art, title, body, action, className }: { icon?: ReactNode; art?: ReactNode; title: string; body?: ReactNode; action?: ReactNode; className?: string }) {
+  if (art) {
+    return (
+      <div data-empty-state="" className={cn("flex flex-col items-center gap-4 rounded-[20px] border border-white/10 bg-white/[0.04] px-5 py-6 text-center", className)}>
+        <EmptyArt>{art}</EmptyArt>
+        <div className="space-y-1">
+          <p className="font-display text-[17px] font-bold text-fg">{title}</p>
+          {body && <p className="mx-auto max-w-prose text-sm leading-snug text-muted">{body}</p>}
+        </div>
+        {action}
+      </div>
+    );
+  }
+  return (
+    <div data-empty-state="" className={cn("flex flex-col items-start gap-3 rounded-[20px] border border-white/10 bg-white/[0.04] px-5 py-6", className)}>
       {icon && <div className="text-muted [&>svg]:size-6">{icon}</div>}
       <div className="space-y-1">
         <p className="font-semibold text-fg">{title}</p>

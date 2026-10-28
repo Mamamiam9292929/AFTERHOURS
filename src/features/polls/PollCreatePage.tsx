@@ -313,7 +313,7 @@ export function PollCreatePage() {
     return (
       <>
         <PageHeader title={t.polls.create.title} back={{ to: "/home", label: t.nav.home }} />
-        <EmptyState title={t.polls.create.needCrewTitle} body={t.polls.create.needCrewBody} action={<ButtonLink to="/crews?new=1">{t.polls.create.needCrewAction}</ButtonLink>} />
+        <EmptyState art={<IconCrews aria-hidden />} title={t.polls.create.needCrewTitle} body={t.polls.create.needCrewBody} action={<ButtonLink to="/crews?new=1">{t.polls.create.needCrewAction}</ButtonLink>} />
       </>
     );
   }
