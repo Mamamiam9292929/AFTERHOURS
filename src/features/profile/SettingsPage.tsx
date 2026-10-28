@@ -27,7 +27,8 @@ import { siteUrl, supabase } from "@/lib/supabase";
 import { formatAgo } from "@/lib/time";
 import { password as passwordRule, validate } from "@/lib/validation";
 import type { ActivityCategory, Interest, LocationSharingMode, Profile, UserSettings } from "@/lib/types";
-import { useCalendarFeed, useProfile, usePushDevices, useRenewCalendarFeed, useRevokeCalendarFeed, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
+import { devicePreset, isGroupOnDevice, matchesPreset, setGroupOnDevice } from "@/lib/pushgroups";
+import { useCalendarFeed, useProfile, usePushDevices, useRenewCalendarFeed, useRevokeCalendarFeed, useSetPushMutedTypes, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
 import { AvatarPicker } from "./AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "./notificationGroups";
 
@@ -270,14 +271,82 @@ function LocationCard({ settings }: { settings: UserSettings }) {
   );
 }
 
+/**
+ * P4 Etappe 3 · Was auf diesem Gerät als Mitteilung ankommt. Dieselben Gruppen wie für die App, als Pillen;
+ * dazu „Alles“ und „Nur das Wichtigste“. Gruppen, die für die App aus sind, fehlen hier (sie kämen ohnehin
+ * nicht). Gespeichert wird je Gerät auf dem Server (`set_push_muted_types`), sofort und ohne Speichern-Knopf.
+ */
+function DevicePushPicker({ endpoint, initial, preferences }: { endpoint: string; initial: string[]; preferences: UserSettings["notification_preferences"] }) {
+  const toast = useToast();
+  const save = useSetPushMutedTypes();
+  const [muted, setMuted] = useState<string[]>(initial);
+  const t2 = t.settings.push.pick;
+  const groups = NOTIFICATION_GROUPS.filter((group) => isGroupEnabled(preferences, group.types));
+  const offInApp = NOTIFICATION_GROUPS.length - groups.length;
+  const onCount = groups.filter((group) => isGroupOnDevice(muted, group.types)).length;
+
+  function apply(next: string[]) {
+    const previous = muted;
+    setMuted(next);
+    save.mutate({ endpoint, mutedTypes: next }, { onSuccess: () => toast.success(t2.saved), onError: (error) => { setMuted(previous); toast.error(error); } });
+  }
+
+  if (groups.length === 0) return null;
+  return (
+    <div className="mt-4 border-t border-white/10 pt-4" data-testid="push-pick" role="group" aria-labelledby="push-pick-title">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 id="push-pick-title" className="mr-auto font-semibold text-fg">
+          {t2.title}
+        </h4>
+        <StatusPill testId="push-pick-status" tone={onCount === 0 ? "glass" : "lime"}>
+          {t2.count(onCount, groups.length)}
+        </StatusPill>
+      </div>
+      <p className="mt-1 text-[13px] leading-snug text-muted">{t2.lead}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Chip selected={matchesPreset(NOTIFICATION_GROUPS, muted, "all")} onToggle={() => apply(devicePreset(NOTIFICATION_GROUPS, "all"))}>
+          {t2.all}
+        </Chip>
+        <Chip selected={matchesPreset(NOTIFICATION_GROUPS, muted, "essentials")} onToggle={() => apply(devicePreset(NOTIFICATION_GROUPS, "essentials"))}>
+          {t2.essentials}
+        </Chip>
+      </div>
+      <ul className="mt-3 flex flex-wrap gap-2" aria-label={t2.title}>
+        {groups.map((group) => {
+          const on = isGroupOnDevice(muted, group.types);
+          return (
+            <li key={group.key}>
+              <button
+                type="button"
+                aria-pressed={on}
+                data-group={group.key}
+                onClick={() => apply(setGroupOnDevice(muted, group.types, !on))}
+                className={cn(
+                  "inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition-colors",
+                  on ? "border-lime/70 bg-lime/15 text-fg" : "border-white/15 bg-white/[0.04] text-muted line-through decoration-white/40 hover:border-white/30",
+                )}
+              >
+                <span aria-hidden className={cn("size-2 rounded-full", on ? "bg-lime" : "bg-white/25")} />
+                {t.settings.notifications.groups[group.key].title}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {onCount === 0 && <p className="mt-3 text-[13px] leading-snug text-muted">{t2.none}</p>}
+      {offInApp > 0 && <p className="mt-2 text-[13px] leading-snug text-faint">{t2.offInApp(offInApp)}</p>}
+    </div>
+  );
+}
+
 type PushState = "loading" | "unsupported" | "ios-install" | "not-configured" | "blocked" | "on" | "off";
 
 /**
  * P4 · Push-Mitteilungen auf diesem Gerät: ein Schalter je Gerät (Abo beim Push-Dienst des Browsers).
- * Was ankommt, bestimmt die Auswahl darunter – dieselbe wie für die App. Ehrlich, wenn es nicht geht:
+ * Was ankommt, bestimmt die Auswahl für die App, je Gerät eingeschränkt (DevicePushPicker). Ehrlich, wenn es nicht geht:
  * Browser ohne Push, iPhone ohne installierte App, Server ohne Schlüssel, im Browser blockiert.
  */
-function PushPanel() {
+function PushPanel({ preferences }: { preferences: UserSettings["notification_preferences"] }) {
   const toast = useToast();
   const client = useQueryClient();
   const { user } = useAuth();
@@ -322,8 +391,9 @@ function PushPanel() {
     onError: (error) => toast.error(error),
   });
 
-  const on = Boolean(endpoint && devices.data?.some((device) => device.endpoint === endpoint));
-  const others = (devices.data ?? []).filter((device) => device.endpoint !== endpoint).length;
+  const device = endpoint ? devices.data?.find((entry) => entry.endpoint === endpoint) : undefined;
+  const on = Boolean(device);
+  const others = (devices.data ?? []).filter((entry) => entry.endpoint !== endpoint).length;
   let state: PushState;
   if (support === "unsupported") state = "unsupported";
   else if (support === "ios-install") state = "ios-install";
@@ -371,6 +441,7 @@ function PushPanel() {
                 onChange={(next) => (next ? enable.mutate() : disable.mutate())}
               />
               <p className="mt-1 text-[13px] leading-snug text-faint">{t2.privacy}</p>
+              {state === "on" && endpoint && device && <DevicePushPicker key={endpoint} endpoint={endpoint} initial={device.muted_types ?? []} preferences={preferences} />}
             </>
           ) : (
             <p className="mt-2 text-sm leading-snug text-muted">{message[state]}</p>
@@ -408,7 +479,7 @@ function NotificationsCard({ settings }: { settings: UserSettings }) {
         </StatusPill>
       }
     >
-      <PushPanel />
+      <PushPanel preferences={preferences} />
       <div className={cn(ITEM, "divide-y divide-white/10 px-4")}>
         {NOTIFICATION_GROUPS.map((group) => (
           <SwitchRow key={group.key} label={t.settings.notifications.groups[group.key].title} description={t.settings.notifications.groups[group.key].body} checked={isGroupEnabled(preferences, group.types)} onChange={(enabled) => change(group.types, enabled)} />
