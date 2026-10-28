@@ -83,6 +83,8 @@ test("Überschrift: heute Abend, heute, morgen, jetzt", () => {
   assert.equal(tonightStrip(tonightPlan(), before, 0, 20).when, "tonight");
   assert.equal(tonightStrip(tonightPlan(), before, 0, 16).when, "today");
   assert.equal(tonightStrip(tonightPlan(), before, 1, 9).when, "tomorrow");
+  assert.equal(tonightStrip(tonightPlan(), before, 1, 1).when, "night", "kurz nach Mitternacht ist „heute Nacht“, nicht „morgen“");
+  assert.equal(tonightStrip(tonightPlan(), before, 0, 2).when, "night");
   assert.equal(tonightStrip(tonightPlan(), new Date("2026-10-30T19:30:00.000Z"), 0, 20).when, "now");
 });
 

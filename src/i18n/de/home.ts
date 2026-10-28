@@ -53,7 +53,7 @@ export const home = {
   },
   /** D3 Etappe 2a · Leiste unter dem großen Ticket am Tag des Plans: Wetter und Treffpunkt. */
   tonight: {
-    title: { now: "Jetzt", tonight: "Heute Abend", today: "Heute", tomorrow: "Morgen" },
+    title: { now: "Jetzt", night: "Heute Nacht", tonight: "Heute Abend", today: "Heute", tomorrow: "Morgen" },
     weatherAt: (hour: number) => `Wetter um ${String(hour).padStart(2, "0")} Uhr`,
     weatherLabel: "Wetter",
     weatherLoading: "Vorhersage lädt …",

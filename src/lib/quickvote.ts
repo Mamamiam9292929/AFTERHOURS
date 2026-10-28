@@ -62,7 +62,7 @@ export function formatCountdown(minutes: number): string {
 }
 
 /** D3 Etappe 2a: Wann ist der Plan, aus Sicht von Home? Steuert die Überschrift der „Heute“-Leiste. */
-export type TonightWhen = "now" | "tonight" | "today" | "tomorrow";
+export type TonightWhen = "now" | "night" | "tonight" | "today" | "tomorrow";
 
 export interface TonightStrip {
   when: TonightWhen;
@@ -83,6 +83,7 @@ const clean = (value: string | null | undefined) => {
  * zum Plan in Berliner Zeit (heute = 0), `startHour` die Stunde des Beginns in Berliner Zeit – beides
  * rechnet der Aufrufer, damit diese Datei ohne Abhängigkeiten bleibt. Nichts wird erfunden: ohne
  * Treffpunkt und Adresse steht dort „noch offen“, ohne Ort aus Discover gibt es kein Wetter.
+ * Beginnt der Plan vor 5 Uhr, heißt die Leiste „Heute Nacht“ – auch wenn es kalendarisch schon morgen ist.
  */
 export function tonightStrip(
   plan: { starts_at: string; ends_at: string | null; status: string; activity_id: string | null; meeting_point: string | null; address: string | null },
@@ -92,7 +93,7 @@ export function tonightStrip(
 ): TonightStrip | null {
   const live = liveCountdown(plan, now);
   if (!live) return null;
-  const when: TonightWhen = live.kind === "live" ? "now" : days >= 1 ? "tomorrow" : startHour >= 17 ? "tonight" : "today";
+  const when: TonightWhen = live.kind === "live" ? "now" : startHour < 5 ? "night" : days >= 1 ? "tomorrow" : startHour >= 17 ? "tonight" : "today";
   return {
     when,
     weather: Boolean(plan.activity_id) && live.kind === "soon",

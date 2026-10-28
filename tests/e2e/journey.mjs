@@ -3458,14 +3458,14 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     const strip = page.getByTestId("tonight-strip");
     await strip.waitFor();
     const stripTitle = (await strip.getByRole("heading", { level: 2 }).innerText()).trim().toLowerCase();
-    check(["heute abend", "heute", "morgen"].includes(stripTitle), `D3: Leiste heißt nach der Tageszeit des Plans („${stripTitle}“)`);
+    check(["heute nacht", "heute abend", "heute", "morgen"].includes(stripTitle), `D3: Leiste heißt nach der Tageszeit des Plans („${stripTitle}“)`);
     check((await strip.getByTestId("tonight-meeting").innerText()).trim() === "Am Eingang", "D3: Treffpunkt steht unter dem Ticket");
     const tonightWeather = strip.getByTestId("tonight-weather");
     await tonightWeather.waitFor();
     const weatherText = (await tonightWeather.textContent()).replace(/\s+/g, " ").trim();
     check(weatherText === "14 °C Regen", `D3: Wetter zur Planzeit am Ort (${weatherText})`);
     check(await strip.getByText("70 % Regen · Wind 12 km/h").isVisible(), "D3: Regenrisiko und Wind in der Leiste");
-    check((await strip.getByRole("link", { name: /^Open-Meteo, Stand \d{2}:\d{2}$/ }).count()) === 1, "D3: Quelle der Vorhersage mit Stand");
+    check((await strip.getByRole("link", { name: /^Open-Meteo, Stand \d{2}:\d{2} Uhr$/ }).count()) === 1, "D3: Quelle der Vorhersage mit Stand");
     check((await strip.getByText(/Plan B/).count()) === 0, "D3: drinnen kein Draußen-Hinweis");
     // Fehlerzustand: ohne Wetter-Function steht das ehrlich da, „Erneut versuchen“ lädt nach.
     await page.route("**/functions/v1/weather", (route) => route.abort());
