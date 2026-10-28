@@ -1,6 +1,10 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryClient } from "@tanstack/react-query";
+import { kickPush } from "@/lib/push";
 
 export const queryClient = new QueryClient({
+  // P4: Nach jeder eigenen Aktion die Push-Warteschlange anstoßen – Benachrichtigungen, die sie ausgelöst
+  // hat, kommen so ohne Cron-Job sofort auf die Geräte der anderen (gesammelt, siehe kickPush).
+  mutationCache: new MutationCache({ onSuccess: () => kickPush() }),
   defaultOptions: {
     queries: {
       staleTime: 20_000,
@@ -25,6 +29,9 @@ export const qk = {
   isAdmin: (userId: string) => ["is-admin", userId] as const,
   /** P2 Etappe 2: eigener Abo-Link für Kalender-Apps. */
   calendarFeed: (userId: string) => ["calendar-feed", userId] as const,
+  /** P4: eigene Geräte mit Push-Mitteilungen. */
+  pushDevices: (userId: string) => ["push-devices", userId] as const,
+  pushConfig: ["push-config"] as const,
   crews: ["crews"] as const,
   crew: (crewId: string) => ["crews", crewId] as const,
   crewInvitations: (crewId: string) => ["crews", crewId, "invitations"] as const,

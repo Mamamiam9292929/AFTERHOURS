@@ -29,6 +29,10 @@ setup() {
   OSM_STUB_PORT=8090 OSM_STUB_DOWN=1 nohup node tests/e2e/osm-stub.mjs >"$LOGS/osm-stub-down.log" 2>&1 &
   wait_for "OSM-Stellvertreter (ausgefallen)" 15 curl -sf http://127.0.0.1:8090/health
 
+  # P4: Stellvertreter für einen Push-Dienst (Google/Apple/Mozilla), ebenfalls auf dem Host.
+  nohup node tests/e2e/push-stub.mjs >"$LOGS/push-stub.log" 2>&1 &
+  wait_for "Push-Stellvertreter" 15 curl -sf http://127.0.0.1:8091/health
+
   # 2. Supabase ohne Dienste, die die Journey nicht braucht.
   supabase start -x studio,imgproxy,storage-api,logflare,vector,supavisor,postgres-meta
   status_env=$(mktemp)  # enthält Schlüssel – nicht ins Artefakt
@@ -48,8 +52,17 @@ PHOTON_URL=http://$gateway:8089
 OVERPASS_URLS=http://$gateway:8090/api/interpreter,http://$gateway:8089/api/interpreter
 OSM_CONTACT=ci@afterhours.invalid
 OPEN_METEO_URL=http://$gateway:8089
+PUSH_EXTRA_HOSTS=$gateway:8091
+PUSH_PLAINTEXT_HOSTS=$gateway:8091
 EOF
-  nohup supabase functions serve --env-file "$LOGS/functions.env" >"$LOGS/functions.log" 2>&1 &
+  # P4: frische VAPID-Schlüssel nur für diesen Lauf (nicht im Artefakt, nicht im Repository).
+  vapid_env=$(mktemp)
+  node scripts/vapid-keys.mjs mailto:ci@afterhours.invalid >"$vapid_env"
+  functions_env=$(mktemp)
+  cat "$LOGS/functions.env" "$vapid_env" >"$functions_env"
+  # Die Journey schickt das Push-Abo an den Stellvertreter – über die Adresse, die die Function erreicht.
+  echo "E2E_PUSH_STUB_HOST=$gateway:8091" >>"$GITHUB_ENV"
+  nohup supabase functions serve --env-file "$functions_env" >"$LOGS/functions.log" 2>&1 &
   # Ohne Anmeldung antwortet die Function mit 401 – dann läuft sie.
   wait_for "Edge Function places" 90 bash -c \
     "[ \"\$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/places -H 'Content-Type: application/json' -d '{}')\" = 401 ]"
@@ -62,7 +75,7 @@ EOF
 }
 
 logs() {
-  for file in functions.log osm-stub.log osm-stub-down.log preview.log; do
+  for file in functions.log osm-stub.log osm-stub-down.log push-stub.log preview.log; do
     [ -f "$LOGS/$file" ] || continue
     msg=$(tail -n 40 "$LOGS/$file" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
     echo "::error title=Protokoll $file::$msg"

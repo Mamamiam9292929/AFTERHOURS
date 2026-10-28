@@ -53,8 +53,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: .github/scripts/run.sh deno check supabase/functions/places/index.ts supabase/functions/assistant/index.ts supabase/functions/weather/index.ts
-      - run: .github/scripts/run.sh deno test supabase/functions/places/osm_test.ts supabase/functions/places/overpass_test.ts supabase/functions/places/geocode_test.ts supabase/functions/weather/forecast_test.ts supabase/functions/weather/poll_test.ts
+      - run: .github/scripts/run.sh deno check supabase/functions/places/index.ts supabase/functions/assistant/index.ts supabase/functions/weather/index.ts supabase/functions/push/index.ts
+      - run: .github/scripts/run.sh deno test supabase/functions/places/osm_test.ts supabase/functions/places/overpass_test.ts supabase/functions/places/geocode_test.ts supabase/functions/weather/forecast_test.ts supabase/functions/weather/poll_test.ts supabase/functions/push/webpush_test.ts
 
   journey:
     name: Browser-Journey (Playwright)

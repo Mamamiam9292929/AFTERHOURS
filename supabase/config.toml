@@ -103,5 +103,10 @@ verify_jwt = true
 enabled = true
 verify_jwt = true
 
+# P4: Web-Push (siehe supabase/functions/push/index.ts).
+[functions.push]
+enabled = true
+verify_jwt = true
+
 [analytics]
 enabled = false

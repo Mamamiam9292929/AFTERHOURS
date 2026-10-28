@@ -148,3 +148,25 @@ export function useRevokeCalendarFeed() {
     onSuccess: () => client.setQueryData(qk.calendarFeed(user?.id ?? "anonymous"), null),
   });
 }
+
+/** P4: Geräte, auf denen die Person Push-Mitteilungen bekommt (ohne Schlüssel – die liest die App nie). */
+export interface PushDevice {
+  id: string;
+  endpoint: string;
+  label: string | null;
+  created_at: string;
+  last_success_at: string | null;
+}
+
+export function usePushDevices() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: qk.pushDevices(user?.id ?? "anonymous"),
+    enabled: Boolean(user),
+    queryFn: async (): Promise<PushDevice[]> => {
+      const { data, error } = await supabase.from("push_subscriptions").select("id, endpoint, label, created_at, last_success_at").order("created_at");
+      if (error) throw error;
+      return (data ?? []) as PushDevice[];
+    },
+  });
+}

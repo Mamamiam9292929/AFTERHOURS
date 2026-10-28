@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Plugin } from "vite";
+import { build as viteBuild, defineConfig, type Plugin } from "vite";
 import { absoluteOgImages } from "./scripts/og-image.mjs";
 
 /** W6 · og:image in index.html absolut machen, sobald VITE_SITE_URL beim Build gesetzt ist. */
@@ -18,10 +18,45 @@ function ogImagePlugin(): Plugin {
   };
 }
 
+const SRC = fileURLToPath(new URL("./src", import.meta.url));
+
+/**
+ * P4 · Texte für Push-Mitteilungen: `src/push/render.ts` als eigenes Skript `push-texts.js` (IIFE) neben
+ * den Build legen. Der Service Worker (`public/sw.js`) lädt es per `importScripts` – Module kann er nicht
+ * überall. Der zweite Build hat keine Konfigurationsdatei, ruft dieses Plugin also nicht erneut auf.
+ */
+function pushTextsPlugin(): Plugin {
+  let root = process.cwd();
+  let outDir = "dist";
+  return {
+    name: "afterhours-push-texts",
+    apply: "build",
+    configResolved(config) {
+      root = config.root;
+      outDir = config.build.outDir;
+    },
+    async closeBundle() {
+      await viteBuild({
+        configFile: false,
+        root,
+        logLevel: "warn",
+        resolve: { alias: { "@": SRC } },
+        build: {
+          outDir,
+          emptyOutDir: false,
+          copyPublicDir: false,
+          target: "es2020",
+          lib: { entry: `${SRC}/push/render.ts`, name: "AfterhoursPush", formats: ["iife"], fileName: () => "push-texts.js" },
+        },
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), ogImagePlugin()],
+  plugins: [react(), tailwindcss(), ogImagePlugin(), pushTextsPlugin()],
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: { "@": SRC },
   },
   server: { host: "127.0.0.1", port: 5173, strictPort: true },
   build: {

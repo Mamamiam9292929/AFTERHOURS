@@ -5,7 +5,17 @@
  * - Seitenaufrufe: erst Netz, ohne Netz die zuletzt geladene App-Hülle (index.html).
  * - /assets/* (Dateinamen mit Hash, unveränderlich), /fonts/*, /icons/*: erst Cache, sonst Netz.
  * - Es werden keine Nutzerdaten gespeichert – nur die App selbst.
+ * - P4 Web-Push: Ein Push (Ende-zu-Ende verschlüsselt, der Browser entschlüsselt ihn) wird zur Mitteilung
+ *   des Geräts. Die Texte kommen aus `/push-texts.js` (gebaut aus src/push/render.ts – dieselben Texte wie
+ *   in der App); fehlt das Skript, steht ein allgemeiner Text da. Antippen öffnet die passende Seite.
  */
+let renderPush = null;
+try {
+  importScripts("/push-texts.js");
+  renderPush = self.AfterhoursPush?.render ?? null;
+} catch {
+  /* ohne Texte (z. B. Entwicklungsmodus) – dann allgemeiner Text */
+}
 const SHELL_CACHE = "afterhours-shell-v1";
 const ASSET_CACHE = "afterhours-assets-v1";
 const SHELL_KEY = "/index.html";
@@ -100,4 +110,56 @@ self.addEventListener("fetch", (event) => {
       }),
     );
   }
+});
+
+// ---- P4 · Web-Push -------------------------------------------------------------------------------
+function pushView(data) {
+  try {
+    if (renderPush) return renderPush(data);
+  } catch {
+    /* unbekannter Inhalt – allgemeiner Text */
+  }
+  return { title: "AFTERHOURS", body: "", url: "/notifications", tag: "afterhours", badge: null, timestamp: null };
+}
+
+self.addEventListener("push", (event) => {
+  let data = null;
+  try {
+    data = event.data ? event.data.json() : null;
+  } catch {
+    data = null;
+  }
+  const view = pushView(data);
+  const shown = self.registration.showNotification(view.title, {
+    body: view.body,
+    tag: view.tag,
+    data: { url: view.url },
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    lang: "de",
+    timestamp: view.timestamp ?? Date.now(),
+  });
+  // Zähler am App-Icon (installierte App, nur wo die Badging-API existiert).
+  const badge = typeof view.badge === "number" && self.navigator.setAppBadge ? self.navigator.setAppBadge(view.badge).catch(() => undefined) : Promise.resolve();
+  event.waitUntil(Promise.all([shown, badge]));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const path = typeof event.notification.data?.url === "string" ? event.notification.data.url : "/notifications";
+  const url = new URL(path, self.location.origin);
+  // Nur Seiten dieser App.
+  if (url.origin !== self.location.origin) return;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of windows) {
+        if (new URL(client.url).origin !== self.location.origin) continue;
+        await client.focus().catch(() => undefined);
+        if ("navigate" in client) await client.navigate(url.href).catch(() => undefined);
+        return;
+      }
+      await self.clients.openWindow(url.href);
+    })(),
+  );
 });
