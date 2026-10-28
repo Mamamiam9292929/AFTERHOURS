@@ -15,9 +15,14 @@ const FAN = [
   { rotate: 9, x: 20, y: 2, color: "var(--color-violet)" },
 ] as const;
 
-export function EmptyArt({ children }: { children: ReactNode }) {
+/**
+ * D4 Etappe 2: Mit `deal` legt sich die vordere Karte beim Erscheinen auf den Stapel (wie „Entschieden“) – im
+ * Onboarding und im geführten Start bei jedem Schritt neu, weil jeder Schritt sein eigenes Bild einhängt.
+ * Reduzierte Bewegung schaltet das global ab.
+ */
+export function EmptyArt({ children, className, deal = false }: { children: ReactNode; className?: string; deal?: boolean }) {
   return (
-    <div aria-hidden data-empty-art="" className="relative mx-auto" style={{ width: 120, height: 92 }}>
+    <div aria-hidden data-empty-art="" className={cn("relative mx-auto shrink-0", className)} style={{ width: 120, height: 92 }}>
       <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(closest-side, color-mix(in srgb, var(--color-lime) 22%, transparent), transparent)", filter: "blur(6px)" }} />
       {FAN.map((card) => (
         <div
@@ -35,7 +40,7 @@ export function EmptyArt({ children }: { children: ReactNode }) {
       ))}
       <div
         className="absolute flex items-center justify-center rounded-[16px] bg-lime text-lime-ink [&>svg]:size-6"
-        style={{ left: 34, top: 10, width: 52, height: 66, boxShadow: "0 14px 30px -14px var(--color-lime)" }}
+        style={{ left: 34, top: 10, width: 52, height: 66, boxShadow: "0 14px 30px -14px var(--color-lime)", animation: deal ? "pop-in 0.6s var(--ease-out-soft) both" : undefined }}
       >
         {children}
       </div>

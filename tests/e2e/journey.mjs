@@ -223,6 +223,14 @@ async function register(user, { here = false } = {}) {
   await page.waitForURL(/\/onboarding/);
 }
 
+/** D4 Etappe 2: Kartenstapel über der Überschrift, Symbol des Schritts vorn, für Screenreader ausgeblendet. */
+async function stepArt(page, n, label) {
+  const art = page.locator("main [data-empty-art]").first();
+  await art.waitFor();
+  check((await art.getAttribute("aria-hidden")) === "true", `${label}: Bild ist für Screenreader ausgeblendet`);
+  check((await art.locator(`[data-step-art="${n}"]`).count()) === 1, `${label}: Bild zeigt das Symbol von Schritt ${n}`);
+}
+
 async function onboard(user, { full = false } = {}) {
   const { page } = user;
   await page.getByRole("heading", { name: "Wie sollen dich deine Freunde sehen?" }).waitFor();
@@ -231,6 +239,7 @@ async function onboard(user, { full = false } = {}) {
     await page.locator('input[type="file"]').setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: PNG });
     await page.getByRole("button", { name: "Bild entfernen" }).waitFor();
     await page.getByLabel("Stadt oder Region").fill("Berlin");
+    await stepArt(page, 1, "Onboarding Profil");
     await shot(user, "02-onboarding-profil");
   }
   await page.getByRole("button", { name: "Weiter" }).click();
@@ -238,10 +247,14 @@ async function onboard(user, { full = false } = {}) {
     await page.getByRole("button", { name: "Essen & Cafés" }).click();
     await page.getByRole("button", { name: "Sport", exact: true }).first().click();
     await page.getByRole("button", { name: "Bowling" }).click();
+    await stepArt(page, 2, "Onboarding Interessen");
     await shot(user, "03-onboarding-interessen");
   }
   await page.getByRole("button", { name: "Weiter" }).click();
-  if (full) await page.getByRole("button", { name: "bis 20 €" }).click();
+  if (full) {
+    await page.getByRole("button", { name: "bis 20 €" }).click();
+    await stepArt(page, 3, "Onboarding Vorlieben");
+  }
   await page.getByRole("button", { name: "Los geht’s" }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/onboarding"));
 }
@@ -3214,6 +3227,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   await page.waitForURL(/\/start$/);
   await page.getByRole("heading", { level: 1, name: "Wie heißt eure Crew?" }).waitFor();
   check(true, "ohne Einladungslink geht es nach dem Onboarding in den geführten Start");
+  await stepArt(page, 1, "Start Crew");
   await shot(dana, "37-start-crew");
 
   await page.getByLabel("Name der Crew").fill("Freitagsrunde");
@@ -3230,6 +3244,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   await page.reload();
   await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
   check(true, "Neuladen bleibt in Schritt 2");
+  await stepArt(page, 2, "Start Einladen");
 
   await stubShare(page);
   await page.getByRole("button", { name: "Einladungslink teilen" }).click();

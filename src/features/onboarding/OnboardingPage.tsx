@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { IconShield } from "@/components/icons";
+import { IconSettings, IconShield, IconSparkles, IconUser } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { Chip, SwitchRow } from "@/components/ui/Controls";
-import { ErrorState, Notice, PageSpinner } from "@/components/ui/Feedback";
+import { EmptyArt, ErrorState, Notice, PageSpinner } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { Logo } from "@/components/ui/Logo";
 import { useToast } from "@/components/ui/Toast";
@@ -23,6 +23,8 @@ import type { ActivityCategory, Interest, UserSettings } from "@/lib/types";
 const STEPS = 3;
 const INVITE_TARGET = /^\/join\/([0-9a-f]{64})$/;
 type ValidInvite = Extract<InvitationPreview, { status: "valid" }>;
+/** D4 Etappe 2: Symbol je Schritt auf dem Kartenstapel – du, was du magst, wie du planst. */
+const STEP_ART = [IconUser, IconSparkles, IconSettings] as const;
 const toggle = <T,>(list: T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
 export function OnboardingPage() {
@@ -174,6 +176,7 @@ export function OnboardingPage() {
               </>
             ) : (
               <div>
+                <StepArt step={1} />
                 <h1 className="display chrome text-[29px] sm:text-[35px]">{t.onboarding.profile.title}</h1>
                 <p className="mt-3 text-[15px] text-muted">{t.onboarding.profile.body}</p>
               </div>
@@ -203,6 +206,7 @@ export function OnboardingPage() {
         {step === 2 && (
           <section className="space-y-7">
             <div>
+              <StepArt step={2} />
               <h1 className="display chrome text-[29px] sm:text-[35px]">{t.onboarding.interests.title}</h1>
               <p className="mt-3 text-[15px] text-muted">{t.onboarding.interests.body}</p>
             </div>
@@ -232,6 +236,7 @@ export function OnboardingPage() {
         {step === 3 && (
           <section className="space-y-7">
             <div>
+              <StepArt step={3} />
               <h1 className="display chrome text-[29px] sm:text-[35px]">{t.onboarding.prefs.title}</h1>
               <p className="mt-3 text-[15px] text-muted">{t.onboarding.prefs.body}</p>
             </div>
@@ -307,6 +312,16 @@ export function OnboardingPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+/** D4 Etappe 2: Kartenstapel über der Überschrift, die vordere Karte legt sich bei jedem Schritt neu auf. */
+function StepArt({ step }: { step: 1 | 2 | 3 }) {
+  const Icon = STEP_ART[step - 1] ?? IconUser;
+  return (
+    <EmptyArt deal className="mx-0 -ml-3 mb-4">
+      <Icon data-step-art={step} />
+    </EmptyArt>
   );
 }
 
