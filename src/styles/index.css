@@ -627,7 +627,6 @@
   }
   .poll-bar-fill {
     background: linear-gradient(90deg, color-mix(in srgb, var(--color-lime) 24%, transparent), color-mix(in srgb, var(--color-lime) 9%, transparent));
-    transition: width 0.6s var(--ease-out-soft);
   }
 
   /*
@@ -926,3 +925,4 @@
     scroll-behavior: auto !important;
   }
 }
+
