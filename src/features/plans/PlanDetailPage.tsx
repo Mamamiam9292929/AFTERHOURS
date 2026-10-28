@@ -13,6 +13,7 @@ import { useUser } from "@/features/auth/AuthProvider";
 import { canManageCrew, myRole, useCrews } from "@/features/crews/api";
 import { ActivityCard } from "@/features/discover/ActivityCard";
 import { useActivity, useActivitySearch } from "@/features/discover/api";
+import { SpotMap } from "@/features/discover/SpotMap";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -246,6 +247,8 @@ export function PlanDetailPage() {
                   <IconExternal className="size-3.5" aria-hidden />
                 </a>
               )}
+              {/* P6 Etappe 3: Wo genau – kleiner Stadtplan, erst nach Einwilligung (wie in Discover). */}
+              {place?.latitude != null && place.longitude != null && <SpotMap point={{ latitude: place.latitude, longitude: place.longitude }} name={place.name} demo={place.is_demo} />}
             </Fact>
             {/* P5: Vorhersage für Beginn und Ort (Open-Meteo) – nur bei anstehenden Plänen mit Ort. */}
             {!locked && <PlanWeather plan={plan} />}

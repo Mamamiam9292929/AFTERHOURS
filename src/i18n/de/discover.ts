@@ -192,6 +192,12 @@ export const discover = {
     tilesOff: "Stadtplan aus",
     tilesFailed: "Stadtplan gerade nicht erreichbar – die Punkte stimmen trotzdem.",
   },
+  /** P6 Etappe 3: kleiner Stadtplan für einen Ort (Planseite). */
+  spot: {
+    show: "Auf dem Stadtplan zeigen",
+    label: (name: string) => `Stadtplan: ${name} in der Mitte`,
+    failed: "Stadtplan gerade nicht erreichbar.",
+  },
   /** P7: Foto eines Ortes von Wikimedia Commons. */
   photo: {
     show: "Foto anzeigen",
