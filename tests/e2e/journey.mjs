@@ -3885,6 +3885,9 @@ await step("P4 – Push-Mitteilungen: Gerät anmelden, verschlüsselter Push, Mi
       return serverKey ? make(serverKey) : null;
     };
     PushManager.prototype.permissionState = async () => "granted";
+    // Headless-Chromium meldet Mitteilungen je nach Variante als „denied“, auch nach grantPermissions.
+    Object.defineProperty(Notification, "permission", { configurable: true, get: () => "granted" });
+    Notification.requestPermission = async () => "granted";
   }, { endpoint, p256dh: device.getPublicKey().toString("base64url"), auth: authSecret.toString("base64url") });
 
   await login(app);
@@ -3961,27 +3964,38 @@ await step("P4 – Push-Mitteilungen: Gerät anmelden, verschlüsselter Push, Mi
       check(psql(`select count(*) from app_private.push_outbox o join public.notifications n on n.id = o.notification_id where n.related_entity_id = '${pollId}'`) === "0",
         "nach dem Versand ist die Warteschlange leer");
 
-      // Service Worker: aus dem Push wird die Mitteilung des Geräts – mit den Texten der App.
-      const cdp = await context.newCDPSession(page);
-      const registrations = [];
-      cdp.on("ServiceWorker.workerRegistrationUpdated", (event) => registrations.push(...event.registrations));
-      await cdp.send("ServiceWorker.enable");
-      for (let i = 0; i < 20 && !registrations.some((r) => !r.isDeleted); i++) await page.waitForTimeout(250);
-      const registration = registrations.find((r) => !r.isDeleted && r.scopeURL.startsWith(APP));
-      await cdp.send("ServiceWorker.deliverPushMessage", { origin: APP, registrationId: registration?.registrationId ?? "", data: plain });
-      const shown = await page.evaluate(async () => {
-        const reg = await navigator.serviceWorker.ready;
-        for (let i = 0; i < 40; i++) {
-          const list = await reg.getNotifications();
-          if (list.length > 0) return list.map((n) => ({ title: n.title, body: n.body, url: n.data?.url ?? null, tag: n.tag }));
-          await new Promise((resolve) => setTimeout(resolve, 250));
-        }
-        return [];
-      });
-      check(shown.length === 1 && shown[0].title === "Bob hat eine Abstimmung gestartet" && shown[0].body === title,
-        `Mitteilung mit dem Text der App (${shown[0]?.title} – ${shown[0]?.body})`);
-      check(shown[0]?.url === `/polls/${pollId}` && shown[0]?.tag === message.id, "Antippen führt zur Abstimmung; gleiche Benachrichtigung ersetzt sich");
-      await cdp.detach();
+      // Texte des Service Workers: dasselbe Skript, das sw.js per importScripts lädt (gebaut aus src/push/render.ts).
+      await page.addScriptTag({ url: "/push-texts.js" });
+      const rendered = await page.evaluate((m) => window.AfterhoursPush.render(m), message);
+      check(rendered.title === "Bob hat eine Abstimmung gestartet" && rendered.body === title && rendered.url === `/polls/${pollId}` && rendered.tag === message.id,
+        `push-texts.js macht daraus die Mitteilung mit dem Text der App (${rendered.title} – ${rendered.body})`);
+
+      // Service Worker: aus dem Push wird die Mitteilung des Geräts – sofern der Browser Mitteilungen wirklich erlaubt.
+      const realPermission = await page.evaluate(async () => (await navigator.permissions.query({ name: "notifications" })).state);
+      if (realPermission !== "granted") {
+        console.log(`   (Mitteilungen in diesem Headless-Chromium nicht erlaubt: ${realPermission} – Anzeige im Service Worker übersprungen)`);
+      } else {
+        const cdp = await context.newCDPSession(page);
+        const registrations = [];
+        cdp.on("ServiceWorker.workerRegistrationUpdated", (event) => registrations.push(...event.registrations));
+        await cdp.send("ServiceWorker.enable");
+        for (let i = 0; i < 20 && !registrations.some((r) => !r.isDeleted); i++) await page.waitForTimeout(250);
+        const registration = registrations.find((r) => !r.isDeleted && r.scopeURL.startsWith(APP));
+        await cdp.send("ServiceWorker.deliverPushMessage", { origin: APP, registrationId: registration?.registrationId ?? "", data: plain });
+        const shown = await page.evaluate(async () => {
+          const reg = await navigator.serviceWorker.ready;
+          for (let i = 0; i < 40; i++) {
+            const list = await reg.getNotifications();
+            if (list.length > 0) return list.map((n) => ({ title: n.title, body: n.body, url: n.data?.url ?? null, tag: n.tag }));
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+          return [];
+        });
+        check(shown.length === 1 && shown[0].title === "Bob hat eine Abstimmung gestartet" && shown[0].body === title,
+          `Service Worker zeigt die Mitteilung mit dem Text der App (${shown[0]?.title} – ${shown[0]?.body})`);
+        check(shown[0]?.url === `/polls/${pollId}` && shown[0]?.tag === message.id, "Antippen führt zur Abstimmung; gleiche Benachrichtigung ersetzt sich");
+        await cdp.detach();
+      }
     } finally {
       psql(`delete from public.polls where id = '${pollId}'`);
     }

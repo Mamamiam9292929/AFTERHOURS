@@ -232,7 +232,7 @@ export const settings = {
   push: {
     title: "Mitteilungen auf diesem Gerät",
     on: "Was du unten eingeschaltet hast, kommt auch aufs Gerät – auch wenn die App zu ist.",
-    off: "Bekomm Bescheid, auch wenn die App zu ist: neue Abstimmungen, Pläne, Antworten. Es zählt deine Auswahl unten.",
+    off: "Bekomm Bescheid, auch wenn die App zu ist – für alles, was du unten eingeschaltet hast.",
     statusOn: "An",
     statusOff: "Aus",
     statusBlocked: "Blockiert",
