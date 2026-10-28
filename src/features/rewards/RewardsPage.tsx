@@ -71,7 +71,7 @@ export function RewardsPage() {
               status={transactions.length > 0 ? <StatusPill>{t.rewards.historyCount(transactions.length)}</StatusPill> : undefined}
             >
               {transactions.length === 0 ? (
-                <EmptyState icon={<IconAward aria-hidden />} title={t.rewards.historyEmpty.title} body={t.rewards.historyEmpty.body} />
+                <EmptyState art={<IconAward aria-hidden />} title={t.rewards.historyEmpty.title} body={t.rewards.historyEmpty.body} />
               ) : (
                 <ul className="space-y-2" data-testid="rewards-history">
                   {transactions.map((tx) => (

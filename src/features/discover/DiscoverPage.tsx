@@ -258,6 +258,7 @@ export function DiscoverPage() {
                   </p>
                   {results.length === 0 ? (
                     <EmptyState
+                      art={<IconSearch aria-hidden />}
                       title={t.discover.empty.title}
                       body={t.discover.empty.body}
                       action={

@@ -455,6 +455,24 @@ await step("Schritt 1 – Registrierung, E-Mail-Bestätigung, Onboarding (Alice)
   await alice.page.getByText("In drei Schritten zum ersten Plan").waitFor();
   check(true, "Home zeigt neuen Nutzern den Einstieg");
   await shot(alice, "04-home-neu");
+
+  // D4: Leere Zustände im Stil 2.0 – Kartenstapel mit dem Symbol des Bereichs, Text und nächster Schritt.
+  const { page } = alice;
+  for (const [path, title, name] of [
+    ["/crews", "Noch keine Crew", "04b-leer-crews"],
+    ["/plans", null, "04c-leer-plaene"],
+    ["/notifications", "Alles gelesen", "04d-leer-benachrichtigungen"],
+  ]) {
+    await page.goto(`${APP}${path}`);
+    const empty = page.locator("[data-empty-state]").filter({ has: page.locator("[data-empty-art]") }).first();
+    await empty.waitFor();
+    if (title) check(await empty.getByText(title, { exact: true }).isVisible(), `${path}: leerer Zustand „${title}“ mit Bild`);
+    else check(true, `${path}: leerer Zustand mit Bild`);
+    check((await empty.locator("[data-empty-art]").getAttribute("aria-hidden")) === "true", `${path}: Bild ist für Screenreader ausgeblendet`);
+    await shot(alice, name);
+  }
+  await page.goto(`${APP}/home`);
+  await page.getByText("In drei Schritten zum ersten Plan").waitFor();
 });
 
 await step("Schritt 2 – Crew erstellen", async () => {
