@@ -3441,8 +3441,11 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   // D3 Etappe 1: Live-Countdown auf dem großen Ticket – Danas erster Plan beginnt in gut zwei Stunden.
   if (ANON) {
     const startsAt = new Date(Date.now() + 134 * 60_000 + 20_000);
+    // D3 Etappe 2a: mit Ort aus Discover (Wetter) und Treffpunkt – beides steht dann unter dem Ticket.
+    const bowlingId = (await api(dana, "GET", `activities?select=id&name=eq.${encodeURIComponent("Strike District Bowling")}&limit=1`)).json?.[0]?.id ?? null;
+    check(Boolean(bowlingId), "D3: Dana findet die Bowlingbahn aus Discover");
     const created = await api(dana, "POST", "rpc/create_plan", {
-      p_crew_id: crewId, p_title: "Kicker im Hof", p_starts_at: startsAt.toISOString(), p_activity_id: null, p_address: null, p_meeting_point: null,
+      p_crew_id: crewId, p_title: "Kicker im Hof", p_starts_at: startsAt.toISOString(), p_activity_id: bowlingId, p_address: null, p_meeting_point: "Am Eingang",
       p_notes: null, p_cost_per_person_cents: null, p_total_cost_cents: null, p_ends_at: null, p_confirmed: true,
     });
     check(created.status < 300, `Dana legt einen Plan in gut zwei Stunden an (${created.status})`);
@@ -3451,6 +3454,28 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     await live.waitFor();
     const liveText = (await live.textContent()).trim();
     check(/^Noch 2:1[45] h$/.test(liveText), `D3: das große Ticket auf Home zählt live herunter („${liveText}“)`);
+    // D3 Etappe 2a: „Heute Abend“-Leiste unter dem Ticket – Wetter zur Planzeit am Ort und Treffpunkt.
+    const strip = page.getByTestId("tonight-strip");
+    await strip.waitFor();
+    const stripTitle = (await strip.getByRole("heading", { level: 2 }).innerText()).trim().toLowerCase();
+    check(["heute abend", "heute", "morgen"].includes(stripTitle), `D3: Leiste heißt nach der Tageszeit des Plans („${stripTitle}“)`);
+    check((await strip.getByTestId("tonight-meeting").innerText()).trim() === "Am Eingang", "D3: Treffpunkt steht unter dem Ticket");
+    const tonightWeather = strip.getByTestId("tonight-weather");
+    await tonightWeather.waitFor();
+    const weatherText = (await tonightWeather.textContent()).replace(/\s+/g, " ").trim();
+    check(weatherText === "14 °C Regen", `D3: Wetter zur Planzeit am Ort (${weatherText})`);
+    check(await strip.getByText("70 % Regen · Wind 12 km/h").isVisible(), "D3: Regenrisiko und Wind in der Leiste");
+    check((await strip.getByRole("link", { name: /^Open-Meteo, Stand \d{2}:\d{2}$/ }).count()) === 1, "D3: Quelle der Vorhersage mit Stand");
+    check((await strip.getByText(/Plan B/).count()) === 0, "D3: drinnen kein Draußen-Hinweis");
+    // Fehlerzustand: ohne Wetter-Function steht das ehrlich da, „Erneut versuchen“ lädt nach.
+    await page.route("**/functions/v1/weather", (route) => route.abort());
+    await page.reload();
+    await strip.getByTestId("tonight-weather-error").waitFor();
+    check((await strip.getByTestId("tonight-weather").count()) === 0, "D3: ohne Vorhersage keine erfundenen Werte");
+    await page.unroute("**/functions/v1/weather");
+    await strip.getByRole("button", { name: "Erneut versuchen" }).click();
+    await strip.getByTestId("tonight-weather").waitFor();
+    check(true, "D3: „Erneut versuchen“ lädt das Wetter in der Leiste");
     // Ihre eigene Abstimmung wartet noch auf ihre Antwort – auf Home direkt darunter.
     // (Freitagabend nach 20 Uhr kann ihre Frist schon vorbei sein – dann gibt es nichts mehr zu beantworten.)
     const danaPoll = (await api(dana, "GET", "polls?select=ends_at,status")).json?.[0];

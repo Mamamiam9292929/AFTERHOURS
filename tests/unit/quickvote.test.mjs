@@ -1,7 +1,7 @@
 // D3 Etappe 1 · Abstimmen und Live-Countdown auf Home (src/lib/quickvote.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatCountdown, liveCountdown, needsQuickVote, pendingOptions } from "../../src/lib/quickvote.ts";
+import { formatCountdown, liveCountdown, needsQuickVote, pendingOptions, tonightStrip } from "../../src/lib/quickvote.ts";
 
 const opt = (id, mine = null) => ({ id, mine });
 const ids = (list) => list.map((o) => o.id);
@@ -56,4 +56,45 @@ test("Anzeige wie bei „Heute noch wer?“", () => {
   assert.equal(formatCountdown(60), "1:00 h");
   assert.equal(formatCountdown(35), "35 min");
   assert.equal(formatCountdown(1), "1 min");
+});
+
+// D3 Etappe 2a · „Heute“-Leiste unter dem großen Ticket.
+const tonightPlan = (over = {}) => ({
+  starts_at: "2026-10-30T19:00:00.000Z",
+  ends_at: null,
+  status: "confirmed",
+  activity_id: "a1",
+  meeting_point: "  Am Eingang  ",
+  address: "Hauptstraße 1",
+  ...over,
+});
+
+test("Leiste nur im Fenster des Live-Countdowns, nie bei Absage oder Abschluss", () => {
+  const plan = tonightPlan();
+  assert.equal(tonightStrip(plan, new Date("2026-10-30T06:00:00.000Z"), 0, 20), null, "13 Stunden vorher noch nicht");
+  assert.notEqual(tonightStrip(plan, new Date("2026-10-30T08:00:00.000Z"), 0, 20), null);
+  assert.equal(tonightStrip(tonightPlan({ status: "cancelled" }), new Date("2026-10-30T18:00:00.000Z"), 0, 20), null);
+  assert.equal(tonightStrip(tonightPlan({ status: "completed" }), new Date("2026-10-30T18:00:00.000Z"), 0, 20), null);
+  assert.equal(tonightStrip(plan, new Date("2026-10-30T22:01:00.000Z"), 0, 20), null, "ohne Ende nach 3 Stunden vorbei");
+});
+
+test("Überschrift: heute Abend, heute, morgen, jetzt", () => {
+  const before = new Date("2026-10-30T15:00:00.000Z");
+  assert.equal(tonightStrip(tonightPlan(), before, 0, 20).when, "tonight");
+  assert.equal(tonightStrip(tonightPlan(), before, 0, 16).when, "today");
+  assert.equal(tonightStrip(tonightPlan(), before, 1, 9).when, "tomorrow");
+  assert.equal(tonightStrip(tonightPlan(), new Date("2026-10-30T19:30:00.000Z"), 0, 20).when, "now");
+});
+
+test("Wetter nur mit Ort aus Discover und nur vor Beginn; Treffpunkt bereinigt, Leeres bleibt leer", () => {
+  const before = new Date("2026-10-30T15:00:00.000Z");
+  const strip = tonightStrip(tonightPlan(), before, 0, 20);
+  assert.equal(strip.weather, true);
+  assert.equal(strip.meetingPoint, "Am Eingang");
+  assert.equal(strip.address, "Hauptstraße 1");
+  assert.equal(tonightStrip(tonightPlan({ activity_id: null }), before, 0, 20).weather, false);
+  assert.equal(tonightStrip(tonightPlan(), new Date("2026-10-30T19:30:00.000Z"), 0, 20).weather, false, "läuft schon – keine Vorhersage mehr");
+  const empty = tonightStrip(tonightPlan({ meeting_point: "   ", address: null }), before, 0, 20);
+  assert.equal(empty.meetingPoint, null);
+  assert.equal(empty.address, null);
 });
