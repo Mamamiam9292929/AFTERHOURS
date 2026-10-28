@@ -187,12 +187,13 @@ Deno.test("Versand: verschlüsselt, signiert, Ergebnis je Gerät", async () => {
     { id: 5, result: "gone" },
   ]);
   assertEquals(requests.length, 3, "nur erlaubte Dienste mit brauchbaren Schlüsseln werden angefragt");
-  const first = requests[0];
+  // Parallel verschickt – Reihenfolge der Anfragen ist nicht fest.
+  const first = requests.find((r) => r.url.endsWith("/ok"))!;
   assertEquals(first.headers.get("TTL"), String(PUSH_TTL_SECONDS));
   assertEquals(first.headers.get("Urgency"), "high");
   assertEquals(first.headers.get("Content-Encoding"), "aes128gcm");
   assert(first.headers.get("Authorization")?.startsWith("vapid t="));
-  assertEquals(requests[1].headers.get("Urgency"), "normal");
+  assertEquals(requests.find((r) => r.url.endsWith("/weg"))!.headers.get("Urgency"), "normal");
   const plain = JSON.parse(read.decode(await decryptPayload(first.body, ua.privateKey, ua.publicKey, ua.auth)));
   assertEquals(plain, { type: "spontaneous_ask", actor: "Bob" });
 });
