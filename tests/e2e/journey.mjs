@@ -224,6 +224,14 @@ async function register(user, { here = false } = {}) {
   await page.waitForURL(/\/onboarding/);
 }
 
+/** D4 Etappe 2: Kartenstapel über der Überschrift, Symbol des Schritts vorn, für Screenreader ausgeblendet. */
+async function stepArt(page, n, label) {
+  const art = page.locator("main [data-empty-art]").first();
+  await art.waitFor();
+  check((await art.getAttribute("aria-hidden")) === "true", `${label}: Bild ist für Screenreader ausgeblendet`);
+  check((await art.locator(`[data-step-art="${n}"]`).count()) === 1, `${label}: Bild zeigt das Symbol von Schritt ${n}`);
+}
+
 async function onboard(user, { full = false } = {}) {
   const { page } = user;
   await page.getByRole("heading", { name: "Wie sollen dich deine Freunde sehen?" }).waitFor();
@@ -232,6 +240,7 @@ async function onboard(user, { full = false } = {}) {
     await page.locator('input[type="file"]').setInputFiles({ name: "avatar.png", mimeType: "image/png", buffer: PNG });
     await page.getByRole("button", { name: "Bild entfernen" }).waitFor();
     await page.getByLabel("Stadt oder Region").fill("Berlin");
+    await stepArt(page, 1, "Onboarding Profil");
     await shot(user, "02-onboarding-profil");
   }
   await page.getByRole("button", { name: "Weiter" }).click();
@@ -239,10 +248,14 @@ async function onboard(user, { full = false } = {}) {
     await page.getByRole("button", { name: "Essen & Cafés" }).click();
     await page.getByRole("button", { name: "Sport", exact: true }).first().click();
     await page.getByRole("button", { name: "Bowling" }).click();
+    await stepArt(page, 2, "Onboarding Interessen");
     await shot(user, "03-onboarding-interessen");
   }
   await page.getByRole("button", { name: "Weiter" }).click();
-  if (full) await page.getByRole("button", { name: "bis 20 €" }).click();
+  if (full) {
+    await page.getByRole("button", { name: "bis 20 €" }).click();
+    await stepArt(page, 3, "Onboarding Vorlieben");
+  }
   await page.getByRole("button", { name: "Los geht’s" }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/onboarding"));
 }
@@ -478,6 +491,24 @@ await step("Schritt 1 – Registrierung, E-Mail-Bestätigung, Onboarding (Alice)
   await alice.page.getByText("In drei Schritten zum ersten Plan").waitFor();
   check(true, "Home zeigt neuen Nutzern den Einstieg");
   await shot(alice, "04-home-neu");
+
+  // D4: Leere Zustände im Stil 2.0 – Kartenstapel mit dem Symbol des Bereichs, Text und nächster Schritt.
+  const { page } = alice;
+  for (const [path, title, name] of [
+    ["/crews", "Noch keine Crew", "04b-leer-crews"],
+    ["/plans", null, "04c-leer-plaene"],
+    ["/notifications", "Alles gelesen", "04d-leer-benachrichtigungen"],
+  ]) {
+    await page.goto(`${APP}${path}`);
+    const empty = page.locator("[data-empty-state]").filter({ has: page.locator("[data-empty-art]") }).first();
+    await empty.waitFor();
+    if (title) check(await empty.getByText(title, { exact: true }).isVisible(), `${path}: leerer Zustand „${title}“ mit Bild`);
+    else check(true, `${path}: leerer Zustand mit Bild`);
+    check((await empty.locator("[data-empty-art]").getAttribute("aria-hidden")) === "true", `${path}: Bild ist für Screenreader ausgeblendet`);
+    await shot(alice, name);
+  }
+  await page.goto(`${APP}/home`);
+  await page.getByText("In drei Schritten zum ersten Plan").waitFor();
 });
 
 await step("Schritt 2 – Crew erstellen", async () => {
@@ -719,7 +750,24 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   await shot(alice, "12-abstimmung-zwischenstand");
   await carol.page.reload();
   await optionCard(carol, "Strike District Bowling").getByText("3 Zusagen").waitFor();
+  // D1: Die Stimmbalken wachsen beim Öffnen von null auf ihren Stand (@starting-style, ohne JavaScript).
+  const growth = await carol.page.evaluate(() => {
+    const rules = (list) => [...list].flatMap((r) => [r, ...(r.cssRules ? rules(r.cssRules) : [])]);
+    const all = [...document.styleSheets].flatMap((sheet) => {
+      try {
+        return rules(sheet.cssRules);
+      } catch {
+        return [];
+      }
+    });
+    const starting = all.some((r) => r.constructor.name === "CSSStartingStyleRule" && r.cssText.includes(".bar-grow"));
+    const bars = [...document.querySelectorAll(".poll-option .poll-bar-fill")];
+    return { starting, bars: bars.length, grow: bars.every((b) => b.classList.contains("bar-grow") && getComputedStyle(b).transitionProperty.includes("width")) };
+  });
+  check(growth.starting && growth.bars > 0 && growth.grow, `D1: Stimmbalken wachsen beim Öffnen auf ihren Stand (${JSON.stringify(growth)})`);
   await shot(carol, "12-abstimmung-zwischenstand");
+  const bowlingBar = await optionCard(carol, "Strike District Bowling").locator(".poll-bar-fill").evaluate((b) => b.getBoundingClientRect().width / b.parentElement.getBoundingClientRect().width);
+  check(bowlingBar > 0.2, `D1: nach dem Wachsen steht der Balken auf seinem Anteil (${Math.round(bowlingBar * 100)} %)`);
 
   if (ANON) {
     const votes = await api(alice, "GET", `poll_votes?select=user_id,poll_option_id&poll_id=eq.${ids.poll}`);
@@ -1293,6 +1341,36 @@ await step("P5 – Wetter für Plantag und Ort (Bob, Carol)", async () => {
   await retry.click();
   await page.getByTestId("plan-weather").waitFor();
   check(true, "Wetter: „Erneut versuchen“ lädt die Vorhersage");
+
+  // P6 Etappe 3: kleiner Stadtplan auf der Planseite – erst nach Tipp (gleiche Einwilligung wie in Discover).
+  const TILES = /^https:\/\/tile\.openstreetmap\.org\//;
+  const spotTiles = [];
+  await page.route(TILES, (route) => {
+    spotTiles.push(route.request().url());
+    return route.fulfill({ status: 200, contentType: "image/png", body: PNG });
+  });
+  const offer = page.getByTestId("spot-map-offer");
+  await offer.waitFor();
+  check(spotTiles.length === 0, "Planseite: ohne Einwilligung keine Anfrage an den Kachelserver");
+  check(await offer.getByText(/Beim Laden gehen deine IP-Adresse und der Kartenausschnitt dorthin/).isVisible(), "Planseite: Hinweis, was beim Laden übertragen wird");
+  await offer.getByRole("button", { name: "Auf dem Stadtplan zeigen" }).click();
+  const spot = page.getByTestId("spot-map");
+  await page.waitForFunction(() => {
+    const imgs = [...document.querySelectorAll('[data-testid="spot-map"] img[data-map-tile]')];
+    return imgs.length > 0 && imgs.every((img) => img.complete && img.naturalWidth > 0);
+  });
+  check(spotTiles.length > 0 && spotTiles.length <= 12 && spotTiles.every((u) => /^https:\/\/tile\.openstreetmap\.org\/16\/\d+\/\d+\.png$/.test(u)), `Planseite: nur der Ausschnitt um den Ort, Zoom 16 (${spotTiles.length} Kacheln)`);
+  check(await spot.getByRole("group", { name: "Stadtplan: Strike District Bowling in der Mitte" }).isVisible(), "Planseite: Stadtplan nennt den Ort");
+  check(await spot.getByText("Demo-Ort: Die Position auf der Karte ist ein Beispiel.").isVisible(), "Planseite: Demo-Ort als Beispiel gekennzeichnet");
+  check((await spot.getByRole("link", { name: "© OpenStreetMap-Mitwirkende" }).getAttribute("href")) === "https://www.openstreetmap.org/copyright", "Planseite: Namensnennung");
+  await spot.getByRole("button", { name: "Näher heran" }).click();
+  check((await spot.getByRole("group").getAttribute("data-zoom")) === "17", "Planseite: „Näher heran“ zoomt eine Stufe");
+  await spot.scrollIntoViewIfNeeded();
+  await shot(carol, "16f-plan-stadtplan");
+  await spot.getByRole("button", { name: "Stadtplan aus" }).click();
+  await offer.waitFor();
+  check((await page.evaluate(() => localStorage.getItem("afterhours.map.tiles"))) === null, "Planseite: „Stadtplan aus“ nimmt die Einwilligung zurück");
+  await page.unroute(TILES);
 });
 
 // W7 Etappe 1: Store-Screenshots aus dem echten Ablauf – Bobs Sitzung in zwei weiteren Kontexten mit den Maßen,
@@ -2029,8 +2107,15 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await page.getByText("Dieser Plan ist ein Vorschlag und noch nicht bestätigt.").waitFor();
   check(true, "direkt angelegter Plan startet als Vorschlag");
   check((await page.getByRole("button", { name: "Reservierung vorbereiten" }).count()) === 0, "Reservierung erst nach Bestätigung des Plans");
+  check((await page.getByTestId("ticket-confirm-ring").count()) === 0, "D1: beim Laden kein Bestätigungs-Moment");
   await page.getByRole("button", { name: "Plan bestätigen" }).click();
+  // D1: Wird der Plan fest, läuft ein Lime-Ring um die Karte, der Stapel fächert sich, die Plakette springt neu auf.
+  await page.getByTestId("ticket-confirm-ring").waitFor({ state: "attached", timeout: 5000 });
+  check((await page.locator('.ticket-feature-wrap[data-moment="confirmed"]').count()) === 1, "D1: Bestätigung als Moment – Ring und aufgefächerter Stapel");
+  check((await page.getByTestId("ticket-status").first().innerText()).trim() === "Bestätigt" && (await page.locator('[data-testid="ticket-status"].badge-pop').count()) === 1, "D1: Plakette „Bestätigt“ springt neu auf");
   await toast(carol, "Plan bestätigt.");
+  await page.getByTestId("ticket-confirm-ring").waitFor({ state: "detached", timeout: 5000 });
+  check((await page.locator(".ticket-feature-wrap[data-moment]").count()) === 0, "D1: nach gut einer Sekunde liegt die Karte wieder still");
   await page.getByRole("button", { name: "Reservierung vorbereiten" }).waitFor();
   // D6: Bob antwortet direkt auf Home – ohne die Planseite zu öffnen.
   await bob.page.goto(`${APP}/home`);
@@ -2630,6 +2715,17 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     check(overview.bundles > 0 && overview.pins + overview.bundles < overview.places / 2, `nahe Orte liegen als Bündel zusammen statt übereinander (${overview.pins + overview.bundles} Zeichen für ${overview.places} Orte)`);
     check(await page.getByText("Tippe auf einen Punkt – der Ort erscheint hier.").isVisible(), "Karte erklärt, was ein Tipp auf einen Punkt tut");
     check(tiles.length === 0, "ohne Einwilligung keine Anfrage an den Kachelserver");
+    // P6 Etappe 3: Keine zwei Zeichen (Punkt oder Bündel) überdecken sich.
+    const overlaps = await map.evaluate((el) => {
+      const boxes = [
+        ...[...el.querySelectorAll("[data-map-pin] > span")].map((s) => s.getBoundingClientRect()),
+        ...[...el.querySelectorAll("[data-map-cluster]")].map((b) => b.getBoundingClientRect()),
+      ].map((r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 }));
+      let n = 0;
+      for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) if (Math.hypot(boxes[i].x - boxes[j].x, boxes[i].y - boxes[j].y) < boxes[i].r + boxes[j].r) n++;
+      return n;
+    });
+    check(overlaps === 0, `Karte: keine Punkte oder Bündel übereinander (${overlaps} Überlappungen)`);
     check((await page.getByRole("article").count()) === 0, "Kartenansicht ersetzt Stapel und Liste");
     await map.scrollIntoViewIfNeeded();
     await shot(alice, "33b-discover-karte");
@@ -3178,6 +3274,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   await page.waitForURL(/\/start$/);
   await page.getByRole("heading", { level: 1, name: "Wie heißt eure Crew?" }).waitFor();
   check(true, "ohne Einladungslink geht es nach dem Onboarding in den geführten Start");
+  await stepArt(page, 1, "Start Crew");
   await shot(dana, "37-start-crew");
 
   await page.getByLabel("Name der Crew").fill("Freitagsrunde");
@@ -3194,6 +3291,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   await page.reload();
   await page.getByRole("heading", { level: 1, name: "Hol deine Leute dazu" }).waitFor();
   check(true, "Neuladen bleibt in Schritt 2");
+  await stepArt(page, 2, "Start Einladen");
 
   await stubShare(page);
   await page.getByRole("button", { name: "Einladungslink teilen" }).click();

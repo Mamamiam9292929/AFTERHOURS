@@ -94,7 +94,7 @@ export function NotificationsPage() {
         ) : notifications.isError ? (
           <ErrorState error={notifications.error} onRetry={() => void notifications.refetch()} />
         ) : notifications.data.length === 0 ? (
-          <EmptyState icon={<IconBell aria-hidden />} title={t.notifications.empty.title} body={t.notifications.empty.body} />
+          <EmptyState art={<IconBell aria-hidden />} title={t.notifications.empty.title} body={t.notifications.empty.body} />
         ) : (
           <>
             <div className="mb-5 flex flex-wrap items-center gap-2" aria-live="polite">

@@ -14,6 +14,7 @@ import { qk } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
 import { formatDateWithYear } from "@/lib/time";
 import type { RewardTransaction } from "@/lib/types";
+import "@/styles/motion.css";
 
 const LEVEL_THRESHOLDS = [0, 50, 150, 300, 600];
 
@@ -71,7 +72,7 @@ export function RewardsPage() {
               status={transactions.length > 0 ? <StatusPill>{t.rewards.historyCount(transactions.length)}</StatusPill> : undefined}
             >
               {transactions.length === 0 ? (
-                <EmptyState icon={<IconAward aria-hidden />} title={t.rewards.historyEmpty.title} body={t.rewards.historyEmpty.body} />
+                <EmptyState art={<IconAward aria-hidden />} title={t.rewards.historyEmpty.title} body={t.rewards.historyEmpty.body} />
               ) : (
                 <ul className="space-y-2" data-testid="rewards-history">
                   {transactions.map((tx) => (
@@ -160,7 +161,7 @@ export function RewardsPage() {
                       </span>
                       {!done && (
                         <span aria-hidden className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-                          <span className="block h-full rounded-full bg-lime" style={{ width: `${Math.max(share, 0.04) * 100}%` }} />
+                          <span className="bar-grow block h-full rounded-full bg-lime" style={{ width: `${Math.max(share, 0.04) * 100}%` }} />
                         </span>
                       )}
                     </li>
@@ -201,7 +202,7 @@ function BalanceCard({ points, levelIndex, progress, nextThreshold }: { points: 
             </StatusPill>
           </div>
           <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress * 100)} aria-label={level}>
-            <div className="h-full rounded-full bg-lime shadow-[0_0_18px_var(--color-lime)]" style={{ width: `${Math.max(progress, 0.02) * 100}%` }} />
+            <div className="bar-grow h-full rounded-full bg-lime shadow-[0_0_18px_var(--color-lime)]" style={{ width: `${Math.max(progress, 0.02) * 100}%` }} />
           </div>
           <p className="mt-2 text-sm text-muted">{nextThreshold ? t.rewards.nextLevel(nextThreshold - points, t.rewards.levels[levelIndex + 1] ?? "") : t.rewards.maxLevel}</p>
           <ol aria-label={t.rewards.levelsLabel} lang="de" className="mt-5 grid grid-cols-5 gap-1.5" data-testid="rewards-levels">

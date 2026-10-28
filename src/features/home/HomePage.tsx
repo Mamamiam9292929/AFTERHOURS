@@ -242,7 +242,7 @@ export function HomePage() {
                       ))}
                     </div>
                   ) : (
-                    <EmptyState title={t.home.nothingPlanned.title} body={t.home.nothingPlanned.body} />
+                    <EmptyState art={<IconPlans aria-hidden />} title={t.home.nothingPlanned.title} body={t.home.nothingPlanned.body} />
                   )}
                 </Section>
               )}

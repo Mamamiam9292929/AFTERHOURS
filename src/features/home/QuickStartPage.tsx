@@ -1,10 +1,10 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { IconCheck, IconClose, IconPlus, IconSearch, IconShare, IconSpinner, IconVote } from "@/components/icons";
+import { IconCheck, IconClose, IconCrews, IconPlus, IconSearch, IconShare, IconSpinner, IconVote } from "@/components/icons";
 import { PosterTitle } from "@/components/layout/Page";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Controls";
-import { DemoBadge, ErrorState, ListSkeleton, Notice } from "@/components/ui/Feedback";
+import { DemoBadge, EmptyArt, ErrorState, ListSkeleton, Notice } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { useCreateCrew, useCreateInvitation, useCrews, type CreatedInvitation } from "@/features/crews/api";
@@ -54,10 +54,17 @@ function Progress({ step }: { step: number }) {
   );
 }
 
+/** D4 Etappe 2: Symbol je Schritt auf dem Kartenstapel – Crew, Einladen, Abstimmen. */
+const STEP_ART = [IconCrews, IconShare, IconVote] as const;
+
 function Header({ step, title, body }: { step: number; title: string; body: string }) {
+  const Icon = STEP_ART[step - 1] ?? IconVote;
   return (
     <header className="mb-7">
       <Progress step={step} />
+      <EmptyArt deal className="mx-0 -ml-3 mb-4">
+        <Icon data-step-art={step} />
+      </EmptyArt>
       <h1 className="display chrome break-words text-[32px] uppercase leading-[0.95] sm:text-[46px]">
         <PosterTitle text={title} />
       </h1>
