@@ -3457,6 +3457,8 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     if (danaPoll?.status !== "closed" && new Date(danaPoll?.ends_at) > new Date()) {
       check((await page.getByTestId("poll-quick-vote").count()) === 1, "D3: Danas eigene Abstimmung lässt sich auf Home beantworten");
     }
+    const strayText = await page.locator(".ticket-feature-wrap").first().evaluate((el) => [...el.childNodes].filter((n) => n.nodeType === 3 && n.textContent.trim()).map((n) => n.textContent));
+    check(strayText.length === 0, `kein loser Text über dem großen Ticket (vorher stand dort eine „0“): ${JSON.stringify(strayText)}`);
     await noOverflow(dana, "Home – Live-Countdown und Abstimmen");
     await shot(dana, "41-home-buehne");
   }

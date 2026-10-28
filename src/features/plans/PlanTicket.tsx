@@ -305,7 +305,8 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now, l
 
   return (
     <div className={cn("ticket-feature-wrap", hero && !active && "ticket-feature-past", hero && "vt-plan-ticket")} data-answer={answer} data-moment={moment ? "confirmed" : undefined}>
-      {moment && <span key={moment} className="ticket-confirm-ring" aria-hidden data-testid="ticket-confirm-ring" />}
+      {/* `moment` ist eine Zahl – mit `&&` stünde sonst eine „0“ über jedem großen Ticket. */}
+      {moment > 0 && <span key={moment} className="ticket-confirm-ring" aria-hidden data-testid="ticket-confirm-ring" />}
       {hero ? (
         <div ref={ticketRef} className="ticket ticket-feature" data-answer={answer}>
           {body}
