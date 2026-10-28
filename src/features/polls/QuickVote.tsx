@@ -71,9 +71,9 @@ export function PollQuickVote({ poll, memberIds, userId, now, onTouched }: PollQ
   if (!current) {
     // Nur erreichbar, wenn du hier angefangen hast – sonst stünde die Abstimmung nicht unter „Deine Antwort fehlt“.
     return (
-      <div role="status" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-card border border-lime/40 bg-lime/[0.07] px-4 py-3.5" data-testid="poll-quick-done">
+      <div role="status" className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-card border border-lime/40 bg-lime/[0.08] px-4 py-3.5" data-testid="poll-quick-done">
         <p className="text-[15px] font-semibold text-fg">{t.home.quickVote.done}</p>
-        <Link to={`/polls/${poll.id}`} className="inline-flex h-9 items-center text-[14px] font-semibold text-lime underline decoration-lime/40 underline-offset-4 hover:decoration-lime">
+        <Link to={`/polls/${poll.id}`} className="inline-flex h-9 items-center text-[14px] font-semibold text-lime underline decoration-line-strong underline-offset-4 hover:decoration-lime">
           {t.home.quickVote.open}
         </Link>
       </div>
@@ -99,7 +99,7 @@ export function PollQuickVote({ poll, memberIds, userId, now, onTouched }: PollQ
       </div>
       {/* Neuer Schlüssel je Vorschlag: der nächste legt sich von hinten auf (aus bei reduzierter Bewegung). */}
       <div key={current.id} style={{ animation: "deck-in-next 0.35s var(--ease-out-soft) both" }}>
-        <p className="display mt-1 break-words text-[22px] uppercase leading-[1.02] text-fg" data-testid="poll-quick-option">
+        <p className="display mt-1 break-words text-[22px] uppercase leading-[0.95] text-fg" data-testid="poll-quick-option">
           {current.option.title}
         </p>
         <p className="mt-1.5 text-[14px] text-muted">{[when, t.polls.swipe.going(current.going)].filter(Boolean).join(" · ")}</p>
