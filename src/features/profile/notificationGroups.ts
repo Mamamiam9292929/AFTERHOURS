@@ -8,6 +8,7 @@ export const NOTIFICATION_GROUPS: { key: keyof typeof t.settings.notifications.g
   { key: "answers", types: ["poll_vote", "plan_attendance"] },
   { key: "results", types: ["poll_result"] },
   { key: "plans", types: ["plan_created", "plan_changed", "plan_cancelled"] },
+  { key: "dayReminders", types: ["plan_day_reminder"] },
   { key: "bookings", types: ["booking_status"] },
   { key: "rides", types: ["ride_request", "ride_confirmed"] },
   { key: "costs", types: ["plan_expense", "plan_settlement"] },
