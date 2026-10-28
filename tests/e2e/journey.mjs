@@ -4057,6 +4057,52 @@ await step("P4 – Push-Mitteilungen: Gerät anmelden, verschlüsselter Push, Te
   const claim = await api(bob, "POST", "rpc/claim_push_batch", { p_limit: 10 });
   check(claim.status >= 400, `API: Angemeldete holen keine Pushs ab (${claim.status})`);
 
+  // P4 Etappe 3: je Gerät wählen, was ankommt – „Nur das Wichtigste“, einzelne Gruppe, „Alles“.
+  const pick = page.getByTestId("push-pick");
+  await pick.waitFor();
+  check((await page.getByTestId("push-pick-status").innerText()).trim() === "Alles", "neues Gerät bekommt erst einmal alles");
+  const pickSaved = () => page.waitForResponse((r) => r.url().includes("/rpc/set_push_muted_types") && r.request().method() === "POST");
+  let saving = pickSaved();
+  await pick.getByRole("button", { name: "Nur das Wichtigste" }).click();
+  check((await saving).ok(), "„Nur das Wichtigste“ gespeichert");
+  await toast(app, "Für dieses Gerät gespeichert.");
+  check((await pick.locator('button[data-group="answers"]').getAttribute("aria-pressed")) === "false", "„Neue Antworten“ ist auf dem Gerät stumm");
+  check((await pick.locator('button[data-group="plans"]').getAttribute("aria-pressed")) === "true", "Pläne kommen weiter aufs Gerät");
+  check((await pick.getByRole("button", { name: "Nur das Wichtigste" }).getAttribute("aria-pressed")) === "true", "„Nur das Wichtigste“ ist gedrückt");
+  check(/^\d+ von \d+$/.test((await page.getByTestId("push-pick-status").innerText()).trim()), "Pille zählt, was hier ankommt");
+  saving = pickSaved();
+  await pick.locator('button[data-group="polls"]').click();
+  check((await saving).ok(), "„Abstimmungen“ auf dem Gerät stummgeschaltet");
+  check((await pick.locator('button[data-group="polls"]').getAttribute("aria-pressed")) === "false", "Gruppe zeigt „aus“");
+  const mutedNow = (await api(app, "GET", "push_subscriptions?select=muted_types")).json?.[0]?.muted_types ?? [];
+  check(mutedNow.includes("poll_created") && mutedNow.includes("poll_vote") && !mutedNow.includes("plan_created"), `API: Auswahl gespeichert (${mutedNow.join(", ")})`);
+  const foreignPick = await api(bob, "POST", "rpc/set_push_muted_types", { p_endpoint: endpoint, p_muted_types: [] });
+  check(foreignPick.status >= 400, `API: Bob kann Carols Auswahl nicht ändern (${foreignPick.status})`);
+  await pick.scrollIntoViewIfNeeded();
+  await shot(app, "61-push-auswahl");
+  if (stubHost && DB_URL) {
+    const psqlPick = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const muted = await api(bob, "POST", "rpc/create_poll", {
+      p_crew_id: ids.crew, p_title: `Stumm-Probe ${RUN}`, p_ends_at: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+      p_options: [{ title: "Bowling" }, { title: "Kino" }],
+      p_description: null, p_meeting_point: null, p_budget_cents: null, p_min_participants: null,
+    });
+    if (muted.status >= 300) throw new Error(`Abstimmung anlegen fehlgeschlagen (${muted.status} ${muted.json?.message})`);
+    try {
+      check(psqlPick(`select count(*) from app_private.push_outbox o join public.notifications n on n.id = o.notification_id where n.related_entity_id = '${muted.json}'`) === "0",
+        "stummgeschaltete Abstimmung kommt nicht in die Warteschlange des Geräts");
+      const inApp = (await api(app, "GET", `notifications?select=id&related_entity_id=eq.${muted.json}`)).json ?? [];
+      check(inApp.length === 1, "in der App bekommt Carol die Abstimmung trotzdem");
+    } finally {
+      psqlPick(`delete from public.polls where id = '${muted.json}'`);
+    }
+  }
+  saving = pickSaved();
+  await pick.getByRole("button", { name: "Alles", exact: true }).click();
+  check((await saving).ok(), "„Alles“ gespeichert");
+  check(((await api(app, "GET", "push_subscriptions?select=muted_types")).json?.[0]?.muted_types ?? ["?"]).length === 0, "„Alles“: nichts mehr stumm");
+  check((await page.getByTestId("push-pick-status").innerText()).trim() === "Alles", "Pille sagt wieder „Alles“");
+
   if (!stubHost || !DB_URL) {
     console.log("   (Push-Stellvertreter oder E2E_DB_URL fehlt – Versand wird übersprungen)");
   } else {

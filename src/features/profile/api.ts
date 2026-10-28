@@ -156,6 +156,8 @@ export interface PushDevice {
   label: string | null;
   created_at: string;
   last_success_at: string | null;
+  /** P4 Etappe 3: Benachrichtigungsarten, die auf diesem Gerät nicht als Push kommen. */
+  muted_types: string[];
 }
 
 export function usePushDevices() {
@@ -164,9 +166,26 @@ export function usePushDevices() {
     queryKey: qk.pushDevices(user?.id ?? "anonymous"),
     enabled: Boolean(user),
     queryFn: async (): Promise<PushDevice[]> => {
-      const { data, error } = await supabase.from("push_subscriptions").select("id, endpoint, label, created_at, last_success_at").order("created_at");
+      const { data, error } = await supabase.from("push_subscriptions").select("id, endpoint, label, created_at, last_success_at, muted_types").order("created_at");
       if (error) throw error;
       return (data ?? []) as PushDevice[];
     },
+  });
+}
+
+/** P4 Etappe 3: Auswahl für ein eigenes Gerät speichern; der Server gibt die bereinigte Liste zurück. */
+export function useSetPushMutedTypes() {
+  const { user } = useAuth();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ endpoint, mutedTypes }: { endpoint: string; mutedTypes: string[] }): Promise<{ endpoint: string; mutedTypes: string[] }> => {
+      const { data, error } = await supabase.rpc("set_push_muted_types", { p_endpoint: endpoint, p_muted_types: mutedTypes });
+      if (error) throw error;
+      return { endpoint, mutedTypes: (data ?? []) as string[] };
+    },
+    onSuccess: ({ endpoint, mutedTypes }) =>
+      client.setQueryData<PushDevice[]>(qk.pushDevices(user?.id ?? "anonymous"), (devices) =>
+        devices?.map((device) => (device.endpoint === endpoint ? { ...device, muted_types: mutedTypes } : device)),
+      ),
   });
 }

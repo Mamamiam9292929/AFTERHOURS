@@ -242,7 +242,7 @@ export const settings = {
   /** P4: Push-Mitteilungen auf diesem Gerät. */
   push: {
     title: "Mitteilungen auf diesem Gerät",
-    on: "Was du unten eingeschaltet hast, kommt auch aufs Gerät – auch wenn die App zu ist.",
+    on: "Kommt aufs Gerät, auch wenn die App zu ist – was genau, wählst du darunter.",
     off: "Bekomm Bescheid, auch wenn die App zu ist – für alles, was du unten eingeschaltet hast.",
     statusOn: "An",
     statusOff: "Aus",
@@ -259,6 +259,17 @@ export const settings = {
     device: (browser: string, platform: string) => `${browser} auf ${platform}`,
     deviceBrowser: "Browser",
     devicePlatform: "Gerät",
+    /** P4 Etappe 3: je Gerät wählen, was als Mitteilung ankommt. */
+    pick: {
+      title: "Was hier ankommt",
+      lead: "Tipp an, was auf diesem Gerät als Mitteilung kommt. In der App siehst du weiter alles.",
+      all: "Alles",
+      essentials: "Nur das Wichtigste",
+      count: (on: number, total: number) => (on === total ? "Alles" : on === 0 ? "Nichts" : `${on} von ${total}`),
+      saved: "Für dieses Gerät gespeichert.",
+      none: "Auf diesem Gerät kommt gerade keine Mitteilung an – die App zeigt trotzdem alles.",
+      offInApp: (n: number) => (n === 1 ? "1 Bereich ist unten für die App ausgeschaltet und kommt deshalb auch hier nicht." : `${n} Bereiche sind unten für die App ausgeschaltet und kommen deshalb auch hier nicht.`),
+    },
   },
   /** P2 Etappe 2: persönlicher Abo-Link für Kalender-Apps. */
   calendar: {
