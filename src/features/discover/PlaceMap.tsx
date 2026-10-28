@@ -8,7 +8,7 @@ import type { PlacePhoto } from "@/lib/commons";
 import type { LatLng } from "@/lib/geo";
 import { mapProvider, mapTilesAllowed, setMapTilesAllowed } from "@/lib/maps";
 import { categoryWorld, type CategoryWorld } from "@/lib/stage";
-import { clusterAction, clusterPoints, fitView, isGeoPoint, panBy, toScreen, visibleTiles, zoomAround, zoomBy, type GeoPoint, type MapView, type Pixel } from "@/lib/tiles";
+import { clusterAction, clusterPoints, fitView, isGeoPoint, markerSize, panBy, toScreen, visibleTiles, zoomAround, zoomBy, type GeoPoint, type MapView, type Pixel } from "@/lib/tiles";
 import { ActivityCard } from "./ActivityCard";
 import type { RankedActivity } from "./api";
 
@@ -324,8 +324,8 @@ export function PlaceMap({ results, cityName, fallback, photos }: { results: Ran
         {bundles.map(({ members, at }) => {
           const best = members[0]!.ranked.activity;
           const count = members.length;
-          // Größer, je mehr Orte drin sind – aber nie so groß, dass es die Nachbarn verdeckt.
-          const diameter = count < 10 ? 32 : count < 50 ? 38 : 44;
+          // Größer, je mehr Orte drin sind; clusterPoints hält mit dieser Größe Abstand zu den Nachbarn (Etappe 3).
+          const diameter = markerSize(count);
           return (
             <button
               key={`c-${best.id}`}

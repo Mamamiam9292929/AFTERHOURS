@@ -170,3 +170,33 @@ test("Tipp auf ein Bündel: heran, bis alle zu sehen sind – oder als Liste, we
   assert.deepEqual(clusterAction([LEIPZIG, { ...LEIPZIG }], view, 400, 400), { kind: "list" });
   assert.deepEqual(clusterAction(close, { center: LEIPZIG, zoom: MAX_ZOOM }, 400, 400), { kind: "list" });
 });
+
+import { MARKER_GAP, markerSize } from "../../src/lib/tiles.ts";
+
+test("P6 Etappe 3: Marker überlappen sich nie – große Bündel brauchen mehr Platz", () => {
+  // Dichte Innenstadt: 1.500 Orte, pseudozufällig (fester Startwert), dazu ein Haufen am selben Fleck.
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const pts = [];
+  for (let i = 0; i < 1500; i++) pts.push({ id: i, p: { latitude: LEIPZIG.latitude + (rnd() - 0.5) * 0.08, longitude: LEIPZIG.longitude + (rnd() - 0.5) * 0.12 } });
+  for (let i = 0; i < 30; i++) pts.push({ id: 1500 + i, p: { latitude: LEIPZIG.latitude, longitude: LEIPZIG.longitude } });
+  for (const zoom of [10, 11, 12, 13, 14, 15, 16]) {
+    const clusters = clusterPoints(pts, (x) => x.p, zoom);
+    assert.equal(clusters.reduce((s, cl) => s + cl.members.length, 0), pts.length, `Zoom ${zoom}: kein Ort geht verloren`);
+    assert.equal(new Set(clusters.flatMap((cl) => cl.members.map((m) => m.id))).size, pts.length, `Zoom ${zoom}: kein Ort doppelt`);
+    const px = clusters.map((cl) => ({ ...project(cl.point, zoom), size: markerSize(cl.members.length) }));
+    for (let i = 0; i < px.length; i++)
+      for (let j = i + 1; j < px.length; j++) {
+        const gap = Math.hypot(px[i].x - px[j].x, px[i].y - px[j].y) - (px[i].size + px[j].size) / 2;
+        assert.ok(gap >= MARKER_GAP - 1e-6, `Zoom ${zoom}: Marker ${i} und ${j} überlappen (${gap.toFixed(1)} px)`);
+      }
+    // Mitglieder bleiben in der Reihenfolge der Eingabe (der erste ist der beste Ort).
+    for (const cl of clusters) assert.deepEqual(cl.members.map((m) => m.id), [...cl.members.map((m) => m.id)].sort((a, b) => a - b));
+  }
+  // Gleiche Eingabe, gleiche Bündel.
+  assert.deepEqual(clusterPoints(pts, (x) => x.p, 13), clusterPoints(pts, (x) => x.p, 13));
+});
+
+test("Markergröße: Punkt, dann wachsende Pille", () => {
+  assert.deepEqual([1, 2, 9, 10, 49, 50, 999].map(markerSize), [14, 32, 32, 38, 38, 44, 44]);
+});

@@ -1270,6 +1270,36 @@ await step("P5 – Wetter für Plantag und Ort (Bob, Carol)", async () => {
   await retry.click();
   await page.getByTestId("plan-weather").waitFor();
   check(true, "Wetter: „Erneut versuchen“ lädt die Vorhersage");
+
+  // P6 Etappe 3: kleiner Stadtplan auf der Planseite – erst nach Tipp (gleiche Einwilligung wie in Discover).
+  const TILES = /^https:\/\/tile\.openstreetmap\.org\//;
+  const spotTiles = [];
+  await page.route(TILES, (route) => {
+    spotTiles.push(route.request().url());
+    return route.fulfill({ status: 200, contentType: "image/png", body: PNG });
+  });
+  const offer = page.getByTestId("spot-map-offer");
+  await offer.waitFor();
+  check(spotTiles.length === 0, "Planseite: ohne Einwilligung keine Anfrage an den Kachelserver");
+  check(await offer.getByText(/Beim Laden gehen deine IP-Adresse und der Kartenausschnitt dorthin/).isVisible(), "Planseite: Hinweis, was beim Laden übertragen wird");
+  await offer.getByRole("button", { name: "Auf dem Stadtplan zeigen" }).click();
+  const spot = page.getByTestId("spot-map");
+  await page.waitForFunction(() => {
+    const imgs = [...document.querySelectorAll('[data-testid="spot-map"] img[data-map-tile]')];
+    return imgs.length > 0 && imgs.every((img) => img.complete && img.naturalWidth > 0);
+  });
+  check(spotTiles.length > 0 && spotTiles.length <= 12 && spotTiles.every((u) => /^https:\/\/tile\.openstreetmap\.org\/16\/\d+\/\d+\.png$/.test(u)), `Planseite: nur der Ausschnitt um den Ort, Zoom 16 (${spotTiles.length} Kacheln)`);
+  check(await spot.getByRole("group", { name: "Stadtplan: Strike District Bowling in der Mitte" }).isVisible(), "Planseite: Stadtplan nennt den Ort");
+  check(await spot.getByText("Demo-Ort: Die Position auf der Karte ist ein Beispiel.").isVisible(), "Planseite: Demo-Ort als Beispiel gekennzeichnet");
+  check((await spot.getByRole("link", { name: "© OpenStreetMap-Mitwirkende" }).getAttribute("href")) === "https://www.openstreetmap.org/copyright", "Planseite: Namensnennung");
+  await spot.getByRole("button", { name: "Näher heran" }).click();
+  check((await spot.getByRole("group").getAttribute("data-zoom")) === "17", "Planseite: „Näher heran“ zoomt eine Stufe");
+  await spot.scrollIntoViewIfNeeded();
+  await shot(carol, "16f-plan-stadtplan");
+  await spot.getByRole("button", { name: "Stadtplan aus" }).click();
+  await offer.waitFor();
+  check((await page.evaluate(() => localStorage.getItem("afterhours.map.tiles"))) === null, "Planseite: „Stadtplan aus“ nimmt die Einwilligung zurück");
+  await page.unroute(TILES);
 });
 
 // W7 Etappe 1: Store-Screenshots aus dem echten Ablauf – Bobs Sitzung in zwei weiteren Kontexten mit den Maßen,
@@ -2607,6 +2637,17 @@ await step("Echte Orte aus OpenStreetMap – Import pro Stadt (Alice)", async ()
     check(overview.bundles > 0 && overview.pins + overview.bundles < overview.places / 2, `nahe Orte liegen als Bündel zusammen statt übereinander (${overview.pins + overview.bundles} Zeichen für ${overview.places} Orte)`);
     check(await page.getByText("Tippe auf einen Punkt – der Ort erscheint hier.").isVisible(), "Karte erklärt, was ein Tipp auf einen Punkt tut");
     check(tiles.length === 0, "ohne Einwilligung keine Anfrage an den Kachelserver");
+    // P6 Etappe 3: Keine zwei Zeichen (Punkt oder Bündel) überdecken sich.
+    const overlaps = await map.evaluate((el) => {
+      const boxes = [
+        ...[...el.querySelectorAll("[data-map-pin] > span")].map((s) => s.getBoundingClientRect()),
+        ...[...el.querySelectorAll("[data-map-cluster]")].map((b) => b.getBoundingClientRect()),
+      ].map((r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 }));
+      let n = 0;
+      for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) if (Math.hypot(boxes[i].x - boxes[j].x, boxes[i].y - boxes[j].y) < boxes[i].r + boxes[j].r) n++;
+      return n;
+    });
+    check(overlaps === 0, `Karte: keine Punkte oder Bündel übereinander (${overlaps} Überlappungen)`);
     check((await page.getByRole("article").count()) === 0, "Kartenansicht ersetzt Stapel und Liste");
     await map.scrollIntoViewIfNeeded();
     await shot(alice, "33b-discover-karte");

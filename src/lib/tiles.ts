@@ -142,6 +142,17 @@ export function zoomAround(view: MapView, step: number, at: Pixel, width: number
 
 /** P6 Etappe 2: Punkte, die näher als so viele Pixel beieinanderliegen, werden zu einem Bündel („12“). */
 export const CLUSTER_RADIUS = 36;
+/** P6 Etappe 3: Mindestabstand zwischen den Rändern zweier Marker. */
+export const MARKER_GAP = 4;
+
+/**
+ * Durchmesser eines Markers in Pixeln: ein einzelner Ort ist ein Punkt, ein Bündel eine Pille, die mit der Zahl
+ * seiner Orte wächst. Gleiche Werte wie in PlaceMap.tsx.
+ */
+export function markerSize(count: number): number {
+  if (count <= 1) return 14;
+  return count < 10 ? 32 : count < 50 ? 38 : 44;
+}
 
 export interface Cluster<T> {
   /** In der Reihenfolge der Eingabe – der erste ist der am besten passende Ort. */
@@ -150,20 +161,29 @@ export interface Cluster<T> {
   point: GeoPoint;
 }
 
+interface Group {
+  indices: number[];
+  x: number;
+  y: number;
+}
+
 /**
  * Bündelt nahe Punkte bei dieser Zoomstufe. Gerechnet in Weltpixeln, also unabhängig vom Ausschnitt: Beim Ziehen
  * bleiben die Bündel, wie sie sind, erst eine andere Zoomstufe bündelt neu. Gierig in der Reihenfolge der Eingabe –
  * gleiche Eingabe, gleiche Bündel. Ein Punkt allein ist ein Bündel mit einem Mitglied.
+ *
+ * P6 Etappe 3: Danach werden Marker zusammengelegt, die sich mit ihrer Größe (`markerSize`) überlappen würden – ein
+ * großes Bündel braucht mehr Platz als ein Punkt. So liegt keine Zahl halb unter einer anderen.
  */
 export function clusterPoints<T>(items: readonly T[], pointOf: (item: T) => GeoPoint, zoom: number, radius = CLUSTER_RADIUS): Cluster<T>[] {
   const pixels = items.map((item) => project(pointOf(item), zoom));
   const taken = new Uint8Array(items.length);
-  const clusters: Cluster<T>[] = [];
+  let groups: Group[] = [];
   for (let i = 0; i < items.length; i++) {
     if (taken[i]) continue;
     taken[i] = 1;
     const seed = pixels[i]!;
-    const members = [items[i]!];
+    const indices = [i];
     let sx = seed.x;
     let sy = seed.y;
     for (let j = i + 1; j < items.length; j++) {
@@ -171,13 +191,60 @@ export function clusterPoints<T>(items: readonly T[], pointOf: (item: T) => GeoP
       const p = pixels[j]!;
       if (Math.abs(p.x - seed.x) > radius || Math.abs(p.y - seed.y) > radius || Math.hypot(p.x - seed.x, p.y - seed.y) > radius) continue;
       taken[j] = 1;
-      members.push(items[j]!);
+      indices.push(j);
       sx += p.x;
       sy += p.y;
     }
-    clusters.push({ members, point: members.length === 1 ? pointOf(items[i]!) : unproject({ x: sx / members.length, y: sy / members.length }, zoom) });
+    groups.push({ indices, x: sx / indices.length, y: sy / indices.length });
   }
-  return clusters;
+  groups = separate(groups);
+  return groups.map((g) => {
+    const members = g.indices.map((i) => items[i]!);
+    return { members, point: members.length === 1 ? pointOf(members[0]!) : unproject({ x: g.x, y: g.y }, zoom) };
+  });
+}
+
+/** Legt Marker zusammen, deren Ränder sich näher als MARKER_GAP kommen (Raster für die Nachbarsuche). */
+function separate(groups: Group[]): Group[] {
+  const cell = markerSize(Number.MAX_SAFE_INTEGER) + MARKER_GAP;
+  const need = (a: Group, b: Group) => (markerSize(a.indices.length) + markerSize(b.indices.length)) / 2 + MARKER_GAP;
+  let list = groups;
+  for (let pass = 0; pass < 12; pass++) {
+    const grid = new Map<string, number[]>();
+    list.forEach((g, i) => {
+      const key = `${Math.floor(g.x / cell)}:${Math.floor(g.y / cell)}`;
+      const bucket = grid.get(key);
+      if (bucket) bucket.push(i);
+      else grid.set(key, [i]);
+    });
+    const merged = new Int32Array(list.length).fill(-1);
+    let changed = false;
+    for (let i = 0; i < list.length; i++) {
+      if (merged[i] !== -1) continue;
+      const a = list[i]!;
+      const cx = Math.floor(a.x / cell);
+      const cy = Math.floor(a.y / cell);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          for (const j of grid.get(`${cx + dx}:${cy + dy}`) ?? []) {
+            if (j <= i || merged[j] !== -1) continue;
+            const b = list[j]!;
+            if (Math.hypot(a.x - b.x, a.y - b.y) >= need(a, b)) continue;
+            const total = a.indices.length + b.indices.length;
+            a.x = (a.x * a.indices.length + b.x * b.indices.length) / total;
+            a.y = (a.y * a.indices.length + b.y * b.indices.length) / total;
+            a.indices = [...a.indices, ...b.indices].sort((m, n) => m - n);
+            merged[j] = i;
+            changed = true;
+          }
+        }
+      }
+    }
+    if (!changed) break;
+    // Reihenfolge nach dem besten Ort jedes Markers, damit das Ergebnis stabil bleibt.
+    list = list.filter((_, i) => merged[i] === -1).sort((a, b) => a.indices[0]! - b.indices[0]!);
+  }
+  return list;
 }
 
 /**
