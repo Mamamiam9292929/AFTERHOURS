@@ -13,7 +13,7 @@ export function ParticipationBar({ voted, total, className }: { voted: number; t
   return (
     <div className={className}>
       <div className="h-1.5 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={voted} aria-label={t.polls.participation(voted, total)}>
-        <div className="h-full rounded-full bg-lime transition-[width] duration-500 ease-[var(--ease-out-soft)]" style={{ width: `${share * 100}%` }} />
+        <div className="bar-grow h-full rounded-full bg-lime" style={{ width: `${share * 100}%` }} />
       </div>
       <p className="mt-1.5 text-[13px] text-muted">{t.polls.participation(voted, total)}</p>
     </div>

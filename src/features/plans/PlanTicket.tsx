@@ -92,6 +92,25 @@ function useChangeCount<T>(value: T): number {
   return count;
 }
 
+/** D1: Status, mit denen ein Plan „fest“ wird. */
+const FIRM: PlanStatus[] = ["confirmed", "booked"];
+
+/**
+ * D1 · Der Moment, in dem ein Plan fest wird: Wechselt der Status (während die Karte zu sehen ist) auf
+ * bestätigt oder reserviert, liefert der Hook für gut eine Sekunde eine laufende Nummer (Ring, aufgefächerter
+ * Stapel), sonst 0. Beim Laden und bei reduzierter Bewegung passiert nichts.
+ */
+function useConfirmMoment(status: PlanStatus, statusChanges: number): number {
+  const [moment, setMoment] = useState(0);
+  useEffect(() => {
+    if (statusChanges === 0 || !FIRM.includes(status) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setMoment(statusChanges);
+    const timer = window.setTimeout(() => setMoment(0), 1400);
+    return () => window.clearTimeout(timer);
+  }, [status, statusChanges]);
+  return moment;
+}
+
 const MY_STATUS: Record<AttendanceStatus, string> = {
   invited: t.plans.ticket.yourAnswerOpen,
   going: t.plans.ticket.youGoing,
@@ -212,7 +231,9 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
   const Title = hero ? "h1" : "h2";
   const answer = ticketAnswer(plan, userId);
   const changes = useChangeCount(answer);
+  const statusChanges = useChangeCount(plan.status);
   const ticketRef = useRef<HTMLDivElement>(null);
+  const moment = useConfirmMoment(plan.status, statusChanges);
 
   // Ändert sich die Antwort, gibt das Ticket kurz nach – wie beim Abstempeln. Beim Laden passiert nichts.
   useEffect(() => {
@@ -241,7 +262,10 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
       <div className="flex min-w-0 flex-col justify-between gap-4 p-5 sm:p-6">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            {planStatusBadge(plan.status, Boolean(plan.skipped_at))}
+            {/* D1: Ändert sich der Status, springt die Plakette neu auf (key erzwingt die Animation). */}
+            <span key={`${plan.status}-${statusChanges}`} className={cn("inline-flex", statusChanges > 0 && "badge-pop")} data-testid="ticket-status">
+              {planStatusBadge(plan.status, Boolean(plan.skipped_at))}
+            </span>
             <SeriesMark plan={plan} className="text-[13px]" />
             {countdown && <span className="font-display text-[14px] font-extrabold uppercase leading-none tracking-wide text-lime">{countdown}</span>}
           </div>
@@ -269,7 +293,8 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
   );
 
   return (
-    <div className={cn("ticket-feature-wrap", hero && !active && "ticket-feature-past", hero && "vt-plan-ticket")} data-answer={answer}>
+    <div className={cn("ticket-feature-wrap", hero && !active && "ticket-feature-past", hero && "vt-plan-ticket")} data-answer={answer} data-moment={moment ? "confirmed" : undefined}>
+      {moment && <span key={moment} className="ticket-confirm-ring" aria-hidden data-testid="ticket-confirm-ring" />}
       {hero ? (
         <div ref={ticketRef} className="ticket ticket-feature" data-answer={answer}>
           {body}

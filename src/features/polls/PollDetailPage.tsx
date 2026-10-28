@@ -117,7 +117,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
 
         {/* Stand als Balken: Anteil der Zusagen an der Crew, eigene Zusage mit Lime-Rahmen. */}
         <div className="relative mt-3.5 flex min-h-14 items-center gap-3 overflow-hidden rounded-control bg-raised/70 py-2 pl-3 pr-4">
-          <div aria-hidden className="poll-bar-fill absolute inset-y-0 left-0" style={{ width: `${tally.yesShare * 100}%` }} />
+          <div aria-hidden className="poll-bar-fill bar-grow absolute inset-y-0 left-0" style={{ width: `${tally.yesShare * 100}%` }} />
           <div className="relative flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
             <AvatarStack people={tally.yes.map((id) => lookup(id))} max={5} ringColor="var(--color-raised)" />
             <span className="text-sm font-semibold text-fg">{t.polls.yesCount(tally.yes.length)}</span>
@@ -698,7 +698,7 @@ export function PollDetailPage() {
             {!summary.isOver && (
               <span className={cn(HEAD_PILL, "inline-flex items-center gap-2 rounded-full font-semibold")} data-testid="poll-turnout">
                 <span aria-hidden className="relative h-1.5 w-10 overflow-hidden rounded-full bg-white/15">
-                  <span className="absolute inset-y-0 left-0 rounded-full bg-lime" style={{ width: `${memberIds.length ? Math.round((votedCount / memberIds.length) * 100) : 0}%` }} />
+                  <span className="bar-grow absolute inset-y-0 left-0 rounded-full bg-lime" style={{ width: `${memberIds.length ? Math.round((votedCount / memberIds.length) * 100) : 0}%` }} />
                 </span>
                 {t.polls.participation(votedCount, memberIds.length)}
               </span>

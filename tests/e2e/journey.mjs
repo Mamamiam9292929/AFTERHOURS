@@ -727,7 +727,24 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   await shot(alice, "12-abstimmung-zwischenstand");
   await carol.page.reload();
   await optionCard(carol, "Strike District Bowling").getByText("3 Zusagen").waitFor();
+  // D1: Die Stimmbalken wachsen beim Öffnen von null auf ihren Stand (@starting-style, ohne JavaScript).
+  const growth = await carol.page.evaluate(() => {
+    const rules = (list) => [...list].flatMap((r) => [r, ...(r.cssRules ? rules(r.cssRules) : [])]);
+    const all = [...document.styleSheets].flatMap((sheet) => {
+      try {
+        return rules(sheet.cssRules);
+      } catch {
+        return [];
+      }
+    });
+    const starting = all.some((r) => r.constructor.name === "CSSStartingStyleRule" && r.cssText.includes(".bar-grow"));
+    const bars = [...document.querySelectorAll(".poll-option .poll-bar-fill")];
+    return { starting, bars: bars.length, grow: bars.every((b) => b.classList.contains("bar-grow") && getComputedStyle(b).transitionProperty.includes("width")) };
+  });
+  check(growth.starting && growth.bars > 0 && growth.grow, `D1: Stimmbalken wachsen beim Öffnen auf ihren Stand (${JSON.stringify(growth)})`);
   await shot(carol, "12-abstimmung-zwischenstand");
+  const bowlingBar = await optionCard(carol, "Strike District Bowling").locator(".poll-bar-fill").evaluate((b) => b.getBoundingClientRect().width / b.parentElement.getBoundingClientRect().width);
+  check(bowlingBar > 0.2, `D1: nach dem Wachsen steht der Balken auf seinem Anteil (${Math.round(bowlingBar * 100)} %)`);
 
   if (ANON) {
     const votes = await api(alice, "GET", `poll_votes?select=user_id,poll_option_id&poll_id=eq.${ids.poll}`);
@@ -2067,8 +2084,15 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   await page.getByText("Dieser Plan ist ein Vorschlag und noch nicht bestätigt.").waitFor();
   check(true, "direkt angelegter Plan startet als Vorschlag");
   check((await page.getByRole("button", { name: "Reservierung vorbereiten" }).count()) === 0, "Reservierung erst nach Bestätigung des Plans");
+  check((await page.getByTestId("ticket-confirm-ring").count()) === 0, "D1: beim Laden kein Bestätigungs-Moment");
   await page.getByRole("button", { name: "Plan bestätigen" }).click();
+  // D1: Wird der Plan fest, läuft ein Lime-Ring um die Karte, der Stapel fächert sich, die Plakette springt neu auf.
+  await page.getByTestId("ticket-confirm-ring").waitFor({ state: "attached", timeout: 5000 });
+  check((await page.locator('.ticket-feature-wrap[data-moment="confirmed"]').count()) === 1, "D1: Bestätigung als Moment – Ring und aufgefächerter Stapel");
+  check((await page.getByTestId("ticket-status").first().innerText()).trim() === "Bestätigt" && (await page.locator('[data-testid="ticket-status"].badge-pop').count()) === 1, "D1: Plakette „Bestätigt“ springt neu auf");
   await toast(carol, "Plan bestätigt.");
+  await page.getByTestId("ticket-confirm-ring").waitFor({ state: "detached", timeout: 5000 });
+  check((await page.locator(".ticket-feature-wrap[data-moment]").count()) === 0, "D1: nach gut einer Sekunde liegt die Karte wieder still");
   await page.getByRole("button", { name: "Reservierung vorbereiten" }).waitFor();
   // D6: Bob antwortet direkt auf Home – ohne die Planseite zu öffnen.
   await bob.page.goto(`${APP}/home`);
