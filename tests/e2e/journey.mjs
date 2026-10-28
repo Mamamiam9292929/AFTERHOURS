@@ -1960,6 +1960,44 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     check(psql(`select count(*) from public.notifications where type = 'plan_settlement' and user_id = '${aliceId}' and payload ? 'bundle'`) === "1", "genau eine Nachricht statt einer je Abend");
   }
 
+  // P4 Etappe 2 – Erinnerung am Tag des Plans: Ein Plan, der vor zwei Tagen angelegt wurde, beginnt in
+  // 40 Minuten. Bob öffnet die App – die ganze Crew bekommt genau eine Erinnerung. (Kurz vor Mitternacht
+  // läge der Beginn schon morgen; dann wird der Schritt übersprungen.)
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const sameDay = psql(`select ((now() + interval '40 minutes') at time zone 'Europe/Berlin')::date = (now() at time zone 'Europe/Berlin')::date`) === "t";
+    if (!sameDay) {
+      console.log("  – Erinnerung am Tag des Plans übersprungen (Beginn läge nach Mitternacht)");
+    } else {
+      const dayPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, created_at)
+        values ('${ids.crew}', '${aliceId}', 'Tischtennis im Park', date_trunc('minute', now()) + interval '40 minutes', 'confirmed', now() - interval '2 days')
+        returning id`).split("\n")[0];
+      try {
+        await bob.page.goto(`${APP}/notifications`);
+        const reminder = bob.page.getByRole("link", { name: /Heute \d{2}:\d{2} Uhr: Tischtennis im Park/ });
+        await reminder.waitFor();
+        check(await reminder.getByText("Bist du dabei? Ein Tipp genügt.").isVisible(), "Erinnerung am Tag: „Heute … Uhr: Tischtennis im Park – Bist du dabei?“");
+        await noOverflow(bob, "Erinnerung am Tag des Plans");
+        await shot(bob, "21e-erinnerung-am-tag");
+        const members = psql(`select count(*) from public.crew_members where crew_id = '${ids.crew}'`);
+        check(psql(`select count(*) from public.notifications where type = 'plan_day_reminder' and related_entity_id = '${dayPlan}'`) === members, `Bobs Start erinnert die ganze Crew (${members})`);
+        await bob.page.reload();
+        await reminder.waitFor();
+        check((await bob.page.getByRole("link", { name: /Tischtennis im Park/ }).count()) === 1, "Neuladen erinnert nicht noch einmal");
+        await reminder.click();
+        await bob.page.waitForURL(`**/plans/${dayPlan}`);
+        await bob.page.getByRole("heading", { name: /Tischtennis im Park/ }).first().waitFor();
+        check(true, "Erinnerung führt zum Plan");
+        await bob.page.goto(`${APP}/settings`);
+        await bob.page.getByText("Am Tag des Plans").first().waitFor();
+        check(true, "Erinnerung am Tag lässt sich in den Einstellungen abschalten");
+      } finally {
+        psql(`delete from public.notifications where related_entity_id = '${dayPlan}'; delete from public.plans where id = '${dayPlan}'`);
+      }
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });

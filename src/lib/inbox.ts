@@ -27,6 +27,7 @@ const AREA: Record<string, InboxArea> = {
   booking_status: "plan",
   ride_request: "plan",
   ride_confirmed: "plan",
+  plan_day_reminder: "plan",
   reward_earned: "reward",
   plan_expense: "money",
   plan_settlement: "money",

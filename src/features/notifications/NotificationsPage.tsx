@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { IconAward, IconBell, IconCalendar, IconCalendarCheck, IconCar, IconCheckAll, IconCircleX, IconClose, IconCrews, IconCrown, IconSparkles, IconUserMinus, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
+import { IconAward, IconBell, IconCalendar, IconCalendarCheck, IconCar, IconCheckAll, IconCircleX, IconClock, IconClose, IconCrews, IconCrown, IconSparkles, IconUserMinus, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -48,6 +48,8 @@ function NotificationIcon({ type, className }: { type: NotificationType; classNa
     case "spontaneous_answer":
     case "spontaneous_match":
       return <IconSparkles {...props} />;
+    case "plan_day_reminder":
+      return <IconClock {...props} />;
     case "plan_created":
     case "plan_changed":
     case "plan_attendance":

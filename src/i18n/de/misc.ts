@@ -95,6 +95,16 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       ? { title: `Bei „${title}“ bekommst du noch ${formatEuro(balance)}`, body: "Schon zurückbekommen? Dann tippe bei „Kosten teilen“ auf „Erledigt“." }
       : { title: `Bei „${title}“ sind von dir noch ${formatEuro(-balance)} offen`, body: "Schon erledigt? Dann tippe bei „Kosten teilen“ auf „Erledigt“." };
   },
+  // P4 Etappe 2: Am Tag des Plans einmal, ohne auslösende Person; die Frage nur, solange die Zusage fehlt.
+  plan_day_reminder: (_actor, p) => ({
+    title: str(p, "starts_at") ? `Heute ${formatTime(str(p, "starts_at"))}: ${str(p, "title")}` : `Heute: ${str(p, "title")}`,
+    body:
+      p.attendance === "going"
+        ? "Du bist dabei – bis später!"
+        : p.attendance === "maybe"
+          ? "Du hast „vielleicht“ gesagt – bist du dabei?"
+          : "Bist du dabei? Ein Tipp genügt.",
+  }),
   reward_earned: (_actor, p) => ({
     title: `+${typeof p.points === "number" ? p.points : ""} Punkte`,
     body: `${p.reason === "plan_organized" ? "Für die Organisation" : "Für deine Teilnahme"}: ${str(p, "title")}`,
@@ -219,6 +229,7 @@ export const settings = {
       answers: { title: "Neue Antworten", body: "Wenn jemand auf deine Abstimmung oder deinen Plan antwortet." },
       results: { title: "Ergebnisse", body: "Wenn eine Abstimmung endet." },
       plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten und Absagen." },
+      dayReminders: { title: "Am Tag des Plans", body: "Morgens einmal „Heute 20:00 Uhr: Bowling“ – außer du hast abgesagt." },
       bookings: { title: "Reservierungen", body: "Wenn sich der Stand einer Reservierung ändert." },
       rides: { title: "Mitfahrten", body: "Anfragen und Zusagen für Fahrgemeinschaften." },
       costs: { title: "Kosten teilen", body: "Neue Ausgaben, an denen du beteiligt bist, und Rückzahlungen." },
