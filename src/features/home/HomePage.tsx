@@ -19,9 +19,11 @@ import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
 import { QuickPollLauncher } from "@/features/polls/QuickPoll";
 import { PollCard } from "@/features/polls/PollCard";
+import { PollQuickVote } from "@/features/polls/QuickVote";
 import { usePeople, useProfile, useSettings } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { needsQuickVote } from "@/lib/quickvote";
 import { openAsks } from "@/lib/spontaneous";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { calendarDaysBetween, dayPhase, zonedParts } from "@/lib/time";
@@ -60,7 +62,8 @@ function headline(now: Date, plan: { title: string; starts_at: string } | undefi
 export function HomePage() {
   useDocumentTitle(null);
   const user = useUser();
-  const now = useNow(60_000);
+  // D3: Das große Ticket zählt in den letzten Stunden minutengenau herunter.
+  const now = useNow(30_000);
   const profile = useProfile();
   const settings = useSettings();
   const crews = useCrews();
@@ -98,7 +101,15 @@ export function HomePage() {
   const membersOf = (crewId: string) => crewById.get(crewId)?.members.map((m) => m.user_id) ?? [];
 
   const openPolls = (polls.data ?? []).filter((p) => !isPollOver(p, now));
-  const pollsNeedingMe = openPolls.filter((p) => !p.votes.some((v) => v.user_id === user.id));
+  // D3 Etappe 1: Wer auf Home angefangen hat abzustimmen, behält die Abstimmung hier, bis er durch ist.
+  const [touched, setTouched] = useState<ReadonlySet<string>>(() => new Set());
+  const touch = useCallback((pollId: string) => setTouched((set) => (set.has(pollId) ? set : new Set(set).add(pollId))), []);
+  const pollsNeedingMe = openPolls.filter((p) =>
+    needsQuickVote(
+      p.options.map((o) => ({ id: o.id, mine: p.votes.find((v) => v.poll_option_id === o.id && v.user_id === user.id)?.response ?? null })),
+      touched.has(p.id),
+    ),
+  );
   const otherPolls = openPolls.filter((p) => !pollsNeedingMe.includes(p));
   const upcoming = (plans.data ?? []).filter((p) => isUpcoming(p, now));
   const plansNeedingMe = upcoming.filter((p) => p.participants.some((pp) => pp.user_id === user.id && pp.attendance_status === "invited"));
@@ -144,7 +155,7 @@ export function HomePage() {
         )}
         {featured && !loading && !failed && (
           <div className="mt-7 max-w-2xl lg:mt-9">
-            <FeatureTicket plan={featured} crew={crewById.get(featured.crew_id)} userId={user.id} lookup={people.lookup} />
+            <FeatureTicket plan={featured} crew={crewById.get(featured.crew_id)} userId={user.id} lookup={people.lookup} now={now} live />
           </div>
         )}
         {crews.data && crews.data.length > 0 ? (
@@ -218,7 +229,13 @@ export function HomePage() {
                 <Section title={t.home.needsAnswer}>
                   <div className="space-y-4">
                     {pollsNeedingMe.map((poll) => (
-                      <PollCard key={poll.id} poll={poll} crew={crewById.get(poll.crew_id)} memberIds={membersOf(poll.crew_id)} userId={user.id} now={now} />
+                      // D3 Etappe 1: direkt unter der Abstimmung antworten – Vorschlag für Vorschlag, ein Tipp je Vorschlag.
+                      <div key={poll.id}>
+                        <PollCard poll={poll} crew={crewById.get(poll.crew_id)} memberIds={membersOf(poll.crew_id)} userId={user.id} now={now} />
+                        <div className="mt-2.5">
+                          <PollQuickVote poll={poll} memberIds={membersOf(poll.crew_id)} userId={user.id} now={now} onTouched={touch} />
+                        </div>
+                      </div>
                     ))}
                     {plansNeedingMe.map((plan) => (
                       // D6: direkt unter dem Ticket antworten – ohne erst die Planseite zu öffnen.

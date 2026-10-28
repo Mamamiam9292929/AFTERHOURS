@@ -37,6 +37,20 @@ export const home = {
   needsAnswer: "Deine Antwort fehlt",
   nextUp: "Als Nächstes",
   runningPolls: "Laufende Abstimmungen",
+  /** D3 Etappe 1 · Abstimmen direkt auf Home, Vorschlag für Vorschlag. */
+  quickVote: {
+    label: (title: string) => `Gleich hier abstimmen: ${title}`,
+    progress: (n: number, total: number) => `Vorschlag ${n} von ${total}`,
+    answer: (option: string) => `Schnell antworten für ${option}`,
+    skip: "Überspringen",
+    done: "Du bist durch – ändern geht jederzeit auf der Abstimmung.",
+    open: "Zur Abstimmung",
+  },
+  /** D3 Etappe 1 · Live-Countdown auf dem großen Ticket. */
+  live: {
+    soon: (left: string) => `Noch ${left}`,
+    now: "Läuft gerade",
+  },
   yourCrews: "Deine Crews",
   allCrews: "Alle Crews",
   allPlans: "Alle Pläne",
