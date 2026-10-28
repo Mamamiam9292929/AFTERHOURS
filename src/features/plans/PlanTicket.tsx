@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 import { IconClock, IconPin, IconRepeat } from "@/components/icons";
 import { AvatarStack, type Person } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Feedback";
+import { LivePill } from "@/components/ui/Pill";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { formatCountdown, liveCountdown } from "@/lib/quickvote";
 import { calendarDaysBetween, formatTime, ticketDate, zonedParts } from "@/lib/time";
 import type { AttendanceStatus, Crew, PlanStatus } from "@/lib/types";
 import type { PlanWithParticipants } from "./api";
@@ -215,6 +217,8 @@ interface FeatureTicketProps extends Omit<PlanTicketProps, "cutout" | "className
   /** Kopf der Planseite (D0 Etappe 5a): ohne Link, Titel als h1, mit Countdown. */
   hero?: boolean;
   now?: Date;
+  /** D3 Etappe 1 · Home: in den letzten 12 Stunden zählt das Ticket live herunter („Noch 2:14 h“, „Läuft gerade“). */
+  live?: boolean;
 }
 
 /**
@@ -222,13 +226,14 @@ interface FeatureTicketProps extends Omit<PlanTicketProps, "cutout" | "className
  * Echte Löcher statt aufgemalter Kerben (CSS-Maske), dadurch passt es auf jeden Hintergrund.
  * Leicht schräg; bei Zeiger oder Fokus richtet es sich auf. Der Strichcode ist reine Dekoration.
  */
-export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }: FeatureTicketProps) {
+export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now, live = false }: FeatureTicketProps) {
   const date = ticketDate(plan.starts_at);
   const going = plan.participants.filter((p) => p.attendance_status === "going");
   const mine = plan.participants.find((p) => p.user_id === userId)?.attendance_status;
   const active = plan.status !== "completed" && plan.status !== "cancelled";
   const place = plan.address ?? plan.meeting_point;
   const countdown = hero && now ? planCountdown(plan, now) : null;
+  const running = live && now ? liveCountdown(plan, now) : null;
   const Title = hero ? "h1" : "h2";
   const answer = ticketAnswer(plan, userId);
   const changes = useChangeCount(answer);
@@ -269,6 +274,11 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now }:
             </span>
             <SeriesMark plan={plan} className="text-[13px]" />
             {countdown && <span className="font-display text-[14px] font-extrabold uppercase leading-none tracking-wide text-lime">{countdown}</span>}
+            {running && (
+              <LivePill testId="ticket-live" className="h-7 px-3">
+                {running.kind === "live" ? t.home.live.now : t.home.live.soon(formatCountdown(running.minutes))}
+              </LivePill>
+            )}
           </div>
           <Title className={cn("display mt-3 break-words text-[23px] text-fg sm:text-[32px]", plan.status === "cancelled" && "line-through decoration-2")}>{plan.title}</Title>
           <p className="mt-2.5 truncate text-[15px] text-muted">

@@ -729,9 +729,34 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   check(true, "Abstimmung: zurückgezogene Antwort – Vorschlag wieder ohne Farbe");
   await shot(bob, "11-abstimmen");
 
+  // D3 Etappe 1: Carol stimmt direkt auf Home ab – Vorschlag für Vorschlag, ohne die Abstimmung zu öffnen.
+  await carol.page.goto(`${APP}/home`);
+  const quick = carol.page.getByTestId("poll-quick-vote");
+  await quick.waitFor();
+  const quickState = async () => [(await quick.getByTestId("poll-quick-progress").textContent()).trim(), (await quick.getByTestId("poll-quick-option").textContent()).trim()];
+  check(JSON.stringify(await quickState()) === JSON.stringify(["Vorschlag 1 von 3", "Strike District Bowling"]), `D3: Home legt den ersten Vorschlag ohne Antwort auf (${await quickState()})`);
+  await noOverflow(carol, "Home – abstimmen");
+  await shot(carol, "11b-home-abstimmen");
+  const quickAnswer = async (option, label) => {
+    const saved = carol.page.waitForResponse((r) => r.url().includes("/rpc/cast_vote") && r.request().method() === "POST");
+    await quick.getByRole("group", { name: `Schnell antworten für ${option}` }).getByRole("button", { name: label, exact: true }).click();
+    check((await saved).ok(), `D3: „${label}“ für ${option} auf Home gespeichert`);
+  };
+  await quickAnswer("Strike District Bowling", "Bin dabei");
+  await quick.getByRole("group", { name: "Schnell antworten für Lichtspielhaus Nord" }).waitFor();
+  check(JSON.stringify(await quickState()) === JSON.stringify(["Vorschlag 2 von 3", "Lichtspielhaus Nord"]), "D3: nach dem Tipp liegt sofort der nächste Vorschlag oben");
+  await quickAnswer("Lichtspielhaus Nord", "Bin dabei");
+  await quick.getByRole("group", { name: "Schnell antworten für Grillen bei Bob" }).waitFor();
+  await quick.getByRole("button", { name: "Überspringen" }).click();
+  await carol.page.getByTestId("poll-quick-done").waitFor();
+  check(await carol.page.getByRole("heading", { name: "Deine Antwort fehlt" }).isVisible(), "D3: wer durch ist, sieht „Du bist durch“ – die Karte springt nicht mitten im Abstimmen weg");
+  await carol.page.reload();
+  await carol.page.getByRole("heading", { name: "Laufende Abstimmungen" }).waitFor();
+  check((await carol.page.getByTestId("poll-quick-vote").count()) === 0, "D3: beim nächsten Öffnen steht die Abstimmung unter „Laufende Abstimmungen“, übersprungener Vorschlag bleibt ohne Antwort");
   await carol.page.goto(`${APP}/polls/${ids.poll}`);
-  await answer(carol, "Strike District Bowling", "Bin dabei").click();
-  await answer(carol, "Lichtspielhaus Nord", "Bin dabei").click();
+  await answered(carol, "Strike District Bowling", "Bin dabei").waitFor();
+  await answered(carol, "Lichtspielhaus Nord", "Bin dabei").waitFor();
+  check((await carol.page.locator(".vote-card:not([data-answer])").filter({ hasText: "Grillen bei Bob" }).count()) === 1, "D3: die Abstimmung zeigt Carols Antworten von Home");
   await answer(alice, "Strike District Bowling", "Bin dabei").click();
 
   await optionCard(alice, "Strike District Bowling").getByText("3 Zusagen").waitFor();
@@ -3412,6 +3437,28 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     check((await page.getByLabel("Stadt", { exact: true }).count()) === 0, "keine Stadtabfrage, wenn Discover die Stadt schon kennt");
   } else {
     console.log("   (E2E_DB_URL nicht gesetzt – Stadt aus Discover wird übersprungen)");
+  }
+  // D3 Etappe 1: Live-Countdown auf dem großen Ticket – Danas erster Plan beginnt in gut zwei Stunden.
+  if (ANON) {
+    const startsAt = new Date(Date.now() + 134 * 60_000 + 20_000);
+    const created = await api(dana, "POST", "rpc/create_plan", {
+      p_crew_id: crewId, p_title: "Kicker im Hof", p_starts_at: startsAt.toISOString(), p_activity_id: null, p_address: null, p_meeting_point: null,
+      p_notes: null, p_cost_per_person_cents: null, p_total_cost_cents: null, p_ends_at: null, p_confirmed: true,
+    });
+    check(created.status < 300, `Dana legt einen Plan in gut zwei Stunden an (${created.status})`);
+    await page.goto(`${APP}/home`);
+    const live = page.locator(".ticket-feature").getByTestId("ticket-live");
+    await live.waitFor();
+    const liveText = (await live.textContent()).trim();
+    check(/^Noch 2:1[45] h$/.test(liveText), `D3: das große Ticket auf Home zählt live herunter („${liveText}“)`);
+    // Ihre eigene Abstimmung wartet noch auf ihre Antwort – auf Home direkt darunter.
+    // (Freitagabend nach 20 Uhr kann ihre Frist schon vorbei sein – dann gibt es nichts mehr zu beantworten.)
+    const danaPoll = (await api(dana, "GET", "polls?select=ends_at,status")).json?.[0];
+    if (danaPoll?.status !== "closed" && new Date(danaPoll?.ends_at) > new Date()) {
+      check((await page.getByTestId("poll-quick-vote").count()) === 1, "D3: Danas eigene Abstimmung lässt sich auf Home beantworten");
+    }
+    await noOverflow(dana, "Home – Live-Countdown und Abstimmen");
+    await shot(dana, "41-home-buehne");
   }
   users.splice(users.indexOf(dana), 1);
   await context.close();
