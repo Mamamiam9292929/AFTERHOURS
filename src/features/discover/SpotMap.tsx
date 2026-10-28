@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { IconAlert, IconMap, IconMinus, IconPlus } from "@/components/icons";
 import { t } from "@/i18n";
-import { cn } from "@/lib/cn";
 import { mapProvider, mapTilesAllowed, setMapTilesAllowed } from "@/lib/maps";
 import { clampZoom, FIT_MAX_ZOOM, MAX_ZOOM, visibleTiles, type GeoPoint } from "@/lib/tiles";
 
@@ -29,14 +28,14 @@ export function SpotMap({ point, name, demo = false }: { point: GeoPoint; name: 
 
   if (!allowed) {
     return (
-      <div className="mt-3 rounded-[20px] border border-white/10 bg-white/[0.04] p-3" data-testid="spot-map-offer">
+      <div className="mt-3 rounded-[20px] border border-white/10 bg-white/[0.04] px-4 py-3" data-testid="spot-map-offer">
         <button
           type="button"
           onClick={() => {
             setMapTilesAllowed(true);
             setAllowed(true);
           }}
-          className="flex min-h-11 w-full items-center gap-2 rounded-full text-left text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"
+          className="flex min-h-11 w-full items-center gap-2 rounded-full text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"
         >
           <IconMap className="size-4 shrink-0 text-lime" aria-hidden />
           {t.discover.spot.show}
@@ -55,13 +54,14 @@ export function SpotMap({ point, name, demo = false }: { point: GeoPoint; name: 
   };
 
   return (
-    <div className="mt-3 space-y-1.5" data-testid="spot-map">
+    <div className="mt-3 space-y-2" data-testid="spot-map">
       <div
         ref={frame}
         role="group"
         aria-label={t.discover.spot.label(name)}
         data-zoom={zoom}
-        className="map-frame relative h-44 overflow-hidden rounded-[20px] border border-white/[0.08] sm:h-52"
+        className="map-frame relative overflow-hidden rounded-card border border-white/[0.08]"
+        style={{ height: 176 }}
       >
         <div className="map-tiles pointer-events-none absolute inset-0" aria-hidden>
           {visible.map((tile) => (
@@ -82,11 +82,13 @@ export function SpotMap({ point, name, demo = false }: { point: GeoPoint; name: 
           ))}
         </div>
         {/* Der Ort: Lime-Punkt mit Schein in der Mitte. */}
-        <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
-          <span className="absolute left-1/2 top-1/2 block size-12 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lime/25 blur-[2px]" />
-          <span className="relative block size-5 rounded-full border-[3px] border-base bg-lime ring-2 ring-lime/60" />
-        </span>
-        <div className="absolute right-2 top-2 z-20 flex flex-col gap-1.5">
+        {/* Stile inline, damit das Start-CSS nicht wächst. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute z-10 block size-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-base bg-lime"
+          style={{ left: "50%", top: "50%", boxShadow: "0 0 0 2px var(--color-lime), 0 0 18px 8px color-mix(in srgb, var(--color-lime) 35%, transparent)" }}
+        />
+        <div className="absolute right-3 top-3 z-40 flex flex-col gap-2">
           <SpotButton label={t.discover.map.zoomIn} disabled={zoom >= MAX_ZOOM} onClick={() => change(1)}>
             <IconPlus className="size-4" aria-hidden />
           </SpotButton>
@@ -95,7 +97,7 @@ export function SpotMap({ point, name, demo = false }: { point: GeoPoint; name: 
           </SpotButton>
         </div>
         {down && (
-          <p className="glass absolute left-2 top-2 z-20 mr-14 flex items-center gap-2 rounded-2xl border border-amber/40 px-3 py-1.5 text-[13px] leading-snug text-fg" role="status">
+          <p className="glass absolute left-3 top-3 z-40 mr-16 flex items-center gap-2 rounded-2xl border border-amber/40 px-3 py-2 text-[13px] leading-snug text-fg" role="status">
             <IconAlert className="size-4 shrink-0 text-amber" aria-hidden />
             {t.discover.spot.failed}
           </p>
@@ -104,7 +106,7 @@ export function SpotMap({ point, name, demo = false }: { point: GeoPoint; name: 
           href={mapProvider.copyrightUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="glass absolute bottom-1.5 right-1.5 z-20 rounded-full border border-white/10 px-2 py-0.5 text-[11px] font-medium text-fg hover:border-lime"
+          className="glass absolute bottom-2 right-2 z-40 rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] font-medium text-fg hover:border-lime"
         >
           {mapProvider.attribution}
         </a>
@@ -135,7 +137,7 @@ function SpotButton({ label, disabled, onClick, children }: { label: string; dis
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className={cn("glass inline-flex size-10 items-center justify-center rounded-full border border-white/15 text-fg transition-colors hover:border-lime focus-visible:outline-2 focus-visible:outline-lime", disabled && "opacity-45")}
+      className="glass inline-flex size-11 items-center justify-center rounded-full border border-white/15 text-fg transition-colors hover:border-lime focus-visible:outline-2 focus-visible:outline-lime disabled:opacity-45"
     >
       {children}
     </button>
