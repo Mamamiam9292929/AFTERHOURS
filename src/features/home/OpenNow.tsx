@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { IconCalendarPlus, IconClock, IconDiscover, IconRefresh } from "@/components/icons";
 import { useActivitySearch } from "@/features/discover/api";
@@ -18,8 +18,9 @@ const tx = t.home.spontaneous.openNow;
  * OpenStreetMap jetzt offen haben (und noch mindestens eine Stunde). Reicht das nicht, kommen Orte mit
  * unbekannten Öffnungszeiten dazu – ausdrücklich so beschriftet. Geschlossene Orte nie.
  * Stadt: aus dem Profil, sonst die zuletzt in Discover gewählte (nur im Browser).
+ * D3 Etappe 2b: auch auf Home ohne Crew-Bezug (`crewId` leer – „Plan hier“ fragt dann im Formular nach der Crew).
  */
-export function OpenNowPlaces({ crewId, note, now }: { crewId: string; note: string | null; now: Date }) {
+export function OpenNowPlaces({ crewId, note, now, heading = "h4", bare = false }: { crewId: string | null; note: string | null; now: Date; heading?: "h3" | "h4"; bare?: boolean }) {
   const profile = useProfile();
   const city = profile.data ? profile.data.city?.trim() || rememberedCity() : null;
   // Dieselbe Abfrage wie Discover ohne Kategorie: alle Orte der Stadt, vollständigste zuerst.
@@ -34,15 +35,17 @@ export function OpenNowPlaces({ crewId, note, now }: { crewId: string; note: str
     return pickOpenNow<Activity>(candidates, hour * 60 + min, { note });
   }, [search.data, minute, note]);
 
-  const headingId = `open-now-${crewId}`;
+  const headingId = `open-now-${useId()}`;
+  const Heading = heading;
+  const sectionClass = bare ? "mt-3" : "ask-open mt-4";
 
   if (profile.isPending) return null;
   if (!city) {
     return (
-      <section className="ask-open mt-4" aria-labelledby={headingId} data-testid="open-now">
-        <h4 id={headingId} className="text-[15px] font-bold text-fg">
+      <section className={sectionClass} aria-labelledby={headingId} data-testid="open-now">
+        <Heading id={headingId} className="text-[15px] font-bold text-fg">
           {tx.titleNoCity}
-        </h4>
+        </Heading>
         <p className="mt-1 text-sm text-muted">{tx.noCity}</p>
         <Link to="/discover" className="ask-open-link mt-2">
           <IconDiscover className="size-4" aria-hidden />
@@ -55,10 +58,10 @@ export function OpenNowPlaces({ crewId, note, now }: { crewId: string; note: str
   const total = pick ? pick.open.length + pick.unknown.length : 0;
 
   return (
-    <section className="ask-open mt-4" aria-labelledby={headingId} aria-busy={search.isPending || undefined} data-testid="open-now">
-      <h4 id={headingId} className="text-[15px] font-bold text-fg">
+    <section className={sectionClass} aria-labelledby={headingId} aria-busy={search.isPending || undefined} data-testid="open-now">
+      <Heading id={headingId} className="text-[15px] font-bold text-fg">
         {pick && pick.open.length === 0 && pick.unknown.length > 0 ? tx.titleUnknown(city) : tx.title(city)}
-      </h4>
+      </Heading>
 
       {search.isPending ? (
         <ul className="mt-2 space-y-2" aria-label={tx.loading}>
@@ -107,7 +110,7 @@ export function OpenNowPlaces({ crewId, note, now }: { crewId: string; note: str
   );
 }
 
-function PlaceRow({ activity, crewId, status, open }: { activity: Activity; crewId: string; status: string; open: boolean }) {
+function PlaceRow({ activity, crewId, status, open }: { activity: Activity; crewId: string | null; status: string; open: boolean }) {
   return (
     <li className="flex items-center gap-3 rounded-[18px] bg-raised py-2 pl-3.5 pr-2" data-testid="open-now-place" data-open={open ? "true" : "false"}>
       <div className="min-w-0 flex-1">
@@ -124,7 +127,7 @@ function PlaceRow({ activity, crewId, status, open }: { activity: Activity; crew
         </p>
       </div>
       <Link
-        to={`/plans/new?crew=${crewId}&activity=${activity.id}&soon=1`}
+        to={crewId ? `/plans/new?crew=${crewId}&activity=${activity.id}&soon=1` : `/plans/new?activity=${activity.id}&soon=1`}
         className="ask-open-link shrink-0"
         aria-label={tx.planHereLabel(activity.name)}
       >

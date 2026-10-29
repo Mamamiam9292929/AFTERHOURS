@@ -64,6 +64,12 @@ export const home = {
     meeting: "Treffpunkt",
     meetingOpen: "Noch kein Treffpunkt eingetragen.",
     toPlan: "Zum Plan",
+    /** D3 Etappe 2b · ohne Plan heute: Orte, die jetzt offen haben. */
+    ideas: {
+      title: "Heute Abend",
+      lead: "Noch nichts vor? Das hat gerade offen – ein Tipp, und der Plan steht für deine Crew.",
+      hide: "Heute ausblenden",
+    },
   },
   yourCrews: "Deine Crews",
   allCrews: "Alle Crews",
