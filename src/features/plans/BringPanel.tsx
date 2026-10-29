@@ -9,7 +9,8 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
-import { useAddPlanItem, useClaimPlanItem, usePlanItems, useRemovePlanItem, type PlanWithParticipants } from "./api";
+import type { PlanWithParticipants } from "./api";
+import { useAddPlanItem, useClaimPlanItem, usePlanItems, useRemovePlanItem } from "./itemsApi";
 
 interface BringPanelProps {
   plan: PlanWithParticipants;
