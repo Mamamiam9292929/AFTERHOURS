@@ -181,7 +181,7 @@ export function HomePage() {
           <div className="mt-7 max-w-2xl lg:mt-9">
             <FeatureTicket plan={featured} crew={crewById.get(featured.crew_id)} userId={user.id} lookup={people.lookup} now={now} live />
             {/* D3 Etappe 2a: am Tag des Plans Wetter und Treffpunkt direkt unter dem Ticket. */}
-            <TonightStrip plan={featured} now={now} />
+            <TonightStrip plan={featured} now={now} userId={user.id} />
           </div>
         )}
         {crews.data && crews.data.length > 0 ? (

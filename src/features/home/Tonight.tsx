@@ -1,10 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { IconPin, IconWarning, IconWeatherUnknown } from "@/components/icons";
+import { IconBasket, IconCheck, IconPin, IconPlus, IconWarning, IconWeatherUnknown } from "@/components/icons";
+import { useToast } from "@/components/ui/Toast";
 import { OpenNowPlaces } from "./OpenNow";
 import { usePlanWeather, type PlanWithParticipants } from "@/features/plans/api";
+import { useClaimPlanItem, usePlanItems } from "@/features/plans/itemsApi";
 import { WEATHER_ICONS } from "@/features/plans/weatherIcons";
 import { t } from "@/i18n";
+import { bringSummary } from "@/lib/bring";
 import { cn } from "@/lib/cn";
 import { tonightStrip } from "@/lib/quickvote";
 import { calendarDaysBetween, formatTime, zonedParts } from "@/lib/time";
@@ -16,7 +19,7 @@ import { formatTemperature, outdoorHint, weatherKind } from "@/lib/weather";
  * ein Blick, und man weiß, was heute läuft. Gleiche Wetterabfrage wie auf der Planseite (geteilter
  * Speicher), nichts wird geschätzt: ohne Ort aus Discover kein Wetter, ohne Treffpunkt „noch offen“.
  */
-export function TonightStrip({ plan, now }: { plan: PlanWithParticipants; now: Date }) {
+export function TonightStrip({ plan, now, userId }: { plan: PlanWithParticipants; now: Date; userId: string }) {
   const strip = tonightStrip(plan, now, calendarDaysBetween(now, plan.starts_at), zonedParts(plan.starts_at).hour);
   const weather = usePlanWeather(plan, Boolean(strip?.weather));
   if (!strip) return null;
@@ -114,8 +117,120 @@ export function TonightStrip({ plan, now }: { plan: PlanWithParticipants; now: D
             </span>
           )}
         </Tile>
+        <BringTile planId={plan.id} userId={userId} wide={Boolean(weatherTile)} />
       </div>
     </section>
+  );
+}
+
+/** Wie viele offene Sachen die Leiste direkt zum Antippen zeigt; der Rest steht auf der Planseite. */
+const BRING_OPEN_SHOWN = 3;
+
+/**
+ * P14 Etappe 2 · „Mitbringen“ in der Leiste: was du mitbringst und was noch fehlt – offene Sachen mit einem
+ * Tipp übernehmen (gleiche RPC wie auf der Planseite). Ohne Einträge keine Kachel, damit die Leiste ruhig bleibt.
+ */
+function BringTile({ planId, userId, wide: spanBoth }: { planId: string; userId: string; wide: boolean }) {
+  const toast = useToast();
+  const items = usePlanItems(planId);
+  const claim = useClaimPlanItem(planId);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  // Neben Wetter und Treffpunkt über die ganze Breite, sonst einspaltig wie die Leiste.
+  const wide = spanBoth ? "sm:col-span-2" : undefined;
+
+  if (items.isPending) {
+    return (
+      <div className={wide}>
+        <Tile icon={<IconBasket aria-hidden />} label={t.home.tonight.bring.label}>
+          <span className="block text-sm text-muted" aria-busy="true">
+            {t.home.tonight.bring.loading}
+          </span>
+        </Tile>
+      </div>
+    );
+  }
+  if (items.isError) {
+    return (
+      <div className={wide}>
+        <Tile icon={<IconBasket aria-hidden />} label={t.home.tonight.bring.label}>
+          <span className="block text-sm text-muted" role="status" data-testid="tonight-bring-error">
+            {t.home.tonight.bring.error}
+          </span>
+          <button
+            type="button"
+            onClick={() => void items.refetch()}
+            className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"
+          >
+            {t.home.tonight.retry}
+          </button>
+        </Tile>
+      </div>
+    );
+  }
+  const summary = bringSummary(items.data, userId);
+  if (!summary) return null;
+  const shown = summary.open.slice(0, BRING_OPEN_SHOWN);
+  const hidden = summary.open.length - shown.length;
+
+  function take(item: { id: string; label: string }) {
+    setBusyId(item.id);
+    claim.mutate(
+      { itemId: item.id, claim: true },
+      {
+        onSuccess: () => toast.success(t.home.tonight.bring.claimed(item.label)),
+        onError: (error) => toast.error(error),
+        onSettled: () => setBusyId(null),
+      },
+    );
+  }
+
+  return (
+    <div className={wide} data-testid="tonight-bring">
+      <Tile icon={<IconBasket aria-hidden />} label={t.home.tonight.bring.label}>
+        {summary.mine.length > 0 ? (
+          <span data-testid="tonight-bring-mine" className="flex items-start gap-1.5 break-words text-[17px] font-semibold leading-snug text-fg">
+            <IconCheck className="mt-1 size-4 shrink-0 text-lime" aria-hidden />
+            {t.home.tonight.bring.mine(summary.mine)}
+          </span>
+        ) : (
+          summary.open.length > 0 && <span className="block text-sm text-muted">{t.home.tonight.bring.nothingMine}</span>
+        )}
+        {summary.open.length > 0 ? (
+          <div className="mt-2">
+            <p className="text-sm font-semibold text-amber">{t.home.tonight.bring.open}</p>
+            <ul className="mt-1.5 flex flex-wrap items-center gap-2">
+              {shown.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    aria-label={t.home.tonight.bring.claim(item.label)}
+                    aria-busy={busyId === item.id}
+                    disabled={claim.isPending}
+                    onClick={() => take(item)}
+                    className="inline-flex h-10 max-w-full items-center gap-1.5 rounded-full border border-dashed border-amber/50 bg-amber/[0.08] px-3.5 text-sm font-semibold text-fg transition-colors hover:border-lime hover:text-lime disabled:cursor-wait disabled:opacity-60"
+                  >
+                    <IconPlus className="size-4 shrink-0" aria-hidden />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                </li>
+              ))}
+              {hidden > 0 && (
+                <li>
+                  <Link
+                    to={`/plans/${planId}#mitbringen`}
+                    className="inline-flex min-h-10 items-center text-sm font-semibold text-muted underline decoration-line-strong underline-offset-4 hover:text-fg hover:decoration-lime"
+                  >
+                    {t.home.tonight.bring.more(hidden)}
+                  </Link>
+                </li>
+              )}
+            </ul>
+          </div>
+        ) : (
+          summary.mine.length === 0 && <span className="block text-sm text-muted">{t.home.tonight.bring.allTaken}</span>
+        )}
+      </Tile>
+    </div>
   );
 }
 
