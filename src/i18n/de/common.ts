@@ -115,6 +115,7 @@ export const errors = {
     push_not_configured: "Push-Mitteilungen sind auf diesem Server noch nicht eingerichtet.",
     push_denied: "Du hast Mitteilungen nicht erlaubt. Erlaube sie in den Website-Einstellungen deines Browsers und versuch es dann noch einmal.",
     push_unavailable: "Der Push-Dienst deines Browsers ist gerade nicht erreichbar. Versuch es später noch einmal.",
+    invalid_locale: "Diese Sprache gibt es in AFTERHOURS nicht.",
     invalid_push_muted_types: "Diese Auswahl lässt sich nicht speichern. Lade die Seite neu und versuch es noch einmal.",
     push_device_not_found: "Dieses Gerät ist nicht mehr für Mitteilungen angemeldet. Schalte sie oben noch einmal ein.",
     invalid_city: "Diesen Stadtnamen können wir nicht verarbeiten. Bitte nur Buchstaben, Leerzeichen und Bindestriche.",

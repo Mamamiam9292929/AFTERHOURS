@@ -8,18 +8,23 @@
 import { notifications as deNotifications } from "@/i18n/de/misc";
 import { notifications as enNotifications } from "@/i18n/en/misc";
 import { readLocale } from "@/i18n/locale";
-import { pushView } from "@/lib/pushview";
+import { pushLocale, pushView } from "@/lib/pushview";
 
-// P11: Der Service Worker kennt kein localStorage – er folgt der Browser-Sprache. Beide Texte stehen fest im
-// Skript (kein Nachladen, kein Top-Level-Await im IIFE-Build).
+// P11: Der Service Worker kennt kein localStorage. Etappe 2a: Bringt der Push die Sprache aus dem Profil mit
+// (`locale`), gilt sie; sonst die Browser-Sprache. Beide Texte stehen fest im Skript (kein Nachladen, kein
+// Top-Level-Await im IIFE-Build).
 export const lang = readLocale();
-const n = lang === "en" ? enNotifications : deNotifications;
-const texts = n.text as Record<string, (actor: string, payload: Record<string, unknown>) => { title: string; body?: string }>;
+const DICTIONARIES = { de: deNotifications, en: enNotifications } as const;
+type Texts = Record<string, (actor: string, payload: Record<string, unknown>) => { title: string; body?: string }>;
 
 export function render(message: unknown) {
-  return pushView(message, (type) => (Object.prototype.hasOwnProperty.call(texts, type) ? texts[type] : undefined), {
+  const locale = pushLocale(message, lang);
+  const n = DICTIONARIES[locale];
+  const texts = n.text as Texts;
+  const view = pushView(message, (type) => (Object.prototype.hasOwnProperty.call(texts, type) ? texts[type] : undefined), {
     fallbackTitle: n.push.fallbackTitle,
     fallbackBody: n.push.fallbackBody,
     someone: n.someone,
   });
+  return { ...view, lang: locale };
 }

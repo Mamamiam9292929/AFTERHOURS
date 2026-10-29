@@ -4,6 +4,36 @@
 //
 // Aufbau wie die Einzeldatei der App (src/lib/ics.ts, P2 Etappe 1) und mit derselben UID je Plan.
 // Die Texte stehen ausnahmsweise hier statt in src/i18n: Sie entstehen auf dem Server, ohne die App.
+// P11 Etappe 2a: Deutsch oder Englisch – nach der Sprache im Profil (user_settings.locale), sonst Deutsch.
+
+/** Texte im Kalender je Sprache. Englisch wie die Einzeldatei der App (src/i18n/en/plans.ts, calendar). */
+export const FEED_TEXTS = {
+  de: {
+    plan: "Plan",
+    cancelled: (title) => `Abgesagt: ${title}`,
+    maybe: (title) => `Vielleicht: ${title}`,
+    crew: (name) => `Crew: ${name}`,
+    meetingPoint: (value) => `Treffpunkt: ${value}`,
+    noAnswer: "Deine Antwort fehlt noch.",
+    link: (url) => `Plan in AFTERHOURS: ${url}`,
+    description: "Deine Pläne aus AFTERHOURS",
+  },
+  en: {
+    plan: "Plan",
+    cancelled: (title) => `Cancelled: ${title}`,
+    maybe: (title) => `Maybe: ${title}`,
+    crew: (name) => `Crew: ${name}`,
+    meetingPoint: (value) => `Meeting point: ${value}`,
+    noAnswer: "You haven't answered yet.",
+    link: (url) => `Plan in AFTERHOURS: ${url}`,
+    description: "Your plans from AFTERHOURS",
+  },
+};
+
+/** Nur bekannte Sprachen; alles andere (auch fehlend) → Deutsch. */
+export function feedLocale(value) {
+  return value === "en" ? "en" : "de";
+}
 
 export const FEED_TOKEN = /^[0-9a-f]{64}$/;
 
@@ -55,22 +85,24 @@ export function eventStatus(event) {
 }
 
 /** Titel im Kalender: Absagen und offene Antworten sieht man auf einen Blick, auch in Apps, die STATUS ignorieren. */
-export function eventSummary(event) {
-  const title = String(event.title ?? "").trim() || "Plan";
-  if (event.status === "cancelled") return `Abgesagt: ${title}`;
-  if (event.attendance === "maybe") return `Vielleicht: ${title}`;
+export function eventSummary(event, locale = "de") {
+  const text = FEED_TEXTS[feedLocale(locale)];
+  const title = String(event.title ?? "").trim() || text.plan;
+  if (event.status === "cancelled") return text.cancelled(title);
+  if (event.attendance === "maybe") return text.maybe(title);
   return title;
 }
 
 /** Ein VEVENT als Zeilen (ungefaltet); unbrauchbare Einträge (keine ID, kein Beginn) → null. */
-export function eventLines(event, { site, now }) {
+export function eventLines(event, { site, now, locale = "de" }) {
   if (!event || !UUID.test(String(event.id ?? "")) || !validDate(event.starts_at)) return null;
+  const text = FEED_TEXTS[feedLocale(locale)];
   const url = `${site}/plans/${event.id}`;
   const description = [
-    event.crew ? `Crew: ${event.crew}` : null,
-    event.meeting_point ? `Treffpunkt: ${event.meeting_point}` : null,
-    event.attendance === "invited" && event.status !== "cancelled" ? "Deine Antwort fehlt noch." : null,
-    `Plan in AFTERHOURS: ${url}`,
+    event.crew ? text.crew(event.crew) : null,
+    event.meeting_point ? text.meetingPoint(event.meeting_point) : null,
+    event.attendance === "invited" && event.status !== "cancelled" ? text.noAnswer : null,
+    text.link(url),
   ].filter(Boolean).join("\n");
   const created = validDate(event.created_at) ? new Date(event.created_at).getTime() : 0;
   const updated = validDate(event.updated_at) ? new Date(event.updated_at).getTime() : created;
@@ -82,7 +114,7 @@ export function eventLines(event, { site, now }) {
     `DTSTART:${icsDate(event.starts_at)}`,
     // Ohne bekanntes Ende kein erfundenes: Der Termin hat dann nur einen Beginn (RFC 5545 §3.6.1).
     ends ? `DTEND:${icsDate(ends)}` : null,
-    `SUMMARY:${icsText(eventSummary(event))}`,
+    `SUMMARY:${icsText(eventSummary(event, locale))}`,
     event.address ? `LOCATION:${icsText(event.address)}` : null,
     `DESCRIPTION:${icsText(description)}`,
     `URL:${url}`,
@@ -94,22 +126,23 @@ export function eventLines(event, { site, now }) {
 }
 
 /** Der ganze Kalender. Leere Liste → gültiger Kalender ohne Termine (Kalender-Apps leeren ihn dann). */
-export function buildCalendar(events, { site, now = new Date() }) {
+export function buildCalendar(events, { site, now = new Date(), locale = "de" }) {
   const base = String(site).replace(/\/+$/, "");
+  const lang = feedLocale(locale);
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//AFTERHOURS//Kalender-Abo//DE",
+    `PRODID:-//AFTERHOURS//Kalender-Abo//${lang.toUpperCase()}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "X-WR-CALNAME:AFTERHOURS",
-    `X-WR-CALDESC:${icsText("Deine Pläne aus AFTERHOURS")}`,
+    `X-WR-CALDESC:${icsText(FEED_TEXTS[lang].description)}`,
     // Hinweis an Kalender-Apps, stündlich nachzusehen (viele entscheiden das selbst).
     "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
     "X-PUBLISHED-TTL:PT1H",
   ];
   for (const event of Array.isArray(events) ? events : []) {
-    const vevent = eventLines(event, { site: base, now });
+    const vevent = eventLines(event, { site: base, now, locale: lang });
     if (vevent) lines.push(...vevent);
   }
   lines.push("END:VCALENDAR");

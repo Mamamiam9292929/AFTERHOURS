@@ -30,7 +30,8 @@ export function intlLocale(locale: Locale): string {
   return locale === "en" ? "en-GB" : "de-DE";
 }
 
-function storedLocale(): string | null {
+/** Eigene Wahl auf diesem Gerät, falls es eine gibt (sonst null – auch bei gesperrtem Speicher). */
+export function storedLocale(): string | null {
   try {
     return typeof localStorage === "undefined" ? null : localStorage.getItem(LOCALE_KEY);
   } catch {
@@ -56,3 +57,19 @@ export function storeLocale(locale: Locale): boolean {
 
 /** Name jeder Sprache in sich selbst – steht im Sprachwähler unabhängig von der aktuellen Sprache. */
 export const LANGUAGE_NAMES: Record<Locale, string> = { de: "Deutsch", en: "English" };
+
+/**
+ * P11 Etappe 2a · Sprache im Profil. Was beim Start nach der Anmeldung passiert:
+ * - Das Konto kennt noch keine Sprache → die Sprache, die dieses Gerät gerade will, wird gespeichert („save“).
+ * - Das Konto kennt eine, das Gerät hat keine eigene Wahl und will eine andere → das Gerät übernimmt sie
+ *   („adopt“: merken und neu laden). Nach dem Neuladen ist sie die eigene Wahl – kein zweites Neuladen.
+ * - Sonst nichts. Eine eigene Wahl auf dem Gerät bleibt; sie überschreibt das Konto nur, wenn jemand in den
+ *   Einstellungen wechselt (sonst würden sich zwei Geräte mit verschiedener Wahl bei jedem Start abwechseln).
+ */
+export type LocaleSyncStep = { kind: "none" } | { kind: "save"; locale: Locale } | { kind: "adopt"; locale: Locale };
+
+export function localeSyncStep(saved: unknown, stored: string | null | undefined, wanted: Locale): LocaleSyncStep {
+  if (!isLocale(saved)) return { kind: "save", locale: isLocale(stored) ? stored : wanted };
+  if (!isLocale(stored) && saved !== wanted) return { kind: "adopt", locale: saved };
+  return { kind: "none" };
+}

@@ -41,6 +41,17 @@ export interface PushMessage {
   payload?: Record<string, unknown>;
   at?: string;
   unread?: number;
+  /** P11 Etappe 2a: Sprache im Profil der Empfänger:in (`user_settings.locale`), fehlt sie: null. */
+  locale?: string | null;
+}
+
+/**
+ * P11 Etappe 2a: In welcher Sprache die Mitteilung erscheint – die Sprache im Profil, wenn der Push sie
+ * mitbringt, sonst die des Geräts (Browser-Sprache; der Service Worker kennt die Wahl in der App nicht).
+ */
+export function pushLocale(raw: unknown, deviceLocale: "de" | "en"): "de" | "en" {
+  const locale = raw && typeof raw === "object" ? (raw as PushMessage).locale : null;
+  return locale === "de" || locale === "en" ? locale : deviceLocale;
 }
 
 export type TextFor = (type: string) => ((actor: string, payload: Record<string, unknown>) => { title: string; body?: string }) | undefined;

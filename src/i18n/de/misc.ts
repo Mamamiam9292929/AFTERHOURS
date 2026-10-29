@@ -206,8 +206,8 @@ export const settings = {
   language: {
     title: "Sprache",
     label: "Sprache der App",
-    lead: "Gilt für dieses Gerät. Die Seite lädt danach neu. Datum, Uhrzeit und Beträge bleiben in Berliner Zeit und Euro.",
-    notTranslated: "Noch deutsch, auch auf Englisch: Link-Vorschauen in Messengern, Kalender-Abo, E-Mails und Termin-Titel, die der Server vergibt.",
+    lead: "Gilt für dein Konto: auch für Kalender-Abo und Mitteilungen aufs Handy, und ein neues Gerät übernimmt sie. Die Seite lädt danach neu. Datum, Uhrzeit und Beträge bleiben in Berliner Zeit und Euro.",
+    notTranslated: "Noch deutsch, auch auf Englisch: Link-Vorschauen in Messengern, E-Mails und Termin-Titel, die der Server vergibt.",
   },
   preferences: { title: "Vorlieben", saved: "Vorlieben gespeichert." },
   location: {

@@ -30,7 +30,8 @@ export async function handleCalendar(request, env, fetchImpl, now = new Date()) 
   }
 
   const site = (env.VITE_SITE_URL || url.origin).replace(/\/+$/, "");
-  return new Response(buildCalendar(result.data.events, { site, now }), {
+  // P11 Etappe 2a: Sprache aus dem Profil der Person, der das Abo gehört (fehlt sie: Deutsch).
+  return new Response(buildCalendar(result.data.events, { site, now, locale: result.data.locale }), {
     status: 200,
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",

@@ -53,6 +53,8 @@ export interface UserSettings {
   preferred_distance_km: number | null;
   notification_preferences: Partial<Record<NotificationType, boolean>>;
   privacy_preferences: Record<string, unknown>;
+  /** P11 Etappe 2a: Sprache im Profil (null = noch nie gesetzt, gilt als Deutsch). Ändern nur über `set_my_locale`. */
+  locale: "de" | "en" | null;
   updated_at: string;
 }
 

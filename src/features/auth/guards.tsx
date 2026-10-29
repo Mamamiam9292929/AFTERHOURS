@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
 import { useProfile } from "@/features/profile/api";
+import { LocaleSync } from "@/features/profile/LocaleSync";
 import { useAuth } from "./AuthProvider";
 import { clearNext, peekNext, rememberNext } from "./next";
 
@@ -18,7 +19,13 @@ export function RequireAuth() {
     if (invite) return <Navigate to={`/invite/${invite[1]}`} replace />;
     return <Navigate to="/login" replace />;
   }
-  return <Outlet />;
+  return (
+    <>
+      {/* P11 Etappe 2a: Sprache im Profil abgleichen. */}
+      <LocaleSync />
+      <Outlet />
+    </>
+  );
 }
 
 const INVITE_PATH = /^\/join\/([0-9a-f]{64})\/?$/;

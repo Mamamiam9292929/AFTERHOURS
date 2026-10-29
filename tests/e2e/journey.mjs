@@ -3298,6 +3298,29 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
   const en = page.locator("section#language");
   check((await en.getByRole("button", { name: "English" }).getAttribute("aria-pressed")) === "true", "English ist jetzt gewählt");
   check(await en.getByText("Still in German for now", { exact: false }).isVisible(), "ehrlicher Hinweis, was noch deutsch ist");
+  // P11 Etappe 2a: Die Wahl steht auch im Profil (für Kalender-Abo, Push und neue Geräte).
+  if (ANON) {
+    const saved = await api(bob, "GET", "user_settings?select=locale");
+    check(saved.json?.[0]?.locale === "en", `Sprache im Profil: en (${JSON.stringify(saved.json)})`);
+    check([401, 403].includes((await api(null, "POST", "rpc/set_my_locale", { p_locale: "de" })).status), "API: ohne Konto keine Sprache setzen (401/403)");
+    const direct = await api(bob, "PATCH", "user_settings?user_id=not.is.null", { locale: "de" });
+    check(direct.status >= 400, `API: Sprache nicht direkt änderbar (${direct.status})`);
+    check((await api(bob, "POST", "rpc/set_my_locale", { p_locale: "fr" })).json?.message === "invalid_locale", "API: unbekannte Sprache abgewiesen");
+    // Neues Gerät ohne eigene Wahl (deutscher Browser) übernimmt die Sprache des Kontos.
+    const state = await bob.context.storageState();
+    for (const origin of state.origins) origin.localStorage = origin.localStorage.filter((entry) => entry.name !== "afterhours.locale");
+    const device = await browser.newContext({ viewport: VIEWPORTS.mobile, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block", storageState: state });
+    try {
+      const fresh = await device.newPage();
+      fresh.on("pageerror", (e) => problems.push(`[Bob, neues Gerät] pageerror: ${e}`));
+      await fresh.goto(`${APP}/settings#language`);
+      await fresh.getByRole("heading", { name: "Settings", level: 1 }).waitFor({ timeout: 20_000 });
+      check((await fresh.evaluate(() => localStorage.getItem("afterhours.locale"))) === "en", "neues Gerät übernimmt Englisch aus dem Profil");
+      check((await fresh.evaluate(() => document.documentElement.lang)) === "en", "neues Gerät: <html lang> ist en");
+    } finally {
+      await device.close();
+    }
+  }
   check(await page.getByRole("heading", { name: "Location sharing" }).isVisible(), "andere Bereiche ebenfalls englisch");
   await a11y(bob, "Settings (English)");
   await noOverflow(bob, "Settings (English)");
@@ -3327,6 +3350,7 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
   await Promise.all([page.waitForEvent("load"), page.locator("section#language").getByRole("button", { name: "Deutsch" }).click()]);
   await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
   check((await page.evaluate(() => document.documentElement.lang)) === "de", "zurück auf Deutsch");
+  if (ANON) check((await api(bob, "GET", "user_settings?select=locale")).json?.[0]?.locale === "de", "Sprache im Profil wieder de");
 });
 
 // P11: Startseite folgt der Browser-Sprache; der Sprachlink wechselt ohne Konto.
@@ -3390,6 +3414,9 @@ await step("P2 Etappe 2 – Kalender-Abo: Link anlegen, Kalender abrufen, ersetz
     check([401, 403].includes((await api(null, "POST", "rpc/my_calendar_feed", {})).status), "API: ohne Konto kein Abo-Link (401/403)");
     check([401, 403].includes((await api(null, "POST", "rpc/renew_calendar_feed", {})).status), "API: ohne Konto kein neuer Abo-Link (401/403)");
     check((await api(null, "POST", "rpc/calendar_feed_events", { p_token: "0".repeat(64) })).json?.status === "not_found", "API: geratener Link liefert nur not_found");
+    // P11 Etappe 2a: Der Kalender kommt in der Sprache aus Bobs Profil (Deutsch).
+    check((await api(null, "POST", "rpc/calendar_feed_events", { p_token: link.match(/[0-9a-f]{64}/)[0] })).json?.locale === "de", "Kalender: Sprache aus dem Profil (de)");
+    check(ics.includes("PRODID:-//AFTERHOURS//Kalender-Abo//DE"), "Kalender: deutscher Kalender");
     check((await handleCalendar(new Request(`${APP}/c/${"0".repeat(64)}.ics`), env, fetch)).status === 404, "Kalender: geratener Link → 404");
   }
 

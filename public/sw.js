@@ -136,7 +136,8 @@ self.addEventListener("push", (event) => {
     data: { url: view.url },
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
-    lang: self.AfterhoursPush?.lang ?? "de",
+    // P11 Etappe 2a: Sprache dieser Mitteilung (aus dem Profil, sonst die des Browsers).
+    lang: view.lang ?? self.AfterhoursPush?.lang ?? "de",
     timestamp: view.timestamp ?? Date.now(),
   });
   // Zähler am App-Icon (installierte App, nur wo die Badging-API existiert).
