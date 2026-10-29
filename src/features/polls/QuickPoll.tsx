@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { IconClose, IconPlus } from "@/components/icons";
 import { Button, IconButton } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { t } from "@/i18n";
+import { locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { qk } from "@/lib/query";
 import { parseQuickPoll } from "@/lib/quickpoll";
@@ -76,7 +76,7 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
   const toast = useToast();
   const navigate = useNavigate();
   const client = useQueryClient();
-  const parsed = useMemo(() => parseQuickPoll(text), [text]);
+  const parsed = useMemo(() => parseQuickPoll(text, new Date(), locale), [text]);
   const crew = crews.find((c) => c.id === crewId) ?? crews[0] ?? null;
 
   const start = useMutation({

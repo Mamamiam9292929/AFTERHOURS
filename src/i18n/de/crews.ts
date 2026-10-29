@@ -61,7 +61,7 @@ export const crews = {
   /** P9 · Crew-Rückblick: was die Crew gemeinsam erlebt hat (nur abgeschlossene Pläne, keine Rangliste von Personen). */
   recap: {
     title: "Euer Rückblick",
-    evenings: (n: number) => (n === 1 ? "gemeinsamer Abend" : "gemeinsame Abende"),
+    evenings: (n: number): string => (n === 1 ? "gemeinsamer Abend" : "gemeinsame Abende"),
     since: (month: string) => `seit ${month}`,
     streak: "Längste Serie",
     streakValue: (n: number) => (n === 1 ? "1 Monat" : `${n} Monate am Stück`),

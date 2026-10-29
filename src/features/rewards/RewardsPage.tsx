@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { DemoBadge, EmptyState, ErrorState, ListSkeleton, Notice } from "@/components/ui/Feedback";
 import { PanelCard } from "@/components/ui/PanelCard";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
-import { t } from "@/i18n";
+import { locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
@@ -205,7 +205,7 @@ function BalanceCard({ points, levelIndex, progress, nextThreshold }: { points: 
             <div className="bar-grow h-full rounded-full bg-lime shadow-[0_0_18px_var(--color-lime)]" style={{ width: `${Math.max(progress, 0.02) * 100}%` }} />
           </div>
           <p className="mt-2 text-sm text-muted">{nextThreshold ? t.rewards.nextLevel(nextThreshold - points, t.rewards.levels[levelIndex + 1] ?? "") : t.rewards.maxLevel}</p>
-          <ol aria-label={t.rewards.levelsLabel} lang="de" className="mt-5 grid grid-cols-5 gap-1.5" data-testid="rewards-levels">
+          <ol aria-label={t.rewards.levelsLabel} lang={locale} className="mt-5 grid grid-cols-5 gap-1.5" data-testid="rewards-levels">
             {t.rewards.levels.map((name, index) => {
               const reached = index <= levelIndex && points > 0;
               const current = index === levelIndex;

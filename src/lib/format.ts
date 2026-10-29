@@ -1,5 +1,8 @@
 import { APP_LOCALE } from "./time";
 
+const GERMAN = APP_LOCALE === "de-DE";
+const decimal = (value: string) => (GERMAN ? value.replace(".", ",") : value);
+
 const euroWhole = new Intl.NumberFormat(APP_LOCALE, { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const euroCents = new Intl.NumberFormat(APP_LOCALE, { style: "currency", currency: "EUR", minimumFractionDigits: 2 });
 const numberFormat = new Intl.NumberFormat(APP_LOCALE);
@@ -21,21 +24,22 @@ export function parseEuroInput(raw: string): number | null | undefined {
 
 export function centsToInput(cents: number | null | undefined): string {
   if (cents == null) return "";
-  return cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2).replace(".", ",");
+  return cents % 100 === 0 ? String(cents / 100) : decimal((cents / 100).toFixed(2));
 }
 
 export function formatDistance(km: number): string {
   if (km < 1) return `${Math.max(100, Math.round(km * 10) * 100)} m`;
-  if (km < 10) return `${km.toFixed(1).replace(".", ",")} km`;
+  if (km < 10) return `${decimal(km.toFixed(1))} km`;
   return `${Math.round(km)} km`;
 }
 
 export function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} Min.`;
+  const [min, hrs] = GERMAN ? ["Min.", "Std."] : ["min", "h"];
+  if (minutes < 60) return `${minutes} ${min}`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  if (rest === 0) return hours === 1 ? "1 Std." : `${hours} Std.`;
-  return `${hours} Std. ${rest} Min.`;
+  if (rest === 0) return `${hours} ${hrs}`;
+  return `${hours} ${hrs} ${rest} ${min}`;
 }
 
 /** Initialen für Avatare ohne Bild. */

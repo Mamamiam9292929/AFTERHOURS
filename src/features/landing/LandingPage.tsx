@@ -19,7 +19,8 @@ import { AvatarStack, type Person } from "@/components/ui/Avatar";
 import { ButtonLink } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Feedback";
 import { Logo } from "@/components/ui/Logo";
-import { t } from "@/i18n";
+import { LanguageLink } from "@/components/ui/LanguageSwitch";
+import { locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle } from "@/lib/hooks";
 import { parseQuickPoll } from "@/lib/quickpoll";
@@ -95,6 +96,7 @@ export function LandingPage() {
           <Link to="/login" className={linkClass}>
             {copy.footer.login}
           </Link>
+          <LanguageLink className={linkClass} />
         </span>
       </footer>
       <div className="pb-safe" />
@@ -151,7 +153,7 @@ function Hero() {
 function SentenceDemo() {
   const [text, setText] = useState<string>(copy.demo.initial);
   const inputId = useId();
-  const parsed = useMemo(() => parseQuickPoll(text), [text]);
+  const parsed = useMemo(() => parseQuickPoll(text, new Date(), locale), [text]);
   return (
     <figure aria-label={copy.demo.label} className="mx-auto w-full max-w-[480px] lg:mx-0 lg:justify-self-end">
       <div className="flex flex-wrap items-center gap-2">

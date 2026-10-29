@@ -406,7 +406,7 @@ export const plans = {
   shared: {
     pageTitle: (title: string) => `${title} – geteilter Plan`,
     kicker: "Ein Abend mit AFTERHOURS",
-    going: (n: number, over: boolean) =>
+    going: (n: number, over: boolean): string =>
       over ? (n === 0 ? "Keine Zusage" : n === 1 ? "war dabei" : "waren dabei") : n === 0 ? "Noch keine Zusage" : n === 1 ? "ist dabei" : "sind dabei",
     guestTitle: "Bist du dabei?",
     guestIntro: "Deine Freunde planen diesen Abend mit AFTERHOURS. Zusagen kannst du, sobald du in ihrer Crew bist – frag im Gruppenchat nach dem Einladungslink.",

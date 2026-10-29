@@ -305,11 +305,11 @@ export const polls = {
     closed: "Entschieden",
     until: (when: string) => `Abstimmen bis ${when}`,
     closedOn: (when: string) => `Frist war ${when}`,
-    options: (n: number, kind: "place" | "date" = "place") => (kind === "date" ? (n === 1 ? "Termin" : "Termine") : n === 1 ? "Vorschlag" : "Vorschläge"),
+    options: (n: number, kind: "place" | "date" = "place"): string => (kind === "date" ? (n === 1 ? "Termin" : "Termine") : n === 1 ? "Vorschlag" : "Vorschläge"),
     /** P1 Etappe 2: Termine einer geteilten Termin-Abstimmung auf der Karte. */
     datesLabel: "Zur Wahl",
     /** Steht neben der Zahl; ohne Stimme allein. */
-    voters: (n: number, open: boolean) =>
+    voters: (n: number, open: boolean): string =>
       n === 0 ? (open ? "Noch keine Stimme" : "Keine Stimme") : open ? (n === 1 ? "hat abgestimmt" : "haben abgestimmt") : n === 1 ? "hat mitgestimmt" : "haben mitgestimmt",
     guestTitle: "Stimmst du mit ab?",
     guestIntro: "Deine Freunde stimmen mit AFTERHOURS ab, was sie unternehmen. Mitstimmen kannst du, sobald du in ihrer Crew bist – frag im Gruppenchat nach dem Einladungslink.",

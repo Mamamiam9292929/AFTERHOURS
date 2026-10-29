@@ -14,7 +14,7 @@ import { CrewPicker } from "@/features/crews/CrewPicker";
 import { typicalPriceCents, useActivity } from "@/features/discover/api";
 import { usePlans } from "@/features/plans/api";
 import { planCountdown } from "@/features/plans/PlanTicket";
-import { t } from "@/i18n";
+import { locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
@@ -405,7 +405,7 @@ export function PollCreatePage() {
                     return (
                       <li key={`${slot.date} ${slot.time}`}>
                         <Chip selected={slots.some((r) => sameSlot(r, slot))} onToggle={() => toggleSuggested(slot)}>
-                          {t.polls.create.dates.suggest.chip(t.polls.create.dates.suggest.short[slot.weekday] ?? "", `${day}.${month}.`, slot.time)}
+                          {t.polls.create.dates.suggest.chip(t.polls.create.dates.suggest.short[slot.weekday] ?? "", locale === "en" ? `${Number(day)}/${Number(month)}` : `${day}.${month}.`, slot.time)}
                         </Chip>
                       </li>
                     );
