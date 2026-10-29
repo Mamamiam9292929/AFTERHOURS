@@ -103,3 +103,12 @@ test("Sprache im Profil: speichern, übernehmen oder nichts tun", () => {
   // Nach dem Übernehmen ist die Sprache die eigene Wahl: der zweite Start lädt nicht noch einmal neu.
   assert.deepEqual(localeSyncStep("en", "en", "en"), { kind: "none" });
 });
+
+test("P11 Etappe 2e: Benachrichtigungen zeigen „Stichwahl: …“ auf Englisch als „Runoff: …“", async () => {
+  const en = await loadEnglish();
+  const created = en.notifications.text.poll_created("Ana", { title: "Stichwahl: Bowling", runoff: true, auto: true });
+  assert.equal(created.body, "Runoff: Bowling");
+  assert.equal(en.notifications.text.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Runoff: Bowling");
+  assert.equal(en.notifications.text.poll_vote("Ana", { title: "Bowling" }).body, "Bowling");
+  assert.equal(de.notifications.text.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Stichwahl: Bowling");
+});

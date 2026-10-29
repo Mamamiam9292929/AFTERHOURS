@@ -141,7 +141,9 @@ export function describeSharedPoll(preview, locale = "de") {
     return { title: BRANDS[lang].title, description: BRANDS[lang].description };
   }
   const { poll } = preview;
-  const title = `${poll.title} · AFTERHOURS`;
+  // P11 Etappe 2e: Von selbst gestartete Stichwahlen heißen auf dem Server „Stichwahl: …“ (gleiche Regel wie src/lib/servertitle.ts).
+  const pollTitle = lang === "en" && String(poll.title).startsWith("Stichwahl: ") ? `Runoff: ${String(poll.title).slice(11)}` : poll.title;
+  const title = `${pollTitle} · AFTERHOURS`;
   const isDate = poll.kind === "date";
   const options = isDate ? dateOptionsText(Number(poll.option_count) || 0, poll.dates, lang) : text.options(Number(poll.option_count) || 0);
   const voters = Number(poll.voter_count) || 0;
