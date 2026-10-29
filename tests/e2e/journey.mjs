@@ -1661,6 +1661,8 @@ await step("P14 – Wer bringt was? Mitbring-Liste auf der Planseite (Alice, Bob
   await snacks.getByRole("button", { name: "Bring ich" }).click();
   await toast(bob, "Danke – du bringst es mit.");
   await snacks.getByText("Du bringst es").waitFor();
+  const youFits = await snacks.getByText("Du bringst es").evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+  check(youFits, "„Du bringst es“ steht ungekürzt neben „Doch nicht“");
   check((await bobPanel.getByTestId("items-progress").innerText()).trim() === "Alles vergeben", "Stand: Alles vergeben");
   check((await bobPanel.getByTestId("items-progress").getAttribute("data-tone")) === "lime", "Alles vergeben als Lime-Pille");
   await bob.page.locator("#mitbringen").scrollIntoViewIfNeeded();
