@@ -10,6 +10,8 @@ import { FormMessage, TextAreaField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { usePollDraft } from "@/features/polls/draft";
 import { locale, t } from "@/i18n";
+import { places as dePlaces } from "@/i18n/de/places";
+import { places as enPlaces } from "@/i18n/en/places";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatDistance, formatDuration } from "@/lib/format";
@@ -158,7 +160,7 @@ export function ActivityDetailPage() {
   }
 
   const origin = region.center;
-  const description = placeDescription(a, locale, t.discover.features);
+  const description = placeDescription(a, locale, locale === "en" ? enPlaces : dePlaces);
   const distance = origin && a.latitude != null && a.longitude != null ? distanceKm(origin, { latitude: a.latitude, longitude: a.longitude }) : null;
   const hasPrice = a.price_min_cents != null || a.price_max_cents != null;
 

@@ -20,11 +20,8 @@ export async function resolve(specifier, context, next) {
 register(`data:text/javascript,${encodeURIComponent(hook)}`, import.meta.url);
 
 const { placeDescription, describeFeatures } = await import("../../src/lib/placeText.ts");
-const { de } = await import("../../src/i18n/de/index.ts");
-const { loadEnglish } = await import("../../src/i18n/en/index.ts");
-const en = await loadEnglish();
-const DE = de.discover.features;
-const EN = en.discover.features;
+const { places: DE } = await import("../../src/i18n/de/places.ts");
+const { places: EN } = await import("../../src/i18n/en/places.ts");
 
 const osm = (features, description = null) => ({ provider_id: "osm", description, features });
 
