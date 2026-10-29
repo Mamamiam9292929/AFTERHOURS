@@ -162,3 +162,53 @@ test("Handler: Abstimmungs-Vorschau escaped die Frage", async () => {
   const html = await (await handleShare(new Request(`https://app.test/v/${TOKEN}`), env, fetchImpl)).text();
   assert.ok(!html.includes("<script>x</script>"));
 });
+
+// ---- P11 Etappe 2b · Vorschau auf Englisch (?lang=en) ----------------------------------------------------
+test("Englisch: Plan-Vorschau, Zeit britisch in Berliner Zeit", () => {
+  assert.equal(formatWhen("2026-10-16T18:00:00Z", "en"), "Friday 16 October · 20:00");
+  assert.equal(formatWhen("2026-12-24T19:30:00Z", "en"), "Thursday 24 December · 20:30", "Winterzeit");
+  assert.deepEqual(describeSharedPlan(valid({}), "en"), { title: "Bowling · AFTERHOURS", description: "Friday 16 October · 20:00 · 3 are in. Are you in?" });
+  assert.match(describeSharedPlan(valid({ going_count: 1 }), "en").description, /· 1 is in\./);
+  assert.match(describeSharedPlan(valid({ going_count: 0 }), "en").description, /· No one's in yet\./);
+  assert.match(describeSharedPlan(valid({ status: "cancelled" }), "en").description, /^Cancelled – was planned for Friday/);
+  assert.match(describeSharedPlan(valid({ status: "completed" }), "en").description, /^Over – that was Friday/);
+  assert.match(describeSharedPlan(null, "en").description, /^Vote with your crew/);
+});
+
+test("Englisch: Abstimmung und Termin-Abstimmung", () => {
+  assert.equal(describeSharedPoll(validPoll({}), "en").description, "3 options · 2 have voted · Vote until Friday 16 October · 20:00. Will you vote?");
+  assert.match(describeSharedPoll(validPoll({ option_count: 1, voter_count: 1, guests: true }), "en").description, /^1 option · 1 has voted · .* Will you vote\? No account needed\.$/);
+  assert.match(describeSharedPoll(validPoll({ voter_count: 0 }), "en").description, /· No votes yet ·/);
+  assert.match(describeSharedPoll(validPoll({ status: "closed", voter_count: 4 }), "en").description, /^Decided – 4 people voted\./);
+  const dates = [{ date: "2026-10-23", time: "19:00" }, { date: "2026-10-24", time: null }];
+  assert.match(describeSharedPoll(validPoll({ kind: "date", option_count: 2, dates }), "en").description, /^2 dates to choose from: Fri 23 Oct 19:00, Sat 24 Oct · .*When can you make it\?$/);
+  const many = Array.from({ length: 6 }, (_, i) => ({ date: `2026-11-0${i + 1}`, time: null }));
+  assert.match(describeSharedPoll(validPoll({ kind: "date", option_count: 6, dates: many }), "en").description, /Wed 4 Nov and 2 more · /);
+  for (const text of [describeSharedPoll(validPoll({ kind: "date", dates }), "en").description, describeSharedPlan(valid({}), "en").description]) {
+    assert.doesNotMatch(text, /Uhr|Vorschl|Termin|abgestimmt|dabei|Freitag/, `ohne Deutsch: ${text}`);
+  }
+});
+
+test("Sprache: unbekannt → Deutsch", () => {
+  for (const locale of [undefined, null, "", "fr", "EN", "<b>"]) {
+    assert.match(describeSharedPlan(valid({}), locale).description, /Bist du dabei\?$/);
+  }
+});
+
+test("Handler: ?lang=en → englische Vorschau, og:locale en_GB, Sprache bleibt in og:url", async () => {
+  const fetchImpl = fakeFetch([["https://app.test/index.html", 200, shell], ["https://db.test/rest/v1/rpc/preview_shared_plan", 200, valid({})]]);
+  const html = await (await handleShare(new Request(`https://app.test/api/share?token=${TOKEN}&lang=en`), env, fetchImpl)).text();
+  const head = html.split("</head>")[0];
+  assert.ok(head.includes('<meta property="og:locale" content="en_GB" />'));
+  assert.ok(head.includes('<meta property="og:description" content="Friday 16 October · 20:00 · 3 are in. Are you in?" />'));
+  assert.ok(head.includes(`<meta property="og:url" content="https://afterhours.test/s/${TOKEN}?lang=en" />`));
+  assert.ok(head.includes('content="AFTERHOURS – a ticket for your next night out"'));
+  const poll = fakeFetch([["https://app.test/index.html", 200, shell], ["https://db.test/rest/v1/rpc/preview_shared_poll", 200, validPoll({})]]);
+  const pollHead = (await (await handleShare(new Request(`https://app.test/v/${TOKEN}?lang=en`), env, poll)).text()).split("</head>")[0];
+  assert.ok(pollHead.includes("Will you vote?") && pollHead.includes(`/v/${TOKEN}?lang=en"`) && pollHead.includes("a poll by your crew"));
+  const offline = fakeFetch([["https://app.test/index.html", 500, ""], ["https://db.test/rest/v1/rpc/preview_shared_plan", 200, valid({})]]);
+  const fallback = await (await handleShare(new Request(`https://app.test/s/${TOKEN}?lang=en`), env, offline)).text();
+  assert.ok(fallback.includes('<html lang="en">') && fallback.includes("Open AFTERHOURS"));
+  const german = await (await handleShare(new Request(`https://app.test/s/${TOKEN}?lang=xx`), env, fakeFetch([["https://app.test/index.html", 200, shell], ["https://db.test/rest/v1/rpc/preview_shared_plan", 200, valid({})]]))).text();
+  assert.ok(german.includes('content="de_DE"') && german.includes(`/s/${TOKEN}" />`), "unbekannte Sprache: Deutsch, Link ohne Zusatz");
+});

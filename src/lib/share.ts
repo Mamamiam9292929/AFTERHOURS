@@ -1,4 +1,4 @@
-import { t } from "@/i18n";
+import { locale, t } from "@/i18n";
 import { copyText } from "@/lib/hooks";
 import { siteUrl } from "@/lib/supabase";
 import { formatDateLong, formatDateTime, formatTime } from "@/lib/time";
@@ -14,6 +14,12 @@ export interface ShareContent {
 }
 
 /**
+ * P11 Etappe 2b: Auf Englisch trägt der geteilte Link `?lang=en` – dann ist auch die Vorschau im Gruppenchat
+ * englisch (api/share.js). Deutsch bleibt ohne Zusatz wie bisher. Nur die Sprache, keine Person.
+ */
+const langQuery = () => (locale === "en" ? "?lang=en" : "");
+
+/**
  * W2: Mit Teilen-Token führt der Link auf /s/<token> – dort gibt es eine Vorschau für Messenger und
  * Freunde ohne Konto. Ohne Token (noch nicht geladen, Fehler) bleibt es beim direkten Link zum Plan.
  */
@@ -21,7 +27,7 @@ export function planShare(plan: { id: string; title: string; starts_at: string }
   return {
     title: plan.title,
     text: t.share.planText(plan.title, `${formatDateLong(plan.starts_at)}, ${formatTime(plan.starts_at)}`),
-    url: shareToken ? `${siteUrl()}/s/${shareToken}` : `${siteUrl()}/plans/${plan.id}`,
+    url: shareToken ? `${siteUrl()}/s/${shareToken}${langQuery()}` : `${siteUrl()}/plans/${plan.id}`,
   };
 }
 
@@ -30,7 +36,7 @@ export function pollShare(poll: { id: string; title: string; ends_at: string }, 
   return {
     title: poll.title,
     text: t.share.pollText(poll.title, formatDateTime(poll.ends_at)),
-    url: shareToken ? `${siteUrl()}/v/${shareToken}` : `${siteUrl()}/polls/${poll.id}`,
+    url: shareToken ? `${siteUrl()}/v/${shareToken}${langQuery()}` : `${siteUrl()}/polls/${poll.id}`,
   };
 }
 

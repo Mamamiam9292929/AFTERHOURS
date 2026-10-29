@@ -5,7 +5,7 @@
 //
 // Daten holt die Funktion wie ein Besucher ohne Konto: mit dem öffentlichen anon-Key über die
 // Datenbankfunktion preview_shared_plan bzw. preview_shared_poll. Kein Secret, keine Rechte darüber hinaus.
-import { BRAND, describeSharedPlan, describeSharedPoll, fallbackShell, injectMeta, SHARE_KINDS, SHARE_TOKEN, shareMetaTags } from "./_lib/share-card.js";
+import { brandFor, describeSharedPlan, describeSharedPoll, fallbackShell, imageAltFor, injectMeta, SHARE_KINDS, SHARE_TOKEN, shareLocale, shareMetaTags } from "./_lib/share-card.js";
 
 export async function GET(request) {
   return handleShare(request, process.env, fetch);
@@ -20,13 +20,16 @@ export async function handleShare(request, env, fetchImpl) {
   const raw = url.searchParams.get("token") ?? segments.pop() ?? "";
   const token = SHARE_TOKEN.test(raw) ? raw : null;
   const site = (env.VITE_SITE_URL || url.origin).replace(/\/+$/, "");
-  const shareUrl = token ? `${site}/${config.path}/${token}` : site;
+  // P11 Etappe 2b: Sprache der teilenden Person aus dem Link (?lang=en); sonst Deutsch. Sie bleibt in og:url,
+  // damit ein Messenger, der dort noch einmal nachsieht, dieselbe Vorschau bekommt.
+  const locale = shareLocale(url.searchParams.get("lang"));
+  const shareUrl = token ? `${site}/${config.path}/${token}${locale === "en" ? "?lang=en" : ""}` : site;
 
   const [shell, preview] = await Promise.all([loadShell(url.origin, fetchImpl), token ? loadPreview(config.rpc, token, env, fetchImpl) : null]);
   const describe = kind === "poll" ? describeSharedPoll : describeSharedPlan;
-  const { title, description } = preview ? describe(preview) : BRAND;
-  const tags = shareMetaTags({ title, description, url: shareUrl, image: `${site}${config.image}`, imageAlt: config.imageAlt });
-  const html = shell ? injectMeta(shell, tags) : fallbackShell(tags, shareUrl);
+  const { title, description } = preview ? describe(preview, locale) : brandFor(locale);
+  const tags = shareMetaTags({ title, description, url: shareUrl, image: `${site}${config.image}`, imageAlt: imageAltFor(kind, locale), locale });
+  const html = shell ? injectMeta(shell, tags, locale) : fallbackShell(tags, shareUrl, locale);
 
   return new Response(html, {
     status: 200,

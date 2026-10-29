@@ -204,7 +204,7 @@ export const settings = {
     title: "Language",
     label: "App language",
     lead: "Applies to your account: also to the calendar subscription and notifications on your phone, and new devices pick it up. The page reloads afterwards. Dates, times and amounts stay in Berlin time and euros.",
-    notTranslated: "Still in German for now: link previews in messengers, emails and date titles set by the server.",
+    notTranslated: "Still in German for now: emails and date titles set by the server.",
   },
   preferences: { title: "Preferences", saved: "Preferences saved." },
   location: {
