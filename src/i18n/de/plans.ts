@@ -318,6 +318,19 @@ export const plans = {
     mine: (n: number) => (n === 1 ? "Du bringst 1 Sache mit." : `Du bringst ${n} Sachen mit.`),
     lockedEmpty: "Für diesen Abend stand nichts auf der Liste.",
     full: "Die Liste ist voll (40 Sachen).",
+    /** P14 Etappe 2 · Vorlagen je Anlass: Sachen zum Antippen. */
+    templatesTitle: "Vorschläge zum Antippen",
+    templatesLabel: "Anlass",
+    suggestionsLabel: (occasion: string) => `Vorschläge für ${occasion}`,
+    suggest: (label: string) => `„${label}“ auf die Liste`,
+    suggestionAdded: (label: string) => `„${label}“ steht auf der Liste.`,
+    allSuggested: "Alles aus dieser Vorlage steht schon auf der Liste.",
+    templates: {
+      grill: { name: "Grillen", items: ["Kohle", "Anzünder", "Grillgut", "Veggie-Grillgut", "Brot", "Salat", "Soßen", "Getränke", "Eis"] },
+      games: { name: "Spieleabend", items: ["Brettspiel", "Kartenspiel", "Uno", "Chips", "Knabberzeug", "Getränke", "Pizza"] },
+      picnic: { name: "Picknick", items: ["Decke", "Brot", "Obst", "Käse", "Getränke", "Becher", "Müllbeutel", "Musikbox"] },
+      movie: { name: "Filmabend", items: ["Popcorn", "Chips", "Getränke", "Decken", "Beamer", "Schokolade"] },
+    },
   },
   /** P3 · Kosten aufteilen: wer hat was ausgelegt, wer gibt wem wie viel. Bezahlt wird außerhalb der App. */
   expenses: {

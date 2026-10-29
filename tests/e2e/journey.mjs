@@ -3615,6 +3615,34 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     await strip.getByRole("button", { name: "Erneut versuchen" }).click();
     await strip.getByTestId("tonight-weather").waitFor();
     check(true, "D3: „Erneut versuchen“ lädt das Wetter in der Leiste");
+    // P14 Etappe 2: „Mitbringen“ in der Leiste – was Dana mitbringt, was noch fehlt, mit einem Tipp übernehmen.
+    const kicker = created.json;
+    check((await strip.getByTestId("tonight-bring").count()) === 0, "P14: ohne Mitbring-Liste keine Kachel in der Leiste");
+    for (const [label, claim] of [["Ball", true], ["Getränke", false], ["Chips", false], ["Becher", false], ["Musikbox", false]]) {
+      const added = await api(dana, "POST", "rpc/add_plan_item", { p_plan_id: kicker, p_label: label, p_claim: claim });
+      check(added.status < 300, `P14: „${label}“ steht auf Danas Liste (${added.status})`);
+    }
+    await page.reload();
+    const bring = strip.getByTestId("tonight-bring");
+    await bring.waitFor();
+    check((await bring.getByTestId("tonight-bring-mine").innerText()).trim() === "Du bringst: Ball", "P14: Leiste zeigt, was Dana mitbringt");
+    check((await bring.getByRole("button", { name: /bringe ich mit$/ }).count()) === 3, "P14: höchstens drei offene Sachen zum Antippen");
+    check((await bring.getByRole("link", { name: "+1 weitere" }).getAttribute("href")) === `/plans/${kicker}#mitbringen`, "P14: der Rest als Link zur Liste auf der Planseite");
+    await bring.getByRole("button", { name: "Getränke bringe ich mit" }).click();
+    await toast(dana, "Danke – du bringst Getränke mit.");
+    await bring.getByText("Du bringst: Ball, Getränke").waitFor();
+    check((await bring.getByRole("button", { name: /bringe ich mit$/ }).count()) === 3, "P14: die nächste offene Sache rückt nach");
+    check((await bring.getByRole("link", { name: /weitere$/ }).count()) === 0, "P14: alles Offene passt jetzt in die Leiste");
+    // Fehlerzustand: ohne Liste ein ehrlicher Hinweis, „Erneut versuchen“ lädt nach.
+    await page.route("**/rest/v1/plan_items*", (route) => route.abort());
+    await page.reload();
+    const bringError = strip.getByTestId("tonight-bring-error");
+    await bringError.waitFor({ timeout: 30_000 });
+    check((await strip.getByTestId("tonight-bring").count()) === 0, "P14: ohne Liste keine erfundenen Einträge");
+    await page.unroute("**/rest/v1/plan_items*");
+    await bringError.locator("..").getByRole("button", { name: "Erneut versuchen" }).click();
+    await bring.getByText("Du bringst: Ball, Getränke").waitFor();
+    check(true, "P14: „Erneut versuchen“ lädt die Mitbring-Liste in der Leiste");
     // Ihre eigene Abstimmung wartet noch auf ihre Antwort – auf Home direkt darunter.
     // (Freitagabend nach 20 Uhr kann ihre Frist schon vorbei sein – dann gibt es nichts mehr zu beantworten.)
     const danaPoll = (await api(dana, "GET", "polls?select=ends_at,status")).json?.[0];
@@ -3625,6 +3653,27 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     check(strayText.length === 0, `kein loser Text über dem großen Ticket (vorher stand dort eine „0“): ${JSON.stringify(strayText)}`);
     await noOverflow(dana, "Home – Live-Countdown und Abstimmen");
     await shot(dana, "41-home-buehne");
+    // P14 Etappe 2: Vorlagen je Anlass auf der Planseite – Anlass wählen, Sachen antippen.
+    await page.goto(`${APP}/plans/${kicker}#mitbringen`);
+    const bringPanel = page.locator("section#mitbringen");
+    const templates = bringPanel.getByTestId("bring-templates");
+    await templates.waitFor();
+    const picnic = templates.getByRole("button", { name: "Picknick" });
+    check((await picnic.getAttribute("aria-pressed")) === "false", "P14: „Kicker im Hof“ wählt keine Vorlage vor");
+    await picnic.click();
+    const suggestions = templates.getByRole("list", { name: "Vorschläge für Picknick" });
+    await suggestions.waitFor();
+    check((await suggestions.getByRole("button", { name: "„Getränke“ auf die Liste" }).count()) === 0, "P14: was schon auf der Liste steht, wird nicht vorgeschlagen");
+    await suggestions.getByRole("button", { name: "„Decke“ auf die Liste" }).click();
+    await toast(dana, "„Decke“ steht auf der Liste.");
+    const blanket = bringPanel.getByTestId("plan-item").filter({ hasText: "Decke" });
+    await blanket.waitFor();
+    check((await blanket.getAttribute("data-state")) === "open", "P14: Vorschlag landet als offene Sache auf der Liste");
+    await suggestions.getByRole("button", { name: "„Decke“ auf die Liste" }).waitFor({ state: "detached" });
+    check(true, "P14: übernommener Vorschlag verschwindet aus den Chips");
+    await noOverflow(dana, "Planseite – Vorlagen der Mitbring-Liste");
+    await templates.scrollIntoViewIfNeeded();
+    await shot(dana, "41b-mitbringen-vorlagen");
   }
   users.splice(users.indexOf(dana), 1);
   await context.close();

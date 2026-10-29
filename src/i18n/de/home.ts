@@ -64,6 +64,19 @@ export const home = {
     meeting: "Treffpunkt",
     meetingOpen: "Noch kein Treffpunkt eingetragen.",
     toPlan: "Zum Plan",
+    /** P14 Etappe 2 · Mitbring-Liste in der Leiste: was du mitbringst, was noch fehlt. */
+    bring: {
+      label: "Mitbringen",
+      mine: (labels: string[]) => `Du bringst: ${labels.join(", ")}`,
+      nothingMine: "Du bringst noch nichts mit.",
+      open: "Fehlt noch:",
+      claim: (label: string) => `${label} bringe ich mit`,
+      more: (n: number) => `+${n} weitere`,
+      allTaken: "Alles vergeben – danke an alle.",
+      claimed: (label: string) => `Danke – du bringst ${label} mit.`,
+      loading: "Mitbring-Liste lädt …",
+      error: "Mitbring-Liste gerade nicht abrufbar.",
+    },
     /** D3 Etappe 2b · ohne Plan heute: Orte, die jetzt offen haben. */
     ideas: {
       title: "Heute Abend",

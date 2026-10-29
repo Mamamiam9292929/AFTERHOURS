@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { IconCheck, IconClose, IconPlus } from "@/components/icons";
 import { Avatar, type Person } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
+import { Chip } from "@/components/ui/Controls";
 import { ErrorState, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
+import { BRING_TEMPLATES, guessTemplate, sameLabel, templateSuggestions, type BringTemplate } from "@/lib/bring";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
@@ -38,6 +40,15 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
   const [mineToo, setMineToo] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Etappe 2: Vorlage nach dem Plantitel vorwählen („Grillen am See“ → Grillen), sonst keine.
+  const [template, setTemplate] = useState<BringTemplate | null>(() => guessTemplate(plan.title));
+  const [suggesting, setSuggesting] = useState<string | null>(null);
+
+  // Von „Mitbringen“ auf Home kommt man mit #mitbringen – nach dem Laden dorthin springen.
+  const loaded = items.isSuccess;
+  useEffect(() => {
+    if (loaded && window.location.hash === "#mitbringen") document.getElementById("mitbringen")?.scrollIntoView({ block: "start" });
+  }, [loaded]);
 
   if (items.isPending) return <Skeleton className="h-24" />;
   if (items.isError) return <ErrorState error={items.error} onRetry={() => void items.refetch()} />;
@@ -55,7 +66,7 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
       setFormError(t.errors.codes.invalid_plan_item);
       return;
     }
-    if (list.some((i) => i.label.toLocaleLowerCase("de") === clean.toLocaleLowerCase("de"))) {
+    if (list.some((i) => sameLabel(i.label, clean))) {
       setFormError(t.errors.codes.plan_item_exists);
       return;
     }
@@ -69,6 +80,18 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
           toast.success(mineToo ? t.plans.items.addedMine : t.plans.items.added);
         },
         onError: (error) => setFormError(errorMessage(error)),
+      },
+    );
+  }
+
+  function addSuggestion(suggestion: string) {
+    setSuggesting(suggestion);
+    add.mutate(
+      { label: suggestion, claim: false },
+      {
+        onSuccess: () => toast.success(t.plans.items.suggestionAdded(suggestion)),
+        onError: (error) => toast.error(error),
+        onSettled: () => setSuggesting(null),
       },
     );
   }
@@ -160,28 +183,92 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
         (full ? (
           <p className="text-[13px] text-faint">{t.plans.items.full}</p>
         ) : (
-          <form onSubmit={submit} noValidate className={cn(PANEL_ITEM, "space-y-3 p-3.5")}>
-            <TextField
-              label={t.plans.items.label}
-              name="plan_item"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder={t.plans.items.placeholder}
-              maxLength={60}
-              autoComplete="off"
-              enterKeyHint="done"
+          <>
+            <BringTemplates
+              template={template}
+              onTemplate={setTemplate}
+              existing={list.map((i) => i.label)}
+              room={MAX_ITEMS - list.length}
+              busy={add.isPending}
+              suggesting={suggesting}
+              onAdd={addSuggestion}
             />
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
-                <input type="checkbox" checked={mineToo} onChange={(e) => setMineToo(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-lime)]" />
-                {t.plans.items.claimSelf}
-              </label>
-              <Button type="submit" size="sm" loading={add.isPending} icon={<IconPlus className="size-4" aria-hidden />}>
-                {t.plans.items.add}
-              </Button>
-            </div>
-            {formError && <FormMessage>{formError}</FormMessage>}
-          </form>
+            <form onSubmit={submit} noValidate className={cn(PANEL_ITEM, "space-y-3 p-3.5")}>
+              <TextField
+                label={t.plans.items.label}
+                name="plan_item"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder={t.plans.items.placeholder}
+                maxLength={60}
+                autoComplete="off"
+                enterKeyHint="done"
+              />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
+                  <input type="checkbox" checked={mineToo} onChange={(e) => setMineToo(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-lime)]" />
+                  {t.plans.items.claimSelf}
+                </label>
+                <Button type="submit" size="sm" loading={add.isPending} icon={<IconPlus className="size-4" aria-hidden />}>
+                  {t.plans.items.add}
+                </Button>
+              </div>
+              {formError && <FormMessage>{formError}</FormMessage>}
+            </form>
+          </>
+        ))}
+    </div>
+  );
+}
+
+interface BringTemplatesProps {
+  template: BringTemplate | null;
+  onTemplate: (template: BringTemplate | null) => void;
+  existing: string[];
+  room: number;
+  busy: boolean;
+  suggesting: string | null;
+  onAdd: (label: string) => void;
+}
+
+/**
+ * P14 Etappe 2 · Vorlagen je Anlass: Anlass als Chip wählen, dann die Sachen antippen, die noch nicht auf der
+ * Liste stehen – jede landet als offene Sache auf der Liste (gleiche RPC wie das Formular).
+ */
+function BringTemplates({ template, onTemplate, existing, room, busy, suggesting, onAdd }: BringTemplatesProps) {
+  const chosen = template ? t.plans.items.templates[template] : null;
+  const suggestions = chosen ? templateSuggestions(chosen.items, existing, room) : [];
+  return (
+    <div className={cn(PANEL_ITEM, "space-y-3 p-3.5")} data-testid="bring-templates">
+      <p className="text-[12px] font-bold uppercase tracking-wide text-muted">{t.plans.items.templatesTitle}</p>
+      <div role="group" aria-label={t.plans.items.templatesLabel} className="flex flex-wrap gap-2">
+        {BRING_TEMPLATES.map((id) => (
+          <Chip key={id} selected={template === id} onToggle={() => onTemplate(template === id ? null : id)}>
+            {t.plans.items.templates[id].name}
+          </Chip>
+        ))}
+      </div>
+      {chosen &&
+        (suggestions.length === 0 ? (
+          <p className="text-sm text-muted">{t.plans.items.allSuggested}</p>
+        ) : (
+          <ul aria-label={t.plans.items.suggestionsLabel(chosen.name)} className="flex flex-wrap gap-2">
+            {suggestions.map((label) => (
+              <li key={label}>
+                <button
+                  type="button"
+                  aria-label={t.plans.items.suggest(label)}
+                  aria-busy={suggesting === label}
+                  disabled={busy}
+                  onClick={() => onAdd(label)}
+                  className="inline-flex h-10 items-center gap-1.5 rounded-full border border-dashed border-white/25 bg-white/[0.04] px-3.5 text-sm font-semibold text-fg transition-colors hover:border-lime hover:text-lime disabled:cursor-wait disabled:opacity-60"
+                >
+                  <IconPlus className="size-4" aria-hidden />
+                  {label}
+                </button>
+              </li>
+            ))}
+          </ul>
         ))}
     </div>
   );
