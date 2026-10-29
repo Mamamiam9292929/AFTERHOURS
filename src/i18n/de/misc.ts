@@ -207,7 +207,7 @@ export const settings = {
     title: "Sprache",
     label: "Sprache der App",
     lead: "Gilt für dein Konto: auch für Kalender-Abo, Mitteilungen aufs Handy und E-Mails (etwa „Passwort vergessen“), und ein neues Gerät übernimmt sie. Die Seite lädt danach neu. Datum, Uhrzeit und Beträge bleiben in Berliner Zeit und Euro.",
-    notTranslated: "Noch deutsch, auch auf Englisch: Beschreibungen der Orte aus OpenStreetMap (etwa „Italienisch“).",
+    notTranslated: "Nicht alles wird übersetzt: Orte bekommen eine englische Beschreibung erst, wenn ihre Stadt neu aus OpenStreetMap geladen wurde (frühestens nach 30 Tagen), und Texte deiner Crew bleiben, wie sie geschrieben wurden.",
   },
   preferences: { title: "Vorlieben", saved: "Vorlieben gespeichert." },
   location: {

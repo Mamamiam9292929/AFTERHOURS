@@ -6,7 +6,7 @@ function eq(actual: unknown, expected: unknown, message = ""): void {
 function is(actual: unknown, expected: unknown, message = ""): void {
   if (!Object.is(actual, expected)) throw new Error(`${message} erwartet ${String(expected)}, erhalten ${String(actual)}`);
 }
-import { buildOverpassQuery, categorize, commonsFileOf, overpassAreaId, parseOpeningHours, selectPlaces, toPlace, wikidataIdOf, type OsmElement } from "./osm.ts";
+import { buildOverpassQuery, categorize, commonsFileOf, describe, featuresOf, overpassAreaId, parseOpeningHours, selectPlaces, toPlace, wikidataIdOf, type OsmElement } from "./osm.ts";
 
 Deno.test("Öffnungszeiten: einfache Regeln", () => {
   eq(parseOpeningHours("Mo-Fr 10:00-20:00; Sa 10:00-16:00"), {
@@ -83,6 +83,7 @@ Deno.test("Ort: Felder aus OSM, nichts erfunden", () => {
   is(p?.source_url, "https://www.openstreetmap.org/node/101");
   is(p?.address, "Kleine Fleischergasse 4, 04109 Leipzig");
   is(p?.description, "Küche: Deutsch, Regional. Außenplätze.");
+  eq(p?.features, { cuisine: ["german", "regional"], outdoor_seating: true }, "Merkmale statt Satz, unbekannte Küche fällt weg");
   is(p?.website_url, "https://example.org/");
   is(p?.phone, "+49 341 123456");
   is(p?.setting, null);
@@ -150,4 +151,23 @@ Deno.test("Fotos (P7): Wikidata-Kennung und Übernahme in den Ort", () => {
   const none = toPlace({ type: "node", id: 9, lat: 51.3, lon: 12.4, tags: { amenity: "pub", name: "Pub", image: "https://example.org/pub.jpg" } }, "Leipzig");
   is(none?.commons_file, null);
   is(none?.wikidata_id, null);
+});
+
+Deno.test("P11 Etappe 2f: Merkmale für die Beschreibung in der Sprache der App", () => {
+  const tags = {
+    cuisine: "italian; Pizza;italian;unknown_food", sport: "climbing;soccer", "diet:vegan": "only", outdoor_seating: "yes",
+    wheelchair: "limited", description: "Gemütliche Pizzeria am Markt", "description:en": "Cosy pizzeria on the market square",
+  };
+  eq(featuresOf(tags), {
+    cuisine: ["italian", "pizza"], sport: ["climbing"], vegan: "only", outdoor_seating: true, wheelchair: "limited",
+    about_de: "Gemütliche Pizzeria am Markt", about_en: "Cosy pizzeria on the market square",
+  }, "bekannte Schlüssel, ohne Dubletten, Kleinbuchstaben");
+  is(describe(tags), "Gemütliche Pizzeria am Markt. Küche: Italienisch, Pizza. Klettern/Bouldern. Rein vegan. Außenplätze. Eingeschränkt rollstuhlgerecht.", "deutscher Satz bleibt wie bisher");
+  eq(featuresOf({ description: "Nur deutsch" }), { about_de: "Nur deutsch" }, "Beschreibung ohne Sprache gilt nicht als englisch");
+  eq(featuresOf({ "description:de": "Auf Deutsch", description: "Default" }), { about_de: "Auf Deutsch" }, "description:de geht vor");
+  eq(featuresOf({ "description:en": "ok" }), null, "zu kurze Beschreibung fällt weg");
+  eq(featuresOf({ "description:en": "x".repeat(301) }), null, "zu lange Beschreibung fällt weg");
+  eq(featuresOf({ "diet:vegan": "no", wheelchair: "no", outdoor_seating: "no" }), null, "Verneinungen sind keine Merkmale");
+  eq(featuresOf({ cuisine: Array.from({ length: 12 }, (_, i) => ["italian", "pizza", "german", "thai", "indian", "greek", "burger", "sushi", "ramen", "tapas", "crepe", "waffle"][i]).join(";") })?.cuisine?.length, 8, "höchstens 8 Küchen");
+  eq(featuresOf({ wheelchair: "yes", "diet:vegan": "yes" }), { vegan: "yes", wheelchair: "yes" });
 });
