@@ -3442,8 +3442,9 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   // eigenen Seite steht die Uhr im Browser auf 19:30 Uhr Berliner Zeit (nächstgelegener Tag) – die echte Seite läuft weiter.
   {
     const realNow = Date.now();
-    const berlinHour = Number(new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", hour: "numeric", hourCycle: "h23" }).format(realNow));
-    const berlinMinute = Number(new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", minute: "numeric" }).format(realNow));
+    const berlinParts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(realNow);
+    const berlinHour = Number(berlinParts.find((part) => part.type === "hour").value);
+    const berlinMinute = Number(berlinParts.find((part) => part.type === "minute").value);
     let shiftHours = 19.5 - (berlinHour + berlinMinute / 60);
     if (shiftHours > 12) shiftHours -= 24;
     if (shiftHours < -12) shiftHours += 24;
