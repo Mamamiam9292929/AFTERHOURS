@@ -1248,7 +1248,9 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
     // Die Seiten werden im Leerlauf vorgeladen; erst dann gleitet das Ticket ohne Ladezustand hinüber.
     await bob.page.waitForTimeout(1000);
   }
-  await bob.page.getByRole("link", { name: /Strike District Bowling/ }).first().click();
+  // Gezielt das Ticket des Plans: Zwischen 16 und 23 Uhr zeigt Home auch „Heute Abend“ mit Orten (D3 2b),
+  // darunter womöglich derselbe Ort als Link zu Discover.
+  await bob.page.locator(`main a[href$="/plans/${ids.plan}"]`).filter({ hasText: /Strike District Bowling/ }).first().click();
   await bob.page.waitForURL(new RegExp(`/plans/${ids.plan}`));
   if (viewTransitions) {
     await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
