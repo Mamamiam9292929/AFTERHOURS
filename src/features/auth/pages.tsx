@@ -4,7 +4,7 @@ import { IconEye, IconEyeOff, IconMail } from "@/components/icons";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { PageSpinner } from "@/components/ui/Feedback";
-import { t } from "@/i18n";
+import { locale, t } from "@/i18n";
 import { errorMessage } from "@/lib/errors";
 import { siteUrl, supabase } from "@/lib/supabase";
 import { email as emailRule, minLength, password as passwordRule, required, validate } from "@/lib/validation";
@@ -146,7 +146,8 @@ export function RegisterForm({ submitLabel = t.auth.register.submit }: { submitL
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { emailRedirectTo: confirmRedirect(), data: { display_name: displayName.trim() } },
+      // `locale` (P11 Etappe 2d): Sprache der Bestätigungs-E-Mail und späterer Auth-E-Mails (supabase/templates).
+      options: { emailRedirectTo: confirmRedirect(), data: { display_name: displayName.trim(), locale } },
     });
     setBusy(false);
     if (error) {
