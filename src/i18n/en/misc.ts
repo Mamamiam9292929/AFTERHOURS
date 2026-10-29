@@ -1,5 +1,4 @@
-import { formatEuro } from "@/lib/format";
-import { formatDateTime, formatTime } from "@/lib/time";
+import { formatDateTime, formatEuro, formatTime } from "./format";
 import type { NotificationType } from "@/lib/types";
 import type {
   notifications as deNotifications,
