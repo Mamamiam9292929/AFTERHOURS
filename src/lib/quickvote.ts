@@ -101,3 +101,36 @@ export function tonightStrip(
     address: clean(plan.address),
   };
 }
+
+/** D3 Etappe 2b: „Heute Abend“ ohne Plan – ab wann und bis wann (Stunde in Berliner Zeit, bis ausschließlich). */
+export const TONIGHT_FROM_HOUR = 16;
+export const TONIGHT_UNTIL_HOUR = 23;
+
+/**
+ * D3 Etappe 2b · Soll Home den „Heute Abend“-Kopf ohne Plan zeigen (Orte, die jetzt offen haben)?
+ * Nur am späten Nachmittag und Abend (16 bis 23 Uhr Berliner Zeit), nur mit Crew, nicht während einer
+ * laufenden „Heute noch wer?“-Frage (deren Karte zeigt die Orte selbst), nicht, wenn heute ausgeblendet –
+ * und nie, wenn für dich heute schon etwas ansteht: ein Plan am selben Kalendertag (`days === 0`) oder
+ * einer im Fenster des Live-Countdowns (auch nach Mitternacht), es sei denn abgesagt oder von dir abgesagt.
+ * `hour` und `days` rechnet der Aufrufer in Berliner Zeit, damit diese Datei ohne Abhängigkeiten bleibt.
+ */
+export function showTonightIdeas(
+  {
+    hour,
+    hasCrew,
+    askOpen,
+    dismissed,
+    plans,
+  }: {
+    hour: number;
+    hasCrew: boolean;
+    askOpen: boolean;
+    dismissed: boolean;
+    plans: readonly { starts_at: string; ends_at: string | null; status: string; days: number; mine: string | null }[];
+  },
+  now: Date,
+): boolean {
+  if (!hasCrew || askOpen || dismissed) return false;
+  if (hour < TONIGHT_FROM_HOUR || hour >= TONIGHT_UNTIL_HOUR) return false;
+  return !plans.some((plan) => plan.status !== "cancelled" && plan.mine !== "declined" && (plan.days === 0 || liveCountdown(plan, now) !== null));
+}

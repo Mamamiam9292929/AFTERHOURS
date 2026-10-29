@@ -3438,6 +3438,69 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   } else {
     console.log("   (E2E_DB_URL nicht gesetzt – Stadt aus Discover wird übersprungen)");
   }
+  // D3 Etappe 2b: Ohne Plan zeigt Home am Abend, was gerade offen hat. Dana hat noch keinen Plan; auf einer
+  // eigenen Seite steht die Uhr im Browser auf 19:30 Uhr Berliner Zeit (nächstgelegener Tag) – die echte Seite läuft weiter.
+  {
+    const realNow = Date.now();
+    const berlinParts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(realNow);
+    const berlinHour = Number(berlinParts.find((part) => part.type === "hour").value);
+    const berlinMinute = Number(berlinParts.find((part) => part.type === "minute").value);
+    let shiftHours = 19.5 - (berlinHour + berlinMinute / 60);
+    if (shiftHours > 12) shiftHours -= 24;
+    if (shiftHours < -12) shiftHours += 24;
+    // Die Uhr gilt für den ganzen Browser-Kontext – deshalb ein eigener Kontext mit Danas Anmeldung.
+    const eveningContext = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block", storageState: await context.storageState() });
+    const evening = await eveningContext.newPage();
+    evening.setDefaultTimeout(15_000);
+    evening.on("pageerror", (e) => problems.push(`[Dana, Abend] pageerror: ${e}`));
+    await evening.clock.setFixedTime(new Date(realNow + shiftHours * 3600_000));
+    const eveningUser = { ...dana, page: evening };
+    await evening.goto(`${APP}/home`);
+    const ideas = evening.getByTestId("tonight-ideas");
+    await ideas.waitFor();
+    check((await ideas.getByRole("heading", { level: 2 }).innerText()).trim().toLowerCase() === "heute abend", "D3 2b: ohne Plan steht am Abend „Heute Abend“ auf Home");
+    const section = ideas.getByTestId("open-now");
+    await section.waitFor();
+    await evening.waitForFunction(() => !document.querySelector('[data-testid="tonight-ideas"] [data-testid="open-now"][aria-busy]'), null, { timeout: 30_000 });
+    check((await section.getByRole("heading", { level: 3 }).count()) === 1, "D3 2b: Überschrift der Orte unter „Heute Abend“ ist h3");
+    const text = (await section.innerText()).replace(/\s+/g, " ");
+    const rows = section.getByTestId("open-now-place");
+    const n = await rows.count();
+    check(n <= 3, `D3 2b: höchstens drei Orte (${n})`);
+    for (let i = 0; i < n; i++) {
+      const row = rows.nth(i);
+      const rowText = (await row.innerText()).replace(/\s+/g, " ");
+      if ((await row.getAttribute("data-open")) === "true") check(/Geöffnet bis \d\d:\d\d Uhr/.test(rowText), `D3 2b: offener Ort nennt, bis wann („${rowText}“)`);
+      else check(/Öffnungszeiten/.test(rowText) && !/Geschlossen/.test(rowText), `D3 2b: Ort ohne bekannte Öffnungszeiten ist so beschriftet („${rowText}“)`);
+      const href = await row.getByRole("link", { name: /^Plan hier/ }).getAttribute("href");
+      check(/^\/plans\/new\?activity=[^&]+&soon=1$/.test(href ?? ""), `D3 2b: „Plan hier“ mit Ort und „gleich“, Crew im Formular (${href})`);
+    }
+    if (n > 0) check(text.includes("Öffnungszeiten laut OpenStreetMap"), "D3 2b: Quelle der Öffnungszeiten steht dabei");
+    else check(/Wähl in Discover deine Stadt|hat laut OpenStreetMap gerade nichts Passendes offen|noch keine Orte geladen/.test(text), `D3 2b: ohne Orte ein ehrlicher Hinweis („${text}“)`);
+    check(!/Geschlossen/.test(text), "D3 2b: keine geschlossenen Orte");
+    await shot(eveningUser, "40b-home-heute-abend-ohne-plan");
+    // Fehlerzustand: lassen sich die Orte nicht laden, steht das da – mit „Erneut versuchen“.
+    await evening.route("**/rest/v1/rpc/search_activities**", (route) => route.abort("failed"));
+    await evening.reload();
+    await ideas.getByText("Orte gerade nicht abrufbar.").waitFor({ timeout: 30_000 });
+    check(true, "D3 2b: Fehlerzustand mit ehrlichem Hinweis");
+    await evening.unrouteAll();
+    // „Heute ausblenden“ gilt für den Tag auf diesem Gerät – auch nach dem Neuladen.
+    await ideas.getByRole("button", { name: "Heute ausblenden" }).click();
+    await ideas.waitFor({ state: "detached" });
+    await evening.reload();
+    await evening.getByRole("heading", { level: 1 }).waitFor();
+    await evening.waitForTimeout(500);
+    check((await evening.getByTestId("tonight-ideas").count()) === 0, "D3 2b: „Heute ausblenden“ hält bis morgen");
+    await evening.evaluate(() => localStorage.removeItem("afterhours.tonight.hidden"));
+    // Um 14 Uhr ist es noch zu früh.
+    await evening.clock.setFixedTime(new Date(realNow + (shiftHours - 5.5) * 3600_000));
+    await evening.reload();
+    await evening.getByRole("heading", { level: 1 }).waitFor();
+    await evening.waitForTimeout(500);
+    check((await evening.getByTestId("tonight-ideas").count()) === 0, "D3 2b: am Nachmittag (14 Uhr) noch kein „Heute Abend“");
+    await eveningContext.close();
+  }
   // D3 Etappe 1: Live-Countdown auf dem großen Ticket – Danas erster Plan beginnt in gut zwei Stunden.
   if (ANON) {
     const startsAt = new Date(Date.now() + 134 * 60_000 + 20_000);

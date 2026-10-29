@@ -1,7 +1,7 @@
 // D3 Etappe 1 · Abstimmen und Live-Countdown auf Home (src/lib/quickvote.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatCountdown, liveCountdown, needsQuickVote, pendingOptions, tonightStrip } from "../../src/lib/quickvote.ts";
+import { formatCountdown, liveCountdown, needsQuickVote, pendingOptions, showTonightIdeas, tonightStrip } from "../../src/lib/quickvote.ts";
 
 const opt = (id, mine = null) => ({ id, mine });
 const ids = (list) => list.map((o) => o.id);
@@ -99,4 +99,33 @@ test("Wetter nur mit Ort aus Discover und nur vor Beginn; Treffpunkt bereinigt, 
   const empty = tonightStrip(tonightPlan({ meeting_point: "   ", address: null }), before, 0, 20);
   assert.equal(empty.meetingPoint, null);
   assert.equal(empty.address, null);
+});
+
+// D3 Etappe 2b · „Heute Abend“ ohne Plan.
+const evening = { hour: 19, hasCrew: true, askOpen: false, dismissed: false, plans: [] };
+const at = new Date("2026-10-30T18:30:00.000Z"); // 19:30 Uhr in Berlin
+const p = (over = {}) => ({ starts_at: "2026-11-02T19:00:00.000Z", ends_at: null, status: "confirmed", days: 3, mine: "attending", ...over });
+
+test("„Heute Abend“ ohne Plan: nur von 16 bis 23 Uhr, nur mit Crew", () => {
+  assert.equal(showTonightIdeas(evening, at), true);
+  assert.equal(showTonightIdeas({ ...evening, hour: 15 }, at), false, "15 Uhr ist noch Nachmittag");
+  assert.equal(showTonightIdeas({ ...evening, hour: 16 }, at), true);
+  assert.equal(showTonightIdeas({ ...evening, hour: 22 }, at), true);
+  assert.equal(showTonightIdeas({ ...evening, hour: 23 }, at), false, "ab 23 Uhr nicht mehr");
+  assert.equal(showTonightIdeas({ ...evening, hour: 2 }, at), false);
+  assert.equal(showTonightIdeas({ ...evening, hasCrew: false }, at), false);
+});
+
+test("„Heute Abend“ ohne Plan: nicht bei laufender Spontan-Frage und nicht, wenn heute ausgeblendet", () => {
+  assert.equal(showTonightIdeas({ ...evening, askOpen: true }, at), false);
+  assert.equal(showTonightIdeas({ ...evening, dismissed: true }, at), false);
+});
+
+test("„Heute Abend“ ohne Plan: verschwindet, sobald heute etwas ansteht – außer es ist abgesagt", () => {
+  assert.equal(showTonightIdeas({ ...evening, plans: [p()] }, at), true, "Plan in drei Tagen stört nicht");
+  assert.equal(showTonightIdeas({ ...evening, plans: [p({ days: 0, starts_at: "2026-10-30T20:00:00.000Z" })] }, at), false, "Plan heute");
+  assert.equal(showTonightIdeas({ ...evening, plans: [p({ days: 0, starts_at: "2026-10-30T20:00:00.000Z", mine: "invited" })] }, at), false, "auch ohne eigene Antwort");
+  assert.equal(showTonightIdeas({ ...evening, plans: [p({ days: 1, starts_at: "2026-10-30T23:30:00.000Z" })] }, at), false, "Plan kurz nach Mitternacht liegt im Countdown-Fenster");
+  assert.equal(showTonightIdeas({ ...evening, plans: [p({ days: 0, starts_at: "2026-10-30T20:00:00.000Z", status: "cancelled" })] }, at), true, "abgesagter Plan zählt nicht");
+  assert.equal(showTonightIdeas({ ...evening, plans: [p({ days: 0, starts_at: "2026-10-30T20:00:00.000Z", mine: "declined" })] }, at), true, "eigene Absage zählt nicht");
 });
