@@ -2,7 +2,7 @@ import { ShareButton } from "@/components/ui/ShareButton";
 import { planShare } from "@/lib/share";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { IconBack, IconCalendar, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
+import { IconBack, IconBasket, IconCalendar, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
 import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -26,6 +26,7 @@ import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/tim
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
 import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { BookingPanel } from "./BookingPanel";
+import { BringPanel } from "./BringPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { PlanForm } from "./PlanForm";
 import { PlanPanel } from "./PlanPanel";
@@ -122,6 +123,12 @@ export function PlanDetailPage() {
   const expensesSection = (
     <PlanPanel id="kosten" title={t.plans.expenses.title} icon={<IconWallet className="size-5" />} tone="lime">
       <ExpensesPanel plan={plan} userId={user.id} memberIds={crew?.members.map((m) => m.user_id) ?? []} canManageCrew={canManageCrew(myRole(crew, user.id))} lookup={people.lookup} />
+    </PlanPanel>
+  );
+
+  const bringSection = (
+    <PlanPanel id="mitbringen" title={t.plans.items.title} icon={<IconBasket className="size-5" />} tone="amber">
+      <BringPanel plan={plan} userId={user.id} canManage={canManage} locked={locked} lookup={people.lookup} />
     </PlanPanel>
   );
 
@@ -308,6 +315,9 @@ export function PlanDetailPage() {
           {/* P3: Nach dem Start steht das Abrechnen oben – davor ist es eher die Ausnahme (z. B. Tickets vorab). */}
           {(started || locked) && expensesSection}
 
+          {/* P14: Wer bringt was? – vor dem Abend als erster Bereich, danach weiter unten zum Nachschauen. */}
+          {!(started || locked) && bringSection}
+
           {/* V2 Etappe 3g: Kosten, Reservierung und Fahrten als Glas-Karten im Deck, je mit eigenem Schein. */}
           <PlanPanel id="reservierung" title={t.plans.detail.booking} icon={<IconCalendarCheck className="size-5" />} tone="violet">
             <BookingPanel plan={plan} activity={place} canManage={canManage && !locked} />
@@ -316,6 +326,8 @@ export function PlanDetailPage() {
           <PlanPanel id="fahrten" title={t.plans.detail.rides} icon={<IconCar className="size-5" />} tone="pink">
             <RidesPanel plan={plan} userId={user.id} locked={locked} lookup={people.lookup} />
           </PlanPanel>
+
+          {(started || locked) && bringSection}
 
           {!(started || locked) && expensesSection}
 
