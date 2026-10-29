@@ -3299,6 +3299,14 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
 
 await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zurück auf Deutsch (Bob)", async () => {
   const { page } = bob;
+  // P11 Etappe 2f: Der Import speichert Merkmale statt nur des deutschen Satzes; auf Deutsch bleibt der Satz gleich.
+  const placeRow = ANON ? (await api(bob, "GET", "activities?select=id,features&provider_id=eq.osm&name=eq.restaurant%200")).json?.[0] : null;
+  if (placeRow) {
+    check(placeRow.features?.cuisine?.join(",") === "italian,pizza" && placeRow.features?.outdoor_seating === true, `Merkmale aus OSM gespeichert (${JSON.stringify(placeRow.features)})`);
+    await page.goto(`${APP}/activities/${placeRow.id}`);
+    await page.getByText("Küche: Italienisch, Pizza. Außenplätze.", { exact: true }).waitFor();
+    check(true, "Ortsbeschreibung auf Deutsch wie bisher");
+  }
   await page.goto(`${APP}/settings#language`);
   const card = page.locator("section#language");
   await card.getByRole("heading", { name: "Sprache" }).waitFor();
@@ -3311,7 +3319,7 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
   check((await page.evaluate(() => localStorage.getItem("afterhours.locale"))) === "en", "Wahl gilt für dieses Gerät (localStorage)");
   const en = page.locator("section#language");
   check((await en.getByRole("button", { name: "English" }).getAttribute("aria-pressed")) === "true", "English ist jetzt gewählt");
-  check(await en.getByText("Still in German for now", { exact: false }).isVisible(), "ehrlicher Hinweis, was noch deutsch ist");
+  check(await en.getByText("Not everything is translated", { exact: false }).isVisible(), "ehrlicher Hinweis, was noch deutsch ist");
   // P11 Etappe 2a: Die Wahl steht auch im Profil (für Kalender-Abo, Push und neue Geräte).
   if (ANON) {
     const saved = await api(bob, "GET", "user_settings?select=locale");
@@ -3369,6 +3377,15 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
   await sheet.getByText("What's on at the weekend?").waitFor();
   await shot(bob, "27d-ein-satz-englisch");
   await page.keyboard.press("Escape");
+  // P11 Etappe 2f: Ortsbeschreibung aus OSM auf Englisch, ohne deutschen Satz.
+  if (placeRow) {
+    await page.goto(`${APP}/activities/${placeRow.id}`);
+    await page.getByText("Cuisine: Italian, Pizza. Outdoor seating.", { exact: true }).waitFor();
+    const placeText = await page.locator("main").innerText();
+    check(!/Küche|Außenplätze|Italienisch/.test(placeText), "Ortsbeschreibung auf Englisch, kein deutscher Satz");
+    await noOverflow(bob, "Place (English)");
+    await shot(bob, "27f-ort-englisch");
+  }
   // P11 Etappe 2e: „Stichwahl: …“ erscheint auf Englisch als „Runoff: …“.
   if (ids.runoff) {
     await page.goto(`${APP}/polls/${ids.runoff}`);

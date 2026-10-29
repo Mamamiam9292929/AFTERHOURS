@@ -207,7 +207,7 @@ export const settings = {
     title: "Language",
     label: "App language",
     lead: "Applies to your account: also to the calendar subscription, notifications on your phone and emails (such as “forgot password”), and new devices pick it up. The page reloads afterwards. Dates, times and amounts stay in Berlin time and euros.",
-    notTranslated: "Still in German for now: place descriptions from OpenStreetMap (such as “Italienisch”).",
+    notTranslated: "Not everything is translated: places only get an English description once their city has been reloaded from OpenStreetMap (after 30 days at the earliest), and texts your crew writes stay as written.",
   },
   preferences: { title: "Preferences", saved: "Preferences saved." },
   location: {

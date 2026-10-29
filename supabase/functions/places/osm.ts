@@ -41,6 +41,23 @@ export interface Place {
   commons_file: string | null;
   /** P7: Wikidata-Eintrag („Q…“) – dessen Bild (P18) gilt, wenn keine Datei angegeben ist. */
   wikidata_id: string | null;
+  /** P11 Etappe 2f: Merkmale statt Satz – die App setzt die Beschreibung in ihrer Sprache zusammen. */
+  features: PlaceFeatures | null;
+}
+
+/**
+ * P11 Etappe 2f: Merkmale eines Ortes als OSM-Schlüssel (nur solche, für die die App eine Übersetzung hat),
+ * dazu eigene Beschreibungen aus OSM: `about_de` aus `description:de` bzw. `description`, `about_en` nur aus
+ * `description:en` – eine Beschreibung ohne Sprachangabe gilt nicht als englisch.
+ */
+export interface PlaceFeatures {
+  cuisine?: string[];
+  sport?: string[];
+  vegan?: "only" | "yes";
+  outdoor_seating?: true;
+  wheelchair?: "yes" | "limited";
+  about_de?: string;
+  about_en?: string;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -125,10 +142,12 @@ const CUISINE: Record<string, string> = {
 
 const SPORT: Record<string, string> = { climbing: "Klettern/Bouldern", trampoline: "Trampolin", swimming: "Schwimmen", ice_skating: "Eislaufen" };
 
+const ownText = (value: string | undefined) => (value && value.trim().length >= 3 && value.length <= 300 ? value.trim() : null);
+
 export function describe(tags: Record<string, string>): string | null {
   const parts: string[] = [];
-  const own = tags["description:de"] ?? tags.description;
-  if (own && own.trim().length >= 3 && own.length <= 300) parts.push(own.trim().replace(/[.!]?$/, "."));
+  const own = ownText(tags["description:de"] ?? tags.description);
+  if (own) parts.push(own.replace(/[.!]?$/, "."));
   const cuisine = [...new Set(list(tags.cuisine).map((c) => CUISINE[c]).filter(Boolean))];
   if (cuisine.length > 0) parts.push(`Küche: ${cuisine.slice(0, 4).join(", ")}.`);
   const sports = [...new Set(list(tags.sport).map((s) => SPORT[s]).filter(Boolean))];
@@ -139,6 +158,26 @@ export function describe(tags: Record<string, string>): string | null {
   if (tags.wheelchair === "yes") parts.push("Rollstuhlgerecht.");
   else if (tags.wheelchair === "limited") parts.push("Eingeschränkt rollstuhlgerecht.");
   return parts.length > 0 ? parts.join(" ") : null;
+}
+
+/**
+ * P11 Etappe 2f: dieselben Angaben wie `describe`, aber als Merkmale. Die deutsche Beschreibung (`description`)
+ * bleibt zusätzlich gespeichert – für Orte, die noch nicht neu importiert wurden, und als Rückfall.
+ */
+export function featuresOf(tags: Record<string, string>): PlaceFeatures | null {
+  const f: PlaceFeatures = {};
+  const cuisine = [...new Set(list(tags.cuisine).filter((c) => CUISINE[c]))].slice(0, 8);
+  if (cuisine.length > 0) f.cuisine = cuisine;
+  const sport = [...new Set(list(tags.sport).filter((s) => SPORT[s]))];
+  if (sport.length > 0) f.sport = sport;
+  if (tags["diet:vegan"] === "only" || tags["diet:vegan"] === "yes") f.vegan = tags["diet:vegan"];
+  if (tags.outdoor_seating === "yes") f.outdoor_seating = true;
+  if (tags.wheelchair === "yes" || tags.wheelchair === "limited") f.wheelchair = tags.wheelchair;
+  const de = ownText(tags["description:de"] ?? tags.description);
+  if (de) f.about_de = de;
+  const en = ownText(tags["description:en"]);
+  if (en) f.about_en = en;
+  return Object.keys(f).length > 0 ? f : null;
 }
 
 function addressOf(tags: Record<string, string>, regionName: string): string | null {
@@ -325,6 +364,7 @@ export function toPlace(element: OsmElement, regionName: string): Place | null {
     quality,
     commons_file: commonsFileOf(tags.wikimedia_commons) ?? commonsFileOf(tags.image),
     wikidata_id: wikidataIdOf(tags.wikidata),
+    features: featuresOf(tags),
   };
 }
 

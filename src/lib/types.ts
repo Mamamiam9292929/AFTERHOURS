@@ -2,6 +2,7 @@
  * Zeilentypen der Datenbank (siehe supabase/migrations). Von Hand gepflegt, damit das Projekt ohne
  * laufende Supabase-CLI baut. Alternative: `supabase gen types typescript` und diese Datei ersetzen.
  */
+import type { PlaceFeatures } from "./placeText";
 export type CrewRole = "owner" | "admin" | "member";
 export type LocationSharingMode = "off" | "during_activity" | "selected_friends" | "crew";
 export type ActivityCategory =
@@ -134,6 +135,8 @@ export interface Activity {
   commons_file?: string | null;
   /** P7: Wikidata-Eintrag („Q…“) laut OpenStreetMap – dessen Bild gilt, wenn keine Datei angegeben ist. */
   wikidata_id?: string | null;
+  /** P11 Etappe 2f: Merkmale aus OpenStreetMap – Beschreibung in der Sprache der App über `placeDescription`. */
+  features?: PlaceFeatures | null;
   created_at: string;
   updated_at: string;
 }
