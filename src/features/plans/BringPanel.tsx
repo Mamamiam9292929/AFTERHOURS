@@ -147,8 +147,9 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
                         <span className="font-semibold text-amber">{t.plans.items.open}</span>
                       ) : (
                         <>
-                          <Avatar person={bringer} size="xs" decorative />
-                          <span className="truncate">{mine ? t.plans.items.you : t.plans.items.bringer(bringer?.display_name ?? t.states.formerMember)}</span>
+                          {/* Eigene Sachen ohne Profilbild: der Lime-Haken sagt es schon, und bei 390 px passt „Du bringst es“ neben „Doch nicht“. */}
+                          {!mine && <Avatar person={bringer} size="xs" decorative />}
+                          <span className={mine ? "break-words" : "truncate"}>{mine ? t.plans.items.you : t.plans.items.bringer(bringer?.display_name ?? t.states.formerMember)}</span>
                         </>
                       )}
                     </p>
