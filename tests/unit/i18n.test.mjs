@@ -18,7 +18,7 @@ export async function resolve(specifier, context, next) {
 }`;
 register(`data:text/javascript,${encodeURIComponent(hook)}`, import.meta.url);
 
-const { pickLocale, intlLocale } = await import("../../src/i18n/locale.ts");
+const { pickLocale, intlLocale, localeSyncStep } = await import("../../src/i18n/locale.ts");
 const { de } = await import("../../src/i18n/de/index.ts");
 const { loadEnglish } = await import("../../src/i18n/en/index.ts");
 const en = await loadEnglish();
@@ -84,4 +84,22 @@ test("Englische Funktionen liefern Text ohne „Uhr“ und ohne deutsche Pluralf
     assert.equal(typeof view.title, "string", type);
     assert.doesNotMatch(`${view.title} ${view.body ?? ""}`, /\bUhr\b|\bhat\b|\bdeine?\b/, type);
   }
+});
+
+// P11 Etappe 2a: Abgleich mit der Sprache im Profil.
+test("Sprache im Profil: speichern, übernehmen oder nichts tun", () => {
+  // Konto kennt noch keine Sprache → die des Geräts speichern (eigene Wahl vor Browser-Sprache).
+  assert.deepEqual(localeSyncStep(null, null, "en"), { kind: "save", locale: "en" });
+  assert.deepEqual(localeSyncStep(null, "de", "de"), { kind: "save", locale: "de" });
+  assert.deepEqual(localeSyncStep(undefined, "en", "en"), { kind: "save", locale: "en" });
+  assert.deepEqual(localeSyncStep("fr", null, "de"), { kind: "save", locale: "de" }, "Unbekanntes im Konto zählt wie nichts");
+  // Neues Gerät ohne eigene Wahl übernimmt die Sprache des Kontos.
+  assert.deepEqual(localeSyncStep("en", null, "de"), { kind: "adopt", locale: "en" });
+  assert.deepEqual(localeSyncStep("de", "xx", "en"), { kind: "adopt", locale: "de" }, "kaputte Wahl auf dem Gerät zählt nicht");
+  // Gleich oder eigene Wahl auf dem Gerät → nichts (kein Neuladen, kein Hin und Her zwischen Geräten).
+  assert.deepEqual(localeSyncStep("en", null, "en"), { kind: "none" });
+  assert.deepEqual(localeSyncStep("en", "de", "de"), { kind: "none" });
+  assert.deepEqual(localeSyncStep("de", "en", "en"), { kind: "none" });
+  // Nach dem Übernehmen ist die Sprache die eigene Wahl: der zweite Start lädt nicht noch einmal neu.
+  assert.deepEqual(localeSyncStep("en", "en", "en"), { kind: "none" });
 });

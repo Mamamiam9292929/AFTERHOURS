@@ -155,3 +155,35 @@ test("Funktion: ohne VITE_SITE_URL zeigen Links auf die eigene Adresse; publisha
   assert.ok((await response.text()).includes("URL:https://eigene.test/plans/"));
   assert.equal(calls[0].init.headers.Authorization, undefined);
 });
+
+// P11 Etappe 2a: Sprache aus dem Profil.
+test("Englisch: Titel, Beschreibung und Kopf auf Englisch, Termine unverändert", () => {
+  const ics = buildCalendar(
+    [event({ attendance: "invited" }), event({ id: "11111111-2222-4333-8444-666666666666", status: "cancelled" }), event({ id: "11111111-2222-4333-8444-777777777777", attendance: "maybe" })],
+    { site: SITE, now: NOW, locale: "en" },
+  );
+  const unfolded = ics.replace(/\r\n /g, "");
+  assert.ok(unfolded.includes("PRODID:-//AFTERHOURS//Kalender-Abo//EN"));
+  assert.ok(unfolded.includes("X-WR-CALDESC:Your plans from AFTERHOURS"));
+  assert.ok(unfolded.includes("SUMMARY:Cancelled: Bowling"));
+  assert.ok(unfolded.includes("SUMMARY:Maybe: Bowling"));
+  assert.ok(unfolded.includes("Meeting point: Vor dem Eingang"));
+  assert.ok(unfolded.includes("You haven't answered yet."));
+  assert.ok(unfolded.includes("DTSTART:20261023T180000Z"), "Zeiten bleiben UTC");
+  assert.doesNotMatch(unfolded, /Abgesagt|Vielleicht|Treffpunkt|Deine/);
+});
+
+test("Sprache: fehlend oder unbekannt → Deutsch", () => {
+  for (const locale of [undefined, null, "", "fr", "EN", "<script>"]) {
+    const ics = buildCalendar([event({ status: "cancelled" })], { site: SITE, now: NOW, locale });
+    assert.ok(ics.includes("SUMMARY:Abgesagt: Bowling"), `Deutsch bei ${locale}`);
+    assert.ok(ics.includes("PRODID:-//AFTERHOURS//Kalender-Abo//DE"));
+  }
+  assert.equal(eventSummary(event({ title: "  " }), "en"), "Plan");
+});
+
+test("Funktion: nimmt die Sprache aus der Antwort der Datenbank", async () => {
+  const response = await handleCalendar(new Request(`${SITE}/c/${TOKEN}`), env, fakeFetch(200, { status: "valid", locale: "en", events: [event({ status: "cancelled" })] }), NOW);
+  assert.equal(response.status, 200);
+  assert.ok((await response.text()).includes("SUMMARY:Cancelled: Bowling"));
+});

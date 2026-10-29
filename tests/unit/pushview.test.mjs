@@ -1,7 +1,7 @@
 // P4 · Web-Push (src/lib/pushview.ts): Ziel einer Benachrichtigung und Mitteilung aus dem Inhalt eines Pushs.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { notificationTarget, pushView } from "../../src/lib/pushview.ts";
+import { notificationTarget, pushLocale, pushView } from "../../src/lib/pushview.ts";
 
 const POLL = "11111111-1111-4111-8111-111111111111";
 const PLAN = "22222222-2222-4222-8222-222222222222";
@@ -72,4 +72,14 @@ test("Unbekanntes, Kaputtes und Fremdes fällt auf einen allgemeinen Text zurüc
   assert.equal(odd.timestamp, null);
   // Payload als Liste wird wie leer behandelt.
   assert.equal(pushView({ type: "poll_created", actor: "Bob", payload: ["x"] }, textFor, TEXTS).body, "");
+});
+
+// P11 Etappe 2a: Sprache der Mitteilung.
+test("Sprache: aus dem Profil, sonst die des Geräts", () => {
+  assert.equal(pushLocale({ type: "poll_created", locale: "en" }, "de"), "en");
+  assert.equal(pushLocale({ type: "poll_created", locale: "de" }, "en"), "de");
+  for (const raw of [{ locale: null }, { locale: "fr" }, { locale: "EN" }, { locale: 1 }, {}, null, "en", undefined]) {
+    assert.equal(pushLocale(raw, "en"), "en", `Gerät bei ${JSON.stringify(raw)}`);
+    assert.equal(pushLocale(raw, "de"), "de");
+  }
 });

@@ -114,6 +114,7 @@ export const errors = {
     push_not_configured: "Push notifications aren't set up on this server yet.",
     push_denied: "You haven't allowed notifications. Allow them in your browser's site settings and then try again.",
     push_unavailable: "Your browser's push service can't be reached right now. Try again later.",
+    invalid_locale: "AFTERHOURS isn't available in that language.",
     invalid_push_muted_types: "This selection can't be saved. Reload the page and try again.",
     push_device_not_found: "This device is no longer registered for notifications. Turn them on again above.",
     invalid_city: "We can't process this city name. Please use only letters, spaces and hyphens.",

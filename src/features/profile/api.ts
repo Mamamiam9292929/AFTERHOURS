@@ -68,6 +68,12 @@ export function useUpdateSettings() {
   });
 }
 
+/** P11 Etappe 2a: Sprache im Profil speichern (gilt für Kalender-Abo, Push und neue Geräte). */
+export async function saveMyLocale(locale: "de" | "en"): Promise<void> {
+  const { error } = await supabase.rpc("set_my_locale", { p_locale: locale });
+  if (error) throw error;
+}
+
 /**
  * Alle Profile, die die angemeldete Person sehen darf: sie selbst und alle, mit denen sie eine Crew
  * teilt (so entscheidet es die RLS-Policy). Einmal geladen, überall per ID nachgeschlagen.
