@@ -71,16 +71,18 @@ secure_password_change = false
 max_frequency = "1s"
 otp_expiry = 3600
 
+# P11 Etappe 2d: Betreff und Text je nach Sprache des Kontos (user_metadata.locale = "en" → Englisch, sonst
+# Deutsch). Die Sprache setzt die App bei der Registrierung und set_my_locale bei jedem Wechsel.
 [auth.email.template.confirmation]
-subject = "Bestätige deine E-Mail-Adresse für AFTERHOURS"
+subject = '{{ $en := false }}{{ with .Data }}{{ $en = eq (printf "%v" .locale) "en" }}{{ end }}{{ if $en }}Confirm your email address for AFTERHOURS{{ else }}Bestätige deine E-Mail-Adresse für AFTERHOURS{{ end }}'
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.recovery]
-subject = "Neues Passwort für AFTERHOURS festlegen"
+subject = '{{ $en := false }}{{ with .Data }}{{ $en = eq (printf "%v" .locale) "en" }}{{ end }}{{ if $en }}Set a new password for AFTERHOURS{{ else }}Neues Passwort für AFTERHOURS festlegen{{ end }}'
 content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.email_change]
-subject = "Neue E-Mail-Adresse für AFTERHOURS bestätigen"
+subject = '{{ $en := false }}{{ with .Data }}{{ $en = eq (printf "%v" .locale) "en" }}{{ end }}{{ if $en }}Confirm your new email address for AFTERHOURS{{ else }}Neue E-Mail-Adresse für AFTERHOURS bestätigen{{ end }}'
 content_path = "./supabase/templates/email_change.html"
 
 [edge_runtime]

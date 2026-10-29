@@ -206,8 +206,8 @@ export const settings = {
   language: {
     title: "Sprache",
     label: "Sprache der App",
-    lead: "Gilt für dein Konto: auch für Kalender-Abo und Mitteilungen aufs Handy, und ein neues Gerät übernimmt sie. Die Seite lädt danach neu. Datum, Uhrzeit und Beträge bleiben in Berliner Zeit und Euro.",
-    notTranslated: "Noch deutsch, auch auf Englisch: E-Mails bei Anmeldung und Passwort.",
+    lead: "Gilt für dein Konto: auch für Kalender-Abo, Mitteilungen aufs Handy und E-Mails (etwa „Passwort vergessen“), und ein neues Gerät übernimmt sie. Die Seite lädt danach neu. Datum, Uhrzeit und Beträge bleiben in Berliner Zeit und Euro.",
+    notTranslated: "Noch deutsch, auch auf Englisch: ein paar Titel, die die App selbst vergibt, etwa „Stichwahl“.",
   },
   preferences: { title: "Vorlieben", saved: "Vorlieben gespeichert." },
   location: {

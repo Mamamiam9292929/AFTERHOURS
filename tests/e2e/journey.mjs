@@ -132,6 +132,16 @@ async function mailLink(email, pattern, sinceCount = 0) {
   }
   throw new Error(`Keine E-Mail mit passendem Link für ${email}`);
 }
+/** P11 Etappe 2d: neueste E-Mail an diese Adresse (Betreff, HTML), sobald es mehr als `sinceCount` sind – null ohne Mailpit. */
+async function lastMail(email, sinceCount = 0) {
+  if (!mailpitAvailable) return null;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const list = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
+    if ((list.messages?.length ?? 0) > sinceCount) return await (await fetch(`${MAILPIT}/api/v1/message/${list.messages[0].ID}`)).json();
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`Keine neue E-Mail für ${email}`);
+}
 async function mailCount(email) {
   if (!mailpitAvailable) return 0;
   const list = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)).json();
@@ -3309,6 +3319,16 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
     const direct = await api(bob, "PATCH", "user_settings?user_id=not.is.null", { locale: "de" });
     check(direct.status >= 400, `API: Sprache nicht direkt änderbar (${direct.status})`);
     check((await api(bob, "POST", "rpc/set_my_locale", { p_locale: "fr" })).json?.message === "invalid_locale", "API: unbekannte Sprache abgewiesen");
+    // P11 Etappe 2d: Auth-E-Mails kommen in der Sprache des Kontos (set_my_locale schreibt sie in die Metadaten).
+    const mailsBefore = await mailCount(bob.email);
+    const recover = await fetch(`${API}/auth/v1/recover`, { method: "POST", headers: { apikey: ANON, "Content-Type": "application/json" }, body: JSON.stringify({ email: bob.email }) });
+    check(recover.ok, `Passwort-Mail für Bob angefordert (${recover.status})`);
+    const resetMail = await lastMail(bob.email, mailsBefore);
+    if (resetMail) {
+      check(resetMail.Subject === "Set a new password for AFTERHOURS", `Passwort-Mail: Betreff auf Englisch (${resetMail.Subject})`);
+      const html = String(resetMail.HTML ?? "");
+      check(/<html lang="en">/.test(html) && /Use the button to set a new password/.test(html) && !/Neues Passwort|\{\{/.test(html), "Passwort-Mail: Text auf Englisch, keine Vorlagen-Reste");
+    }
     // Neues Gerät ohne eigene Wahl (deutscher Browser) übernimmt die Sprache des Kontos.
     const state = await bob.context.storageState();
     for (const origin of state.origins) origin.localStorage = origin.localStorage.filter((entry) => entry.name !== "afterhours.locale");
@@ -3400,6 +3420,38 @@ await step("P11 – Startseite mit englischem Browser und Sprachlink (Gast)", as
     await Promise.all([page.waitForEvent("load"), page.getByTestId("language-link").click()]);
     await page.getByRole("link", { name: "Crew gründen" }).first().waitFor();
     check((await page.evaluate(() => document.documentElement.lang)) === "de", "Sprachlink wechselt auf Deutsch");
+  } finally {
+    await context.close();
+  }
+});
+
+// P11 Etappe 2d: Wer sich mit englischem Browser registriert, bekommt die Bestätigung auf Englisch.
+await step("P11 Etappe 2d – Bestätigungs-E-Mail auf Englisch (Registrierung mit englischem Browser)", async () => {
+  const context = await browser.newContext({ viewport: VIEWPORTS.mobile, locale: "en-GB", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+  const page = await context.newPage();
+  page.on("pageerror", (e) => problems.push(`[Erin-en] pageerror: ${e}`));
+  const email = `erin.${RUN}@example.com`;
+  try {
+    await page.goto(`${APP}/register`);
+    await page.getByLabel("Display name").fill("Erin");
+    await page.getByLabel("Email address").fill(email);
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+    await page.getByLabel("I'm at least 16 years old.").check();
+    await page.getByRole("button", { name: "Create account" }).click();
+    await page.waitForURL(/\/(check-email|onboarding)/);
+    const mail = await lastMail(email);
+    if (!mail) {
+      console.log("   (kein Postfach erreichbar – Sprache der Bestätigungs-E-Mail nicht geprüft)");
+      return;
+    }
+    check(mail.Subject === "Confirm your email address for AFTERHOURS", `Bestätigung: Betreff auf Englisch (${mail.Subject})`);
+    const html = String(mail.HTML ?? "");
+    check(/<html lang="en">/.test(html) && /Almost there/.test(html) && /Confirm email address/.test(html) && !/Fast geschafft|\{\{/.test(html), "Bestätigung: Text auf Englisch, keine Vorlagen-Reste");
+    check(/\/auth\/v1\/verify|\/auth\/confirm/.test(html), "Bestätigung enthält den Link");
+    // Gegenprobe: Alice hat sich mit deutschem Browser registriert – ihre Bestätigung ist deutsch.
+    const list = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${alice.email}`)}`)).json();
+    const subjects = (list.messages ?? []).map((m) => m.Subject);
+    check(subjects.includes("Bestätige deine E-Mail-Adresse für AFTERHOURS"), `Alices Bestätigung bleibt deutsch (${subjects.join(" | ")})`);
   } finally {
     await context.close();
   }
@@ -3501,6 +3553,8 @@ await step("Abmelden, Passwort zurücksetzen, neu anmelden (Alice)", async () =>
   await page.getByRole("button", { name: "Link senden" }).click();
   await page.getByText(/ist der Link jetzt unterwegs/).waitFor();
   const link = await mailLink(alice.email, /type=recovery|\/auth\/reset/, before);
+  const resetMail = await lastMail(alice.email, before);
+  if (resetMail) check(resetMail.Subject === "Neues Passwort für AFTERHOURS festlegen" && /<html lang="de">/.test(String(resetMail.HTML ?? "")), `Passwort-Mail ohne Englisch im Konto: deutsch (${resetMail.Subject})`);
   if (!link) {
     console.log("   (kein Postfach erreichbar – Passwort-Reset per E-Mail wird übersprungen)");
     await login(alice);

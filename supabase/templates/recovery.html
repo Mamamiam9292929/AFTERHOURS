@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="de">
+{{- /* P11 Etappe 2d: Sprache aus den Konto-Metadaten (locale), sonst Deutsch */ -}}
+{{- $en := false }}{{ with .Data }}{{ $en = eq (printf "%v" .locale) "en" }}{{ end }}
+<html lang="{{ if $en }}en{{ else }}de{{ end }}">
   <body style="margin:0;padding:0;background:#1c1e20;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#1c1e20;padding:32px 16px;">
       <tr>
@@ -9,18 +11,18 @@
               <td style="font-size:20px;font-weight:800;letter-spacing:0.06em;color:#c5f82a;padding-bottom:24px;">AFTERHOURS</td>
             </tr>
             <tr>
-              <td style="font-size:22px;line-height:1.25;font-weight:700;color:#f3f4f1;padding-bottom:12px;">Neues Passwort festlegen</td>
+              <td style="font-size:22px;line-height:1.25;font-weight:700;color:#f3f4f1;padding-bottom:12px;">{{ if $en }}Set a new password{{ else }}Neues Passwort festlegen{{ end }}</td>
             </tr>
             <tr>
-              <td style="font-size:15px;line-height:1.5;color:#a9aeaa;padding-bottom:24px;">Über den Button legst du ein neues Passwort für dein AFTERHOURS-Konto fest. Der Link ist eine Stunde gültig und lässt sich einmal verwenden.</td>
+              <td style="font-size:15px;line-height:1.5;color:#a9aeaa;padding-bottom:24px;">{{ if $en }}Use the button to set a new password for your AFTERHOURS account. The link is valid for one hour and works once.{{ else }}Über den Button legst du ein neues Passwort für dein AFTERHOURS-Konto fest. Der Link ist eine Stunde gültig und lässt sich einmal verwenden.{{ end }}</td>
             </tr>
             <tr>
               <td style="padding-bottom:24px;">
-                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#c5f82a;color:#141a00;font-size:16px;font-weight:700;text-decoration:none;padding:14px 22px;border-radius:12px;">Neues Passwort festlegen</a>
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#c5f82a;color:#141a00;font-size:16px;font-weight:700;text-decoration:none;padding:14px 22px;border-radius:12px;">{{ if $en }}Set a new password{{ else }}Neues Passwort festlegen{{ end }}</a>
               </td>
             </tr>
             <tr>
-              <td style="font-size:13px;line-height:1.5;color:#8b918d;">Du hast kein neues Passwort angefordert? Dann kannst du diese E-Mail ignorieren – dein bisheriges Passwort bleibt gültig.</td>
+              <td style="font-size:13px;line-height:1.5;color:#8b918d;">{{ if $en }}Didn't ask for a new password? Then you can ignore this email – your current password stays valid.{{ else }}Du hast kein neues Passwort angefordert? Dann kannst du diese E-Mail ignorieren – dein bisheriges Passwort bleibt gültig.{{ end }}</td>
             </tr>
           </table>
         </td>
