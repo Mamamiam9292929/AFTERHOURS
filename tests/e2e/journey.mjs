@@ -3345,6 +3345,22 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
   await sheet.getByText("What's on at the weekend?").waitFor();
   await shot(bob, "27d-ein-satz-englisch");
   await page.keyboard.press("Escape");
+  // P11 Etappe 2b: Auf Englisch geteilt → Link mit ?lang=en, Vorschau im Gruppenchat auf Englisch.
+  const planShareToken = page.waitForResponse((r) => r.url().includes("/rpc/plan_share_token") && r.ok(), { timeout: 10_000 }).catch(() => undefined);
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByRole("button", { name: "Share plan" }).waitFor();
+  await planShareToken;
+  await stubShare(page);
+  await page.getByRole("button", { name: "Share plan" }).click();
+  const sharedEn = (await sharedData(page))[0];
+  check(/\/s\/[0-9a-f]{32}\?lang=en$/.test(sharedEn?.url ?? ""), `englisch geteilt: Link mit ?lang=en (${sharedEn?.url})`);
+  check(/Are you in\?$/.test(sharedEn?.text ?? ""), "englisch geteilt: Text auf Englisch");
+  if (ANON && sharedEn?.url) {
+    const head = (await (await handleShare(new Request(sharedEn.url), { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON }, fetch)).text()).split("</head>")[0];
+    check(head.includes('<meta property="og:locale" content="en_GB" />'), "Vorschau: og:locale en_GB");
+    const description = /<meta property="og:description" content="([^"]*)" \/>/.exec(head)?.[1] ?? "";
+    check(/Are you in\?|Over – that was/.test(description) && !/Bist du dabei|Vorbei|\bUhr\b/.test(description), `Vorschau im Messenger auf Englisch (${description})`);
+  }
   // Zurück auf Deutsch.
   await page.goto(`${APP}/settings#language`);
   await Promise.all([page.waitForEvent("load"), page.locator("section#language").getByRole("button", { name: "Deutsch" }).click()]);
