@@ -3448,7 +3448,11 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     let shiftHours = 19.5 - (berlinHour + berlinMinute / 60);
     if (shiftHours > 12) shiftHours -= 24;
     if (shiftHours < -12) shiftHours += 24;
-    const evening = await context.newPage();
+    // Die Uhr gilt für den ganzen Browser-Kontext – deshalb ein eigener Kontext mit Danas Anmeldung.
+    const eveningContext = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block", storageState: await context.storageState() });
+    const evening = await eveningContext.newPage();
+    evening.setDefaultTimeout(15_000);
+    evening.on("pageerror", (e) => problems.push(`[Dana, Abend] pageerror: ${e}`));
     await evening.clock.setFixedTime(new Date(realNow + shiftHours * 3600_000));
     const eveningUser = { ...dana, page: evening };
     await evening.goto(`${APP}/home`);
@@ -3495,7 +3499,7 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     await evening.getByRole("heading", { level: 1 }).waitFor();
     await evening.waitForTimeout(500);
     check((await evening.getByTestId("tonight-ideas").count()) === 0, "D3 2b: am Nachmittag (14 Uhr) noch kein „Heute Abend“");
-    await evening.close();
+    await eveningContext.close();
   }
   // D3 Etappe 1: Live-Countdown auf dem großen Ticket – Danas erster Plan beginnt in gut zwei Stunden.
   if (ANON) {
