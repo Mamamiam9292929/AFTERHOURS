@@ -19,7 +19,6 @@ function ogImagePlugin(): Plugin {
 }
 
 const SRC = fileURLToPath(new URL("./src", import.meta.url));
-const I18N = fileURLToPath(new URL("./src/i18n/index.ts", import.meta.url));
 
 /**
  * P4 · Texte für Push-Mitteilungen: `src/push/render.ts` als eigenes Skript `push-texts.js` (IIFE) neben
@@ -69,10 +68,6 @@ export default defineConfig({
           react: ["react", "react-dom", "react-dom/client", "react-router-dom"],
           supabase: ["@supabase/supabase-js"],
           query: ["@tanstack/react-query"],
-          // P11: Wörterbuch samt Sprachwahl und Formaten als eigener Chunk. `src/i18n/index.ts` wartet per
-          // Top-Level-Await auf das englische Wörterbuch; läge das im Start-Chunk, würde der Bundler den
-          // Start-Chunk in viele kleine Teile zerlegen, damit Seiten-Chunks nicht von ihm abhängen.
-          i18n: [I18N],
         },
       },
     },
