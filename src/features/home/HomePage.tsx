@@ -184,11 +184,6 @@ export function HomePage() {
             <TonightStrip plan={featured} now={now} />
           </div>
         )}
-        {tonightIdeas && (
-          <div className="max-w-2xl">
-            <TonightIdeas now={now} onHide={hideTonight} />
-          </div>
-        )}
         {crews.data && crews.data.length > 0 ? (
           // V2 + S1: ein Lime-Knopf, der zur Ein-Satz-Abstimmung aufgeht; die ausführlichen Wege bleiben daneben.
           <div className="mt-7 flex max-w-2xl flex-col gap-3">
@@ -203,7 +198,14 @@ export function HomePage() {
               </ButtonLink>
             </div>
           </div>
-        ) : (
+        ) : null}
+        {/* D3 Etappe 2b: ohne Plan heute am Abend Orte, die gerade offen haben – unter den Knöpfen, damit „Was geht?“ oben bleibt. */}
+        {tonightIdeas && (
+          <div className="max-w-2xl">
+            <TonightIdeas now={now} onHide={hideTonight} />
+          </div>
+        )}
+        {crews.data && crews.data.length > 0 ? null : (
           <>
           {shared !== null && crews.data && (
             <Notice tone="amber" className="mt-7 max-w-2xl" title={t.polls.quick.launcher}>
