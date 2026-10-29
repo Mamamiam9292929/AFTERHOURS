@@ -1248,7 +1248,9 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
     // Die Seiten werden im Leerlauf vorgeladen; erst dann gleitet das Ticket ohne Ladezustand hinüber.
     await bob.page.waitForTimeout(1000);
   }
-  await bob.page.getByRole("link", { name: /Strike District Bowling/ }).first().click();
+  // Gezielt das Ticket des Plans: Zwischen 16 und 23 Uhr zeigt Home auch „Heute Abend“ mit Orten (D3 2b),
+  // darunter womöglich derselbe Ort als Link zu Discover.
+  await bob.page.locator(`main a[href$="/plans/${ids.plan}"]`).filter({ hasText: /Strike District Bowling/ }).first().click();
   await bob.page.waitForURL(new RegExp(`/plans/${ids.plan}`));
   if (viewTransitions) {
     await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
@@ -2449,6 +2451,7 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   await page.getByRole("button", { name: "Abstimmung starten" }).click();
   await page.waitForURL(/\/polls\/[0-9a-f-]{36}/);
   const datePoll = idFromUrl(page);
+  ids.datePoll = { id: datePoll, dates: [d1, d2], labels: [l1, l2] };
   await page.getByText("Termin-Abstimmung").waitFor();
   check((await page.getByRole("radiogroup").count()) === 2, "zwei Termine zur Wahl");
   await optionCard(alice, l1).getByText("20:00 Uhr").waitFor();
@@ -3360,6 +3363,18 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
     check(head.includes('<meta property="og:locale" content="en_GB" />'), "Vorschau: og:locale en_GB");
     const description = /<meta property="og:description" content="([^"]*)" \/>/.exec(head)?.[1] ?? "";
     check(/Are you in\?|Over – that was/.test(description) && !/Bist du dabei|Vorbei|\bUhr\b/.test(description), `Vorschau im Messenger auf Englisch (${description})`);
+  }
+  // P11 Etappe 2c: Termine von „Wann könnt ihr?“ auf Englisch („Sunday 8 November“ statt „Sonntag, 8. November“).
+  if (ids.datePoll) {
+    const enLabel = (date) => new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00Z`)).replace(",", "");
+    const [e1, e2] = ids.datePoll.dates.map(enLabel);
+    await page.goto(`${APP}/polls/${ids.datePoll.id}`);
+    await page.getByRole("heading", { name: e1, exact: true }).first().waitFor();
+    check(await page.getByRole("heading", { name: e2, exact: true }).first().isVisible(), `Termine auf Englisch (${e1}, ${e2})`);
+    const pollText = await page.locator("main").innerText();
+    check(!ids.datePoll.labels.some((label) => pollText.includes(label)), "keine deutschen Termin-Titel mehr auf der Abstimmung");
+    await noOverflow(bob, "Date poll (English)");
+    await shot(bob, "27e-termine-englisch");
   }
   // Zurück auf Deutsch.
   await page.goto(`${APP}/settings#language`);
