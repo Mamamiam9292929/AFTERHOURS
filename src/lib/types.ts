@@ -285,6 +285,19 @@ export interface PlanExpense {
   created_at: string;
 }
 
+/** P14 · Eintrag auf der Mitbring-Liste eines Plans („Wer bringt was?“). */
+export interface PlanItem {
+  id: string;
+  plan_id: string;
+  label: string;
+  /** null, wenn das Konto gelöscht wurde */
+  created_by: string | null;
+  /** wer es mitbringt; null = noch offen */
+  claimed_by: string | null;
+  claimed_at: string | null;
+  created_at: string;
+}
+
 export interface PlanExpenseShare {
   expense_id: string;
   plan_id: string;

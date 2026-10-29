@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
  * einer Glas-Kachel, Überschrift in der Display-Schrift. Die Überschrift bleibt ein `h2`, damit Sprungziele und
  * Screenreader-Navigation gleich bleiben.
  */
-export function PlanPanel({ id, title, icon, tone, children }: { id?: string; title: string; icon: ReactNode; tone: "lime" | "violet" | "pink"; children: ReactNode }) {
+export function PlanPanel({ id, title, icon, tone, children }: { id?: string; title: string; icon: ReactNode; tone: "lime" | "violet" | "pink" | "amber"; children: ReactNode }) {
   const headingId = `${id ?? tone}-panel-heading`;
   return (
     <section id={id} aria-labelledby={headingId} data-tone={tone} className={cn("plan-panel mt-6 rounded-[28px] border border-white/[0.08] p-3 sm:p-5", id && "scroll-mt-20 lg:scroll-mt-6")}>

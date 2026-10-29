@@ -1621,6 +1621,77 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   check(true, "Planänderung benachrichtigt die Teilnehmenden – mit dem, was sich geändert hat");
 });
 
+await step("P14 – Wer bringt was? Mitbring-Liste auf der Planseite (Alice, Bob)", async () => {
+  const { page } = alice;
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  const panel = page.locator("section#mitbringen");
+  await panel.getByRole("heading", { name: "Wer bringt was?" }).waitFor();
+  check((await panel.getAttribute("data-tone")) === "amber", "Mitbring-Liste als Glas-Karte mit gelbem Schein");
+  check(await panel.getByText("Noch steht nichts auf der Liste.").isVisible(), "Leerzustand ohne Einträge");
+  // Alice schreibt zwei Sachen auf, eine davon bringt sie selbst mit.
+  const field = panel.getByLabel("Was wird gebraucht?");
+  await field.fill("  Snacks   für die Bahn ");
+  await panel.getByRole("button", { name: "Auf die Liste" }).click();
+  await toast(alice, "Steht auf der Liste.");
+  await panel.getByTestId("plan-item").filter({ hasText: "Snacks für die Bahn" }).waitFor();
+  check((await field.inputValue()) === "", "Feld ist nach dem Eintragen wieder leer");
+  await field.fill("Wasser");
+  await panel.getByLabel("Bring ich selbst mit").check();
+  await panel.getByRole("button", { name: "Auf die Liste" }).click();
+  await toast(alice, "Steht auf der Liste – du bringst es mit.");
+  const water = panel.getByTestId("plan-item").filter({ hasText: "Wasser" });
+  await water.getByText("Du bringst es").waitFor();
+  check((await water.getAttribute("data-state")) === "mine", "„Bring ich selbst mit“: Alice bringt das Wasser");
+  check((await panel.getByTestId("items-progress").innerText()).trim() === "1 von 2 vergeben", "Stand: 1 von 2 vergeben");
+  // Dubletten fängt schon die Oberfläche ab, ohne Anfrage an den Server.
+  await field.fill("wasser");
+  await panel.getByRole("button", { name: "Auf die Liste" }).click();
+  await panel.getByText("Das steht schon auf der Liste.").waitFor();
+  check(true, "dieselbe Sache in anderer Schreibweise wird abgewiesen");
+  await field.fill("");
+
+  // Bob sieht die Liste und übernimmt die Snacks.
+  await bob.page.goto(`${APP}/plans/${ids.plan}`);
+  const bobPanel = bob.page.locator("section#mitbringen");
+  const snacks = bobPanel.getByTestId("plan-item").filter({ hasText: "Snacks für die Bahn" });
+  check((await snacks.getAttribute("data-state")) === "open", "für Bob: Snacks noch offen");
+  check(await bobPanel.getByTestId("plan-item").filter({ hasText: "Wasser" }).getByText("Alice bringt es").isVisible(), "Bob sieht, dass Alice das Wasser bringt");
+  check((await bobPanel.getByTestId("plan-item").filter({ hasText: "Wasser" }).getByRole("button", { name: "Bring ich" }).count()) === 0, "was schon jemand bringt, kann Bob nicht übernehmen");
+  check((await bobPanel.getByRole("button", { name: /von der Liste nehmen/ }).count()) === 0, "Bob kann Alices Einträge nicht löschen");
+  await snacks.getByRole("button", { name: "Bring ich" }).click();
+  await toast(bob, "Danke – du bringst es mit.");
+  await snacks.getByText("Du bringst es").waitFor();
+  check((await bobPanel.getByTestId("items-progress").innerText()).trim() === "Alles vergeben", "Stand: Alles vergeben");
+  check((await bobPanel.getByTestId("items-progress").getAttribute("data-tone")) === "lime", "Alles vergeben als Lime-Pille");
+  await bob.page.locator("#mitbringen").scrollIntoViewIfNeeded();
+  await shot(bob, "17b-mitbringen");
+
+  // Alice sieht Bobs Zusage (Realtime oder Neuladen) und räumt als Organisatorin auf.
+  await page.reload();
+  await panel.getByTestId("plan-item").filter({ hasText: "Snacks für die Bahn" }).getByText("Bob bringt es").waitFor();
+  check(true, "Alice sieht: Bob bringt die Snacks");
+  await panel.getByRole("button", { name: "„Wasser“ von der Liste nehmen" }).click();
+  await toast(alice, "Von der Liste genommen.");
+  await panel.getByTestId("plan-item").filter({ hasText: "Wasser" }).waitFor({ state: "detached" });
+  check(true, "Organisatorin nimmt einen Eintrag von der Liste");
+
+  // Bob überlegt es sich anders: die Snacks sind wieder offen.
+  await snacks.getByRole("button", { name: "Doch nicht" }).click();
+  await toast(bob, "Wieder frei – jemand anderes kann es übernehmen.");
+  await snacks.getByRole("button", { name: "Bring ich" }).waitFor();
+  check((await snacks.getAttribute("data-state")) === "open", "„Doch nicht“ gibt die Snacks wieder frei");
+  await snacks.getByRole("button", { name: "Bring ich" }).click();
+  await snacks.getByText("Du bringst es").waitFor();
+  check(true, "Bob nimmt die Snacks doch mit");
+
+  if (ANON) {
+    const item = (await api(alice, "GET", `plan_items?plan_id=eq.${ids.plan}&select=id&limit=1`)).json[0]?.id;
+    const steal = await api(carol, "POST", "rpc/claim_plan_item", { p_item_id: item, p_claim: false });
+    check(steal.status === 400 && /plan_item_taken/.test(JSON.stringify(steal.json)), `API: Carol gibt Bobs Zusage nicht frei (${steal.status})`);
+    check((await api(carol, "PATCH", `plan_items?id=eq.${item}`, { claimed_by: null })).status === 403, "API: direkte Änderung an plan_items ist verboten (403)");
+  }
+});
+
 await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   const { page } = alice;
   check((await page.getByRole("button", { name: "Als abgeschlossen markieren" }).count()) === 0, "vor Beginn lässt sich ein Plan nicht abschließen");
@@ -2626,6 +2697,11 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   // P3: Ausgaben und Rückzahlungen fremder Pläne.
   const add = await api(mallory, "POST", "rpc/add_plan_expense", { p_plan_id: ids.plan, p_description: "Fake", p_amount_cents: 100, p_paid_by: null, p_split_with: [] });
   check(add.status === 403, `API: Außenstehende tragen keine Ausgabe in fremde Pläne ein (${add.status})`);
+  // P14: Mitbring-Liste fremder Pläne.
+  const itemAdd = await api(mallory, "POST", "rpc/add_plan_item", { p_plan_id: ids.plan, p_label: "Fake", p_claim: false });
+  check(itemAdd.status === 403, `API: Außenstehende schreiben nichts auf fremde Mitbring-Listen (${itemAdd.status})`);
+  const itemRead = await api(mallory, "GET", `plan_items?plan_id=eq.${ids.plan}&select=id`);
+  check(itemRead.status === 200 && Array.isArray(itemRead.json) && itemRead.json.length === 0, "API: Außenstehende lesen keine Mitbring-Liste");
   const read = await api(mallory, "GET", `plan_expenses?plan_id=eq.${ids.plan}&select=id`);
   check(read.status === 200 && Array.isArray(read.json) && read.json.length === 0, "API: Außenstehende lesen keine Ausgaben");
   const balances = await api(mallory, "POST", "rpc/crew_open_balances", { p_crew_id: ids.crew });
