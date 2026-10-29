@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { locale } from "@/i18n";
 import { localizeDateOptions } from "@/lib/datelabel";
+import { localizedServerTitle } from "@/lib/servertitle";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { dueRepeats } from "@/lib/pollrepeat";
@@ -16,10 +17,14 @@ import type { PollWithDetails } from "./logic";
 const POLL_SELECT =
   "*, options:poll_options!poll_options_poll_id_fkey(*), votes:poll_votes(*), guests:poll_guests(id, display_name, created_at), guest_votes:poll_guest_votes(*), series:poll_series(id, active)";
 
-/** P11 Etappe 2c: Termine von „Wann könnt ihr?“ in der Sprache der Oberfläche (auf Deutsch unverändert). */
+/**
+ * P11 Etappe 2c: Termine von „Wann könnt ihr?“ in der Sprache der Oberfläche (auf Deutsch unverändert).
+ * Etappe 2e: dazu der Titel einer Stichwahl, die von selbst gestartet ist („Stichwahl: …“ → „Runoff: …“).
+ */
 function localize(poll: PollWithDetails): PollWithDetails {
   const options = localizeDateOptions(poll.kind, poll.options ?? [], locale);
-  return options === poll.options ? poll : { ...poll, options };
+  const title = localizedServerTitle(poll.title, locale);
+  return options === poll.options && title === poll.title ? poll : { ...poll, title, options };
 }
 
 /**
@@ -388,7 +393,9 @@ export function useSharedPollPreview(token: string | undefined, viewer: string |
     queryFn: async (): Promise<SharedPollPreview> => {
       const { data, error } = await supabase.rpc("preview_shared_poll", { p_token: token ?? "" });
       if (error) throw error;
-      return data as SharedPollPreview;
+      const preview = data as SharedPollPreview;
+      // P11 Etappe 2e: „Stichwahl: …“ vom Server in der eigenen Sprache.
+      return preview.status === "valid" ? { ...preview, poll: { ...preview.poll, title: localizedServerTitle(preview.poll.title, locale) } } : preview;
     },
   });
 }
@@ -471,7 +478,9 @@ export function useSharedPollBallot(token: string | undefined, secret: string | 
       if (error) throw error;
       const ballot = data as SharedPollBallot;
       // P11 Etappe 2c: Termine auf dem Stimmzettel in der Sprache des Gastes.
-      return ballot.status === "valid" ? { ...ballot, options: localizeDateOptions(ballot.poll.kind, ballot.options, locale) } : ballot;
+      return ballot.status === "valid"
+        ? { ...ballot, poll: { ...ballot.poll, title: localizedServerTitle(ballot.poll.title, locale) }, options: localizeDateOptions(ballot.poll.kind, ballot.options, locale) }
+        : ballot;
     },
   });
 }

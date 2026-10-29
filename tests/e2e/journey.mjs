@@ -2199,6 +2199,7 @@ await step("Gleichstand, Stichwahl und Fristablauf", async () => {
   await page.waitForURL((url) => /\/polls\/[0-9a-f-]{36}/.test(url.pathname) && !url.pathname.endsWith(tiePoll));
   const runoff = idFromUrl(page);
   await page.getByRole("heading", { name: "Stichwahl: Pizza oder Sushi?" }).waitFor();
+  ids.runoff = runoff;
   check((await page.getByRole("radiogroup").count()) === 2, "Stichwahl enthält die gleichauf liegenden Optionen");
 
   if (!DB_URL) {
@@ -3368,6 +3369,12 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
   await sheet.getByText("What's on at the weekend?").waitFor();
   await shot(bob, "27d-ein-satz-englisch");
   await page.keyboard.press("Escape");
+  // P11 Etappe 2e: „Stichwahl: …“ erscheint auf Englisch als „Runoff: …“.
+  if (ids.runoff) {
+    await page.goto(`${APP}/polls/${ids.runoff}`);
+    await page.getByRole("heading", { name: "Runoff: Pizza oder Sushi?" }).waitFor();
+    check(true, "Stichwahl heißt auf Englisch „Runoff: …“");
+  }
   // P11 Etappe 2b: Auf Englisch geteilt → Link mit ?lang=en, Vorschau im Gruppenchat auf Englisch.
   const planShareToken = page.waitForResponse((r) => r.url().includes("/rpc/plan_share_token") && r.ok(), { timeout: 10_000 }).catch(() => undefined);
   await page.goto(`${APP}/plans/${ids.plan}`);

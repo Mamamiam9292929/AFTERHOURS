@@ -1,5 +1,6 @@
 import { formatDateTime, formatEuro, formatTime } from "./format";
 import type { NotificationType } from "@/lib/types";
+import { localizedServerTitle } from "@/lib/servertitle";
 import type {
   notifications as deNotifications,
   rewards as deRewards,
@@ -12,6 +13,8 @@ import type {
 
 type Payload = Record<string, unknown>;
 const str = (payload: Payload, key: string, fallback = "") => (typeof payload[key] === "string" ? (payload[key] as string) : fallback);
+/** P11 Etappe 2e: Titel aus dem Server, „Stichwahl: …“ wird zu „Runoff: …“ (sonst unverändert). */
+const serverTitle = (payload: Payload) => localizedServerTitle(str(payload, "title"), "en");
 
 /** Texte für Benachrichtigungen. `actor` ist der Anzeigename der auslösenden Person (falls bekannt). */
 const notificationText: Record<NotificationType, (actor: string, payload: Payload) => { title: string; body?: string }> = {
@@ -29,45 +32,45 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
         : p.runoff
           ? `${actor} started a runoff`
           : `${actor} started a poll`,
-    body: str(p, "title"),
+    body: serverTitle(p),
   }),
-  poll_reminder: (actor, p) => ({ title: `${actor} is reminding you about a poll`, body: str(p, "title") }),
-  poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (guest) voted` : `${actor} voted`, body: str(p, "title") }),
+  poll_reminder: (actor, p) => ({ title: `${actor} is reminding you about a poll`, body: serverTitle(p) }),
+  poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (guest) voted` : `${actor} voted`, body: serverTitle(p) }),
   poll_result: (_actor, p) => ({
     title: p.winner_title ? `Result: ${str(p, "winner_title")}` : p.is_tie ? "Poll ended in a tie" : "Poll ended with no yes votes",
-    body: str(p, "title"),
+    body: serverTitle(p),
   }),
   plan_created: (actor, p) =>
     p.repeat
-      ? { title: "The next date is set – are you in?", body: str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title") }
+      ? { title: "The next date is set – are you in?", body: str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p) }
       : p.auto
-        ? { title: "Decided – the plan is set", body: str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title") }
-        : { title: `${actor} created a plan`, body: str(p, "title") },
+        ? { title: "Decided – the plan is set", body: str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p) }
+        : { title: `${actor} created a plan`, body: serverTitle(p) },
   plan_changed: (actor, p) => {
     const labels: Record<string, string> = { starts_at: "time", address: "place", meeting_point: "meeting point", cost: "cost" };
     const changed = Array.isArray(p.changed) ? (p.changed as string[]).map((key) => labels[key] ?? key).join(", ") : "";
-    return { title: `${actor} changed a plan${changed ? `: ${changed}` : ""}`, body: str(p, "title") };
+    return { title: `${actor} changed a plan${changed ? `: ${changed}` : ""}`, body: serverTitle(p) };
   },
   plan_cancelled: (actor, p) =>
     p.skipped
       ? {
-          title: `${actor} is skipping this one: ${str(p, "title")}`,
+          title: `${actor} is skipping this one: ${serverTitle(p)}`,
           body: str(p, "next_starts_at") ? `Next date: ${formatDateTime(str(p, "next_starts_at"))}` : "The regular carries on.",
         }
-      : { title: `${actor} cancelled a plan`, body: str(p, "title") },
+      : { title: `${actor} cancelled a plan`, body: serverTitle(p) },
   plan_attendance: (actor, p) => ({
     title: p.status === "going" ? `${actor} is in` : p.status === "maybe" ? `${actor} might come` : `${actor} can't make it`,
-    body: str(p, "title"),
+    body: serverTitle(p),
   }),
   booking_status: (_actor, p) => {
     const status: Record<string, string> = { confirmed: "Booking confirmed", unavailable: "Booking not possible: nothing available", failed: "Booking failed", cancelled_by_user: "Booking cancelled" };
-    return { title: status[str(p, "status")] ?? "Booking status changed", body: str(p, "title") };
+    return { title: status[str(p, "status")] ?? "Booking status changed", body: serverTitle(p) };
   },
-  ride_request: (actor, p) => ({ title: `${actor} would like a ride with you`, body: str(p, "title") }),
-  ride_confirmed: (actor, p) => ({ title: p.accepted ? `${actor} will give you a ride` : `${actor} can't give you a ride`, body: str(p, "title") }),
+  ride_request: (actor, p) => ({ title: `${actor} would like a ride with you`, body: serverTitle(p) }),
+  ride_confirmed: (actor, p) => ({ title: p.accepted ? `${actor} will give you a ride` : `${actor} can't give you a ride`, body: serverTitle(p) }),
   plan_expense: (actor, p) => ({
     title: p.you_paid ? `${actor} noted that you paid for “${str(p, "description")}”` : `${actor} added “${str(p, "description")}”`,
-    body: [typeof p.share_cents === "number" ? `Your share: ${formatEuro(p.share_cents)}` : typeof p.amount_cents === "number" ? formatEuro(p.amount_cents) : "", str(p, "title")].filter(Boolean).join(" · "),
+    body: [typeof p.share_cents === "number" ? `Your share: ${formatEuro(p.share_cents)}` : typeof p.amount_cents === "number" ? formatEuro(p.amount_cents) : "", serverTitle(p)].filter(Boolean).join(" · "),
   }),
   plan_settlement: (actor, p) => {
     const amount = typeof p.amount_cents === "number" ? formatEuro(p.amount_cents) : "";
@@ -77,7 +80,7 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       if (p.direction === "offset") return { title: `${actor} offset your open balances – you're even`, body };
       return { title: p.direction === "received" ? `${actor} confirmed you paid back ${amount}` : `${actor} paid you back ${amount} in one go`, body };
     }
-    return { title: p.direction === "received" ? `${actor} confirmed your repayment of ${amount}` : `${actor} paid you back ${amount}`, body: str(p, "title") };
+    return { title: p.direction === "received" ? `${actor} confirmed your repayment of ${amount}` : `${actor} paid you back ${amount}`, body: serverTitle(p) };
   },
   spontaneous_ask: (actor, p) => ({
     title: `${actor}: Anyone out tonight?`,
@@ -96,7 +99,7 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       : { title: `You still owe ${formatEuro(-balance)} for “${title}”`, body: "Already sorted? Then tap “Done” under “Split costs”." };
   },
   plan_day_reminder: (_actor, p) => ({
-    title: str(p, "starts_at") ? `Today ${formatTime(str(p, "starts_at"))}: ${str(p, "title")}` : `Today: ${str(p, "title")}`,
+    title: str(p, "starts_at") ? `Today ${formatTime(str(p, "starts_at"))}: ${serverTitle(p)}` : `Today: ${serverTitle(p)}`,
     body:
       p.attendance === "going"
         ? "You're in – see you later!"
@@ -106,7 +109,7 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
   }),
   reward_earned: (_actor, p) => ({
     title: `+${typeof p.points === "number" ? p.points : ""} points`,
-    body: `${p.reason === "plan_organized" ? "For organising" : "For taking part"}: ${str(p, "title")}`,
+    body: `${p.reason === "plan_organized" ? "For organising" : "For taking part"}: ${serverTitle(p)}`,
   }),
 };
 
@@ -204,7 +207,7 @@ export const settings = {
     title: "Language",
     label: "App language",
     lead: "Applies to your account: also to the calendar subscription, notifications on your phone and emails (such as “forgot password”), and new devices pick it up. The page reloads afterwards. Dates, times and amounts stay in Berlin time and euros.",
-    notTranslated: "Still in German for now: a few titles the app writes itself, such as “Stichwahl” (runoff).",
+    notTranslated: "Still in German for now: place descriptions from OpenStreetMap (such as “Italienisch”).",
   },
   preferences: { title: "Preferences", saved: "Preferences saved." },
   location: {

@@ -207,7 +207,7 @@ export const settings = {
     title: "Sprache",
     label: "Sprache der App",
     lead: "Gilt für dein Konto: auch für Kalender-Abo, Mitteilungen aufs Handy und E-Mails (etwa „Passwort vergessen“), und ein neues Gerät übernimmt sie. Die Seite lädt danach neu. Datum, Uhrzeit und Beträge bleiben in Berliner Zeit und Euro.",
-    notTranslated: "Noch deutsch, auch auf Englisch: ein paar Titel, die die App selbst vergibt, etwa „Stichwahl“.",
+    notTranslated: "Noch deutsch, auch auf Englisch: Beschreibungen der Orte aus OpenStreetMap (etwa „Italienisch“).",
   },
   preferences: { title: "Vorlieben", saved: "Vorlieben gespeichert." },
   location: {
