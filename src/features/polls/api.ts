@@ -1,6 +1,8 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { locale } from "@/i18n";
+import { localizeDateOptions } from "@/lib/datelabel";
 import { qk } from "@/lib/query";
 import { useRealtime } from "@/lib/realtime";
 import { dueRepeats } from "@/lib/pollrepeat";
@@ -13,6 +15,12 @@ import type { PollWithDetails } from "./logic";
 // W3: Gäste nur mit Name und Zeitpunkt – den Hash ihres Geheimnisses gibt die Datenbank ohnehin nicht heraus.
 const POLL_SELECT =
   "*, options:poll_options!poll_options_poll_id_fkey(*), votes:poll_votes(*), guests:poll_guests(id, display_name, created_at), guest_votes:poll_guest_votes(*), series:poll_series(id, active)";
+
+/** P11 Etappe 2c: Termine von „Wann könnt ihr?“ in der Sprache der Oberfläche (auf Deutsch unverändert). */
+function localize(poll: PollWithDetails): PollWithDetails {
+  const options = localizeDateOptions(poll.kind, poll.options ?? [], locale);
+  return options === poll.options ? poll : { ...poll, options };
+}
 
 /**
  * Stellt für Abstimmungen, deren Frist abgelaufen ist, das Ergebnis fest. Jedes Mitglied darf das
@@ -33,7 +41,7 @@ export function usePolls() {
       const load = async () => {
         const { data, error } = await supabase.from("polls").select(POLL_SELECT).order("created_at", { ascending: false }).limit(100);
         if (error) throw error;
-        return data as unknown as PollWithDetails[];
+        return (data as unknown as PollWithDetails[]).map(localize);
       };
       const polls = await load();
       const finalized = await finalizeDue(polls);
@@ -68,7 +76,8 @@ export function usePoll(pollId: string | undefined) {
       const load = async () => {
         const { data, error } = await supabase.from("polls").select(POLL_SELECT).eq("id", pollId ?? "").maybeSingle();
         if (error) throw error;
-        return (data as unknown as PollWithDetails | null) ?? null;
+        const poll = data as unknown as PollWithDetails | null;
+        return poll ? localize(poll) : null;
       };
       const poll = await load();
       if (poll && (await finalizeDue([poll]))) {
@@ -460,7 +469,9 @@ export function useSharedPollBallot(token: string | undefined, secret: string | 
     queryFn: async (): Promise<SharedPollBallot> => {
       const { data, error } = await supabase.rpc("shared_poll_ballot", { p_token: token ?? "", p_secret: secret });
       if (error) throw error;
-      return data as SharedPollBallot;
+      const ballot = data as SharedPollBallot;
+      // P11 Etappe 2c: Termine auf dem Stimmzettel in der Sprache des Gastes.
+      return ballot.status === "valid" ? { ...ballot, options: localizeDateOptions(ballot.poll.kind, ballot.options, locale) } : ballot;
     },
   });
 }
