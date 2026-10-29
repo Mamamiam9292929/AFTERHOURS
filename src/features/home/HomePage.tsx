@@ -14,7 +14,7 @@ import { FeatureTicket, PlanTicket } from "@/features/plans/PlanTicket";
 import { PlanQuickAnswer } from "@/features/plans/QuickAnswer";
 import { useIdeas } from "./ideas";
 import { InstallCard } from "./InstallCard";
-import { TonightStrip } from "./Tonight";
+import { TonightIdeas, TonightStrip, useTonightHidden } from "./Tonight";
 import { SpontaneousCard, SpontaneousLauncher, useSpontaneousAsks } from "./Spontaneous";
 import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
@@ -24,7 +24,7 @@ import { PollQuickVote } from "@/features/polls/QuickVote";
 import { usePeople, useProfile, useSettings } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { needsQuickVote } from "@/lib/quickvote";
+import { needsQuickVote, showTonightIdeas } from "@/lib/quickvote";
 import { openAsks } from "@/lib/spontaneous";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { calendarDaysBetween, dayPhase, zonedParts } from "@/lib/time";
@@ -121,6 +121,29 @@ export function HomePage() {
   const asks = openAsks(spontaneous.data ?? [], now);
   const nextPlans = upcoming.filter((p) => !plansNeedingMe.includes(p) && p !== featured).slice(0, 2);
   const needsAnswer = pollsNeedingMe.length + plansNeedingMe.length;
+  // D3 Etappe 2b: Steht heute nichts an, zeigt Home am Abend, was gerade offen hat.
+  const [tonightHidden, hideTonight] = useTonightHidden(now);
+  const tonightIdeas =
+    !crews.isPending &&
+    !plans.isPending &&
+    !plans.isError &&
+    !spontaneous.isPending &&
+    showTonightIdeas(
+      {
+        hour: zonedParts(now).hour,
+        hasCrew: (crews.data?.length ?? 0) > 0,
+        askOpen: asks.length > 0,
+        dismissed: tonightHidden,
+        plans: upcoming.map((p) => ({
+          starts_at: p.starts_at,
+          ends_at: p.ends_at,
+          status: p.status,
+          days: calendarDaysBetween(now, p.starts_at),
+          mine: p.participants.find((pp) => pp.user_id === user.id)?.attendance_status ?? null,
+        })),
+      },
+      now,
+    );
 
   const loading = crews.isPending || polls.isPending || plans.isPending;
   const failed = crews.isError ? crews : polls.isError ? polls : plans.isError ? plans : null;
@@ -158,7 +181,7 @@ export function HomePage() {
           <div className="mt-7 max-w-2xl lg:mt-9">
             <FeatureTicket plan={featured} crew={crewById.get(featured.crew_id)} userId={user.id} lookup={people.lookup} now={now} live />
             {/* D3 Etappe 2a: am Tag des Plans Wetter und Treffpunkt direkt unter dem Ticket. */}
-            <TonightStrip plan={featured} now={now} />
+            <TonightStrip plan={featured} now={now} userId={user.id} />
           </div>
         )}
         {crews.data && crews.data.length > 0 ? (
@@ -175,7 +198,14 @@ export function HomePage() {
               </ButtonLink>
             </div>
           </div>
-        ) : (
+        ) : null}
+        {/* D3 Etappe 2b: ohne Plan heute am Abend Orte, die gerade offen haben – unter den Knöpfen, damit „Was geht?“ oben bleibt. */}
+        {tonightIdeas && (
+          <div className="max-w-2xl">
+            <TonightIdeas now={now} onHide={hideTonight} />
+          </div>
+        )}
+        {crews.data && crews.data.length > 0 ? null : (
           <>
           {shared !== null && crews.data && (
             <Notice tone="amber" className="mt-7 max-w-2xl" title={t.polls.quick.launcher}>

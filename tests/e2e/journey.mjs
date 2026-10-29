@@ -1621,6 +1621,79 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   check(true, "Planänderung benachrichtigt die Teilnehmenden – mit dem, was sich geändert hat");
 });
 
+await step("P14 – Wer bringt was? Mitbring-Liste auf der Planseite (Alice, Bob)", async () => {
+  const { page } = alice;
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  const panel = page.locator("section#mitbringen");
+  await panel.getByRole("heading", { name: "Wer bringt was?" }).waitFor();
+  check((await panel.getAttribute("data-tone")) === "amber", "Mitbring-Liste als Glas-Karte mit gelbem Schein");
+  check(await panel.getByText("Noch steht nichts auf der Liste.").isVisible(), "Leerzustand ohne Einträge");
+  // Alice schreibt zwei Sachen auf, eine davon bringt sie selbst mit.
+  const field = panel.getByLabel("Was wird gebraucht?");
+  await field.fill("  Snacks   für die Bahn ");
+  await panel.getByRole("button", { name: "Auf die Liste" }).click();
+  await toast(alice, "Steht auf der Liste.");
+  await panel.getByTestId("plan-item").filter({ hasText: "Snacks für die Bahn" }).waitFor();
+  check((await field.inputValue()) === "", "Feld ist nach dem Eintragen wieder leer");
+  await field.fill("Wasser");
+  await panel.getByLabel("Bring ich selbst mit").check();
+  await panel.getByRole("button", { name: "Auf die Liste" }).click();
+  await toast(alice, "Steht auf der Liste – du bringst es mit.");
+  const water = panel.getByTestId("plan-item").filter({ hasText: "Wasser" });
+  await water.getByText("Du bringst es").waitFor();
+  check((await water.getAttribute("data-state")) === "mine", "„Bring ich selbst mit“: Alice bringt das Wasser");
+  check((await panel.getByTestId("items-progress").innerText()).trim() === "1 von 2 vergeben", "Stand: 1 von 2 vergeben");
+  // Dubletten fängt schon die Oberfläche ab, ohne Anfrage an den Server.
+  await field.fill("wasser");
+  await panel.getByRole("button", { name: "Auf die Liste" }).click();
+  await panel.getByText("Das steht schon auf der Liste.").waitFor();
+  check(true, "dieselbe Sache in anderer Schreibweise wird abgewiesen");
+  await field.fill("");
+
+  // Bob sieht die Liste und übernimmt die Snacks.
+  await bob.page.goto(`${APP}/plans/${ids.plan}`);
+  const bobPanel = bob.page.locator("section#mitbringen");
+  const snacks = bobPanel.getByTestId("plan-item").filter({ hasText: "Snacks für die Bahn" });
+  check((await snacks.getAttribute("data-state")) === "open", "für Bob: Snacks noch offen");
+  check(await bobPanel.getByTestId("plan-item").filter({ hasText: "Wasser" }).getByText("Alice bringt es").isVisible(), "Bob sieht, dass Alice das Wasser bringt");
+  check((await bobPanel.getByTestId("plan-item").filter({ hasText: "Wasser" }).getByRole("button", { name: "Bring ich" }).count()) === 0, "was schon jemand bringt, kann Bob nicht übernehmen");
+  check((await bobPanel.getByRole("button", { name: /von der Liste nehmen/ }).count()) === 0, "Bob kann Alices Einträge nicht löschen");
+  await snacks.getByRole("button", { name: "Bring ich" }).click();
+  await toast(bob, "Danke – du bringst es mit.");
+  await snacks.getByText("Du bringst es").waitFor();
+  const youFits = await snacks.getByText("Du bringst es").evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+  check(youFits, "„Du bringst es“ steht ungekürzt neben „Doch nicht“");
+  check((await bobPanel.getByTestId("items-progress").innerText()).trim() === "Alles vergeben", "Stand: Alles vergeben");
+  check((await bobPanel.getByTestId("items-progress").getAttribute("data-tone")) === "lime", "Alles vergeben als Lime-Pille");
+  await bob.page.locator("#mitbringen").scrollIntoViewIfNeeded();
+  await shot(bob, "17b-mitbringen");
+
+  // Alice sieht Bobs Zusage (Realtime oder Neuladen) und räumt als Organisatorin auf.
+  await page.reload();
+  await panel.getByTestId("plan-item").filter({ hasText: "Snacks für die Bahn" }).getByText("Bob bringt es").waitFor();
+  check(true, "Alice sieht: Bob bringt die Snacks");
+  await panel.getByRole("button", { name: "„Wasser“ von der Liste nehmen" }).click();
+  await toast(alice, "Von der Liste genommen.");
+  await panel.getByTestId("plan-item").filter({ hasText: "Wasser" }).waitFor({ state: "detached" });
+  check(true, "Organisatorin nimmt einen Eintrag von der Liste");
+
+  // Bob überlegt es sich anders: die Snacks sind wieder offen.
+  await snacks.getByRole("button", { name: "Doch nicht" }).click();
+  await toast(bob, "Wieder frei – jemand anderes kann es übernehmen.");
+  await snacks.getByRole("button", { name: "Bring ich" }).waitFor();
+  check((await snacks.getAttribute("data-state")) === "open", "„Doch nicht“ gibt die Snacks wieder frei");
+  await snacks.getByRole("button", { name: "Bring ich" }).click();
+  await snacks.getByText("Du bringst es").waitFor();
+  check(true, "Bob nimmt die Snacks doch mit");
+
+  if (ANON) {
+    const item = (await api(alice, "GET", `plan_items?plan_id=eq.${ids.plan}&select=id&limit=1`)).json[0]?.id;
+    const steal = await api(carol, "POST", "rpc/claim_plan_item", { p_item_id: item, p_claim: false });
+    check(steal.status === 400 && /plan_item_taken/.test(JSON.stringify(steal.json)), `API: Carol gibt Bobs Zusage nicht frei (${steal.status})`);
+    check((await api(carol, "PATCH", `plan_items?id=eq.${item}`, { claimed_by: null })).status === 403, "API: direkte Änderung an plan_items ist verboten (403)");
+  }
+});
+
 await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   const { page } = alice;
   check((await page.getByRole("button", { name: "Als abgeschlossen markieren" }).count()) === 0, "vor Beginn lässt sich ein Plan nicht abschließen");
@@ -2626,6 +2699,11 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   // P3: Ausgaben und Rückzahlungen fremder Pläne.
   const add = await api(mallory, "POST", "rpc/add_plan_expense", { p_plan_id: ids.plan, p_description: "Fake", p_amount_cents: 100, p_paid_by: null, p_split_with: [] });
   check(add.status === 403, `API: Außenstehende tragen keine Ausgabe in fremde Pläne ein (${add.status})`);
+  // P14: Mitbring-Liste fremder Pläne.
+  const itemAdd = await api(mallory, "POST", "rpc/add_plan_item", { p_plan_id: ids.plan, p_label: "Fake", p_claim: false });
+  check(itemAdd.status === 403, `API: Außenstehende schreiben nichts auf fremde Mitbring-Listen (${itemAdd.status})`);
+  const itemRead = await api(mallory, "GET", `plan_items?plan_id=eq.${ids.plan}&select=id`);
+  check(itemRead.status === 200 && Array.isArray(itemRead.json) && itemRead.json.length === 0, "API: Außenstehende lesen keine Mitbring-Liste");
   const read = await api(mallory, "GET", `plan_expenses?plan_id=eq.${ids.plan}&select=id`);
   check(read.status === 200 && Array.isArray(read.json) && read.json.length === 0, "API: Außenstehende lesen keine Ausgaben");
   const balances = await api(mallory, "POST", "rpc/crew_open_balances", { p_crew_id: ids.crew });
@@ -3505,6 +3583,69 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
   } else {
     console.log("   (E2E_DB_URL nicht gesetzt – Stadt aus Discover wird übersprungen)");
   }
+  // D3 Etappe 2b: Ohne Plan zeigt Home am Abend, was gerade offen hat. Dana hat noch keinen Plan; auf einer
+  // eigenen Seite steht die Uhr im Browser auf 19:30 Uhr Berliner Zeit (nächstgelegener Tag) – die echte Seite läuft weiter.
+  {
+    const realNow = Date.now();
+    const berlinParts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(realNow);
+    const berlinHour = Number(berlinParts.find((part) => part.type === "hour").value);
+    const berlinMinute = Number(berlinParts.find((part) => part.type === "minute").value);
+    let shiftHours = 19.5 - (berlinHour + berlinMinute / 60);
+    if (shiftHours > 12) shiftHours -= 24;
+    if (shiftHours < -12) shiftHours += 24;
+    // Die Uhr gilt für den ganzen Browser-Kontext – deshalb ein eigener Kontext mit Danas Anmeldung.
+    const eveningContext = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block", storageState: await context.storageState() });
+    const evening = await eveningContext.newPage();
+    evening.setDefaultTimeout(15_000);
+    evening.on("pageerror", (e) => problems.push(`[Dana, Abend] pageerror: ${e}`));
+    await evening.clock.setFixedTime(new Date(realNow + shiftHours * 3600_000));
+    const eveningUser = { ...dana, page: evening };
+    await evening.goto(`${APP}/home`);
+    const ideas = evening.getByTestId("tonight-ideas");
+    await ideas.waitFor();
+    check((await ideas.getByRole("heading", { level: 2 }).innerText()).trim().toLowerCase() === "heute abend", "D3 2b: ohne Plan steht am Abend „Heute Abend“ auf Home");
+    const section = ideas.getByTestId("open-now");
+    await section.waitFor();
+    await evening.waitForFunction(() => !document.querySelector('[data-testid="tonight-ideas"] [data-testid="open-now"][aria-busy]'), null, { timeout: 30_000 });
+    check((await section.getByRole("heading", { level: 3 }).count()) === 1, "D3 2b: Überschrift der Orte unter „Heute Abend“ ist h3");
+    const text = (await section.innerText()).replace(/\s+/g, " ");
+    const rows = section.getByTestId("open-now-place");
+    const n = await rows.count();
+    check(n <= 3, `D3 2b: höchstens drei Orte (${n})`);
+    for (let i = 0; i < n; i++) {
+      const row = rows.nth(i);
+      const rowText = (await row.innerText()).replace(/\s+/g, " ");
+      if ((await row.getAttribute("data-open")) === "true") check(/Geöffnet bis \d\d:\d\d Uhr/.test(rowText), `D3 2b: offener Ort nennt, bis wann („${rowText}“)`);
+      else check(/Öffnungszeiten/.test(rowText) && !/Geschlossen/.test(rowText), `D3 2b: Ort ohne bekannte Öffnungszeiten ist so beschriftet („${rowText}“)`);
+      const href = await row.getByRole("link", { name: /^Plan hier/ }).getAttribute("href");
+      check(/^\/plans\/new\?activity=[^&]+&soon=1$/.test(href ?? ""), `D3 2b: „Plan hier“ mit Ort und „gleich“, Crew im Formular (${href})`);
+    }
+    if (n > 0) check(text.includes("Öffnungszeiten laut OpenStreetMap"), "D3 2b: Quelle der Öffnungszeiten steht dabei");
+    else check(/Wähl in Discover deine Stadt|hat laut OpenStreetMap gerade nichts Passendes offen|noch keine Orte geladen/.test(text), `D3 2b: ohne Orte ein ehrlicher Hinweis („${text}“)`);
+    check(!/Geschlossen/.test(text), "D3 2b: keine geschlossenen Orte");
+    await shot(eveningUser, "40b-home-heute-abend-ohne-plan");
+    // Fehlerzustand: lassen sich die Orte nicht laden, steht das da – mit „Erneut versuchen“.
+    await evening.route("**/rest/v1/rpc/search_activities**", (route) => route.abort("failed"));
+    await evening.reload();
+    await ideas.getByText("Orte gerade nicht abrufbar.").waitFor({ timeout: 30_000 });
+    check(true, "D3 2b: Fehlerzustand mit ehrlichem Hinweis");
+    await evening.unrouteAll();
+    // „Heute ausblenden“ gilt für den Tag auf diesem Gerät – auch nach dem Neuladen.
+    await ideas.getByRole("button", { name: "Heute ausblenden" }).click();
+    await ideas.waitFor({ state: "detached" });
+    await evening.reload();
+    await evening.getByRole("heading", { level: 1 }).waitFor();
+    await evening.waitForTimeout(500);
+    check((await evening.getByTestId("tonight-ideas").count()) === 0, "D3 2b: „Heute ausblenden“ hält bis morgen");
+    await evening.evaluate(() => localStorage.removeItem("afterhours.tonight.hidden"));
+    // Um 14 Uhr ist es noch zu früh.
+    await evening.clock.setFixedTime(new Date(realNow + (shiftHours - 5.5) * 3600_000));
+    await evening.reload();
+    await evening.getByRole("heading", { level: 1 }).waitFor();
+    await evening.waitForTimeout(500);
+    check((await evening.getByTestId("tonight-ideas").count()) === 0, "D3 2b: am Nachmittag (14 Uhr) noch kein „Heute Abend“");
+    await eveningContext.close();
+  }
   // D3 Etappe 1: Live-Countdown auf dem großen Ticket – Danas erster Plan beginnt in gut zwei Stunden.
   if (ANON) {
     const startsAt = new Date(Date.now() + 134 * 60_000 + 20_000);
@@ -3543,6 +3684,34 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     await strip.getByRole("button", { name: "Erneut versuchen" }).click();
     await strip.getByTestId("tonight-weather").waitFor();
     check(true, "D3: „Erneut versuchen“ lädt das Wetter in der Leiste");
+    // P14 Etappe 2: „Mitbringen“ in der Leiste – was Dana mitbringt, was noch fehlt, mit einem Tipp übernehmen.
+    const kicker = created.json;
+    check((await strip.getByTestId("tonight-bring").count()) === 0, "P14: ohne Mitbring-Liste keine Kachel in der Leiste");
+    for (const [label, claim] of [["Ball", true], ["Getränke", false], ["Chips", false], ["Becher", false], ["Musikbox", false]]) {
+      const added = await api(dana, "POST", "rpc/add_plan_item", { p_plan_id: kicker, p_label: label, p_claim: claim });
+      check(added.status < 300, `P14: „${label}“ steht auf Danas Liste (${added.status})`);
+    }
+    await page.reload();
+    const bring = strip.getByTestId("tonight-bring");
+    await bring.waitFor();
+    check((await bring.getByTestId("tonight-bring-mine").innerText()).trim() === "Du bringst: Ball", "P14: Leiste zeigt, was Dana mitbringt");
+    check((await bring.getByRole("button", { name: /bringe ich mit$/ }).count()) === 3, "P14: höchstens drei offene Sachen zum Antippen");
+    check((await bring.getByRole("link", { name: "+1 weitere" }).getAttribute("href")) === `/plans/${kicker}#mitbringen`, "P14: der Rest als Link zur Liste auf der Planseite");
+    await bring.getByRole("button", { name: "Getränke bringe ich mit" }).click();
+    await toast(dana, "Danke – du bringst Getränke mit.");
+    await bring.getByText("Du bringst: Ball, Getränke").waitFor();
+    check((await bring.getByRole("button", { name: /bringe ich mit$/ }).count()) === 3, "P14: die nächste offene Sache rückt nach");
+    check((await bring.getByRole("link", { name: /weitere$/ }).count()) === 0, "P14: alles Offene passt jetzt in die Leiste");
+    // Fehlerzustand: ohne Liste ein ehrlicher Hinweis, „Erneut versuchen“ lädt nach.
+    await page.route("**/rest/v1/plan_items*", (route) => route.abort());
+    await page.reload();
+    const bringError = strip.getByTestId("tonight-bring-error");
+    await bringError.waitFor({ timeout: 30_000 });
+    check((await strip.getByTestId("tonight-bring").count()) === 0, "P14: ohne Liste keine erfundenen Einträge");
+    await page.unroute("**/rest/v1/plan_items*");
+    await bringError.locator("..").getByRole("button", { name: "Erneut versuchen" }).click();
+    await bring.getByText("Du bringst: Ball, Getränke").waitFor();
+    check(true, "P14: „Erneut versuchen“ lädt die Mitbring-Liste in der Leiste");
     // Ihre eigene Abstimmung wartet noch auf ihre Antwort – auf Home direkt darunter.
     // (Freitagabend nach 20 Uhr kann ihre Frist schon vorbei sein – dann gibt es nichts mehr zu beantworten.)
     const danaPoll = (await api(dana, "GET", "polls?select=ends_at,status")).json?.[0];
@@ -3553,6 +3722,27 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     check(strayText.length === 0, `kein loser Text über dem großen Ticket (vorher stand dort eine „0“): ${JSON.stringify(strayText)}`);
     await noOverflow(dana, "Home – Live-Countdown und Abstimmen");
     await shot(dana, "41-home-buehne");
+    // P14 Etappe 2: Vorlagen je Anlass auf der Planseite – Anlass wählen, Sachen antippen.
+    await page.goto(`${APP}/plans/${kicker}#mitbringen`);
+    const bringPanel = page.locator("section#mitbringen");
+    const templates = bringPanel.getByTestId("bring-templates");
+    await templates.waitFor();
+    const picnic = templates.getByRole("button", { name: "Picknick" });
+    check((await picnic.getAttribute("aria-pressed")) === "false", "P14: „Kicker im Hof“ wählt keine Vorlage vor");
+    await picnic.click();
+    const suggestions = templates.getByRole("list", { name: "Vorschläge für Picknick" });
+    await suggestions.waitFor();
+    check((await suggestions.getByRole("button", { name: "„Getränke“ auf die Liste" }).count()) === 0, "P14: was schon auf der Liste steht, wird nicht vorgeschlagen");
+    await suggestions.getByRole("button", { name: "„Decke“ auf die Liste" }).click();
+    await toast(dana, "„Decke“ steht auf der Liste.");
+    const blanket = bringPanel.getByTestId("plan-item").filter({ hasText: "Decke" });
+    await blanket.waitFor();
+    check((await blanket.getAttribute("data-state")) === "open", "P14: Vorschlag landet als offene Sache auf der Liste");
+    await suggestions.getByRole("button", { name: "„Decke“ auf die Liste" }).waitFor({ state: "detached" });
+    check(true, "P14: übernommener Vorschlag verschwindet aus den Chips");
+    await noOverflow(dana, "Planseite – Vorlagen der Mitbring-Liste");
+    await templates.scrollIntoViewIfNeeded();
+    await shot(dana, "41b-mitbringen-vorlagen");
   }
   users.splice(users.indexOf(dana), 1);
   await context.close();

@@ -69,6 +69,7 @@ export {
   LuSettings as IconSettings,
   LuShare2 as IconShare,
   LuShieldCheck as IconShield,
+  LuShoppingBasket as IconBasket,
   LuSlidersHorizontal as IconFilter,
   LuSmartphone as IconPhoneApp,
   LuSparkles as IconSparkles,

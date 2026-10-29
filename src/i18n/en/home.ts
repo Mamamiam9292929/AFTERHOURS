@@ -61,6 +61,25 @@ export const home = {
     meeting: "Meeting point",
     meetingOpen: "No meeting point yet.",
     toPlan: "Go to plan",
+    /** P14 Etappe 2 · Mitbring-Liste in der Leiste. */
+    bring: {
+      label: "Bring along",
+      mine: (labels: string[]) => `You're bringing: ${labels.join(", ")}`,
+      nothingMine: "You're not bringing anything yet.",
+      open: "Still missing:",
+      claim: (label: string) => `I'll bring ${label}`,
+      more: (n: number) => `+${n} more`,
+      allTaken: "Everything's covered – thanks, everyone.",
+      claimed: (label: string) => `Thanks – you're bringing ${label}.`,
+      loading: "Loading the bring list …",
+      error: "Bring list unavailable right now.",
+    },
+    /** D3 Etappe 2b · ohne Plan heute. */
+    ideas: {
+      title: "Tonight",
+      lead: "Nothing on yet? These are open right now – one tap and the plan is set for your crew.",
+      hide: "Hide for today",
+    },
   },
   yourCrews: "Your crews",
   allCrews: "All crews",
