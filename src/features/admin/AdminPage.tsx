@@ -16,7 +16,7 @@ import { formatNumber } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { qk } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
-import { formatDateTime, formatDateWithYear } from "@/lib/time";
+import { APP_LOCALE, formatDateTime, formatDateWithYear } from "@/lib/time";
 import type { Activity, AuditLogEntry, Report, ReportStatus } from "@/lib/types";
 
 type Tab = "overview" | "activities" | "reports" | "audit";
@@ -76,7 +76,7 @@ interface PlaceSyncHealth {
   geocoders?: { host: string; attempts: number; ok: number }[];
 }
 
-const percentFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
+const percentFormat = new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 1 });
 
 /** Roadmap O1: Wie oft scheitert der Import neuer Städte, und springt der Ersatzserver ein? */
 function PlaceSyncHealthCard() {

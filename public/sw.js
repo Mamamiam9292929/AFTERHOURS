@@ -136,7 +136,7 @@ self.addEventListener("push", (event) => {
     data: { url: view.url },
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
-    lang: "de",
+    lang: self.AfterhoursPush?.lang ?? "de",
     timestamp: view.timestamp ?? Date.now(),
   });
   // Zähler am App-Icon (installierte App, nur wo die Badging-API existiert).

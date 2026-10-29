@@ -3177,11 +3177,11 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   check(await page.getByText("Noch nicht aktiv").isVisible(), "die App behauptet keine Live-Standorte");
   // V2 Etappe 3k: Bereiche als Glas-Karten mit Farbschein, Stand als Pille, Sprung-Pillen oben.
   const tones = await page.locator("main section.plan-panel").evaluateAll((els) => els.map((el) => `${el.id}:${el.dataset.tone}`));
-  check(tones.join(",") === "profile:violet,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: sechs Glas-Karten mit Farbschein (${tones.join(", ")})`);
+  check(tones.join(",") === "profile:violet,language:lime,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: sieben Glas-Karten mit Farbschein (${tones.join(", ")})`);
   check((await page.getByTestId("location-status").innerText()).trim() === "Aus", "Standort-Pille sagt „Aus“");
   check((await page.getByTestId("calendar-status").innerText()).trim() === "Kein Abo", "Kalender-Pille: „Kein Abo“");
   const jump = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
-  check((await jump.getByRole("link").count()) === 6, "sechs Sprung-Pillen");
+  check((await jump.getByRole("link").count()) === 7, "sieben Sprung-Pillen");
   await jump.getByRole("link", { name: "Kalender-Abo" }).click();
   await page.waitForURL(/#calendar$/);
   check(true, "Sprung-Pille führt zum Kalender-Abo");
@@ -3203,6 +3203,73 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   await page.getByLabel("Anzeigename").fill("B");
   await page.getByRole("button", { name: "Änderungen speichern" }).first().click();
   check(await page.getByText("Mindestens 2 Zeichen.").isVisible(), "Profilformular validiert den Namen");
+});
+
+await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zurück auf Deutsch (Bob)", async () => {
+  const { page } = bob;
+  await page.goto(`${APP}/settings#language`);
+  const card = page.locator("section#language");
+  await card.getByRole("heading", { name: "Sprache" }).waitFor();
+  check((await card.getByRole("button", { name: "Deutsch" }).getAttribute("aria-pressed")) === "true", "Deutsch ist bei deutschem Browser gewählt");
+  check((await page.evaluate(() => document.documentElement.lang)) === "de", "<html lang> ist de");
+  await Promise.all([page.waitForEvent("load"), card.getByRole("button", { name: "English" }).click()]);
+  await page.getByRole("heading", { name: "Settings", level: 1 }).waitFor();
+  check(true, "nach dem Wechsel: Einstellungen auf Englisch");
+  check((await page.evaluate(() => document.documentElement.lang)) === "en", "<html lang> ist en");
+  check((await page.evaluate(() => localStorage.getItem("afterhours.locale"))) === "en", "Wahl gilt für dieses Gerät (localStorage)");
+  const en = page.locator("section#language");
+  check((await en.getByRole("button", { name: "English" }).getAttribute("aria-pressed")) === "true", "English ist jetzt gewählt");
+  check(await en.getByText("Still in German for now", { exact: false }).isVisible(), "ehrlicher Hinweis, was noch deutsch ist");
+  check(await page.getByRole("heading", { name: "Location sharing" }).isVisible(), "andere Bereiche ebenfalls englisch");
+  await a11y(bob, "Settings (English)");
+  await noOverflow(bob, "Settings (English)");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot(bob, "27b-einstellungen-englisch");
+  // Home und Navigation auf Englisch; Datum ohne „Uhr“.
+  await page.goto(`${APP}/plans`);
+  await page.getByRole("navigation", { name: "Main navigation" }).first().waitFor();
+  await page.locator("main h1").first().waitFor();
+  const body = await page.locator("main").innerText();
+  check(!/\bUhr\b/.test(body), "Pläne auf Englisch ohne „Uhr“");
+  check(!/\b(Abstimmung|Bin dabei|Vielleicht)\b/.test(body), "Pläne ohne deutsche Antwort-Texte");
+  await shot(bob, "27c-plaene-englisch");
+  // Ein-Satz-Abstimmung versteht Englisch.
+  await page.goto(`${APP}/home`);
+  await page.getByRole("button", { name: "What's on?" }).click();
+  const sheet = page.getByRole("dialog", { name: "One sentence is enough." });
+  await sheet.getByLabel("What, when, where – like in the chat").fill("bowling or cinema, fri or sat, 8 pm");
+  const chips = sheet.getByRole("list", { name: "This becomes" });
+  for (const chip of ["Bowling", "Cinema", "20:00"]) await chips.getByText(chip, { exact: true }).waitFor();
+  check((await chips.getByRole("listitem").count()) === 5, "Ein-Satz-Abstimmung zerlegt den englischen Satz: 2 Aktivitäten, 2 Tage, 1 Uhrzeit");
+  await sheet.getByText("What's on at the weekend?").waitFor();
+  await shot(bob, "27d-ein-satz-englisch");
+  await page.keyboard.press("Escape");
+  // Zurück auf Deutsch.
+  await page.goto(`${APP}/settings#language`);
+  await Promise.all([page.waitForEvent("load"), page.locator("section#language").getByRole("button", { name: "Deutsch" }).click()]);
+  await page.getByRole("heading", { name: "Einstellungen", level: 1 }).waitFor();
+  check((await page.evaluate(() => document.documentElement.lang)) === "de", "zurück auf Deutsch");
+});
+
+// P11: Startseite folgt der Browser-Sprache; der Sprachlink wechselt ohne Konto.
+await step("P11 – Startseite mit englischem Browser und Sprachlink (Gast)", async () => {
+  const context = await browser.newContext({ viewport: VIEWPORTS.mobile, locale: "en-GB", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+  const page = await context.newPage();
+  page.on("pageerror", (e) => problems.push(`[Gast-en] pageerror: ${e}`));
+  try {
+    await page.goto(`${APP}/`);
+    await page.getByRole("link", { name: "Start a crew" }).first().waitFor();
+    check(true, "englischer Browser: Startseite auf Englisch");
+    check((await page.evaluate(() => document.documentElement.lang)) === "en", "<html lang> ist en");
+    const demo = await page.locator("figure").first().innerText();
+    check(/Bowling/.test(demo) && /Cinema/.test(demo), "Satz-Probe zerlegt den englischen Beispielsatz");
+    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "02b-startseite-englisch.png"), fullPage: false });
+    await Promise.all([page.waitForEvent("load"), page.getByTestId("language-link").click()]);
+    await page.getByRole("link", { name: "Crew gründen" }).first().waitFor();
+    check((await page.evaluate(() => document.documentElement.lang)) === "de", "Sprachlink wechselt auf Deutsch");
+  } finally {
+    await context.close();
+  }
 });
 
 await step("P2 Etappe 2 – Kalender-Abo: Link anlegen, Kalender abrufen, ersetzen, beenden (Bob)", async () => {

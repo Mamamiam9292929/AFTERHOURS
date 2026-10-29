@@ -2,10 +2,15 @@
  * Datum und Uhrzeit. Die App rechnet durchgehend in der Zeitzone des Marktes (Europe/Berlin),
  * unabhängig davon, wie das Gerät eingestellt ist. Gespeichert wird UTC.
  */
+import { intlLocale, readLocale } from "@/i18n/locale";
 import type { Weekday } from "./types";
 
 export const APP_TIME_ZONE = "Europe/Berlin";
-export const APP_LOCALE = "de-DE";
+/** P11: „de-DE“ oder „en-GB“ – je nach Sprache der Oberfläche; Zeitzone bleibt immer Berlin. */
+export const APP_LOCALE = intlLocale(readLocale());
+const GERMAN = APP_LOCALE === "de-DE";
+/** Deutsch „20:00 Uhr“, Englisch „20:00“. */
+const withClock = (time: string) => (GERMAN ? `${time} Uhr` : time);
 
 const partsFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: APP_TIME_ZONE,
@@ -78,7 +83,7 @@ export function nextWeekday(target: Weekday, includeToday = false): string {
 const dateLong = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, weekday: "long", day: "numeric", month: "long" });
 const dateShort = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, weekday: "short", day: "numeric", month: "short" });
 const dateWithYear = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, day: "numeric", month: "long", year: "numeric" });
-const timeOnly = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, hour: "2-digit", minute: "2-digit" });
+const timeOnly = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const weekdayShort = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, weekday: "short" });
 const monthShort = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, month: "short" });
 const relative = new Intl.RelativeTimeFormat(APP_LOCALE, { numeric: "auto" });
@@ -86,7 +91,7 @@ const relative = new Intl.RelativeTimeFormat(APP_LOCALE, { numeric: "auto" });
 export const formatDateLong = (v: Date | string) => dateLong.format(new Date(v));
 export const formatDateShort = (v: Date | string) => dateShort.format(new Date(v));
 export const formatDateWithYear = (v: Date | string) => dateWithYear.format(new Date(v));
-export const formatTime = (v: Date | string) => `${timeOnly.format(new Date(v))} Uhr`;
+export const formatTime = (v: Date | string) => withClock(timeOnly.format(new Date(v)));
 export const formatDateTime = (v: Date | string) => `${formatDateShort(v)}, ${formatTime(v)}`;
 
 const monthYear = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, month: "long", year: "numeric" });
@@ -110,7 +115,7 @@ export function formatPlainDate(date: string, style: "short" | "long" = "short")
   return style === "long" ? formatDateLong(utc) : formatDateShort(utc);
 }
 
-export const formatPlainTime = (time: string) => `${time.slice(0, 5)} Uhr`;
+export const formatPlainTime = (time: string) => withClock(time.slice(0, 5));
 
 /** "in 3 Stunden", "vor 5 Minuten", "morgen" – für Fristen und Verläufe. */
 export function formatRelative(v: Date | string, now: Date = new Date()): string {

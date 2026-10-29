@@ -10,11 +10,11 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { crewRecap, crewYearRecap, recapYearChoice, type CrewRecap as Recap } from "@/lib/recap";
 import { recapCardFileName, recapCardModel, type RecapCardFact } from "@/lib/recapcard";
-import { formatMonthYear } from "@/lib/time";
+import { APP_LOCALE, formatMonthYear } from "@/lib/time";
 import { RECAP_IMAGE_BAR_MAX, renderRecapImage } from "./recapImage";
 
 const tx = t.crews.recap;
-const narrowMonth = new Intl.DateTimeFormat("de-DE", { month: "narrow", timeZone: "UTC" });
+const narrowMonth = new Intl.DateTimeFormat(APP_LOCALE, { month: "narrow", timeZone: "UTC" });
 const monthDate = (key: string) => new Date(`${key}-15T12:00:00Z`);
 
 type View = "all" | "year";

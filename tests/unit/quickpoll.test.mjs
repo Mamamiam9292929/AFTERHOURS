@@ -96,3 +96,48 @@ test("Winterzeit: Termin nach der Zeitumstellung", () => {
   const r = p("bowling 30.10. 20 uhr");
   assert.equal(r.endsAt, "2026-10-30T11:00:00.000Z", "Freitag 30.10. 12:00 Berlin = 11:00 UTC");
 });
+
+// P11 · Englische Oberfläche: derselbe Parser versteht englische Sätze (Mittwoch, 21. Oktober 2026, 12:00 Berliner Zeit).
+const WED = new Date("2026-10-21T10:00:00Z");
+const en = (s) => parseQuickPoll(s, WED, "en");
+
+test("Englisch: Beispiel der Oberfläche – zwei Aktivitäten, zwei Tage, 8 pm → 4 Optionen", () => {
+  const r = en("bowling or cinema, fri or sat, 8 pm");
+  assert.deepEqual(r.activities, ["Bowling", "Cinema"]);
+  assert.deepEqual(dates(r), ["2026-10-23", "2026-10-24"]);
+  assert.deepEqual(r.days.map((d) => d.label), ["Fri 23 Oct", "Sat 24 Oct"]);
+  assert.equal(r.time, "20:00");
+  assert.equal(r.options.length, 4);
+  assert.equal(r.title, "What's on at the weekend?");
+});
+
+test("Englisch: Uhrzeiten wie im Chat", () => {
+  const cases = [
+    ["pizza tonight at 8", "20:00"],
+    ["drinks friday night 9:30pm", "21:30"],
+    ["Brunch on Sunday at 11am", "11:00"],
+    ["cinema tomorrow half 8", "20:30"],
+    ["bowling 20:00", "20:00"],
+    ["climbing gym thursday around 7ish", "19:00"],
+    ["lunch sat 12pm", "12:00"],
+  ];
+  for (const [s, time] of cases) assert.equal(en(s).time, time, s);
+});
+
+test("Englisch: Tage, Füllwörter und Trenner", () => {
+  assert.deepEqual(dates(en("who's up for pizza tonight")), ["2026-10-21"]);
+  assert.deepEqual(en("who's up for pizza tonight").activities, ["Pizza"]);
+  assert.deepEqual(dates(en("karaoke or pub quiz this weekend")), ["2026-10-23", "2026-10-24"]);
+  assert.deepEqual(en("karaoke or pub quiz this weekend").activities, ["Karaoke", "Pub quiz"]);
+  assert.deepEqual(en("go to the lake sat or sun").activities, ["Lake"]);
+  assert.deepEqual(en("bowling & burgers").activities, ["Bowling", "Burgers"]);
+  assert.equal(en("drinks tomorrow").title, "What's on tomorrow?");
+  assert.equal(en("darts").title, "Darts – who's in?");
+  // Tag ohne Aktivität: Option heißt wie der Tag – auf Englisch.
+  assert.deepEqual(en("fri or sat").options.map((o) => o.title), ["Friday", "Saturday"]);
+});
+
+test("Deutsch bleibt Standard – englische Wörter sind dort Aktivitäten", () => {
+  assert.equal(parseQuickPoll("bowling fr 20 uhr", WED).time, "20:00");
+  assert.deepEqual(parseQuickPoll("bowling or cinema", WED).activities, ["Bowling or cinema"]);
+});

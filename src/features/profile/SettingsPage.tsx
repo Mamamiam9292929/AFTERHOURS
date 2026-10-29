@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { IconBell, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconInfo, IconLock, IconLogout, IconPin, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
+import { IconBell, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconGlobe, IconInfo, IconLock, IconLogout, IconPin, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { Chip, SwitchRow } from "@/components/ui/Controls";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorState, Notice, PageSpinner, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, SelectField, TextField } from "@/components/ui/Field";
+import { LanguageChips } from "@/components/ui/LanguageSwitch";
 import { GLASS_PILL } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import { CITY_NAMES } from "@/data/cities";
@@ -16,7 +17,8 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { forgetNext } from "@/features/auth/next";
 import { useCrews } from "@/features/crews/api";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
-import { t } from "@/i18n";
+import { locale, t } from "@/i18n";
+import { LANGUAGE_NAMES } from "@/i18n/locale";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
@@ -65,6 +67,7 @@ const ITEM = PANEL_ITEM;
 
 const SECTIONS = [
   { id: "profile", title: t.settings.profile.title },
+  { id: "language", title: t.settings.language.title },
   { id: "preferences", title: t.settings.preferences.title },
   { id: "location", title: t.settings.location.title },
   { id: "notifications", title: t.settings.notifications.title },
@@ -125,6 +128,27 @@ function ProfileCard({ profile }: { profile: Profile }) {
           {t.actions.saveChanges}
         </Button>
       </form>
+    </Card>
+  );
+}
+
+/** P11 · Sprache der Oberfläche für dieses Gerät; Stand als Pille in der jeweiligen Sprache. */
+function LanguageCard() {
+  return (
+    <Card
+      id="language"
+      title={t.settings.language.title}
+      lead={t.settings.language.lead}
+      icon={<IconGlobe className="size-5" />}
+      tone="lime"
+      status={
+        <StatusPill tone="glass">
+          <span lang={locale}>{LANGUAGE_NAMES[locale]}</span>
+        </StatusPill>
+      }
+    >
+      <LanguageChips />
+      {locale !== "de" && <p className="mt-4 text-[13px] leading-snug text-faint">{t.settings.language.notTranslated}</p>}
     </Card>
   );
 }
@@ -777,6 +801,7 @@ export function SettingsPage() {
       </div>
       <div className="max-w-2xl space-y-5">
         <ProfileCard profile={profile.data} />
+        <LanguageCard />
         <PreferencesCard profile={profile.data} settings={settings.data} />
         <LocationCard settings={settings.data} />
         <NotificationsCard settings={settings.data} />

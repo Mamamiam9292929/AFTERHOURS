@@ -45,6 +45,28 @@ const WEEKDAYS: Record<string, number> = {
 const SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const LONG = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
+/** P11 · Sprache des Satzes: Deutsch (Standard) oder Englisch – folgt der Sprache der Oberfläche. */
+export type QuickLang = "de" | "en";
+
+// P11: englische Entsprechungen. Englische Kurzformen („fri“, „sat“) sind keine Alltagswörter – sie gelten immer als Tag.
+const EN_WEEKDAYS: Record<string, number> = {
+  sun: 0, sunday: 0, sundays: 0,
+  mon: 1, monday: 1, mondays: 1,
+  tue: 2, tues: 2, tuesday: 2, tuesdays: 2,
+  wed: 3, weds: 3, wednesday: 3, wednesdays: 3,
+  thu: 4, thur: 4, thurs: 4, thursday: 4, thursdays: 4,
+  fri: 5, friday: 5, fridays: 5,
+  sat: 6, saturday: 6, saturdays: 6,
+};
+const EN_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const EN_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const EN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const EN_FILLER = [
+  "who's up for", "whos up for", "who is up for", "anyone up for", "anyone fancy", "who fancies", "who wants to go", "who wants", "anyone for",
+  "up for", "fancy", "let's go", "lets go", "let's do", "lets do", "let's", "lets", "shall we do", "shall we go", "shall we", "how about", "what about",
+  "maybe", "this week", "next week", "at", "on", "this", "next", "every", "around", "from", "go to", "go", "to", "the", "some", "a", "evening", "night", "afternoon", "morning",
+];
+
 /** Füllwörter aus dem Chat, die keine Aktivität sind. */
 const FILLER = [
   "wer hat bock auf", "wer hat lust auf", "wer hat bock", "wer hat lust", "jemand bock auf", "jemand lust auf", "jemand bock", "jemand lust",
@@ -87,8 +109,9 @@ function weekdayOf(date: string): number {
   return new Date(`${date}T12:00:00Z`).getUTCDay();
 }
 
-export function dayLabel(date: string): string {
+export function dayLabel(date: string, lang: QuickLang = "de"): string {
   const [, m, d] = date.split("-");
+  if (lang === "en") return `${EN_SHORT[weekdayOf(date)]} ${Number(d)} ${EN_MONTHS[Number(m) - 1] ?? ""}`;
   return `${SHORT[weekdayOf(date)]} ${d}.${m}.`;
 }
 
@@ -117,10 +140,10 @@ function capitalize(s: string): string {
 }
 
 /** Füllwörter nur vorne und hinten abschneiden – „Grillen am See“ bleibt ganz. */
-function stripFiller(phrase: string): string {
+function stripFiller(phrase: string, filler: string[] = FILLER): string {
   let p = phrase.replace(/\s+/g, " ").trim();
   const low = () => p.toLocaleLowerCase("de");
-  const sorted = [...FILLER].sort((a, b) => b.length - a.length);
+  const sorted = [...filler].sort((a, b) => b.length - a.length);
   for (let changed = true; changed; ) {
     changed = false;
     for (const f of sorted) {
@@ -142,8 +165,9 @@ function nextWeekday(now: BerlinNow, weekday: number): string {
   return addDays(now.date, (weekday - now.weekday + 7) % 7);
 }
 
-export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll {
+export function parseQuickPoll(input: string, now: Date = new Date(), lang: QuickLang = "de"): QuickPoll {
   const today = berlinNow(now);
+  const en = lang === "en";
   const days: string[] = [];
   const activities: string[] = [];
   let time: string | null = null;
@@ -172,7 +196,8 @@ export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll
   // Uhrzeit: „20 uhr“, „20:30“, „20.30 uhr“, „um 8“, „8 uhr abends“, „20h“, „halb 8“, „viertel nach 8“.
   // „so gegen 9“ ist ungefähr, kein Sonntag; „am so um 8“ bleibt Sonntag. „rum“ dahinter gehört dazu.
   // (Ohne Lookbehind, damit ältere Safari-Versionen den Ausdruck laden.)
-  text = text.replace(/\bam\s+so\b\.?/gi, "am sonntag");
+  if (en) time = takeEnglishTime((match) => (text = text.replace(match, " , ")), text);
+  else text = text.replace(/\bam\s+so\b\.?/gi, "am sonntag");
   const lead = String.raw`(?:\bso\s+(?=gegen|um\s))?(?:\b(?:um|ab|gegen)\s*)?`;
   const tail = String.raw`(?:\s*(?:uhr|h\b))?(?:\s*(abends))?(?:\s+(?:rum|herum)\b)?`;
   const timePatterns: { re: RegExp; hour: (h: number) => number; minute: number | null }[] = [
@@ -183,7 +208,7 @@ export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll
     { re: new RegExp(String.raw`${lead}\b(\d{1,2})\s*(?:uhr|h\b)(?:\s*(abends))?(?:\s+(?:rum|herum)\b)?`, "i"), hour: (h) => h, minute: 0 },
     { re: new RegExp(String.raw`(?:\bso\s+(?=gegen|um\s))?\b(?:um|ab|gegen)\s+(\d{1,2})\b(?![.:]\d)(?:\s*(abends))?(?:\s+(?:rum|herum)\b)?`, "i"), hour: (h) => h, minute: 0 },
   ];
-  for (const { re, hour, minute } of timePatterns) {
+  for (const { re, hour, minute } of en ? [] : timePatterns) {
     const m = re.exec(text);
     if (!m) continue;
     const minutes = minute ?? Number(m[2]);
@@ -197,9 +222,17 @@ export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll
     }
   }
 
+  const addActivity = (stripped: string) => {
+    const activity = stripped.replace(/^[-–]+|[-–.]+$/g, "").trim();
+    if (activity.length >= 2 && !/^[\d:.\s]+$/.test(activity)) {
+      const nice = capitalize(activity).slice(0, 60);
+      if (!activities.some((a) => a.toLocaleLowerCase("de") === nice.toLocaleLowerCase("de"))) activities.push(nice);
+    }
+  };
+
   // Phrasen trennen: Komma, „oder“, „/“, „und“, Zeilen
   const phrases = text
-    .split(/,|;|\/|\n|\boder\b|\bund\b|\s-\s/i)
+    .split(en ? /,|;|\/|\n|\bor\b|\band\b|\s&\s|\s-\s/i : /,|;|\/|\n|\boder\b|\bund\b|\s-\s/i)
     .map((p) => p.trim())
     .filter(Boolean);
 
@@ -212,6 +245,21 @@ export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll
       if (base !== k && ((base.length > 2 && base in WEEKDAYS) || ["heute", "morgen", "übermorgen"].includes(base))) return base;
       return k === "we" ? "wochenende" : k;
     };
+    if (en) {
+      const rest: string[] = [];
+      for (const w of words) {
+        const word = w.toLocaleLowerCase("en").replace(/[.:]+$/, "");
+        if (word === "today" || word === "tonight") addDay(today.date);
+        else if (word === "tomorrow" || word === "tmrw" || word === "tmr") addDay(addDays(today.date, 1));
+        else if (word === "weekend") {
+          addDay(nextWeekday(today, 5));
+          addDay(nextWeekday(today, 6));
+        } else if (word in EN_WEEKDAYS) addDay(nextWeekday(today, EN_WEEKDAYS[word] ?? 0));
+        else rest.push(w);
+      }
+      addActivity(stripFiller(rest.join(" "), EN_FILLER));
+      continue;
+    }
     const isDayWord = (w: string) => key(w) in WEEKDAYS || ["heute", "heut", "morgen", "übermorgen", "uebermorgen", "wochenende"].includes(key(w));
     // Kurzformen („do“, „so“, „mi“) sind im Deutschen auch normale Wörter: als Wochentag nur nach „am“,
     // „jeden“ & Co., in kurzen Phrasen oder am Anfang/Ende; „so“ zusätzlich nur mit Punkt, in einer reinen
@@ -234,15 +282,11 @@ export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll
       } else if (word in WEEKDAYS && shortOk) addDay(nextWeekday(today, WEEKDAYS[word] ?? 0));
       else rest.push(w);
     }
-    const activity = stripFiller(rest.join(" ")).replace(/^[-–]+|[-–.]+$/g, "").trim();
-    if (activity.length >= 2 && !/^[\d:.\s]+$/.test(activity)) {
-      const nice = capitalize(activity).slice(0, 60);
-      if (!activities.some((a) => a.toLocaleLowerCase("de") === nice.toLocaleLowerCase("de"))) activities.push(nice);
-    }
+    addActivity(stripFiller(rest.join(" ")));
   }
 
   days.sort();
-  const quickDays = days.map((date) => ({ date, label: dayLabel(date) }));
+  const quickDays = days.map((date) => ({ date, label: dayLabel(date, lang) }));
 
   const options: QuickOption[] = [];
   const acts = activities.length ? activities : [null];
@@ -250,11 +294,11 @@ export function parseQuickPoll(input: string, now: Date = new Date()): QuickPoll
   for (const d of dates) {
     for (const a of acts) {
       if (options.length >= MAX_OPTIONS) break;
-      options.push({ title: a ?? (d ? (LONG[weekdayOf(d)] ?? "") : ""), proposed_date: d, proposed_time: d ? time : null });
+      options.push({ title: a ?? (d ? ((en ? EN_LONG : LONG)[weekdayOf(d)] ?? "") : ""), proposed_date: d, proposed_time: d ? time : null });
     }
   }
 
-  return { activities, days: quickDays, time, title: buildTitle(activities, days, today), options: options.filter((o) => o.title), endsAt: endsAt(days, time, now).toISOString() };
+  return { activities, days: quickDays, time, title: en ? buildEnglishTitle(activities, days, today) : buildTitle(activities, days, today), options: options.filter((o) => o.title), endsAt: endsAt(days, time, now).toISOString() };
 }
 
 function buildTitle(activities: string[], days: string[], today: BerlinNow): string {
@@ -272,6 +316,59 @@ function buildTitle(activities: string[], days: string[], today: BerlinNow): str
   if (activities.length === 1) return `${activities[0]} – wer ist dabei?`;
   if (activities.length > 1) return "Was machen wir?";
   return "Was geht?";
+}
+
+function buildEnglishTitle(activities: string[], days: string[], today: BerlinNow): string {
+  if (days.length === 1) {
+    const d = days[0] ?? today.date;
+    if (d === today.date) return "What's on today?";
+    if (d === addDays(today.date, 1)) return "What's on tomorrow?";
+    return `What's on ${EN_LONG[weekdayOf(d)]}?`;
+  }
+  if (days.length > 1) {
+    const wd = days.map((d) => weekdayOf(d));
+    if (days.length === 2 && wd[0] === 5 && wd[1] === 6) return "What's on at the weekend?";
+    return activities.length === 1 ? `When are we doing ${activities[0]}?` : "When are we going out?";
+  }
+  if (activities.length === 1) return `${activities[0]} – who's in?`;
+  if (activities.length > 1) return "What are we doing?";
+  return "What's on?";
+}
+
+/**
+ * P11 · Uhrzeit im englischen Satz: „8pm“, „8:30 pm“, „20:00“, „at 8“, „around 9ish“, „half 8“ (britisch = 8:30).
+ * Wie im Deutschen meint eine Zahl von 1 bis 9 ohne am/pm den Abend. Gefundenes wird über `remove` entfernt.
+ */
+function takeEnglishTime(remove: (match: string) => void, text: string): string | null {
+  const lead = String.raw`(?:\b(?:at|around|from|about)\s+)?`;
+  const ish = String.raw`(?:\s*ish\b)?`;
+  const patterns: { re: RegExp; read: (m: RegExpExecArray) => string | null }[] = [
+    {
+      re: new RegExp(String.raw`${lead}\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)\b${ish}`, "i"),
+      read: (m) => {
+        let h = Number(m[1]);
+        const minute = Number(m[2] ?? 0);
+        if (h < 1 || h > 12) return null;
+        const pm = (m[3] ?? "").toLowerCase() === "pm";
+        if (pm && h < 12) h += 12;
+        if (!pm && h === 12) h = 0;
+        return normalizeTime(h, minute, false) && `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+      },
+    },
+    { re: new RegExp(String.raw`${lead}\bhalf\s+(\d{1,2})(?![.:]?\d)(?:\s*ish\b|\b)`, "i"), read: (m) => normalizeTime(Number(m[1]), 30, false) },
+    { re: new RegExp(String.raw`${lead}\b(\d{1,2})[:.](\d{2})\b${ish}`, "i"), read: (m) => normalizeTime(Number(m[1]), Number(m[2]), false) },
+    { re: /\b(?:at|around|from|about)\s+(\d{1,2})(?![.:]?\d)(?:\s*ish\b|\b)/i, read: (m) => normalizeTime(Number(m[1]), 0, false) },
+  ];
+  for (const { re, read } of patterns) {
+    const m = re.exec(text);
+    if (!m) continue;
+    const time = read(m);
+    if (time) {
+      remove(m[0]);
+      return time;
+    }
+  }
+  return null;
 }
 
 /**

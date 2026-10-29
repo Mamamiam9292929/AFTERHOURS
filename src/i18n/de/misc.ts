@@ -191,7 +191,7 @@ export const profile = {
   crews: "Deine Crews",
   pass: {
     label: "Stammkarte",
-    evenings: (n: number) => (n === 1 ? "Abend erlebt" : "Abende erlebt"),
+    evenings: (n: number): string => (n === 1 ? "Abend erlebt" : "Abende erlebt"),
     since: (monthYear: string) => `Dabei seit ${monthYear}`,
   },
   links: { settings: "Einstellungen", notifications: "Benachrichtigungen", privacy: "Datenschutz und deine Daten", admin: "Admin-Bereich", assistant: "Planungsassistent" },
@@ -202,6 +202,13 @@ export const settings = {
   back: "Profil",
   jumpLabel: "Bereiche der Einstellungen",
   profile: { title: "Profil", saved: "Profil gespeichert." },
+  // P11: Sprache der Oberfläche – gilt für dieses Gerät.
+  language: {
+    title: "Sprache",
+    label: "Sprache der App",
+    lead: "Gilt für dieses Gerät. Die Seite lädt danach neu. Datum, Uhrzeit und Beträge bleiben in Berliner Zeit und Euro.",
+    notTranslated: "Noch deutsch, auch auf Englisch: Link-Vorschauen in Messengern, Kalender-Abo, E-Mails und Termin-Titel, die der Server vergibt.",
+  },
   preferences: { title: "Vorlieben", saved: "Vorlieben gespeichert." },
   location: {
     title: "Standortfreigabe",
