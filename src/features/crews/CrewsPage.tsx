@@ -37,9 +37,9 @@ export function CrewRow({ crew, status }: { crew: CrewWithMembers; status?: Crew
       data-testid="crew-row"
       data-world={crewWorld(crew.id)}
       data-pulse={status?.pulse}
-      className="crew-world flex items-center gap-4 rounded-[28px] border border-white/10 p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] transition-[transform,border-color] duration-300 hover:border-white/20 motion-safe:hover:-translate-y-0.5"
+      className="crew-world flex min-w-0 items-center gap-4 rounded-[28px] max-[359px]:gap-3 border border-white/10 p-4 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] transition-[transform,border-color] duration-300 hover:border-white/20 motion-safe:hover:-translate-y-0.5"
     >
-      <span className="crew-world-tile flex size-14 shrink-0 items-center justify-center rounded-[20px] text-[28px]" aria-hidden>
+      <span className="crew-world-tile flex size-14 shrink-0 max-[359px]:size-12 items-center justify-center rounded-[20px] text-[28px]" aria-hidden>
         {crew.emoji}
       </span>
       <span className="min-w-0 flex-1">

@@ -136,7 +136,9 @@ for (const device of DEVICES) {
   page.setDefaultTimeout(15_000);
   page.on("pageerror", (e) => {
     const text = String(e?.message ?? e);
-    if (!/ResizeObserver loop/.test(text)) note("error", text.slice(0, 200), "", `${device.id}/${page.url().replace(APP, "")}`);
+    // WebKit meldet Anfragen, die beim Seitenwechsel per page.goto abgebrochen werden, als „access control checks“ –
+    // das ist der Neuladevorgang des Tests, kein Fehler der App.
+    if (!/ResizeObserver loop|due to access control checks|^Load failed$/.test(text)) note("error", text.slice(0, 200), "", `${device.id}/${page.url().replace(APP, "")}`);
   });
   try {
     for (const [name, url] of PUBLIC) await audit(device, page, name, url);
