@@ -206,14 +206,14 @@ export function PlanDetailPage() {
             <Fact icon={<IconPlans aria-hidden />} label={t.plans.detail.what}>
               <span className="font-semibold">{plan.title}</span>
               <span className="mt-0.5 block text-sm text-muted">{organizer}</span>
-              <span className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+              <span className="mt-0.5 flex flex-wrap gap-x-4">
                 {plan.activity_id && (
-                  <Link to={`/activities/${plan.activity_id}`} className="inline-flex min-h-6 items-center text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
+                  <Link to={`/activities/${plan.activity_id}`} className="inline-block py-1 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
                     {t.plans.detail.showPlace}
                   </Link>
                 )}
                 {plan.poll_id && (
-                  <Link to={`/polls/${plan.poll_id}`} className="inline-flex min-h-6 items-center text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
+                  <Link to={`/polls/${plan.poll_id}`} className="inline-block py-1 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
                     {t.plans.detail.fromPoll}
                   </Link>
                 )}
@@ -233,7 +233,7 @@ export function PlanDetailPage() {
                     downloadPlanIcs(plan);
                     toast.success(t.plans.calendar.done);
                   }}
-                  className="mt-1.5 flex min-h-6 w-fit items-center gap-1.5 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"
+                  className="mt-0.5 flex w-fit items-center gap-1.5 py-1 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"
                 >
                   <IconCalendarPlus className="size-4" aria-hidden />
                   {t.plans.calendar.add}
@@ -241,7 +241,7 @@ export function PlanDetailPage() {
               )}
               {/* P2 Etappe 2: Wer mehr als einen Plan im Kalender will, abonniert alle. */}
               {!locked && !started && (
-                <Link to="/settings#calendar" className="mt-1 flex min-h-6 w-fit items-center text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-fg hover:decoration-lime">
+                <Link to="/settings#calendar" className="block w-fit py-1 text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-fg hover:decoration-lime">
                   {t.plans.calendar.subscribe}
                 </Link>
               )}
@@ -249,7 +249,7 @@ export function PlanDetailPage() {
             <Fact icon={<IconPin aria-hidden />} label={t.plans.detail.where}>
               {plan.address ? <span className="font-semibold">{plan.address}</span> : <span className="text-muted">{t.plans.detail.noAddress}</span>}
               {place?.latitude != null && place.longitude != null && (
-                <a href={mapProvider.directionsUrl(place.latitude, place.longitude)} target="_blank" rel="noopener noreferrer" className="mt-1.5 flex min-h-6 w-fit items-center gap-1.5 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
+                <a href={mapProvider.directionsUrl(place.latitude, place.longitude)} target="_blank" rel="noopener noreferrer" className="mt-0.5 flex w-fit items-center gap-1.5 py-1 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
                   {t.plans.detail.openInMaps}
                   <IconExternal className="size-3.5" aria-hidden />
                 </a>
