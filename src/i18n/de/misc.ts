@@ -24,7 +24,11 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
           : `${actor} hat eine Abstimmung gestartet`,
     body: str(p, "title"),
   }),
-  poll_reminder: (actor, p) => ({ title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") }),
+  // P15: Endspurt ohne auslösende Person – in den letzten drei Stunden, solange die eigene Stimme fehlt.
+  poll_reminder: (actor, p) =>
+    p.closing
+      ? { title: str(p, "ends_at") ? `Endet um ${formatTime(str(p, "ends_at"))} – deine Stimme fehlt` : "Endet bald – deine Stimme fehlt", body: str(p, "title") }
+      : { title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") },
   poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (Gast) hat abgestimmt` : `${actor} hat abgestimmt`, body: str(p, "title") }),
   poll_result: (_actor, p) => ({
     title: p.winner_title ? `Ergebnis: ${str(p, "winner_title")}` : p.is_tie ? "Abstimmung endet mit Gleichstand" : "Abstimmung ohne Zusagen beendet",
@@ -232,7 +236,7 @@ export const settings = {
     status: (on: number, all: number) => (on === 0 ? "Alle aus" : on === all ? "Alle an" : `${on} von ${all} an`),
     groups: {
       polls: { title: "Neue Abstimmungen", body: "Wenn jemand in deiner Crew eine Abstimmung startet." },
-      reminders: { title: "Erinnerungen", body: "Wenn deine Antwort auf eine Abstimmung noch fehlt." },
+      reminders: { title: "Erinnerungen", body: "Wenn deine Antwort auf eine Abstimmung noch fehlt – von Hand oder kurz vor dem Ende." },
       answers: { title: "Neue Antworten", body: "Wenn jemand auf deine Abstimmung oder deinen Plan antwortet." },
       results: { title: "Ergebnisse", body: "Wenn eine Abstimmung endet." },
       plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten und Absagen." },

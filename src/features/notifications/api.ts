@@ -11,15 +11,35 @@ import type { AppNotification } from "@/lib/types";
  * sie dann als Benachrichtigungen an:
  * - P3 Etappe 3b: offene Beträge (nur die eigenen),
  * - P4 Etappe 2: Pläne, die heute stattfinden (für alle in den eigenen Crews – deshalb danach Push).
+ * - P15: Abstimmungen in ihren letzten drei Stunden (an alle ohne Stimme). Das Fenster ist kurz, deshalb
+ *   fragt die App danach höchstens alle 15 Minuten erneut (beim Aktualisieren der Liste).
  * Scheitert das (Netz, Rate Limit), bleibt es bei der Liste – beim nächsten Start versucht es die App wieder.
  */
 let expenseRemindersCheckedFor: string | null = null;
+let closingCheckedAt: { userId: string; at: number } | null = null;
+const CLOSING_CHECK_MS = 15 * 60_000;
+
+async function checkClosingPolls(userId: string) {
+  const now = Date.now();
+  if (closingCheckedAt?.userId === userId && now - closingCheckedAt.at < CLOSING_CHECK_MS) return;
+  closingCheckedAt = { userId, at: now };
+  const { data } = await supabase.rpc("send_poll_closing_reminders");
+  if (typeof data === "number" && data > 0) kickPush();
+}
 
 async function checkExpenseReminders(userId: string) {
-  if (expenseRemindersCheckedFor === userId) return;
+  if (expenseRemindersCheckedFor === userId) {
+    await checkClosingPolls(userId).catch(() => undefined);
+    return;
+  }
   expenseRemindersCheckedFor = userId;
+  closingCheckedAt = { userId, at: Date.now() };
   // Fehler kommen als Ergebnis zurück, nicht als Ausnahme; ohne Netz kommt die Erinnerung beim nächsten Start.
-  await Promise.allSettled([supabase.rpc("send_my_expense_reminders"), supabase.rpc("send_plan_day_reminders")]);
+  await Promise.allSettled([
+    supabase.rpc("send_my_expense_reminders"),
+    supabase.rpc("send_plan_day_reminders"),
+    supabase.rpc("send_poll_closing_reminders"),
+  ]);
   // P4: Beim Start einmal die Push-Warteschlange anstoßen – falls seit dem letzten Mal etwas liegen blieb.
   kickPush();
 }

@@ -34,7 +34,10 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
           : `${actor} started a poll`,
     body: serverTitle(p),
   }),
-  poll_reminder: (actor, p) => ({ title: `${actor} is reminding you about a poll`, body: serverTitle(p) }),
+  poll_reminder: (actor, p) =>
+    p.closing
+      ? { title: str(p, "ends_at") ? `Closes at ${formatTime(str(p, "ends_at"))} – your vote is missing` : "Closing soon – your vote is missing", body: serverTitle(p) }
+      : { title: `${actor} is reminding you about a poll`, body: serverTitle(p) },
   poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (guest) voted` : `${actor} voted`, body: serverTitle(p) }),
   poll_result: (_actor, p) => ({
     title: p.winner_title ? `Result: ${str(p, "winner_title")}` : p.is_tie ? "Poll ended in a tie" : "Poll ended with no yes votes",
@@ -232,7 +235,7 @@ export const settings = {
     status: (on: number, all: number) => (on === 0 ? "All off" : on === all ? "All on" : `${on} of ${all} on`),
     groups: {
       polls: { title: "New polls", body: "When someone in your crew starts a poll." },
-      reminders: { title: "Reminders", body: "When you still haven't answered a poll." },
+      reminders: { title: "Reminders", body: "When you still haven't answered a poll – sent by hand or shortly before it closes." },
       answers: { title: "New replies", body: "When someone replies to your poll or your plan." },
       results: { title: "Results", body: "When a poll ends." },
       plans: { title: "Plans", body: "New plans, changes to time, place or cost, and cancellations." },
