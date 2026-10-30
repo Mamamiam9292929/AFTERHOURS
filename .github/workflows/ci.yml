@@ -59,7 +59,7 @@ jobs:
   journey:
     name: Browser-Journey (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     # contents: write nur für den Screenshot-Branch (.github/scripts/screenshots.sh).
     permissions:
       contents: write
@@ -80,12 +80,18 @@ jobs:
       # Barrierefreiheitsprüfung (F2). Ohne Lockfile-Eintrag, solange die Entwicklungsumgebung keinen
       # npm-Zugriff hat; Version fest, damit die Regeln nicht unbemerkt wechseln.
       - run: npm install --no-save --no-audit --no-fund axe-core@4.10.3
-      - run: npx playwright install --with-deps chromium
+      # D5: WebKit (Engine von Safari) für das Geräte-Audit.
+      - run: npx playwright install --with-deps chromium webkit
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - run: .github/scripts/run.sh .github/scripts/e2e.sh setup
+      - id: setup
+        run: .github/scripts/run.sh .github/scripts/e2e.sh setup
       - run: .github/scripts/run.sh npm run test:e2e
+      # D5: Geräte-Audit in Safari (WebKit) und Chrome von 320 px bis Desktop – nutzt Konten und Daten der Journey,
+      # läuft deshalb auch, wenn die Journey an anderer Stelle scheiterte (aber nicht ohne laufende Umgebung).
+      - if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        run: .github/scripts/run.sh npm run test:devices
       - if: failure()
         run: .github/scripts/e2e.sh logs
       - if: always()

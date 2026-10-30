@@ -51,7 +51,7 @@ export function InviteDialog({ crew, open, onClose }: { crew: Crew; open: boolea
             <label htmlFor="invite-link" className="mb-1.5 block text-sm font-medium text-fg">
               {t.crews.invite.linkReady}
             </label>
-            <input id="invite-link" readOnly value={link} onFocus={(e) => e.currentTarget.select()} className="h-12 w-full rounded-control border border-lime/60 bg-surface px-3.5 font-mono text-[13px] text-fg focus:outline-none" />
+            <input id="invite-link" readOnly value={link} onFocus={(e) => e.currentTarget.select()} className="h-12 w-full rounded-control border border-lime/60 bg-surface px-3.5 font-mono text-base text-fg focus:outline-none" />
             <p className="mt-2 text-[13px] leading-snug text-muted">{t.crews.invite.linkOnce}</p>
             <p className="mt-1 text-[13px] text-faint">
               {t.crews.invite.uses(0, created.max_uses)}, {t.crews.invite.expires(formatDateTime(created.expires_at))}
