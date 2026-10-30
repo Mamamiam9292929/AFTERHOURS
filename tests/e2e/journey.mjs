@@ -2108,6 +2108,46 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P15 – Endspurt: Eine Abstimmung, die seit zwei Tagen läuft, endet in zwei Stunden. Bob öffnet die App –
+  // alle ohne Stimme bekommen genau eine Erinnerung, ohne dass jemand von Hand erinnert.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const closingPoll = psql(`insert into public.polls (crew_id, created_by, title, ends_at, created_at)
+      values ('${ids.crew}', '${aliceId}', 'Endspurt: Tischkicker oder Darts?', date_trunc('minute', now()) + interval '2 hours', now() - interval '2 days')
+      returning id`).split("\n")[0];
+    psql(`insert into public.poll_options (poll_id, title, position) values ('${closingPoll}', 'Tischkicker', 0), ('${closingPoll}', 'Darts', 1)`);
+    try {
+      await bob.page.goto(`${APP}/notifications`);
+      const reminder = bob.page.getByRole("link", { name: /Endet um \d{2}:\d{2} Uhr – deine Stimme fehlt/ });
+      await reminder.waitFor();
+      check(await reminder.getByText("Endspurt: Tischkicker oder Darts?").isVisible(), "Endspurt: „Endet um … Uhr – deine Stimme fehlt“ mit der Frage");
+      await noOverflow(bob, "Endspurt-Erinnerung");
+      await shot(bob, "21f-endspurt-abstimmung");
+      const expected = psql(`select count(*) from public.crew_members m left join public.user_settings s on s.user_id = m.user_id
+        where m.crew_id = '${ids.crew}' and coalesce(s.notification_preferences ->> 'poll_reminder', 'true') <> 'false'`);
+      check(psql(`select count(*) from public.notifications where type = 'poll_reminder' and related_entity_id = '${closingPoll}' and actor_id is null`) === expected,
+        `Bobs Start erinnert alle ohne Stimme (${expected})`);
+      await bob.page.reload();
+      await reminder.waitFor();
+      check((await bob.page.getByRole("link", { name: /Endet um .* deine Stimme fehlt/ }).count()) === 1, "Neuladen erinnert nicht noch einmal");
+      await reminder.click();
+      await bob.page.waitForURL(`**/polls/${closingPoll}`);
+      check(true, "Endspurt-Erinnerung führt zur Abstimmung");
+      // Ohne Anmeldung lässt sich nichts anstoßen.
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/send_poll_closing_reminders`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: "{}",
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Anstoßen (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${closingPoll}'; delete from public.polls where id = '${closingPoll}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });
