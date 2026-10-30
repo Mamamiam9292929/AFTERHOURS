@@ -1,0 +1,19 @@
+{
+  "_hinweis": "P11 Etappe 3 · Store-Texte (Englisch, en-GB) für App Store und Google Play – Gegenstück zu texte.de.json mit denselben Regeln: nur Funktionen, die es wirklich gibt, keine Nutzerzahlen, Bewertungen, Preise oder Versprechen; Orte gibt es nur in Deutschland, das steht in der Beschreibung. Längen und Ehrlichkeit prüft tests/unit/store-texts.test.mjs. Offene Punkte stehen in texte.de.json.",
+  "sprache": "en-GB",
+  "app_store": {
+    "name": "AFTERHOURS",
+    "untertitel": "Plan nights out with friends",
+    "werbetext": "Vote, find a place, lock in the plan – in one spot instead of five chats. Friends join via link, and they can even vote without an account.",
+    "stichwoerter": "friends,group,vote,poll,meetup,night out,bowling,cinema,bar,date,planner,crew,hangout",
+    "beschreibung": "description.en.txt",
+    "kategorie": "Social Networking",
+    "zweitkategorie": "Lifestyle"
+  },
+  "google_play": {
+    "titel": "AFTERHOURS: Crew night planner",
+    "kurzbeschreibung": "Vote with friends, find places, lock in plans – without the group chat chaos.",
+    "beschreibung": "description.en.txt",
+    "kategorie": "Social"
+  }
+}
