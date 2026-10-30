@@ -17,8 +17,10 @@ import type { NotificationType } from "@/lib/types";
 import { useDeleteNotification, useMarkNotificationsRead, useNotifications } from "./api";
 
 /** Symbol je Art – zeigt auf einen Blick, worum es geht (Bereichsfarbe kommt aus `inboxTone`). */
-function NotificationIcon({ type, className }: { type: NotificationType; className?: string }) {
+function NotificationIcon({ type, closing, className }: { type: NotificationType; closing?: boolean; className?: string }) {
   const props = { className, "aria-hidden": true as const };
+  // P15: Die Endspurt-Erinnerung zeigt eine Uhr – es geht um die Zeit, nicht um eine neue Abstimmung.
+  if (type === "poll_reminder" && closing) return <IconClock {...props} />;
   switch (type) {
     case "crew_member_joined":
       return <IconUserPlus {...props} />;
@@ -134,12 +136,12 @@ export function NotificationsPage() {
                               <>
                                 <Avatar person={actor} size="md" decorative />
                                 <span aria-hidden className="inbox-tile absolute -right-1 top-5 grid size-6 place-items-center rounded-full text-fg">
-                                  <NotificationIcon type={n.type} className="size-3.5" />
+                                  <NotificationIcon type={n.type} closing={n.payload?.closing === true} className="size-3.5" />
                                 </span>
                               </>
                             ) : (
                               <span aria-hidden className="inbox-tile grid size-10 place-items-center rounded-full text-fg">
-                                <NotificationIcon type={n.type} className="size-[18px]" />
+                                <NotificationIcon type={n.type} closing={n.payload?.closing === true} className="size-[18px]" />
                               </span>
                             )}
                           </span>
