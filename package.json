@@ -12,6 +12,7 @@
     "size": "node scripts/bundle-size.mjs",
     "test:db": "supabase test db",
     "test:e2e": "node tests/e2e/journey.mjs",
+    "test:devices": "node tests/e2e/device-audit.mjs",
     "test:unit": "node --test tests/unit/*.test.mjs"
   },
   "dependencies": {

@@ -23,12 +23,16 @@ fi
 branch="screenshots/$TARGET"
 work=$(mktemp -d)
 cp "${shots[@]}" "$work"/
+# D5: Bericht des Geräte-Audits mit ablegen.
+reports=("$dir"/*.md)
+[ ${#reports[@]} -eq 0 ] || cp "${reports[@]}" "$work"/
 cd "$work"
 {
   echo "# Screenshots: $TARGET"
   echo
   echo "Browser-Journey zu Commit \`$GITHUB_SHA\` – automatisch erzeugt, wird bei jedem Lauf ersetzt."
   echo
+  for f in *.md; do [ "$f" = README.md ] || echo "- Bericht: [$f]($f)"; done
   for f in *.png; do echo "- [$f]($f)"; done
 } >README.md
 git init -q -b "$branch"
