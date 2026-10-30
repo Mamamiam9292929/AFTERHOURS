@@ -1,0 +1,41 @@
+Who asks the group this time? You – and then it's quick.
+
+AFTERHOURS is the app for groups of friends who want to do more together instead of getting lost in group chats. Vote, find a place, lock in the plan – all in one spot. You see at a glance who's in.
+
+FROM ONE QUESTION TO A NIGHT OUT
+
+1. Start a crew: name, icon, done. Drop the invite link into your group chat. Whoever taps it is in with one tap.
+2. Vote: up to ten suggestions – real places in your city or “Barbecue at Bob's”. Everyone answers “I'm in”, “Maybe” or “Can't make it”.
+3. The plan is set: the result becomes a plan with time, place, meeting point, cost per person and everyone's answers – a ticket for the whole crew.
+
+WHAT'S INSIDE
+
+• One sentence is enough: type “bowling or cinema, fri or sat, 8 pm” – it becomes a poll you send straight to your group chat.
+• Swipe instead of scrolling: right for in, left for rather not. If everyone's in, it's a match.
+• Decides itself: with a clear majority or when the deadline passes, the plan is set on its own and everyone gets notified.
+• “Anyone out tonight?”: ask your crew on the spot who's up for tonight – the question expires after two hours.
+• Real places in every city in Germany: restaurants, bars, cafés, bowling, cinemas, escape rooms, climbing, museums and more from OpenStreetMap – with source and date. What isn't known is shown as unknown. No made-up ratings.
+• Polls with a deadline, live results, reminders, ties and runoffs.
+• “When can you make it?”: suggest dates, everyone taps when they can – the winning date becomes a plan with one tap.
+• Weather while you plan: places with a date show the forecast right there, with a heads-up if it gets wet or cold outdoors.
+• Regulars: a plan can repeat, for example every first Friday of the month – the next date then appears in the app by itself.
+• Vote without an account: friends who aren't in yet can vote via link – if you allow it. Later they take their vote into their own account.
+• Answer with one tap: your ticket shows your answer in colour – green in, yellow maybe, red out.
+• Into the group chat: share a plan or poll, with a preview in your messenger. Shared are title, time and link – no names or addresses.
+• Into your calendar: once the plan is set, it lands in your calendar with place and meeting point – or subscribe to all plans of your crews, changes included.
+• Split costs: who paid for what, who owes whom how much – with as few transfers as possible. Payment happens outside the app.
+• Who's bringing what? A bring list for each plan, so nobody forgets the charcoal at the barbecue.
+• Your recap: nights out together, longest streak and favourite places of your crew – without a ranking.
+• Car pools: who drives, who rides along – with seat count.
+• Keep track of bookings: whoever books enters the result so everyone knows. The app never claims something is booked when it isn't.
+• Crew chat, notifications switchable per crew, points for organising and showing up.
+
+YOUR DATA STAYS WITH YOU
+
+Location sharing is off until you switch it on yourself. Only you see your budget and distance. No ads. You can export your data and delete your account at any time in the settings.
+
+The app is available in English and German. Places are currently available in Germany only.
+
+You can use AFTERHOURS from the age of 16.
+
+Map data and places: © OpenStreetMap contributors, available under the Open Database License.
