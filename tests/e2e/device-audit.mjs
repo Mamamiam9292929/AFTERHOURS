@@ -26,7 +26,8 @@ import { auditPage, undersizedTargets } from "./audit-rules.mjs";
 const APP = (process.env.APP_URL ?? "http://127.0.0.1:5173").replace(/\/$/, "");
 const DB_URL = process.env.E2E_DB_URL ?? "";
 const SHOTS = process.env.E2E_SCREENSHOTS ?? "";
-const PASSWORD = "Sehr-geheim-2031!"; // wie in journey.mjs
+// Wie in journey.mjs: Alice setzt dort ihr Passwort zurück; ohne Mailpit bleibt das erste.
+const PASSWORDS = ["Noch-geheimer-2031!", "Sehr-geheim-2031!"];
 
 const pick = (...names) => {
   for (const name of names) if (devices[name]) return devices[name];
@@ -139,11 +140,20 @@ for (const device of DEVICES) {
   });
   try {
     for (const [name, url] of PUBLIC) await audit(device, page, name, url);
-    await page.goto(`${APP}/login`);
-    await page.getByLabel("E-Mail-Adresse").fill(email);
-    await page.getByLabel("Passwort", { exact: true }).fill(PASSWORD);
-    await page.getByRole("button", { name: "Anmelden" }).click();
-    await page.waitForURL(/\/(home|onboarding|start)/, { timeout: 20_000 });
+    // Anmelden mit Enter (Formular absenden); der leuchtende Knopf gilt in WebKit für Playwright nie als „ruhig“.
+    let signedIn = false;
+    for (const password of PASSWORDS) {
+      await page.goto(`${APP}/login`);
+      await page.getByLabel("E-Mail-Adresse").fill(email);
+      await page.getByLabel("Passwort", { exact: true }).fill(password);
+      await page.getByLabel("Passwort", { exact: true }).press("Enter");
+      signedIn = await page
+        .waitForURL(/\/(home|onboarding|start)/, { timeout: 15_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (signedIn) break;
+    }
+    if (!signedIn) throw new Error("Anmeldung als Alice gescheitert");
     for (const [name, url] of APP_PAGES) await audit(device, page, name, url);
   } catch (error) {
     note("error", `Lauf abgebrochen: ${String(error?.message ?? error).split("\n")[0].slice(0, 200)}`, "", `${device.id}/${page.url().replace(APP, "")}`);
