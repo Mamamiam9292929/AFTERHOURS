@@ -4970,6 +4970,9 @@ await step("P4 – Push-Mitteilungen: Gerät anmelden, verschlüsselter Push, Te
     console.log("   (Push-Stellvertreter oder E2E_DB_URL fehlt – Versand wird übersprungen)");
   } else {
     const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    // Nach eigenen Aktionen stößt Carols App den Versand gesammelt nach 1,5 s an. Erst danach die Abstimmung
+    // anlegen – sonst verschickt dieser Anstoß sie schon, bevor die Warteschlange geprüft ist.
+    await page.waitForTimeout(2500);
     const title = `Push-Probe ${RUN}`;
     const created = await api(bob, "POST", "rpc/create_poll", {
       p_crew_id: ids.crew, p_title: title, p_ends_at: new Date(Date.now() + 2 * 86_400_000).toISOString(),
