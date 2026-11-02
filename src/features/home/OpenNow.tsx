@@ -114,7 +114,7 @@ function PlaceRow({ activity, crewId, status, open }: { activity: Activity; crew
   return (
     <li className="flex items-center gap-3 rounded-[18px] bg-raised py-2 pl-3.5 pr-2" data-testid="open-now-place" data-open={open ? "true" : "false"}>
       <div className="min-w-0 flex-1">
-        <Link to={`/activities/${activity.id}`} className="block truncate text-[15px] font-bold leading-6 text-fg underline-offset-2 hover:underline">
+        <Link to={`/activities/${activity.id}`} className="block truncate text-[15px] font-bold py-0.5 text-fg underline-offset-2 hover:underline">
           {activity.name}
         </Link>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium text-muted">
