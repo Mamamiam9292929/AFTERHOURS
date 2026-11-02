@@ -2057,7 +2057,9 @@ await step("P10 Etappe 3 – Fotos aufräumen: gelöschter Plan und Fotos nach 1
   await page.goto(`${APP}/plans/${ids.plan}`);
   const panel = page.locator("section#fotos");
   await panel.getByRole("heading", { name: "Fotos vom Abend" }).waitFor();
-  check(await panel.getByText("12 Monate nach dem Abend löscht die App die Fotos von selbst.", { exact: false }).isVisible(), "Hinweis auf die Löschfrist bei den Fotos");
+  // Der Hinweis steht erst da, wenn die Fotos geladen sind (vorher Platzhalter) – also warten statt sofort prüfen.
+  await panel.getByText("12 Monate nach dem Abend löscht die App die Fotos von selbst.", { exact: false }).waitFor();
+  check(true, "Hinweis auf die Löschfrist bei den Fotos");
 
   // Zwei weitere Abende der Crew: einer vor 13 Monaten, einer von gestern (wird gleich gelöscht).
   const aliceId = sql(`select id from auth.users where email = '${alice.email}'`);
