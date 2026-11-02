@@ -123,7 +123,7 @@ export function LiveMap({ place, placeName, people }: { place: LivePoint | null;
           <MapButton label={t.discover.map.zoomIn} disabled={!view || view.zoom >= MAX_ZOOM} onClick={() => change(1)}>
             <IconPlus className="size-4" aria-hidden />
           </MapButton>
-          <MapButton label={t.discover.map.zoomOut} disabled={!view || view.zoom <= 11} onClick={() => change(-1)}>
+          <MapButton label={t.discover.map.zoomOut} disabled={!view || !fit || view.zoom <= Math.min(11, fit.zoom)} onClick={() => change(-1)}>
             <IconMinus className="size-4" aria-hidden />
           </MapButton>
         </div>

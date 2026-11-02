@@ -87,8 +87,8 @@ export function isStale(updatedAt: string, now: Date): boolean {
   return now.getTime() - new Date(updatedAt).getTime() > LIVE_STALE_MS;
 }
 
-/** P13 Etappe 2a · Abstand, ab dem zwei Personen auf dem Stadtplan auseinandergerückt werden (Pixel, Mitte zu Mitte). */
-export const LIVE_MARKER_GAP = 30;
+/** P13 Etappe 2a · Abstand, ab dem zwei Personen auf dem Stadtplan auseinandergerückt werden (Pixel, Mitte zu Mitte; Marker sind 36 px groß). */
+export const LIVE_MARKER_GAP = 40;
 
 export interface ScreenPoint {
   x: number;

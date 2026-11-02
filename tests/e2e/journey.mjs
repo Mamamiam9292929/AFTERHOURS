@@ -1777,7 +1777,7 @@ await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Car
       markerBoxes.every((m) => m.x > frameBox.x && m.x < frameBox.x + frameBox.width && m.y > frameBox.y && m.y < frameBox.y + frameBox.height),
       "P13: beide Marker liegen im Kartenausschnitt",
     );
-    check(Math.hypot(markerBoxes[0].x - markerBoxes[1].x, markerBoxes[0].y - markerBoxes[1].y) >= 28, "P13: Marker verdecken sich nicht");
+    check(Math.hypot(markerBoxes[0].x - markerBoxes[1].x, markerBoxes[0].y - markerBoxes[1].y) >= 36, "P13: Marker verdecken sich nicht");
     const liveTiles = [];
     await bob.page.route(/^https:\/\/tile\.openstreetmap\.org\//, (route) => {
       liveTiles.push(route.request().url());
