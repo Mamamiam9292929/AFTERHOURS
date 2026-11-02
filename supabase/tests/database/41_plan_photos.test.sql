@@ -37,7 +37,7 @@ select ok(
   or (select not (to_jsonb(b) ->> 'public')::boolean from storage.buckets b where b.id = 'plan-photos'),
   'Bucket ist nicht öffentlich');
 select ok((select c.relrowsecurity from pg_class c where c.oid = 'storage.objects'::regclass), 'storage.objects hat RLS');
-select ok(not has_function_privilege('anon', 'public.reserve_plan_photo(uuid, integer, integer)', 'execute'), 'anon reserviert nichts');
+select ok(not has_function_privilege('anon', 'public.reserve_plan_photo(uuid, integer, integer, text)', 'execute'), 'anon reserviert nichts');
 select ok(not has_function_privilege('anon', 'public.confirm_plan_photo(uuid)', 'execute'), 'anon bestätigt nichts');
 select ok(not has_function_privilege('anon', 'public.delete_plan_photo(uuid)', 'execute'), 'anon löscht nichts');
 select ok(not has_function_privilege('anon', 'app_private.plan_photo_allowed(text, text)', 'execute'), 'anon nutzt die Policy-Prüfung nicht');
@@ -62,6 +62,7 @@ select throws_ok($$ select public.reserve_plan_photo(tests.var('abgesagt')::uuid
 select throws_ok($$ select public.reserve_plan_photo(tests.var('bowling')::uuid, 1601, 1200) $$, 'P0001', 'invalid_plan_photo', 'über 1600 px abgewiesen');
 select throws_ok($$ select public.reserve_plan_photo(tests.var('bowling')::uuid, 0, 1200) $$, 'P0001', 'invalid_plan_photo', '0 px abgewiesen');
 select throws_ok($$ select public.reserve_plan_photo(tests.var('bowling')::uuid, null, 1200) $$, 'P0001', 'invalid_plan_photo', 'ohne Maße abgewiesen');
+select throws_ok($$ select public.reserve_plan_photo(tests.var('bowling')::uuid, 800, 600, 'image/png') $$, 'P0001', 'invalid_plan_photo', 'nur WebP oder JPEG');
 
 select tests.set_var('r1', public.reserve_plan_photo(tests.var('bowling')::uuid, 1600, 1200)::text);
 select tests.set_var('p1', tests.var('r1')::jsonb ->> 'path');
@@ -69,8 +70,8 @@ select tests.set_var('f1', tests.var('r1')::jsonb ->> 'id');
 select is(tests.var('p1'), tests.var('crew') || '/' || tests.var('bowling') || '/' || tests.var('f1') || '.webp', 'Pfad: <crew>/<plan>/<foto>.webp');
 select is((select count(*)::int from public.plan_photos where id = tests.var('f1')::uuid), 1, 'Bob sieht seine laufende Reservierung');
 
--- Abgeschlossene Pläne nehmen Fotos an (genau dann teilt man sie).
-select ok(public.reserve_plan_photo(tests.var('voll')::uuid, 800, 600) ? 'path', 'abgeschlossener Plan nimmt Fotos an');
+-- Abgeschlossene Pläne nehmen Fotos an (genau dann teilt man sie); JPEG bekommt die Endung .jpg (Safari).
+select ok(public.reserve_plan_photo(tests.var('voll')::uuid, 800, 600, 'image/jpeg') ->> 'path' like '%.jpg', 'abgeschlossener Plan nimmt Fotos an, JPEG als .jpg');
 
 select tests.login('carol');
 select is((select count(*)::int from public.plan_photos where id = tests.var('f1')::uuid), 0, 'Carol sieht Bobs unbestätigte Reservierung nicht');

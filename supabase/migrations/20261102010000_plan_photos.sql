@@ -1,10 +1,11 @@
 -- P10 Etappe 1a · Fotos zum Plan (Datenbank und Speicher)
 -- Fotos vom Abend landen bei der Crew statt verstreut in Chats. Sie liegen im privaten Storage-Bucket
--- `plan-photos` unter `<crew>/<plan>/<foto>.webp`; wer sie sehen darf, entscheidet allein die Zeile in
+-- `plan-photos` unter `<crew>/<plan>/<foto>.webp` (bzw. `.jpg`); wer sie sehen darf, entscheidet allein die Zeile in
 -- `public.plan_photos` zusammen mit der Mitgliedschaft in der Crew des Plans.
 --
--- Ablauf beim Hochladen (Browser verkleinert vorher auf höchstens 1600 px als WebP, ohne EXIF):
---   1. `reserve_plan_photo(plan, breite, höhe)` prüft Crew, Beginn des Plans und Grenzen und vergibt
+-- Ablauf beim Hochladen (Browser verkleinert vorher auf höchstens 1600 px und speichert neu – als WebP,
+-- wo der Browser das kann, sonst als JPEG (Safari); beim Neuzeichnen fallen EXIF und Standort weg):
+--   1. `reserve_plan_photo(plan, breite, höhe, typ)` prüft Crew, Beginn des Plans und Grenzen und vergibt
 --      Pfad und ID.
 --   2. Der Browser lädt die Datei über die Storage-API genau an diesen Pfad – die Policy auf
 --      `storage.objects` lässt nur die reservierende Person und nur reservierte, noch leere Pfade zu.
@@ -29,7 +30,7 @@ begin
     execute $q$ update storage.buckets set file_size_limit = 2097152 where id = 'plan-photos' $q$;
   end if;
   if exists (select 1 from information_schema.columns where table_schema = 'storage' and table_name = 'buckets' and column_name = 'allowed_mime_types') then
-    execute $q$ update storage.buckets set allowed_mime_types = array['image/webp'] where id = 'plan-photos' $q$;
+    execute $q$ update storage.buckets set allowed_mime_types = array['image/webp', 'image/jpeg'] where id = 'plan-photos' $q$;
   end if;
 end $$;
 
@@ -40,7 +41,7 @@ create table public.plan_photos (
   -- Konto gelöscht → Fotos weg (Zeile weg = Datei für niemanden mehr lesbar).
   uploaded_by uuid not null references public.profiles (id) on delete cascade,
   path text not null unique
-    check (path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp$'),
+    check (path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(webp|jpg)$'),
   width smallint not null check (width between 1 and 1600),
   height smallint not null check (height between 1 and 1600),
   uploaded_at timestamptz,
@@ -88,7 +89,8 @@ create policy plan_photos_delete on storage.objects for delete to authenticated
 -- Kein Update: Fotos werden nicht überschrieben (kein upsert), sondern gelöscht und neu hochgeladen.
 
 -- ---- RPCs -------------------------------------------------------------------------------------
-create function public.reserve_plan_photo(p_plan_id uuid, p_width integer, p_height integer) returns jsonb
+-- p_type: 'image/webp' oder 'image/jpeg' (Safari kann kein WebP speichern); bestimmt die Dateiendung.
+create function public.reserve_plan_photo(p_plan_id uuid, p_width integer, p_height integer, p_type text default 'image/webp') returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_uid uuid := app_private.require_user();
@@ -107,7 +109,8 @@ begin
   if v_plan.starts_at > now() then
     perform app_private.fail('plan_photos_not_yet');
   end if;
-  if p_width is null or p_height is null or p_width not between 1 and 1600 or p_height not between 1 and 1600 then
+  if p_width is null or p_height is null or p_width not between 1 and 1600 or p_height not between 1 and 1600
+     or p_type is null or p_type not in ('image/webp', 'image/jpeg') then
     perform app_private.fail('invalid_plan_photo');
   end if;
 
@@ -123,7 +126,7 @@ begin
   end if;
   perform app_private.rate_limit('plan_photo', 30, interval '1 hour');
 
-  v_path := v_plan.crew_id::text || '/' || v_plan.id::text || '/' || v_id::text || '.webp';
+  v_path := v_plan.crew_id::text || '/' || v_plan.id::text || '/' || v_id::text || case p_type when 'image/jpeg' then '.jpg' else '.webp' end;
   insert into public.plan_photos (id, plan_id, uploaded_by, path, width, height)
   values (v_id, v_plan.id, v_uid, v_path, p_width, p_height);
   return jsonb_build_object('id', v_id, 'path', v_path);
@@ -169,10 +172,10 @@ begin
   delete from public.plan_photos ph where ph.id = p_photo_id;
 end $$;
 
-revoke all on function public.reserve_plan_photo(uuid, integer, integer) from public, anon;
+revoke all on function public.reserve_plan_photo(uuid, integer, integer, text) from public, anon;
 revoke all on function public.confirm_plan_photo(uuid) from public, anon;
 revoke all on function public.delete_plan_photo(uuid) from public, anon;
-grant execute on function public.reserve_plan_photo(uuid, integer, integer) to authenticated, service_role;
+grant execute on function public.reserve_plan_photo(uuid, integer, integer, text) to authenticated, service_role;
 grant execute on function public.confirm_plan_photo(uuid) to authenticated, service_role;
 grant execute on function public.delete_plan_photo(uuid) to authenticated, service_role;
 
