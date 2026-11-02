@@ -8,6 +8,33 @@
 | Backend | Supabase: Postgres, Auth, Row Level Security, RPC-Funktionen, Realtime, optional eine Edge Function |
 | Sprache, Region | Deutsch und Englisch (P11), Euro, Europe/Berlin |
 
+### In Zahlen
+
+<!-- zahlen:start -->
+_Stand: 02.11.2026 · gezählt mit `node scripts/zahlen.mjs` (Zeilen ohne Leerzeilen)_
+
+| Bereich | Zeilen | Dateien |
+|---|---:|---:|
+| App (Oberfläche) | 28.621 | 180 |
+| Datenbank (Migrationen) | 7.498 | 42 |
+| Edge Functions | 1.866 | 11 |
+| Server für Vorschaukarten | 495 | 4 |
+| Werkzeuge | 378 | 6 |
+| Tests Datenbank (pgTAP) | 5.238 | 43 |
+| Tests App und Funktionen | 8.138 | 38 |
+| **Code gesamt (ohne Tests)** | **38.858** | |
+| **Tests gesamt** | **13.376** | |
+
+| Was | Anzahl |
+|---|---:|
+| Migrationen | 42 |
+| Tabellen | 42 |
+| Datenbank-Funktionen (RPC, `public`) | 101 |
+| Edge Functions | 4 |
+| pgTAP-Testdateien | 43 |
+| Unit-Testdateien | 29 |
+<!-- zahlen:end -->
+
 ## Inhalt
 
 1. [Stand: was funktioniert, was Demo ist, was vorbereitet ist](#1-stand)
@@ -318,6 +345,7 @@ npm run test:unit      # Sprachen (tests/unit/i18n.test.mjs), Messenger-Vorschau
 deno test supabase/functions/places/osm_test.ts supabase/functions/places/overpass_test.ts supabase/functions/places/geocode_test.ts supabase/functions/weather/forecast_test.ts supabase/functions/weather/poll_test.ts supabase/functions/push/webpush_test.ts supabase/functions/photo-cleanup/cleanup_test.ts   # OSM-Umwandlung, Öffnungszeiten, Foto-Verweise, Ersatzserver, Stadtsuche, Open-Meteo
 npm run test:e2e       # komplette Nutzerjourney im Browser (Playwright)
 npm run build && npm run size   # Build-Größe gegen scripts/bundle-budget.json
+node scripts/zahlen.mjs --write README.md   # Block „In Zahlen“ oben neu zählen (F6)
 ```
 
 **Build-Größe (`scripts/bundle-size.mjs`)** – misst nach dem Build die gzip-Größe dessen, was beim ersten Öffnen geladen wird (Skripte, Modul-Preloads und CSS aus `dist/index.html`), den größten Seiten-Chunk und alle Skripte zusammen. Grenzen in `scripts/bundle-budget.json` (Stand 19. Oktober 2026: Start 213 kB JavaScript + 12,6 kB CSS, größte Seite 24 kB, alle Skripte 361 kB; Grenzen 225 kB, 14,5 kB, 30 kB, 400 kB – die Gesamtgrenze wurde mit P9 von 360 auf 380 kB und mit S4 („Heute noch wer?“, 380,7 kB) auf 400 kB und mit V2 Etappe 3o (Rewards und Datenschutz im Stil 2.0, 401,4 kB) auf 410 kB angehoben, später auf 425 kB und mit P14 (Mitbring-Liste, 426,1 kB) auf 430 kB: sie zählt alle Seiten, die nur bei Bedarf laden, und wächst mit jeder Funktion. Die Startgrenze lag bei 225 kB, bis main bei 224,9 kB stand; mit P14 kamen die Texte der Mitbring-Liste dazu (alle Texte liegen im Start-Bundle, Datenzugriff der Liste in `itemsApi.ts` nur auf der Planseite) – seitdem 226 kB. Nächster Hebel: Texte selten besuchter Bereiche (Admin, Datenschutz) nachladen). Jede Seite ist ein eigener Chunk; React/Router, Supabase und TanStack Query liegen in eigenen Bibliotheks-Chunks, die nach einem Update im Browser-Cache bleiben. In der CI läuft die Prüfung im Job „TypeScript und Build“; die Tabelle steht in der Zusammenfassung des Laufs und als Annotation. Wer eine Grenze bewusst anhebt, begründet das im PR.

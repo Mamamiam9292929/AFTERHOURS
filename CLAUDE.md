@@ -30,6 +30,8 @@ Benitos Übersicht auf GitHub: Issue „📋 Benitos Wunderliste" (#3). Nach jed
 - Abschnitte: Schon fertig · Fundament · Wachstum · Design · Neue Funktionen · Braucht dich.
 - Je Eintrag: `- [x]` fertig bzw. `- [ ]` offen, bei laufender Arbeit `🔧` und Link zum PR, fett `**ID · Titel**`, darunter `Wofür:` in einem Satz in Alltagssprache (kein Fachjargon).
 - Fertige Einträge wandern nach „Schon fertig", mit Link zum gemergten PR.
+- Ganz oben steht der Abschnitt „AFTERHOURS in Zahlen“ mit der Ausgabe von `node scripts/zahlen.mjs --prs <Anzahl gemergter PRs>` (Anzahl über `gh api "search/issues?q=repo:{owner}/{repo}+is:pr+is:merged" --jq .total_count`). Bei jeder Aktualisierung des Issues neu zählen.
+- Jeder PR führt den Block im README nach: `node scripts/zahlen.mjs --write README.md` (nach dem letzten Commit der Änderung, damit die Zahlen den PR enthalten).
 
 ## Testen
 
