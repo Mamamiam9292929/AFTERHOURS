@@ -248,8 +248,8 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
                   )}
                   {layer === 0 && (
                     <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-linear-to-t from-black/75 via-black/30 to-transparent px-3.5 pt-10 pb-3 text-left">
-                      <span className="display text-[17px] leading-none text-fg">{t.plans.photos.count(list.length)}</span>
-                      <span className="text-[12px] font-semibold text-fg/80">{t.plans.photos.stackHint}</span>
+                      <span className="display shrink-0 whitespace-nowrap text-[17px] leading-none text-fg">{t.plans.photos.count(list.length)}</span>
+                      <span className="min-w-0 text-right text-[12px] font-semibold leading-tight text-fg/80">{t.plans.photos.stackHint}</span>
                     </span>
                   )}
                 </span>
