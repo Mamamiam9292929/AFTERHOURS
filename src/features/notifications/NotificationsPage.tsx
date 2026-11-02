@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { IconAward, IconBell, IconCalendar, IconCalendarCheck, IconCar, IconCheckAll, IconCircleX, IconClock, IconClose, IconCrews, IconCrown, IconFlag, IconSparkles, IconUserMinus, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
+import { IconAward, IconBell, IconCalendar, IconCalendarCheck, IconCamera, IconCar, IconCheckAll, IconCircleX, IconClock, IconClose, IconCrews, IconCrown, IconFlag, IconSparkles, IconUserMinus, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -54,6 +54,8 @@ function NotificationIcon({ type, closing, className }: { type: NotificationType
       return <IconClock {...props} />;
     case "plan_photo_reported":
       return <IconFlag {...props} />;
+    case "plan_photo_nudge":
+      return <IconCamera {...props} />;
     case "plan_created":
     case "plan_changed":
     case "plan_attendance":

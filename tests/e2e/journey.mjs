@@ -2445,6 +2445,50 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P16 – Fotos einsammeln: Der Abend war gestern (vor 10 Uhr Berliner Zeit: vorgestern), alle haben zugesagt,
+  // noch niemand hat Fotos geteilt. Bob öffnet die App – alle bekommen genau einmal „Fotos von gestern?“.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const nudgePlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, created_at)
+      values ('${ids.crew}', '${aliceId}', 'Tischtennis-Turnier',
+        ((now() at time zone 'Europe/Berlin')::date - case when (now() at time zone 'Europe/Berlin')::time >= time '10:00' then 1 else 2 end + time '20:00') at time zone 'Europe/Berlin',
+        'confirmed', now() - interval '5 days')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status)
+      select '${nudgePlan}', m.user_id, 'going' from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    try {
+      await bob.page.goto(`${APP}/notifications`);
+      const nudge = bob.page.getByRole("link", { name: /Fotos (von gestern|vom Abend)\? Teilt sie mit der Crew/ }).filter({ hasText: "Tischtennis-Turnier" });
+      await nudge.waitFor();
+      check(true, "Fotos einsammeln: „Fotos von gestern? Teilt sie mit der Crew“ mit dem Plan");
+      await noOverflow(bob, "Fotos einsammeln");
+      await shot(bob, "21g-fotos-einsammeln");
+      const expected = psql(`select count(*) from public.crew_members m left join public.user_settings s on s.user_id = m.user_id
+        where m.crew_id = '${ids.crew}' and coalesce(s.notification_preferences ->> 'plan_photo_nudge', 'true') <> 'false'`);
+      check(psql(`select count(*) from public.notifications where type = 'plan_photo_nudge' and related_entity_id = '${nudgePlan}' and actor_id is null`) === expected,
+        `Bobs Start erinnert alle, die zugesagt hatten (${expected})`);
+      await bob.page.reload();
+      await nudge.waitFor();
+      check((await nudge.count()) === 1, "Neuladen erinnert nicht noch einmal");
+      await nudge.click();
+      await bob.page.waitForURL(`**/plans/${nudgePlan}#fotos`);
+      await bob.page.getByRole("heading", { name: "Fotos vom Abend" }).first().waitFor();
+      check(true, "Fotos einsammeln führt zu „Fotos vom Abend“");
+      // Ohne Anmeldung lässt sich nichts anstoßen.
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/send_plan_photo_nudges`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: "{}",
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Anstoßen (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${nudgePlan}'; delete from public.plans where id = '${nudgePlan}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });

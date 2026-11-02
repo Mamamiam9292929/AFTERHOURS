@@ -8,7 +8,7 @@ const TYPES = [
   "poll_created", "poll_reminder", "poll_vote", "poll_result",
   "plan_created", "plan_changed", "plan_cancelled", "plan_attendance",
   "booking_status", "ride_request", "ride_confirmed", "reward_earned",
-  "plan_expense", "plan_settlement", "plan_expense_reminder", "plan_day_reminder", "plan_photo_reported",
+  "plan_expense", "plan_settlement", "plan_expense_reminder", "plan_day_reminder", "plan_photo_reported", "plan_photo_nudge",
   "spontaneous_ask", "spontaneous_answer", "spontaneous_match",
 ];
 
@@ -24,6 +24,8 @@ test("jede Art hat einen Bereich und einen Farbschein", () => {
   assert.equal(inboxTone("plan_day_reminder"), "lime");
   assert.equal(inboxArea("plan_photo_reported"), "plan");
   assert.equal(inboxTone("plan_photo_reported"), "amber", "gemeldetes Foto wartet auf eine Entscheidung");
+  assert.equal(inboxArea("plan_photo_nudge"), "plan");
+  assert.equal(inboxTone("plan_photo_nudge"), "lime");
   assert.equal(inboxArea("spontaneous_match"), "spontaneous");
   assert.equal(inboxArea("etwas_neues"), "crew", "unbekannte Art verschwindet nicht");
 });
