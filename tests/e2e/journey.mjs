@@ -1987,7 +1987,10 @@ await step("P10 Etappe 2a – Foto melden: weg für Carol, ausgeblendet für die
   // Alice (Organisatorin) bekommt Bescheid, sieht den Grund und zeigt das Foto wieder.
   const a = alice.page;
   await a.goto(`${APP}/notifications`);
-  await a.getByText(/^Foto bei „.+“ gemeldet$/).first().click();
+  const card = a.getByTestId("inbox-card").filter({ hasText: /Foto bei „.+“ gemeldet/ }).first();
+  await card.waitFor();
+  check((await card.getAttribute("data-tone")) === "amber", "Benachrichtigung gelb: wartet auf eine Entscheidung");
+  await card.getByRole("link").click();
   await a.waitForURL(/\/plans\/[0-9a-f-]{36}#fotos/);
   check(true, "Benachrichtigung führt zu „Fotos vom Abend“");
   const alicePanel = a.locator("section#fotos");

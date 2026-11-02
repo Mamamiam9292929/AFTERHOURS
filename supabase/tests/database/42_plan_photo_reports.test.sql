@@ -109,8 +109,9 @@ select is((select count(*)::int from public.plan_photos), 0, 'Außenstehende seh
 -- ---- Carol (Organisatorin) zeigt es wieder ------------------------------------------------------
 select tests.login('carol');
 select lives_ok($$ select public.keep_plan_photo(tests.var('f1')::uuid) $$, 'Organisatorin zeigt das Foto wieder');
-select is((select status::text from public.reports where entity_type = 'plan_photo' and entity_id = tests.var('f1')::uuid), 'dismissed', 'Meldung abgelehnt');
 select is(public.plan_photo_reports(tests.var('plan')::uuid), '[]'::jsonb, 'keine offene Meldung mehr');
+select tests.logout();
+select is((select status::text from public.reports where entity_type = 'plan_photo' and entity_id = tests.var('f1')::uuid), 'dismissed', 'Meldung abgelehnt');
 
 select tests.login('dave');
 select is((select count(*)::int from public.plan_photos where id = tests.var('f1')::uuid), 0, 'für Dave bleibt das Foto weg');
@@ -131,11 +132,10 @@ select is((select (payload ->> 'own')::boolean from public.notifications where t
 -- Alice (Owner) löscht es: Datei und Zeile weg, Meldung erledigt.
 select tests.login('alice');
 select is((public.plan_photo_reports(tests.var('plan')::uuid) -> 0 ->> 'can_review')::boolean, true, 'Owner entscheidet über Carols Foto');
-select lives_ok(
-  format($$ delete from storage.objects where bucket_id = 'plan-photos' and name = %L $$,
-         (select path from public.plan_photos where id = tests.var('f3')::uuid)),
-  'Owner löscht die Datei');
+-- (Die Datei löscht der Browser vorher über die Storage-API; direktes Löschen in storage.objects ist gesperrt.)
+select ok(app_private.plan_photo_allowed((select path from public.plan_photos where id = tests.var('f3')::uuid), 'delete'), 'Owner darf die Datei löschen');
 select lives_ok($$ select public.delete_plan_photo(tests.var('f3')::uuid) $$, 'Owner löscht das Foto');
+select tests.logout();
 select is((select status::text from public.reports where entity_type = 'plan_photo' and entity_id = tests.var('f3')::uuid), 'resolved', 'Meldung erledigt');
 
 -- ---- Ausgetretene melden nichts mehr ------------------------------------------------------------
