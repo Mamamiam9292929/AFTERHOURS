@@ -107,7 +107,19 @@ async function settle(page) {
 
 async function audit(device, page, name, url) {
   const where = `${device.id}/${name}`;
-  await page.goto(`${APP}${url}`);
+  // Nicht auf „load“ warten (Bilder, Karten-Kacheln); ein Ausreißer der CI bekommt einen zweiten Versuch.
+  // Scheitert auch der, ist es ein Befund dieser Seite – die übrigen Seiten des Geräts laufen weiter.
+  let loaded = false;
+  for (let attempt = 1; attempt <= 2 && !loaded; attempt++) {
+    loaded = await page
+      .goto(`${APP}${url}`, { waitUntil: "domcontentloaded", timeout: 30_000 })
+      .then(() => true)
+      .catch((error) => {
+        if (attempt === 2) note("error", `Seite lädt nicht: ${String(error?.message ?? error).split("\n")[0].slice(0, 160)}`, "", where);
+        return false;
+      });
+  }
+  if (!loaded) return;
   await settle(page);
   const result = await page.evaluate(`(${auditPage})(${undersizedTargets})`);
   stats.push({ device: device.id, page: name, ...result });
@@ -145,7 +157,7 @@ for (const device of DEVICES) {
     // Anmelden mit Enter (Formular absenden); der leuchtende Knopf gilt in WebKit für Playwright nie als „ruhig“.
     let signedIn = false;
     for (const password of PASSWORDS) {
-      await page.goto(`${APP}/login`);
+      await page.goto(`${APP}/login`, { waitUntil: "domcontentloaded", timeout: 30_000 });
       await page.getByLabel("E-Mail-Adresse").fill(email);
       await page.getByLabel("Passwort", { exact: true }).fill(password);
       await page.getByLabel("Passwort", { exact: true }).press("Enter");
