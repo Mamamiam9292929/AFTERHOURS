@@ -105,8 +105,37 @@ async function settle(page) {
   });
 }
 
-async function audit(device, page, name, url) {
+// Jede Seite in einem eigenen Tab desselben Kontexts (Anmeldung bleibt): hängt eine Seite beim Verlassen,
+// reißt sie die folgenden nicht mit. Das Hängen selbst steht als Befund im Bericht (nicht blockierend).
+function openPage(device, context) {
+  return context.newPage().then((page) => {
+    page.setDefaultTimeout(15_000);
+    page.on("pageerror", (e) => {
+      const text = String(e?.message ?? e);
+      // WebKit meldet Anfragen, die beim Seitenwechsel abgebrochen werden, als „access control checks“ –
+      // das ist der Neuladevorgang des Tests, kein Fehler der App.
+      if (!/ResizeObserver loop|due to access control checks|^Load failed$/.test(text)) note("error", text.slice(0, 200), "", `${device.id}/${page.url().replace(APP, "")}`);
+    });
+    return page;
+  });
+}
+
+async function closePage(page, where) {
+  const closed = await Promise.race([page.close().then(() => true, () => true), new Promise((r) => setTimeout(() => r(false), 5000))]);
+  if (!closed) note("hang", "Seite reagiert beim Schließen nicht", "länger als 5 s", where);
+}
+
+async function audit(device, context, name, url) {
   const where = `${device.id}/${name}`;
+  const page = await openPage(device, context);
+  try {
+    await auditPageAt(device, page, name, url, where);
+  } finally {
+    await closePage(page, where);
+  }
+}
+
+async function auditPageAt(device, page, name, url, where) {
   // Nicht auf „load“ warten (Bilder, Karten-Kacheln); ein Ausreißer der CI bekommt einen zweiten Versuch.
   // Scheitert auch der, ist es ein Befund dieser Seite – die übrigen Seiten des Geräts laufen weiter.
   let loaded = false;
@@ -144,17 +173,11 @@ for (const device of DEVICES) {
       /* egal */
     }
   });
-  const page = await context.newPage();
-  page.setDefaultTimeout(15_000);
-  page.on("pageerror", (e) => {
-    const text = String(e?.message ?? e);
-    // WebKit meldet Anfragen, die beim Seitenwechsel per page.goto abgebrochen werden, als „access control checks“ –
-    // das ist der Neuladevorgang des Tests, kein Fehler der App.
-    if (!/ResizeObserver loop|due to access control checks|^Load failed$/.test(text)) note("error", text.slice(0, 200), "", `${device.id}/${page.url().replace(APP, "")}`);
-  });
+  let page = null;
   try {
-    for (const [name, url] of PUBLIC) await audit(device, page, name, url);
+    for (const [name, url] of PUBLIC) await audit(device, context, name, url);
     // Anmelden mit Enter (Formular absenden); der leuchtende Knopf gilt in WebKit für Playwright nie als „ruhig“.
+    page = await openPage(device, context);
     let signedIn = false;
     for (const password of PASSWORDS) {
       await page.goto(`${APP}/login`, { waitUntil: "domcontentloaded", timeout: 30_000 });
@@ -168,10 +191,12 @@ for (const device of DEVICES) {
       if (signedIn) break;
     }
     if (!signedIn) throw new Error("Anmeldung als Alice gescheitert");
-    for (const [name, url] of APP_PAGES) await audit(device, page, name, url);
+    await closePage(page, `${device.id}/login`);
+    page = null;
+    for (const [name, url] of APP_PAGES) await audit(device, context, name, url);
   } catch (error) {
-    note("error", `Lauf abgebrochen: ${String(error?.message ?? error).split("\n")[0].slice(0, 200)}`, "", `${device.id}/${page.url().replace(APP, "")}`);
-    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `geraet-${device.id}-FEHLER.png`) }).catch(() => {});
+    note("error", `Lauf abgebrochen: ${String(error?.message ?? error).split("\n")[0].slice(0, 200)}`, "", `${device.id}/${page?.url().replace(APP, "") ?? "?"}`);
+    if (SHOTS && page) await page.screenshot({ path: path.join(SHOTS, `geraet-${device.id}-FEHLER.png`) }).catch(() => {});
   }
   await browser.close();
 }
@@ -183,6 +208,7 @@ const KINDS = {
   target: "Bedienelement unter 24 × 24 px (WCAG 2.5.8)",
   error: "JavaScript-Fehler",
   tiny: "Text unter 11 px (Bericht)",
+  hang: "Seite hängt beim Schließen (Bericht)",
 };
 const list = [...findings.values()].sort((a, b) => Object.keys(KINDS).indexOf(a.kind) - Object.keys(KINDS).indexOf(b.kind));
 const blocking = list.filter((f) => BLOCKING.has(f.kind));
