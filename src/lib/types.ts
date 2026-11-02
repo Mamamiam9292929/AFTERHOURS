@@ -303,6 +303,19 @@ export interface PlanItem {
   created_at: string;
 }
 
+/** P10 · Foto zum Plan; die Datei liegt im privaten Bucket `plan-photos` unter `path`. */
+export interface PlanPhoto {
+  id: string;
+  plan_id: string;
+  uploaded_by: string;
+  path: string;
+  width: number;
+  height: number;
+  /** null, solange der Upload läuft (nur für die hochladende Person sichtbar) */
+  uploaded_at: string | null;
+  created_at: string;
+}
+
 export interface PlanExpenseShare {
   expense_id: string;
   plan_id: string;

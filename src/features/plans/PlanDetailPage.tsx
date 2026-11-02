@@ -1,13 +1,13 @@
 import { ShareButton } from "@/components/ui/ShareButton";
 import { planShare } from "@/lib/share";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { IconBack, IconBasket, IconCalendar, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
+import { IconBack, IconBasket, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
 import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
-import { EmptyState, ErrorState, Notice, PageSpinner } from "@/components/ui/Feedback";
+import { EmptyState, ErrorState, Notice, PageSpinner, Skeleton } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/features/auth/AuthProvider";
 import { canManageCrew, myRole, useCrews } from "@/features/crews/api";
@@ -34,6 +34,9 @@ import { RepeatCard, RepeatLine, SkippedNotice } from "./PlanRepeat";
 import { FeatureTicket } from "./PlanTicket";
 import { PlanWeather } from "./PlanWeather";
 import { RidesPanel } from "./RidesPanel";
+
+// P10: Fotos erst ab Beginn des Plans – Upload-Code nur laden, wenn der Bereich erscheint.
+const PhotosPanel = lazy(() => import("./PhotosPanel").then((m) => ({ default: m.PhotosPanel })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -310,6 +313,15 @@ export function PlanDetailPage() {
             <Section title={t.plans.detail.notes}>
               <p className="max-w-prose whitespace-pre-line text-[15px] leading-relaxed text-fg">{plan.notes}</p>
             </Section>
+          )}
+
+          {/* P10: Fotos vom Abend – ab Beginn des Plans, nicht bei abgesagten. */}
+          {(started || locked) && plan.status !== "cancelled" && (
+            <PlanPanel id="fotos" title={t.plans.photos.title} icon={<IconCamera className="size-5" />} tone="pink">
+              <Suspense fallback={<Skeleton className="h-28" />}>
+                <PhotosPanel plan={plan} userId={user.id} canManage={canManage} lookup={people.lookup} />
+              </Suspense>
+            </PlanPanel>
           )}
 
           {/* P3: Nach dem Start steht das Abrechnen oben – davor ist es eher die Ausnahme (z. B. Tickets vorab). */}
