@@ -39,6 +39,8 @@ export const qk = {
   /** P3 Etappe 3: offene Beträge je Plan; Präfix `crewBalancesAll` invalidiert alle Crews. */
   crewBalancesAll: ["crew-balances"] as const,
   crewBalances: (crewId: string) => ["crew-balances", crewId] as const,
+  /** P10 Etappe 2c: Fotostapel im Crew-Rückblick */
+  crewPhotoStacks: (crewId: string) => ["crew-photo-stacks", crewId] as const,
   invitationPreview: (token: string) => ["invitation", token] as const,
   activities: ["activities"] as const,
   activity: (id: string) => ["activities", id] as const,

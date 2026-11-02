@@ -84,6 +84,15 @@ export const crews = {
     yearHint: (year: number) => `Gezählt werden abgeschlossene Pläne der Crew im Jahr ${year}.`,
     yearEnd: "Jahresrückblick",
     // P9 Etappe 2: Rückblick als Bild – nur Zahlen.
+    // P10 Etappe 2c: die letzten Abende mit Fotos als kleine Stapel (nur was die Person ohnehin sieht).
+    photos: {
+      title: "Eure Fotos",
+      count: (n: number) => (n === 1 ? "1 Foto" : `${n} Fotos`),
+      open: (title: string, date: string, n: number) => `${n === 1 ? "1 Foto" : `${n} Fotos`} von „${title}“, ${date} – ansehen`,
+      empty: "Teilt Fotos auf der Planseite – die letzten Abende mit Fotos landen dann hier.",
+      failed: "Die Fotos lassen sich gerade nicht laden.",
+      loading: "Fotos werden geladen …",
+    },
     share: {
       action: "Als Bild teilen",
       working: "Bild entsteht …",

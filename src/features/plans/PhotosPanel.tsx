@@ -76,6 +76,12 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
     return () => window.removeEventListener("keydown", onKey);
   }, [openId]);
 
+  // P10 Etappe 2c: Vom Rückblick der Crew (und aus Benachrichtigungen) kommt man mit #fotos – nach dem Laden dorthin.
+  const loaded = photos.isSuccess;
+  useEffect(() => {
+    if (loaded && window.location.hash === "#fotos") document.getElementById("fotos")?.scrollIntoView({ block: "start" });
+  }, [loaded]);
+
   if (photos.isPending) return <Skeleton className="h-28" />;
   if (photos.isError) return <ErrorState error={photos.error} onRetry={() => void photos.refetch()} />;
 

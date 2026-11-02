@@ -12,6 +12,7 @@ import { crewRecap, crewYearRecap, recapYearChoice, type CrewRecap as Recap } fr
 import { recapCardFileName, recapCardModel, type RecapCardFact } from "@/lib/recapcard";
 import { APP_LOCALE, formatMonthYear } from "@/lib/time";
 import { RECAP_IMAGE_BAR_MAX, renderRecapImage } from "./recapImage";
+import { RecapPhotos } from "./RecapPhotos";
 
 const tx = t.crews.recap;
 const narrowMonth = new Intl.DateTimeFormat(APP_LOCALE, { month: "narrow", timeZone: "UTC" });
@@ -29,8 +30,9 @@ type View = "all" | "year";
  * Etappe 3 · „Euer Jahr“: Hat die Crew Abende im laufenden Jahr, wechselt eine Pille zwischen
  * „Insgesamt“ und dem Jahr (Januar bis Dezember). Im Dezember – und bis zum 15. Januar für das
  * alte Jahr – öffnet der Rückblick gleich als „Euer Jahr“.
+ * P10 Etappe 2c: darunter „Eure Fotos“ – die letzten Abende mit Fotos als kleine Stapel (`RecapPhotos`).
  */
-export function CrewRecap({ plans }: { plans: readonly PlanWithParticipants[] }) {
+export function CrewRecap({ crewId, plans }: { crewId: string; plans: readonly PlanWithParticipants[] }) {
   const choice = useMemo(() => recapYearChoice(plans), [plans]);
   const [picked, setPicked] = useState<View | null>(null);
   const view: View = choice ? (picked ?? (choice.highlight ? "year" : "all")) : "all";
@@ -140,6 +142,8 @@ export function CrewRecap({ plans }: { plans: readonly PlanWithParticipants[] })
                 </ol>
               </>
             )}
+
+            <RecapPhotos crewId={crewId} year={year} />
           </div>
         </div>
       </div>

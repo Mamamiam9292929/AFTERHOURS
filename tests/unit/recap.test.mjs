@@ -182,3 +182,25 @@ test("Jahres-Rückblick: Stammorte nur aus dem Jahr", () => {
   );
   assert.deepEqual(recap.places, [{ key: "a2", title: "Kino", count: 2 }]);
 });
+
+// P10 Etappe 2c · Fotos im Rückblick
+test("recapPhotoStacks: jüngste Abende, Jahr in Berliner Zeit, höchstens drei", async () => {
+  const { recapPhotoStacks } = await import("../../src/lib/recap.ts");
+  const photo = { id: "f", path: "c/p/f.webp", width: 800, height: 600 };
+  const stack = (plan_id, starts_at, count = 2) => ({ plan_id, title: plan_id, starts_at, count, photos: count > 0 ? [photo] : [] });
+  const stacks = [
+    stack("a", "2026-10-30T19:00:00Z"),
+    stack("leer", "2026-10-20T19:00:00Z", 0),
+    stack("b", "2026-03-01T19:00:00Z"),
+    stack("c", "2026-01-10T19:00:00Z"),
+    // Silvester 23:30 Uhr in Berlin ist noch 2025, obwohl UTC schon …
+    stack("silvester", "2025-12-31T22:30:00Z"),
+    // … und 00:30 Uhr am 1. Januar in Berlin ist UTC noch der 31. Dezember.
+    stack("neujahr", "2025-12-31T23:30:00Z"),
+  ];
+  assert.deepEqual(recapPhotoStacks(stacks, null).map((s) => s.plan_id), ["a", "b", "c"]);
+  assert.deepEqual(recapPhotoStacks(stacks, null, 10).map((s) => s.plan_id), ["a", "b", "c", "silvester", "neujahr"]);
+  assert.deepEqual(recapPhotoStacks(stacks, 2026, 10).map((s) => s.plan_id), ["a", "b", "c", "neujahr"]);
+  assert.deepEqual(recapPhotoStacks(stacks, 2025).map((s) => s.plan_id), ["silvester"]);
+  assert.deepEqual(recapPhotoStacks([], null), []);
+});
