@@ -291,6 +291,18 @@ export interface PlanExpense {
 }
 
 /** P14 · Eintrag auf der Mitbring-Liste eines Plans („Wer bringt was?“). */
+/** P13 · Live-Standort während eines Plans: nur die letzte Position, gerundet auf rund 10 m. */
+export interface PlanLiveLocation {
+  plan_id: string;
+  user_id: string;
+  latitude: number;
+  longitude: number;
+  accuracy_m: number | null;
+  started_at: string;
+  updated_at: string;
+  expires_at: string;
+}
+
 export interface PlanItem {
   id: string;
   plan_id: string;

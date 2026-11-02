@@ -230,8 +230,8 @@ export const settings = {
     title: "Standortfreigabe",
     lead: "Du entscheidest, ob und mit wem du deinen Standort teilst. Standard ist: gar nicht.",
     notLive: {
-      title: "Noch nicht aktiv",
-      body: "Live-Standorte sind in dieser Version nicht eingebaut. Die App fragt deinen Standort nicht ab, speichert ihn nicht und zeigt ihn niemandem. Deine Auswahl wird vorgemerkt und gilt erst, wenn die Funktion verfügbar ist – du wirst dann noch einmal ausdrücklich gefragt.",
+      title: "Live nur während eines Plans",
+      body: "Eine dauerhafte Freigabe ist noch nicht eingebaut – deine Auswahl hier wird nur vorgemerkt. Live teilen kannst du bisher nur rund um einen Plan: auf der Planseite unter „Wo seid ihr?“, ab 2 Stunden vor Beginn, nur auf deinen Tipp und nur mit denen, die auch kommen. Die Freigabe endet nach höchstens 3 Stunden, spätestens mit dem Plan, und wird dann gelöscht.",
     },
     crew: "Crew",
     crewNone: "Du bist in keiner Crew.",
@@ -382,7 +382,7 @@ export const privacy = {
       title: "Standort",
       items: [
         "Die Standortfreigabe ist standardmäßig aus.",
-        "In dieser Version wird kein Gerätestandort abgefragt oder gespeichert.",
+        "Gerätestandort nur auf deinen Tipp rund um einen Plan („Wo seid ihr?“ auf der Planseite, ab 2 Stunden vor Beginn): Gespeichert wird nur die letzte Position, auf rund 10 m gerundet, ohne Verlauf. Sehen können sie nur Crew-Mitglieder, die zu diesem Plan zugesagt oder „vielleicht“ gesagt haben. Sie ist gelöscht, sobald du aufhörst, nach höchstens 3 Stunden, spätestens mit dem Ende des Plans, bei einer Absage und mit deinem Konto.",
         "Entfernungen werden aus der Stadt in deinem Profil geschätzt (Luftlinie ab Stadtmitte).",
         "Karten laden erst, wenn du auf „Karte laden“ tippst – dann geht eine Anfrage an OpenStreetMap.",
         "Die Karte in Discover zeigt die Orte zunächst nur als Punkte. Den Stadtplan von OpenStreetMap lädt sie erst nach „Stadtplan laden“ (gilt für dieses Gerät, „Stadtplan aus“ nimmt das zurück).",

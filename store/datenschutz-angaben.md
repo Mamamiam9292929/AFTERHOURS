@@ -16,8 +16,9 @@
 | Punkte | Belohnung fürs Organisieren und Dabeisein | ja | nein | nur du |
 | Einstellungen (Benachrichtigungen, Standortfreigabe „aus“) | App-Verhalten | ja | – | nur du |
 | Gast-Stimmen (Name, Antworten – ohne Konto, W3) | Mitstimmen ohne Konto | nein | nein | die jeweilige Crew |
+| Genauer Gerätestandort (P13, nur auf Tipp rund um einen Plan; letzte Position auf rund 10 m gerundet, ohne Verlauf, nach höchstens 3 Stunden bzw. mit dem Ende des Plans gelöscht) | Sich am Treffpunkt finden | ja | nein | Crew-Mitglieder, die zu diesem Plan zugesagt oder „vielleicht“ gesagt haben |
 
-Nicht erhoben: Gerätestandort (die Freigabe ist aus und es gibt keine Standort-Tabelle), Kontakte/Adressbuch, Zahlungsdaten, Gesundheitsdaten, Werbe-IDs, Diagnose- oder Absturzdaten, Nutzungsanalyse.
+Nicht erhoben: Gerätestandort außerhalb von „Wo seid ihr?“ (P13), Kontakte/Adressbuch, Zahlungsdaten, Gesundheitsdaten, Werbe-IDs, Diagnose- oder Absturzdaten, Nutzungsanalyse.
 
 ## Vorschlag für die Formulare
 
@@ -25,11 +26,13 @@ Nicht erhoben: Gerätestandort (die Freigabe ist aus und es gibt keine Standort-
 
 - Tracking (App Tracking Transparency): **nein**, keine Daten werden zum Tracking verwendet.
 - Mit deiner Identität verknüpft, Zweck „App-Funktionalität“: Kontaktinformationen → E-Mail-Adresse, Name; Benutzerinhalte → Fotos (Profilbild), Andere Benutzerinhalte (Chat, Abstimmungen, Pläne); Kennungen → Benutzer-ID.
+- Seit P13 (Live-Standort während eines Plans): Standort → **Genauer Standort**, mit Identität verknüpft, Zweck „App-Funktionalität“, kein Tracking. Optional, nur auf Tipp.
 - Offene Frage: Ob die selbst eingetippte Stadt als „Grober Standort“ zählt. Apple meint damit Standortdaten des Geräts; die Stadt ist eine Texteingabe. Vorsichtshalber angeben, falls die Prüfung das empfiehlt.
 
 **Google – Datensicherheit**
 
 - Erhobene Daten: Persönliche Daten → Name, E-Mail-Adresse, Nutzer-IDs; Fotos → Profilbild (optional); Nachrichten → Crew-Chat (In-App-Nachrichten); Weitere von Nutzern erstellte Inhalte → Abstimmungen, Pläne.
+- Seit P13: Standort → **Ungefährer und genauer Standort** (optional, vom Nutzer ausgelöst, Zweck „App-Funktionen“, kurzlebig gespeichert – nach höchstens 3 Stunden gelöscht). Ob Google das als „flüchtig verarbeitet“ einstuft, ist offen (die letzte Position liegt bis zu 3 Stunden auf dem Server).
 - Weitergabe an Dritte: **nein** (Hosting und Datenbank laufen als Auftragsverarbeitung bei Supabase und Vercel – vor dem Einreichen bestätigen, sobald das Hosting feststeht).
 - Verschlüsselung bei der Übertragung: ja (HTTPS).
 - Löschen: Konto und Daten lassen sich in der App löschen (Einstellungen → Konto löschen, serverseitig, sofort). Google verlangt zusätzlich eine Webadresse zum Löschen – offen, braucht Domain.

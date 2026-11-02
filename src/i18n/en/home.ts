@@ -167,7 +167,7 @@ export const home = {
     title: "Friends nearby",
     off: "Your location sharing is off.",
     on: "You've chosen to share your location.",
-    unavailable: "Live locations aren't available in this version yet. No positions are recorded or shown.",
+    unavailable: "Live location only exists around a plan: on the plan page under “Where are you?”, only when you tap and until the end of the evening at the latest.",
     settings: "Manage location sharing",
   },
   spontaneous: {

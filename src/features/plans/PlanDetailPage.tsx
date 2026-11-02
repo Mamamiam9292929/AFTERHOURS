@@ -21,6 +21,7 @@ import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { downloadPlanIcs } from "@/lib/ics";
+import { liveStage } from "@/lib/live";
 import { mapProvider } from "@/lib/maps";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
@@ -28,6 +29,7 @@ import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useSet
 import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
+import { LivePanel } from "./LivePanel";
 import { PlanForm } from "./PlanForm";
 import { PlanPanel } from "./PlanPanel";
 import { RepeatCard, RepeatLine, SkippedNotice } from "./PlanRepeat";
@@ -308,6 +310,19 @@ export function PlanDetailPage() {
               </div>
             </Fact>
           </dl>
+
+          {/* P13: „Wo seid ihr?“ – Live-Standort nur rund um den Plan (ab 12 h vorher als Hinweis, ab 2 h vorher zum Teilen). */}
+          {liveStage(plan, now) !== "hidden" && (
+            <PlanPanel id="live" title={t.plans.live.title} icon={<IconNavigation className="size-5" />} tone="violet">
+              <LivePanel
+                plan={plan}
+                userId={user.id}
+                now={now}
+                place={place?.latitude != null && place.longitude != null ? { latitude: place.latitude, longitude: place.longitude } : null}
+                lookup={people.lookup}
+              />
+            </PlanPanel>
+          )}
 
           {plan.notes && (
             <Section title={t.plans.detail.notes}>
