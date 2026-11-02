@@ -305,7 +305,9 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
           {error}
         </p>
       )}
-      <p className="text-[13px] leading-snug text-faint">{t.plans.photos.privacy}</p>
+      <p className="text-[13px] leading-snug text-faint">
+        {t.plans.photos.privacy} {t.plans.photos.retention}
+      </p>
 
       <Dialog
         open={open != null}

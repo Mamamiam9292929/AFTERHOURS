@@ -2051,6 +2051,64 @@ await step("P10 Etappe 2a – Foto melden: weg für Carol, ausgeblendet für die
   check((await panel.getByRole("button", { name: "Foto von Bob ansehen" }).count()) === 0, "für Carol bleibt das Foto weg");
 });
 
+await step("P10 Etappe 3 – Fotos aufräumen: gelöschter Plan und Fotos nach 12 Monaten verschwinden auch als Datei (Alice)", async () => {
+  const sql = (q) => execFileSync("psql", [DB_URL, "-Atqc", q]).toString().trim();
+  const { page } = alice;
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  const panel = page.locator("section#fotos");
+  await panel.getByRole("heading", { name: "Fotos vom Abend" }).waitFor();
+  check(await panel.getByText("12 Monate nach dem Abend löscht die App die Fotos von selbst.", { exact: false }).isVisible(), "Hinweis auf die Löschfrist bei den Fotos");
+
+  // Zwei weitere Abende der Crew: einer vor 13 Monaten, einer von gestern (wird gleich gelöscht).
+  const aliceId = sql(`select id from auth.users where email = '${alice.email}'`);
+  const oldPlan = sql(`insert into public.plans (crew_id, created_by, title, starts_at, ends_at, status)
+    values ('${ids.crew}', '${aliceId}', 'Altes Bowling', now() - interval '13 months', now() - interval '13 months' + interval '3 hours', 'completed') returning id`);
+  const gonePlan = sql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+    values ('${ids.crew}', '${aliceId}', 'Gestern', now() - interval '1 day', 'completed') returning id`);
+  const accessToken = await token(alice);
+  const upload = async (planId) => {
+    const reserved = await api(alice, "POST", "rpc/reserve_plan_photo", { p_plan_id: planId, p_width: 1, p_height: 1, p_type: "image/jpeg" });
+    check(reserved.status === 200, `Platz für ein Foto reserviert (${reserved.status})`);
+    const put = await fetch(`${API}/storage/v1/object/plan-photos/${reserved.json.path}`, {
+      method: "POST",
+      headers: { apikey: ANON, Authorization: `Bearer ${accessToken}`, "Content-Type": "image/jpeg" },
+      body: PNG,
+    });
+    check(put.ok, `Datei hochgeladen (${put.status})`);
+    check((await api(alice, "POST", "rpc/confirm_plan_photo", { p_photo_id: reserved.json.id })).status < 300, "Foto bestätigt");
+    return reserved.json.path;
+  };
+  const oldPath = await upload(oldPlan);
+  const gonePath = await upload(gonePlan);
+  const files = (paths) => Number(sql(`select count(*) from storage.objects where bucket_id = 'plan-photos' and name in (${paths.map((p) => `'${p}'`).join(", ")})`));
+  check(files([oldPath, gonePath]) === 2, "beide Dateien liegen im Speicher");
+  const keep = sql(`select string_agg(path, ',') from public.plan_photos where plan_id = '${ids.plan}'`).split(",").filter(Boolean);
+  check(keep.length > 0, `Fotos des aktuellen Abends vorhanden (${keep.length})`);
+
+  sql(`delete from public.plans where id = '${gonePlan}'`);
+  check(sql(`select count(*) from app_private.plan_photo_trash where path = '${gonePath}'`) === "1", "gelöschter Plan: Datei wartet aufs Löschen");
+
+  // Ohne Anmeldung kein Aufräumen von außen.
+  if (ANON) {
+    const anon = await fetch(`${API}/functions/v1/photo-cleanup`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" }, body: "{}" });
+    check(anon.status === 401 || anon.status === 403, `ohne Anmeldung kein Aufräumen (${anon.status})`);
+    check(files([gonePath]) === 1, "Datei bleibt dabei liegen");
+  }
+
+  // Die App stößt beim Start an (je Gerät höchstens alle 6 Stunden); die Function löscht über die Storage-API.
+  await page.evaluate(() => localStorage.removeItem("afterhours.photoCleanupAt"));
+  await page.reload();
+  await panel.getByRole("heading", { name: "Fotos vom Abend" }).waitFor();
+  for (let i = 0; i < 40 && files([oldPath, gonePath]) > 0; i++) await page.waitForTimeout(500);
+  check(files([gonePath]) === 0, "Datei des gelöschten Plans ist aus dem Speicher gelöscht");
+  check(sql(`select count(*) from public.plan_photos where plan_id = '${oldPlan}'`) === "0", "Foto 13 Monate nach dem Abend verfallen");
+  check(files([oldPath]) === 0, "und seine Datei gelöscht");
+  check(sql(`select count(*) from app_private.plan_photo_trash`) === "0", "Warteschlange leer");
+  check(files(keep) === keep.length, "Fotos des aktuellen Abends bleiben unangetastet");
+  await panel.getByTestId("plan-photo").first().waitFor();
+  sql(`delete from public.plans where id = '${oldPlan}'`);
+});
+
 await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await bob.page.goto(`${APP}/crews/${ids.crew}`);
   await bob.page.getByRole("tab", { name: "Chat" }).click();

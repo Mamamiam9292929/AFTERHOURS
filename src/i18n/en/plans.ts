@@ -314,6 +314,7 @@ export const plans = {
     uploaded: (n: number) => (n === 1 ? "Photo shared." : `${n} photos shared.`),
     tooMany: (n: number) => (n === 1 ? "Only 1 more photo fits – the rest were left out." : `Only ${n} more photos fit – the rest were left out.`),
     privacy: "Only your crew sees the photos. Before uploading, the app shrinks each photo and leaves out location, camera and time.",
+    retention: "12 months after the night out, the app deletes the photos by itself.",
     you: "you",
     open: (name: string) => `View photo by ${name}`,
     by: (name: string) => `Photo by ${name}`,

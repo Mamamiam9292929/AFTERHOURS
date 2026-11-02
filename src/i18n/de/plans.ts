@@ -308,6 +308,8 @@ export const plans = {
     uploaded: (n: number) => (n === 1 ? "Foto geteilt." : `${n} Fotos geteilt.`),
     tooMany: (n: number) => (n === 1 ? "Es passt nur noch 1 Foto – die übrigen sind nicht dabei." : `Es passen nur noch ${n} Fotos – die übrigen sind nicht dabei.`),
     privacy: "Nur eure Crew sieht die Fotos. Vor dem Hochladen verkleinert die App jedes Foto und lässt Aufnahmeort, Kamera und Uhrzeit weg.",
+    // P10 Etappe 3: Aufräumen
+    retention: "12 Monate nach dem Abend löscht die App die Fotos von selbst.",
     you: "dir",
     open: (name: string) => `Foto von ${name} ansehen`,
     by: (name: string) => `Foto von ${name}`,
