@@ -177,6 +177,8 @@ export const errors = {
     plan_photo_limit: "Zu diesem Plan gibt es schon 50 Fotos. Löscht ein paar, um Platz zu machen.",
     plan_photo_user_limit: "Du hast schon 10 Fotos zu diesem Plan geteilt. Lösch eins, um ein neues zu teilen.",
     plan_photo_missing: "Das Foto ist nicht angekommen. Versuch es noch einmal.",
+    plan_photo_own: "Dein eigenes Foto kannst du nicht melden – lösch es einfach.",
+    plan_photo_own_review: "Über dein eigenes Foto entscheidet jemand anderes mit Verwaltungsrecht. Löschen kannst du es jederzeit.",
     invalid_expense_description: "Wofür war das? Bitte 2 bis 80 Zeichen.",
     invalid_expense_amount: "Bitte einen Betrag zwischen 0,01 € und 10.000 € eingeben.",
     invalid_expense_split: "Bezahlt und beteiligt sein können nur Mitglieder der Crew – wähle mindestens eine Person.",

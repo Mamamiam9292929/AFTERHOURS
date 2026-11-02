@@ -101,6 +101,12 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       ? { title: `You're still owed ${formatEuro(balance)} for “${title}”`, body: "Already paid back? Then tap “Done” under “Split costs”." }
       : { title: `You still owe ${formatEuro(-balance)} for “${title}”`, body: "Already sorted? Then tap “Done” under “Split costs”." };
   },
+  plan_photo_reported: (_actor, p) => ({
+    title: `Photo reported for “${serverTitle(p)}”`,
+    body: p.own
+      ? "It's your photo: it's hidden from the crew until someone else decides. You can delete it any time."
+      : "Hidden from the crew until you decide: show it again or delete it.",
+  }),
   plan_day_reminder: (_actor, p) => ({
     title: str(p, "starts_at") ? `Today ${formatTime(str(p, "starts_at"))}: ${serverTitle(p)}` : `Today: ${serverTitle(p)}`,
     body:
@@ -350,7 +356,7 @@ export const privacy = {
         "Profile: display name, optionally a profile picture, city and interests.",
         "Activity: crews, messages in the crew chat, polls, votes, plans, replies, booking notes, rides, points and notifications.",
         "Settings: budget, distance, notifications and your choice on location sharing.",
-        "Photos for a plan (only if you share some): the shrunk photo – without location, camera and time, which the app removes first – and who shared it when. Only the plan's crew can see it. You can delete your photos at any time; if you delete your account, nobody can see them any more.",
+        "Photos for a plan (only if you share some): the shrunk photo – without location, camera and time, which the app removes first – and who shared it when. Only the plan's crew can see it. You can delete your photos at any time; if you delete your account, nobody can see them any more. If you report a photo, we store the reason; the organiser and crew admins see it without your name.",
         "Push notifications (only if you turn them on): per device, the address at your browser's push service, two public keys for encryption and a device name like “Chrome on Android”.",
       ],
     },

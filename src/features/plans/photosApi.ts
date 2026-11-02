@@ -81,3 +81,47 @@ export function useDeletePlanPhoto(planId: string) {
     onSettled: () => void client.invalidateQueries({ queryKey: qk.planPhotos(planId) }),
   });
 }
+
+/** P10 Etappe 2a · Offene Meldung zu einem Foto, wie `plan_photo_reports` sie liefert. */
+export interface PlanPhotoReport {
+  photo_id: string;
+  count: number;
+  /** Gründe ohne Namen – nur für Verwaltende, sonst leer */
+  reasons: string[];
+  /** darf „Wieder zeigen“ (Verwaltende, nicht für eigene Fotos) */
+  can_review: boolean;
+}
+
+/** Meldungen der Fotos dieses Plans – nur für Verwaltende und für die eigenen Fotos, sonst leer. */
+export function usePlanPhotoReports(planId: string) {
+  return useQuery({
+    queryKey: [...qk.planPhotos(planId), "reports"],
+    queryFn: async (): Promise<PlanPhotoReport[]> => {
+      const { data, error } = await supabase.rpc("plan_photo_reports", { p_plan_id: planId });
+      if (error) throw error;
+      return (data ?? []) as PlanPhotoReport[];
+    },
+  });
+}
+
+export function useReportPlanPhoto(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { photoId: string; reason: string }) => {
+      const { error } = await supabase.rpc("report_plan_photo", { p_photo_id: input.photoId, p_reason: input.reason });
+      if (error) throw error;
+    },
+    onSettled: () => void client.invalidateQueries({ queryKey: qk.planPhotos(planId) }),
+  });
+}
+
+export function useKeepPlanPhoto(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (photoId: string) => {
+      const { error } = await supabase.rpc("keep_plan_photo", { p_photo_id: photoId });
+      if (error) throw error;
+    },
+    onSettled: () => void client.invalidateQueries({ queryKey: qk.planPhotos(planId) }),
+  });
+}
