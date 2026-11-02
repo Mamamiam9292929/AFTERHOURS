@@ -86,3 +86,47 @@ export function shouldSend(last: (LivePoint & { at: number }) | null, next: Live
 export function isStale(updatedAt: string, now: Date): boolean {
   return now.getTime() - new Date(updatedAt).getTime() > LIVE_STALE_MS;
 }
+
+/** P13 Etappe 2a · Abstand, ab dem zwei Personen auf dem Stadtplan auseinandergerückt werden (Pixel, Mitte zu Mitte; Marker sind 36 px groß). */
+export const LIVE_MARKER_GAP = 40;
+
+export interface ScreenPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Personen am selben Fleck (z. B. beide schon am Treffpunkt) sollen sich auf dem kleinen Stadtplan nicht
+ * verdecken: Wer näher als `gap` Pixel beieinandersteht, wird zu einer Gruppe; die Gruppe wird auf einem
+ * Kreis um ihre Mitte verteilt, mit mindestens `gap` Abstand zwischen Nachbarn. Einzelne bleiben, wo sie sind.
+ * Reihenfolge der Ausgabe = Reihenfolge der Eingabe; die erste Person einer Gruppe steht oben (12 Uhr).
+ */
+export function spreadMarkers(points: ScreenPoint[], gap = LIVE_MARKER_GAP): ScreenPoint[] {
+  const group = points.map((_, i) => i);
+  const find = (i: number): number => (group[i] === i ? i : (group[i] = find(group[i]!)));
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      const a = points[i]!;
+      const b = points[j]!;
+      if (Math.hypot(a.x - b.x, a.y - b.y) < gap) group[find(j)] = find(i);
+    }
+  }
+  const members = new Map<number, number[]>();
+  points.forEach((_, i) => {
+    const root = find(i);
+    members.set(root, [...(members.get(root) ?? []), i]);
+  });
+  const out: ScreenPoint[] = points.map((p) => ({ x: p.x, y: p.y }));
+  for (const list of members.values()) {
+    if (list.length < 2) continue;
+    const cx = list.reduce((s, i) => s + points[i]!.x, 0) / list.length;
+    const cy = list.reduce((s, i) => s + points[i]!.y, 0) / list.length;
+    // Sehne zwischen Nachbarn = gap → Radius gap / (2·sin(π/n)).
+    const radius = gap / (2 * Math.sin(Math.PI / list.length));
+    list.forEach((i, k) => {
+      const angle = -Math.PI / 2 + (2 * Math.PI * k) / list.length;
+      out[i] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+    });
+  }
+  return out;
+}

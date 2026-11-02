@@ -319,6 +319,7 @@ export function PlanDetailPage() {
                 userId={user.id}
                 now={now}
                 place={place?.latitude != null && place.longitude != null ? { latitude: place.latitude, longitude: place.longitude } : null}
+                placeName={place?.name ?? null}
                 lookup={people.lookup}
               />
             </PlanPanel>

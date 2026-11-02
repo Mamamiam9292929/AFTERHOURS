@@ -365,6 +365,15 @@ export const plans = {
     privacy: "Nur auf rund 10 m genau, ohne Verlauf. Sehen können ihn nur Mitglieder, die zugesagt oder „vielleicht“ gesagt haben.",
     empty: "Noch teilt niemand aus der Crew seinen Standort.",
     listLabel: "Standorte der Crew",
+    /** P13 Etappe 2a: alle, die teilen, auf dem kleinen Stadtplan. */
+    map: {
+      label: (people: number, place: string | null) =>
+        `Stadtplan: ${people === 1 ? "eine Person" : `${people} Personen`} aus der Crew${place ? ` und ${place}` : ""}`,
+      legendPlace: "Ort",
+      legendYou: "Du",
+      legendOthers: "Crew",
+      loadTiles: "Mit Stadtplan zeigen",
+    },
     near: "ganz nah",
     meters: (m: number) => `${m} m`,
     km: (km: string) => `${km} km`,
