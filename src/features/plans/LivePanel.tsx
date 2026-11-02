@@ -14,6 +14,7 @@ import { formatAgo, formatTime } from "@/lib/time";
 import type { PlanLiveLocation } from "@/lib/types";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 import type { PlanWithParticipants } from "./api";
+import { LiveMap, type LiveMapPerson } from "./LiveMap";
 import { usePlanLiveLocations, useShareLiveLocation, useStopLiveLocation } from "./liveApi";
 
 interface LivePanelProps {
@@ -22,6 +23,8 @@ interface LivePanelProps {
   now: Date;
   /** Koordinaten des Ortes, falls bekannt – Bezugspunkt, solange man selbst nicht teilt. */
   place: LivePoint | null;
+  /** Name des Ortes für die Beschreibung des Stadtplans. */
+  placeName?: string | null;
   lookup: (id: string | null | undefined) => Person | null;
 }
 
@@ -40,7 +43,7 @@ function distanceLabel(meters: number): string {
  * gilt höchstens 3 Stunden (nie über das Ende hinaus) und wird nur aktualisiert, solange diese Seite offen ist.
  * Wer nicht zugesagt oder „vielleicht“ gesagt hat, sieht nur den Hinweis – der Server liefert ihm auch nichts.
  */
-export function LivePanel({ plan, userId, now, place, lookup }: LivePanelProps) {
+export function LivePanel({ plan, userId, now, place, placeName = null, lookup }: LivePanelProps) {
   const stage = liveStage(plan, now);
   const mine = plan.participants.find((p) => p.user_id === userId)?.attendance_status;
   const coming = mine === "going" || mine === "maybe";
@@ -165,6 +168,13 @@ export function LivePanel({ plan, userId, now, place, lookup }: LivePanelProps) 
     .filter((r) => r.user_id !== userId)
     .map((r) => ({ row: r, distance: reference ? distanceMeters(reference.point, r) : null }))
     .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0) || b.row.updated_at.localeCompare(a.row.updated_at));
+  // P13 Etappe 2a: alle, die teilen, auf dem Stadtplan – man selbst mit der frischesten bekannten Position.
+  const mapPeople: LiveMapPerson[] = [
+    ...(myPoint || myRow
+      ? [{ userId, point: myPoint ?? myRow!, person: lookup(userId), mine: true, stale: !myPoint && myRow != null && isStale(myRow.updated_at, now) }]
+      : []),
+    ...others.map(({ row }) => ({ userId: row.user_id, point: row, person: lookup(row.user_id), mine: false, stale: isStale(row.updated_at, now) })),
+  ];
 
   return (
     <div className="space-y-3">
@@ -197,6 +207,8 @@ export function LivePanel({ plan, userId, now, place, lookup }: LivePanelProps) 
         </div>
       )}
       {problem && <FormMessage>{problem}</FormMessage>}
+
+      {others.length > 0 && <LiveMap place={place} placeName={placeName} people={mapPeople} />}
 
       {others.length === 0 ? (
         <p className="text-[15px] text-muted">{t.plans.live.empty}</p>

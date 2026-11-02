@@ -1763,8 +1763,38 @@ await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Car
     await aliceRow.getByTestId("live-distance").getByText(/^\d+ m von dir$/).waitFor();
     const meters = Number((await aliceRow.getByTestId("live-distance").innerText()).match(/\d+/)[0]);
     check(meters >= 250 && meters <= 320, `P13: Entfernung zu Alice von Bob aus (${meters} m)`);
+    // P13 Etappe 2a: alle, die teilen, auf dem kleinen Stadtplan – ohne Einwilligung nur auf dem Raster.
+    const liveMap = bobPanel.getByTestId("live-map");
+    await liveMap.waitFor();
+    await liveMap.getByTestId("live-marker").nth(1).waitFor();
+    check((await liveMap.getByTestId("live-marker").count()) === 2, "P13: Bob und Alice als Profilbild auf dem Stadtplan");
+    check((await liveMap.locator('[data-testid="live-marker"][data-mine]').count()) === 1, "P13: die eigene Position ist hervorgehoben");
+    check(await liveMap.getByRole("group", { name: /^Stadtplan: 2 Personen aus der Crew/ }).isVisible(), "P13: Stadtplan mit Zusammenfassung für Screenreader");
+    check((await liveMap.locator("img[data-map-tile]").count()) === 0 && (await liveMap.getByTestId("live-map-offer").isVisible()), "P13: ohne Einwilligung keine Kacheln, nur das Angebot");
+    const markerBoxes = await liveMap.getByTestId("live-marker").evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 })));
+    const frameBox = await liveMap.getByRole("group").boundingBox();
+    check(
+      markerBoxes.every((m) => m.x > frameBox.x && m.x < frameBox.x + frameBox.width && m.y > frameBox.y && m.y < frameBox.y + frameBox.height),
+      "P13: beide Marker liegen im Kartenausschnitt",
+    );
+    check(Math.hypot(markerBoxes[0].x - markerBoxes[1].x, markerBoxes[0].y - markerBoxes[1].y) >= 28, "P13: Marker verdecken sich nicht");
+    const liveTiles = [];
+    await bob.page.route(/^https:\/\/tile\.openstreetmap\.org\//, (route) => {
+      liveTiles.push(route.request().url());
+      return route.fulfill({ status: 200, contentType: "image/png", body: PNG });
+    });
+    await liveMap.getByRole("button", { name: "Mit Stadtplan zeigen" }).click();
+    await liveMap.locator("img[data-map-tile]").first().waitFor();
+    check(liveTiles.length > 0 && liveTiles.length <= 12, `P13: Stadtplan erst nach Tipp, nur der Ausschnitt (${liveTiles.length} Kacheln)`);
+    const fitZoom = Number(await liveMap.getByRole("group").getAttribute("data-zoom"));
+    await liveMap.getByRole("button", { name: "Näher heran" }).click();
+    check(Number(await liveMap.getByRole("group").getAttribute("data-zoom")) === fitZoom + 1, "P13: „Näher heran“ auf dem Live-Stadtplan");
+    await liveMap.getByRole("button", { name: "Weiter weg" }).click();
     await bob.page.locator("#live").scrollIntoViewIfNeeded();
     await shot(bob, "17c-wo-seid-ihr");
+    await liveMap.getByRole("button", { name: "Stadtplan aus" }).click();
+    await liveMap.getByTestId("live-map-offer").waitFor();
+    await bob.page.unroute(/^https:\/\/tile\.openstreetmap\.org\//);
 
     // Alice sieht Bob (Realtime oder Nachladen).
     await panel.getByTestId("live-person").filter({ hasText: "Bob" }).waitFor({ timeout: 40_000 });

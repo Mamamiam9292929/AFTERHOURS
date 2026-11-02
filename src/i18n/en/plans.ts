@@ -367,6 +367,14 @@ export const plans = {
     privacy: "Only accurate to about 10 m, no history. Only members who said they're in or \"maybe\" can see it.",
     empty: "Nobody in the crew is sharing their location yet.",
     listLabel: "Crew locations",
+    map: {
+      label: (people: number, place: string | null) =>
+        `Map: ${people === 1 ? "one person" : `${people} people`} from the crew${place ? ` and ${place}` : ""}`,
+      legendPlace: "Place",
+      legendYou: "You",
+      legendOthers: "Crew",
+      loadTiles: "Show with street map",
+    },
     near: "very close",
     meters: (m: number) => `${m} m`,
     km: (km: string) => `${km} km`,

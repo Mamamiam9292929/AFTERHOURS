@@ -65,3 +65,27 @@ test("veraltet nach 10 Minuten", () => {
   assert.equal(isStale("2026-11-06T19:00:00Z", at("2026-11-06T19:09:00Z")), false);
   assert.equal(isStale("2026-11-06T19:00:00Z", at("2026-11-06T19:11:00Z")), true);
 });
+
+test("Stadtplan: Personen am selben Fleck rücken auseinander, Einzelne bleiben", async () => {
+  const { spreadMarkers, LIVE_MARKER_GAP } = await import("../../src/lib/live.ts");
+  assert.deepEqual(spreadMarkers([]), []);
+  assert.deepEqual(spreadMarkers([{ x: 10, y: 20 }]), [{ x: 10, y: 20 }]);
+  // Weit genug auseinander: unverändert.
+  assert.deepEqual(spreadMarkers([{ x: 0, y: 0 }, { x: 100, y: 0 }]), [{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+  // Zwei am selben Punkt: übereinander, genau eine Lücke Abstand, Mitte bleibt.
+  const two = spreadMarkers([{ x: 50, y: 50 }, { x: 50, y: 50 }]);
+  assert.ok(Math.abs(Math.hypot(two[0].x - two[1].x, two[0].y - two[1].y) - LIVE_MARKER_GAP) < 1e-9);
+  assert.ok(Math.abs((two[0].x + two[1].x) / 2 - 50) < 1e-9 && Math.abs((two[0].y + two[1].y) / 2 - 50) < 1e-9);
+  assert.ok(two[0].y < two[1].y, "erste Person oben");
+  // Drei dicht beieinander, eine weit weg: die drei auf einem Kreis, alle Nachbarn ≥ Lücke, die vierte unverändert.
+  const four = spreadMarkers([{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 0, y: 5 }, { x: 300, y: 300 }]);
+  assert.deepEqual(four[3], { x: 300, y: 300 });
+  for (const [i, j] of [[0, 1], [1, 2], [0, 2]]) {
+    assert.ok(Math.hypot(four[i].x - four[j].x, four[i].y - four[j].y) >= LIVE_MARKER_GAP - 1e-9);
+  }
+  // Ketten werden eine Gruppe (a nah b, b nah c).
+  const chain = spreadMarkers([{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 40, y: 0 }], 30);
+  for (const [i, j] of [[0, 1], [1, 2], [0, 2]]) {
+    assert.ok(Math.hypot(chain[i].x - chain[j].x, chain[i].y - chain[j].y) >= 30 - 1e-9);
+  }
+});
