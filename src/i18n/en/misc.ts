@@ -356,7 +356,7 @@ export const privacy = {
         "Profile: display name, optionally a profile picture, city and interests.",
         "Activity: crews, messages in the crew chat, polls, votes, plans, replies, booking notes, rides, points and notifications.",
         "Settings: budget, distance, notifications and your choice on location sharing.",
-        "Photos for a plan (only if you share some): the shrunk photo – without location, camera and time, which the app removes first – and who shared it when. Only the plan's crew can see it. You can delete your photos at any time; if you delete your account, nobody can see them any more. If you report a photo, we store the reason; the organiser and crew admins see it without your name.",
+        "Photos for a plan (only if you share some): the shrunk photo – without location, camera and time, which the app removes first – and who shared it when. Only the plan's crew can see it. You can delete your photos at any time. If you delete your account, or the plan or crew is deleted, the app deletes the files too; at the latest 12 months after the night out, the photos disappear by themselves. If you report a photo, we store the reason; the organiser and crew admins see it without your name.",
         "Push notifications (only if you turn them on): per device, the address at your browser's push service, two public keys for encryption and a device name like “Chrome on Android”.",
       ],
     },

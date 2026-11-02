@@ -112,5 +112,10 @@ verify_jwt = true
 enabled = true
 verify_jwt = true
 
+# P10 Etappe 3: Dateien gelöschter und abgelaufener Plan-Fotos löschen (siehe supabase/functions/photo-cleanup/index.ts).
+[functions.photo-cleanup]
+enabled = true
+verify_jwt = true
+
 [analytics]
 enabled = false

@@ -11,6 +11,8 @@ import type { AppNotification } from "@/lib/types";
  * sie dann als Benachrichtigungen an:
  * - P3 Etappe 3b: offene Beträge (nur die eigenen),
  * - P4 Etappe 2: Pläne, die heute stattfinden (für alle in den eigenen Crews – deshalb danach Push).
+ * - P10 Etappe 3: Fotos aufräumen – abgelaufene (12 Monate nach dem Abend) und gelöschte Plan-Fotos
+ *   verschwinden auch als Datei aus dem Speicher (Edge Function `photo-cleanup`, Fehler sind egal).
  * - P15: Abstimmungen in ihren letzten drei Stunden (an alle ohne Stimme). Das Fenster ist kurz, deshalb
  *   fragt die App danach höchstens alle 15 Minuten erneut (beim Aktualisieren der Liste).
  * Scheitert das (Netz, Rate Limit), bleibt es bei der Liste – beim nächsten Start versucht es die App wieder.
@@ -42,6 +44,24 @@ async function checkExpenseReminders(userId: string) {
   ]);
   // P4: Beim Start einmal die Push-Warteschlange anstoßen – falls seit dem letzten Mal etwas liegen blieb.
   kickPush();
+  kickPhotoCleanup();
+}
+
+/**
+ * P10 Etappe 3: Was zu löschen ist, entscheidet der Server; die App stößt nur an – je Gerät höchstens alle
+ * 6 Stunden (der Server begrenzt zusätzlich je Person). Fehler sind egal, der nächste Anstoß holt es nach.
+ */
+const PHOTO_CLEANUP_KEY = "afterhours.photoCleanupAt";
+const PHOTO_CLEANUP_MS = 6 * 60 * 60_000;
+function kickPhotoCleanup() {
+  try {
+    const last = Number(window.localStorage.getItem(PHOTO_CLEANUP_KEY) ?? 0);
+    if (Date.now() - last < PHOTO_CLEANUP_MS) return;
+    window.localStorage.setItem(PHOTO_CLEANUP_KEY, String(Date.now()));
+  } catch {
+    // Ohne Speicher (privates Fenster): trotzdem anstoßen, das Rate Limit des Servers greift.
+  }
+  void supabase.functions.invoke("photo-cleanup", { body: {} }).catch(() => undefined);
 }
 
 /** Die letzten 60 Benachrichtigungen. Aktualisiert sich per Realtime, ersatzweise alle 45 Sekunden. */

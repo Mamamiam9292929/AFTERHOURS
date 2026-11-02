@@ -358,7 +358,7 @@ export const privacy = {
         "Profil: Anzeigename, optional Profilbild, Stadt und Interessen.",
         "Aktivität: Crews, Nachrichten im Crew-Chat, Abstimmungen, Stimmen, Pläne, Zusagen, Reservierungsvermerke, Mitfahrten, Punkte und Benachrichtigungen.",
         "Einstellungen: Budget, Entfernung, Benachrichtigungen und deine Wahl zur Standortfreigabe.",
-        "Fotos zum Plan (nur wenn du welche teilst): das verkleinerte Foto – ohne Aufnahmeort, Kamera und Uhrzeit, die nimmt die App vorher heraus – sowie wer es wann geteilt hat. Sehen kann es nur die Crew des Plans. Du kannst deine Fotos jederzeit löschen; löschst du dein Konto, sind sie für niemanden mehr sichtbar. Meldest du ein Foto, speichern wir den Grund; Organisation und Crew-Admins sehen ihn ohne deinen Namen.",
+        "Fotos zum Plan (nur wenn du welche teilst): das verkleinerte Foto – ohne Aufnahmeort, Kamera und Uhrzeit, die nimmt die App vorher heraus – sowie wer es wann geteilt hat. Sehen kann es nur die Crew des Plans. Du kannst deine Fotos jederzeit löschen. Löschst du dein Konto oder wird der Plan oder die Crew gelöscht, löscht die App auch die Dateien; spätestens 12 Monate nach dem Abend verschwinden die Fotos von selbst. Meldest du ein Foto, speichern wir den Grund; Organisation und Crew-Admins sehen ihn ohne deinen Namen.",
         "Push-Mitteilungen (nur wenn du sie einschaltest): je Gerät die Adresse beim Push-Dienst deines Browsers, zwei öffentliche Schlüssel zum Verschlüsseln und ein Gerätename wie „Chrome auf Android“.",
       ],
     },
