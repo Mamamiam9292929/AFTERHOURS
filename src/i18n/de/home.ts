@@ -171,7 +171,7 @@ export const home = {
     title: "Freunde in der Nähe",
     off: "Deine Standortfreigabe ist aus.",
     on: "Du hast eine Standortfreigabe gewählt.",
-    unavailable: "Live-Standorte sind in dieser Version noch nicht verfügbar. Es werden keine Positionen erfasst oder angezeigt.",
+    unavailable: "Live-Standort gibt es nur rund um einen Plan: auf der Planseite unter „Wo seid ihr?“, nur auf deinen Tipp und höchstens bis zum Ende des Abends.",
     settings: "Standortfreigabe verwalten",
   },
   // S4 · „Heute noch wer?“: Spontan-Frage an die Crew, nur „Bock“ oder „heute nicht“, verfällt nach 2 Stunden.

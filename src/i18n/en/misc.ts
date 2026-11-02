@@ -227,8 +227,8 @@ export const settings = {
     title: "Location sharing",
     lead: "You decide whether and with whom you share your location. The default: not at all.",
     notLive: {
-      title: "Not active yet",
-      body: "Live locations aren't built into this version. The app doesn't request your location, doesn't store it and doesn't show it to anyone. Your choice is noted and only applies once the feature is available – you'll be asked again explicitly then.",
+      title: "Live only during a plan",
+      body: "Permanent sharing isn't built in yet – your choice here is only noted. So far you can share live only around a plan: on the plan page under “Where are you?”, from 2 hours before the start, only when you tap and only with the people who are coming too. Sharing ends after 3 hours at most, at the latest with the plan, and is then deleted.",
     },
     crew: "Crew",
     crewNone: "You're not in any crew.",
@@ -379,7 +379,7 @@ export const privacy = {
       title: "Location",
       items: [
         "Location sharing is off by default.",
-        "This version doesn't request or store any device location.",
+        "Device location only when you tap, around a plan (“Where are you?” on the plan page, from 2 hours before the start): only the latest position is stored, rounded to about 10 m, with no history. Only crew members who said they're in or “maybe” for that plan can see it. It's deleted as soon as you stop, after 3 hours at most, at the latest when the plan ends, if it's cancelled and with your account.",
         "Distances are estimated from the city in your profile (straight line from the city centre).",
         "Maps only load when you tap “Load map” – then a request goes to OpenStreetMap.",
         "The map in Discover first shows places only as dots. It only loads the OpenStreetMap street map after “Load street map” (applies to this device; “Street map off” undoes it).",

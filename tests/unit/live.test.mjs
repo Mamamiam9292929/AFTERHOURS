@@ -1,0 +1,67 @@
+// P13 · Live-Standort: Zeitfenster, Frist, Entfernungen und sparsames Senden (src/lib/live.ts).
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { distanceMeters, isStale, liveStage, liveWindow, roundDistance, shareUntil, shouldSend } from "../../src/lib/live.ts";
+
+const plan = (starts_at, ends_at = null, status = "confirmed") => ({ starts_at, ends_at, status });
+const at = (iso) => new Date(iso);
+
+test("Fenster: 2 Stunden vor Beginn bis 4 Stunden danach, mit Ende bis zum Ende", () => {
+  const w = liveWindow(plan("2026-11-06T19:00:00Z"));
+  assert.equal(w.start.toISOString(), "2026-11-06T17:00:00.000Z");
+  assert.equal(w.end.toISOString(), "2026-11-06T23:00:00.000Z");
+  assert.equal(liveWindow(plan("2026-11-06T19:00:00Z", "2026-11-06T21:30:00Z")).end.toISOString(), "2026-11-06T21:30:00.000Z");
+});
+
+test("Stufen: verborgen, bald, offen, vorbei", () => {
+  const p = plan("2026-11-06T19:00:00Z");
+  assert.equal(liveStage(p, at("2026-11-06T04:00:00Z")), "hidden");
+  assert.equal(liveStage(p, at("2026-11-06T05:00:00Z")), "soon");
+  assert.equal(liveStage(p, at("2026-11-06T16:59:59Z")), "soon");
+  assert.equal(liveStage(p, at("2026-11-06T17:00:00Z")), "open");
+  assert.equal(liveStage(p, at("2026-11-06T22:59:59Z")), "open");
+  assert.equal(liveStage(p, at("2026-11-06T23:00:00Z")), "hidden");
+  assert.equal(liveStage(plan("2026-11-06T19:00:00Z", null, "cancelled"), at("2026-11-06T18:00:00Z")), "hidden");
+  assert.equal(liveStage(plan("2026-11-06T19:00:00Z", null, "completed"), at("2026-11-06T18:00:00Z")), "hidden");
+  assert.equal(liveStage(plan("2026-11-06T19:00:00Z", null, "proposed"), at("2026-11-06T18:00:00Z")), "open");
+});
+
+test("Frist: höchstens 3 Stunden, nie über das Fenster hinaus", () => {
+  const p = plan("2026-11-06T19:00:00Z");
+  assert.equal(shareUntil(p, at("2026-11-06T17:30:00Z")).toISOString(), "2026-11-06T20:30:00.000Z");
+  assert.equal(shareUntil(p, at("2026-11-06T21:00:00Z")).toISOString(), "2026-11-06T23:00:00.000Z");
+});
+
+test("Entfernung: Berlin Alexanderplatz – Fernsehturm rund 300 m", () => {
+  const d = distanceMeters({ latitude: 52.5219, longitude: 13.4132 }, { latitude: 52.5208, longitude: 13.4094 });
+  assert.ok(d > 250 && d < 320, String(d));
+  assert.equal(distanceMeters({ latitude: 52.5, longitude: 13.4 }, { latitude: 52.5, longitude: 13.4 }), 0);
+});
+
+test("Entfernung gerundet: nah, Meter, Kilometer", () => {
+  assert.deepEqual(roundDistance(12), { kind: "near" });
+  assert.deepEqual(roundDistance(Number.NaN), { kind: "near" });
+  assert.deepEqual(roundDistance(54), { kind: "m", value: 50 });
+  assert.deepEqual(roundDistance(538), { kind: "m", value: 540 });
+  assert.deepEqual(roundDistance(994), { kind: "m", value: 990 });
+  assert.deepEqual(roundDistance(996), { kind: "km", value: 1 });
+  assert.deepEqual(roundDistance(1260), { kind: "km", value: 1.3 });
+  assert.deepEqual(roundDistance(23_400), { kind: "km", value: 23 });
+});
+
+test("Senden: erste Position sofort, dann bei Bewegung oder als Lebenszeichen, nie zu oft", () => {
+  const here = { latitude: 52.52, longitude: 13.405 };
+  const moved = { latitude: 52.5205, longitude: 13.405 }; // rund 55 m
+  const jitter = { latitude: 52.52005, longitude: 13.405 }; // rund 5 m
+  assert.equal(shouldSend(null, here, 0), true);
+  const last = { ...here, at: 1_000_000 };
+  assert.equal(shouldSend(last, moved, 1_000_000 + 10_000), false, "nicht vor 20 s");
+  assert.equal(shouldSend(last, moved, 1_000_000 + 25_000), true, "Bewegung nach 20 s");
+  assert.equal(shouldSend(last, jitter, 1_000_000 + 25_000), false, "Zittern zählt nicht");
+  assert.equal(shouldSend(last, jitter, 1_000_000 + 90_000), true, "Lebenszeichen nach 90 s");
+});
+
+test("veraltet nach 10 Minuten", () => {
+  assert.equal(isStale("2026-11-06T19:00:00Z", at("2026-11-06T19:09:00Z")), false);
+  assert.equal(isStale("2026-11-06T19:00:00Z", at("2026-11-06T19:11:00Z")), true);
+});

@@ -1706,6 +1706,110 @@ await step("P14 – Wer bringt was? Mitbring-Liste auf der Planseite (Alice, Bob
   }
 });
 
+await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Carol, Mallory)", async () => {
+  if (!DB_URL) {
+    console.log("   (E2E_DB_URL nicht gesetzt – Live-Standort wird übersprungen)");
+    return;
+  }
+  const sql = (q) => execFileSync("psql", [DB_URL, "-Atqc", q]).toString().trim();
+  const uidOf = (user) => sql(`select id from auth.users where email = '${user.email}'`);
+  const startsBefore = sql(`select starts_at from public.plans where id = '${ids.plan}'`);
+  const answersBefore = sql(`select user_id || '=' || attendance_status from public.plan_participants where plan_id = '${ids.plan}'`).split("\n").filter(Boolean);
+  const answer = (user, status) =>
+    sql(`insert into public.plan_participants (plan_id, user_id, attendance_status) values ('${ids.plan}', '${uidOf(user)}', '${status}')
+         on conflict (plan_id, user_id) do update set attendance_status = excluded.attendance_status`);
+  try {
+    // Gut 2 Stunden vor dem Fenster: nur der Hinweis, ab wann es geht.
+    sql(`update public.plans set starts_at = now() + interval '3 hours' where id = '${ids.plan}'`);
+    answer(alice, "going");
+    answer(bob, "maybe");
+    answer(carol, "declined");
+    const { page } = alice;
+    await page.goto(`${APP}/plans/${ids.plan}`);
+    const panel = page.locator("section#live");
+    await panel.getByRole("heading", { name: "Wo seid ihr?" }).waitFor();
+    check((await panel.getAttribute("data-tone")) === "violet", "P13: „Wo seid ihr?“ als Glas-Karte mit violettem Schein");
+    check(await panel.getByText(/^Ab .+ könnt ihr hier euren Standort teilen/).isVisible(), "P13: vor dem Fenster nur der Hinweis, ab wann");
+    check((await panel.getByRole("button").count()) === 0, "P13: vor dem Fenster kein Knopf zum Teilen");
+
+    // Eine halbe Stunde vor Beginn: Teilen geht. Alice steht am Alexanderplatz.
+    sql(`update public.plans set starts_at = now() + interval '30 minutes' where id = '${ids.plan}'`);
+    await page.context().grantPermissions(["geolocation"], { origin: APP });
+    await page.context().setGeolocation({ latitude: 52.52186, longitude: 13.41321, accuracy: 15 });
+    await page.reload();
+    await panel.getByText("Noch teilt niemand aus der Crew seinen Standort.").waitFor();
+    check(true, "P13: Leerzustand, solange niemand teilt");
+    check(await panel.getByText(/Nur auf rund 10 m genau, ohne Verlauf/).isVisible(), "P13: Hinweis zu Genauigkeit und wer es sieht");
+    await panel.getByRole("button", { name: /^Standort teilen bis / }).click();
+    await toast(alice, /^Du teilst deinen Standort bis /);
+    await panel.getByTestId("live-mine").waitFor();
+    check(/^Du teilst bis /.test((await panel.getByTestId("live-status").innerText()).trim()), "P13: eigene Freigabe als Lime-Pille mit Frist");
+    check(await panel.getByText("Wird aktualisiert, solange diese Seite offen ist.").isVisible(), "P13: ehrlich – nur solange die Seite offen ist");
+    const stored = sql(`select latitude || ',' || longitude || ',' || accuracy_m || ',' || round(extract(epoch from expires_at - now()) / 60) from public.plan_live_locations where plan_id = '${ids.plan}' and user_id = '${uidOf(alice)}'`);
+    const [lat, lng, acc, minutes] = stored.split(",").map(Number);
+    check(lat === 52.5219 && lng === 13.4132 && acc === 15, `P13: Position gerundet gespeichert (${stored})`);
+    check(minutes >= 178 && minutes <= 180, `P13: Freigabe gilt höchstens 3 Stunden (${minutes} min)`);
+
+    // Bob („vielleicht“) steht 300 m weiter am Fernsehturm und sieht Alice.
+    await bob.page.context().grantPermissions(["geolocation"], { origin: APP });
+    await bob.page.context().setGeolocation({ latitude: 52.52082, longitude: 13.40942, accuracy: 20 });
+    await bob.page.goto(`${APP}/plans/${ids.plan}`);
+    const bobPanel = bob.page.locator("section#live");
+    const aliceRow = bobPanel.getByTestId("live-person").filter({ hasText: "Alice" });
+    await aliceRow.waitFor();
+    check(true, "P13: Bob sieht Alice in der Liste");
+    await bobPanel.getByRole("button", { name: /^Standort teilen bis / }).click();
+    await toast(bob, /^Du teilst deinen Standort bis /);
+    await aliceRow.getByTestId("live-distance").getByText(/^\d+ m von dir$/).waitFor();
+    const meters = Number((await aliceRow.getByTestId("live-distance").innerText()).match(/\d+/)[0]);
+    check(meters >= 250 && meters <= 320, `P13: Entfernung zu Alice von Bob aus (${meters} m)`);
+    await bob.page.locator("#live").scrollIntoViewIfNeeded();
+    await shot(bob, "17c-wo-seid-ihr");
+
+    // Alice sieht Bob (Realtime oder Nachladen).
+    await panel.getByTestId("live-person").filter({ hasText: "Bob" }).waitFor({ timeout: 40_000 });
+    check(true, "P13: Alice sieht Bob ohne Neuladen");
+
+    // Carol hat abgesagt: kein Knopf, keine Positionen – auch nicht über die API.
+    await carol.page.goto(`${APP}/plans/${ids.plan}`);
+    await carol.page.locator("section#live").getByText(/^Nur wer dabei ist oder „vielleicht“ gesagt hat/).waitFor();
+    check((await carol.page.locator("section#live").getByTestId("live-person").count()) === 0, "P13: Carol (abgesagt) sieht niemanden");
+    if (ANON) {
+      check(((await api(carol, "GET", `plan_live_locations?plan_id=eq.${ids.plan}&select=user_id`)).json ?? []).length === 0, "API: Carol liest keine Positionen");
+      const carolShare = await api(carol, "POST", "rpc/share_plan_live_location", { p_plan_id: ids.plan, p_latitude: 52.5, p_longitude: 13.4 });
+      check(carolShare.status === 400 && /live_location_not_going/.test(JSON.stringify(carolShare.json)), `API: Carol kann nicht teilen (${carolShare.status})`);
+      check(((await api(mallory, "GET", `plan_live_locations?plan_id=eq.${ids.plan}&select=user_id`)).json ?? []).length === 0, "API: Mallory liest keine Positionen");
+      const malloryShare = await api(mallory, "POST", "rpc/share_plan_live_location", { p_plan_id: ids.plan, p_latitude: 52.5, p_longitude: 13.4 });
+      check(malloryShare.status === 403, `API: Mallory teilt nicht bei fremden Plänen (${malloryShare.status})`);
+      check((await api(bob, "PATCH", `plan_live_locations?plan_id=eq.${ids.plan}`, { expires_at: "2099-01-01T00:00:00Z" })).status === 403, "API: Frist nicht direkt verlängerbar (403)");
+      const anon = await api(null, "GET", `plan_live_locations?select=user_id`);
+      check(anon.status >= 400 || (Array.isArray(anon.json) && anon.json.length === 0), `API: ohne Anmeldung nichts (${anon.status})`);
+    }
+
+    // Alice hört auf: ihre Position ist sofort weg, auch bei Bob.
+    await panel.getByRole("button", { name: "Nicht mehr teilen" }).click();
+    await toast(alice, "Du teilst deinen Standort nicht mehr.");
+    await panel.getByRole("button", { name: /^Standort teilen bis / }).waitFor();
+    check(sql(`select count(*) from public.plan_live_locations where plan_id = '${ids.plan}' and user_id = '${uidOf(alice)}'`) === "0", "P13: „Nicht mehr teilen“ löscht die Position");
+    await aliceRow.waitFor({ state: "detached", timeout: 40_000 });
+    check(true, "P13: Bob sieht Alice nicht mehr");
+
+    // Bob sagt ab: seine Position ist weg.
+    sql(`update public.plan_participants set attendance_status = 'declined' where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`);
+    check(sql(`select count(*) from public.plan_live_locations where plan_id = '${ids.plan}'`) === "0", "P13: Absage löscht Bobs Position");
+  } finally {
+    sql(`update public.plans set starts_at = '${startsBefore}' where id = '${ids.plan}'`);
+    // Antworten wie vorher (nur der Status; Zeilen, die es vorher nicht gab, wieder weg).
+    const kept = answersBefore.map((row) => row.split("=")[0]);
+    sql(`delete from public.plan_participants where plan_id = '${ids.plan}'${kept.length ? ` and user_id not in (${kept.map((id) => `'${id}'`).join(", ")})` : ""}`);
+    for (const row of answersBefore) {
+      const [userId, status] = row.split("=");
+      sql(`update public.plan_participants set attendance_status = '${status}' where plan_id = '${ids.plan}' and user_id = '${userId}'`);
+    }
+    for (const user of [alice, bob]) await user.page.context().clearPermissions();
+  }
+});
+
 await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   const { page } = alice;
   check((await page.getByRole("button", { name: "Als abgeschlossen markieren" }).count()) === 0, "vor Beginn lässt sich ein Plan nicht abschließen");
@@ -3662,7 +3766,7 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   await page.goto(`${APP}/settings`);
   await page.getByRole("heading", { name: "Standortfreigabe" }).waitFor();
   check(await page.getByRole("radio", { name: /Standort nicht teilen/ }).isChecked(), "Standortfreigabe ist standardmäßig aus");
-  check(await page.getByText("Noch nicht aktiv").isVisible(), "die App behauptet keine Live-Standorte");
+  check(await page.getByText("Live nur während eines Plans").isVisible(), "P13: Einstellungen sagen ehrlich, dass Live-Standort nur rund um einen Plan geht");
   // V2 Etappe 3k: Bereiche als Glas-Karten mit Farbschein, Stand als Pille, Sprung-Pillen oben.
   const tones = await page.locator("main section.plan-panel").evaluateAll((els) => els.map((el) => `${el.id}:${el.dataset.tone}`));
   check(tones.join(",") === "profile:violet,language:lime,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: sieben Glas-Karten mit Farbschein (${tones.join(", ")})`);
