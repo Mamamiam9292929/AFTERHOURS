@@ -199,7 +199,7 @@ export function DiscoverPage() {
             )}
 
             {search.isPending ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label={t.states.loading}>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label={t.states.loading}>
                 {Array.from({ length: 6 }, (_, i) => (
                   <Skeleton key={i} className="h-[300px] rounded-card" />
                 ))}
@@ -268,7 +268,7 @@ export function DiscoverPage() {
                       }
                     />
                   ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {rest.map(({ activity, distanceKm }) => (
                         <ActivityCard key={activity.id} activity={activity} distanceKm={distanceKm} photo={photos.get(activity.id)} />
                       ))}
