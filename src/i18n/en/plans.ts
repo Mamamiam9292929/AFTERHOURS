@@ -340,6 +340,13 @@ export const plans = {
     flaggedOwnManager: "Someone reported your photo. It's hidden from the crew; someone else with admin rights decides about your own photo. You can delete it any time.",
     keep: "Show again",
     kept: "The photo is visible to the crew again.",
+    stack: (n: number) => `Flip through all ${n} photos`,
+    stackHint: "Tap to flip through",
+    previous: "Previous photo",
+    next: "Next photo",
+    position: (n: number, total: number) => `${n} / ${total}`,
+    positionLabel: (n: number, total: number, name: string) => `Photo ${n} of ${total}, by ${name}`,
+    swipeHint: "Swipe or use arrow keys",
   },
   items: {
     title: "Who's bringing what?",

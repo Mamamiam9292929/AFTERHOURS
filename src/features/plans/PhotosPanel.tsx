@@ -1,7 +1,7 @@
-import { useRef, useState, type ChangeEvent } from "react";
-import { IconCamera, IconEye, IconFlag, IconTrash } from "@/components/icons";
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from "react";
+import { IconBack, IconCamera, IconEye, IconFlag, IconForward, IconTrash } from "@/components/icons";
 import type { Person } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
+import { Button, IconButton } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Controls";
 import { Dialog } from "@/components/ui/Dialog";
 import { ErrorState, Skeleton } from "@/components/ui/Feedback";
@@ -19,6 +19,8 @@ import { useDeletePlanPhoto, useKeepPlanPhoto, usePlanPhotoReports, usePlanPhoto
 
 type ReasonKey = keyof typeof t.plans.photos.reportReasons;
 const REASONS: ReasonKey[] = ["me", "inappropriate", "other"];
+/** Ab so vielen Pixeln seitlich gilt ein Wischen in der Großansicht als Blättern. */
+const SWIPE_THRESHOLD = 60;
 
 interface PhotosPanelProps {
   plan: PlanWithParticipants;
@@ -36,6 +38,9 @@ interface PhotosPanelProps {
  * Etappe 2a: Wer ein fremdes Foto nicht sehen will, meldet es („Melden“ in der Großansicht). Für die
  * meldende Person ist es sofort weg, für die Crew ausgeblendet, bis Organisation oder Crew-Admins
  * entscheiden („Wieder zeigen“ oder löschen). Gemeldete Fotos tragen im Raster eine gelbe Pille.
+ *
+ * Etappe 2b: Ab zwei Fotos liegen sie oben als Stapel (neuestes Foto vorn). Ein Tipp öffnet die
+ * Großansicht; dort blättert man mit Pfeilen, per Wischen oder mit den Pfeiltasten durch den Abend.
  */
 export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProps) {
   const toast = useToast();
@@ -54,6 +59,22 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState<ReasonKey | null>(null);
   const [otherText, setOtherText] = useState("");
+  const [entering, setEntering] = useState<"next" | "prev" | null>(null);
+  const [drag, setDrag] = useState(0);
+  const dragStart = useRef<number | null>(null);
+  // Pfeiltasten blättern in der Großansicht – nicht beim Melden oder Löschen und nicht in Eingabefeldern.
+  const keyStep = useRef<(dir: 1 | -1) => void>(() => undefined);
+  useEffect(() => {
+    if (openId == null) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      keyStep.current(event.key === "ArrowRight" ? 1 : -1);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openId]);
 
   if (photos.isPending) return <Skeleton className="h-28" />;
   if (photos.isError) return <ErrorState error={photos.error} onRetry={() => void photos.refetch()} />;
@@ -61,7 +82,10 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
   const list = photos.data;
   const mine = list.filter((p) => p.uploaded_by === userId).length;
   const left = photosLeft(list.length, mine);
-  const open = list.find((p) => p.id === openId) ?? null;
+  const openIndex = list.findIndex((p) => p.id === openId);
+  const open = openIndex >= 0 ? list[openIndex]! : null;
+  // Stapel: das neueste Foto vorn, dahinter die zwei davor.
+  const pile = list.length >= 2 ? list.slice(-3).reverse() : [];
   const flags = new Map((reports.data ?? []).map((r) => [r.photo_id, r]));
   const openFlag = open ? flags.get(open.id) : undefined;
   const nameOf = (photo: PlanPhotoWithUrl) => (photo.uploaded_by === userId ? t.plans.photos.you : (lookup(photo.uploaded_by)?.display_name ?? t.states.formerMember));
@@ -103,8 +127,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
     });
   }
 
-  function closeDialog() {
-    setOpenId(null);
+  function resetActions() {
     setConfirmDelete(false);
     setReporting(false);
     setReason(null);
@@ -112,6 +135,45 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
     remove.reset();
     report.reset();
     keep.reset();
+  }
+
+  function openPhoto(id: string) {
+    setEntering(null);
+    setOpenId(id);
+  }
+
+  function step(dir: 1 | -1) {
+    if (openIndex < 0 || reporting || confirmDelete) return;
+    const target = list[openIndex + dir];
+    if (!target) return;
+    resetActions();
+    setEntering(dir === 1 ? "next" : "prev");
+    setOpenId(target.id);
+  }
+  keyStep.current = step;
+
+  function onPointerDown(e: PointerEvent<HTMLDivElement>) {
+    if (list.length < 2 || reporting || (e.pointerType === "mouse" && e.button !== 0)) return;
+    dragStart.current = e.clientX;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function onPointerMove(e: PointerEvent<HTMLDivElement>) {
+    if (dragStart.current != null) setDrag(e.clientX - dragStart.current);
+  }
+  // Die Strecke kommt aus dem Ereignis selbst – der letzte Stand von `drag` kann beim Loslassen noch fehlen.
+  function onPointerUp(e: PointerEvent<HTMLDivElement>) {
+    if (dragStart.current == null) return;
+    const moved = e.type === "pointercancel" ? 0 : e.clientX - dragStart.current;
+    dragStart.current = null;
+    setDrag(0);
+    if (moved < -SWIPE_THRESHOLD) step(1);
+    else if (moved > SWIPE_THRESHOLD) step(-1);
+  }
+
+  function closeDialog() {
+    setOpenId(null);
+    setEntering(null);
+    resetActions();
   }
 
   const reasonText = reason === "other" ? otherText.trim() : reason ? t.plans.photos.reportReasons[reason] : "";
@@ -160,6 +222,44 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
         )}
       </div>
 
+      {pile.length > 0 && (
+        <div className="overflow-x-clip px-[16%] pt-2 pb-4 sm:px-[22%]">
+          <button
+            type="button"
+            onClick={() => openPhoto(pile[0]!.id)}
+            aria-label={t.plans.photos.stack(list.length)}
+            data-testid="photo-stack"
+            className="photo-stack relative block aspect-[4/3] w-full rounded-[22px] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime"
+          >
+            {pile
+              .map((photo, layer) => (
+                <span
+                  key={photo.id}
+                  aria-hidden
+                  data-layer={layer}
+                  className={cn(
+                    "photo-layer absolute inset-0 overflow-hidden rounded-[22px] border bg-raised",
+                    layer === 0 ? "border-white/20 shadow-[0_24px_50px_-24px_rgb(0_0_0/0.9)]" : "border-white/10 shadow-[0_16px_34px_-20px_rgb(0_0_0/0.8)]",
+                  )}
+                >
+                  {photo.url ? (
+                    <img src={photo.url} alt="" loading="lazy" decoding="async" width={photo.width} height={photo.height} className={cn("size-full object-cover", layer > 0 && "opacity-60")} />
+                  ) : (
+                    <span className="grid size-full place-items-center text-xs text-faint">{t.plans.photos.missing}</span>
+                  )}
+                  {layer === 0 && (
+                    <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-linear-to-t from-black/75 via-black/30 to-transparent px-3.5 pt-10 pb-3 text-left">
+                      <span className="display shrink-0 whitespace-nowrap text-[17px] leading-none text-fg">{t.plans.photos.count(list.length)}</span>
+                      <span className="min-w-0 text-right text-[12px] font-semibold leading-tight text-fg/80">{t.plans.photos.stackHint}</span>
+                    </span>
+                  )}
+                </span>
+              ))
+              .reverse()}
+          </button>
+        </div>
+      )}
+
       {list.length === 0 ? (
         <p className="text-[15px] text-muted">{t.plans.photos.empty}</p>
       ) : (
@@ -168,7 +268,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
             <li key={photo.id} data-testid="plan-photo" data-flagged={flags.has(photo.id) || undefined} className="relative">
               <button
                 type="button"
-                onClick={() => setOpenId(photo.id)}
+                onClick={() => openPhoto(photo.id)}
                 aria-label={t.plans.photos.open(nameOf(photo))}
                 className="block aspect-square w-full overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
               >
@@ -254,10 +354,47 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
       >
         {open && (
           <div className="space-y-3">
-            {open.url ? (
-              <img src={open.url} alt={t.plans.photos.alt(nameOf(open))} width={open.width} height={open.height} className={cn("mx-auto max-h-[62dvh] w-auto max-w-full rounded-[16px] object-contain")} />
-            ) : (
-              <p className="text-[15px] text-muted">{t.plans.photos.missing}</p>
+            <div
+              key={open.id}
+              data-testid="photo-view"
+              className={cn("photo-view select-none", entering && `is-entering-${entering}`)}
+              style={drag ? { transform: `translateX(${drag}px) rotate(${drag / 40}deg)` } : undefined}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+            >
+              {open.url ? (
+                <img
+                  src={open.url}
+                  alt={t.plans.photos.alt(nameOf(open))}
+                  width={open.width}
+                  height={open.height}
+                  draggable={false}
+                  className="mx-auto max-h-[56dvh] w-auto max-w-full rounded-[16px] object-contain"
+                />
+              ) : (
+                <p className="text-[15px] text-muted">{t.plans.photos.missing}</p>
+              )}
+            </div>
+            {list.length > 1 && !reporting && (
+              <div className="flex items-center justify-between gap-3">
+                <IconButton label={t.plans.photos.previous} variant="secondary" onClick={() => step(-1)} disabled={openIndex <= 0 || confirmDelete}>
+                  <IconBack className="size-5" aria-hidden />
+                </IconButton>
+                <p className="text-center text-[13px] text-muted">
+                  <span className="font-display text-[15px] font-bold text-fg" data-testid="photo-position">
+                    {t.plans.photos.position(openIndex + 1, list.length)}
+                  </span>
+                  <span className="ml-2 hidden sm:inline">{t.plans.photos.swipeHint}</span>
+                  <span className="sr-only" aria-live="polite">
+                    {t.plans.photos.positionLabel(openIndex + 1, list.length, nameOf(open))}
+                  </span>
+                </p>
+                <IconButton label={t.plans.photos.next} variant="secondary" onClick={() => step(1)} disabled={openIndex >= list.length - 1 || confirmDelete}>
+                  <IconForward className="size-5" aria-hidden />
+                </IconButton>
+              </div>
             )}
             {openFlag && !reporting && (
               <div data-testid="photo-flag" className="rounded-[16px] border border-amber/40 bg-amber/[0.08] px-4 py-3 text-[14px] leading-snug text-fg">
