@@ -12,7 +12,7 @@ const tx = t.crews.recap.photos;
 
 /**
  * P10 Etappe 2c · Fotos im Crew-Rückblick: die letzten (bis zu drei) abgeschlossenen Abende mit Fotos als
- * kleine Stapel – neuestes Foto vorn, bis zu zwei gedreht dahinter, wie auf der Planseite. Ein Tipp führt zu
+ * kleine Stapel – neuestes Foto vorn (mit Zahl), bis zu zwei gedreht dahinter, wie auf der Planseite. Ein Tipp führt zu
  * „Fotos vom Abend“ des Plans. In „Euer Jahr“ nur Abende des Jahres. Gemeldete Fotos fehlen (Server).
  * Nicht im Rückblick-Bild zum Teilen – das bleibt bei Zahlen.
  */
@@ -66,6 +66,11 @@ export function RecapPhotos({ crewId, year }: { crewId: string; year: number | n
                             {photo.url && (
                               <img src={photo.url} alt="" loading="lazy" decoding="async" width={photo.width} height={photo.height} className={cn("size-full object-cover", layer > 0 && "opacity-60")} />
                             )}
+                            {layer === 0 && (
+                              <span className="absolute right-1.5 bottom-1.5 rounded-full border border-white/15 bg-black/65 px-2 py-0.5 text-[11px] font-bold leading-tight whitespace-nowrap text-fg backdrop-blur-sm">
+                                {tx.count(stack.count)}
+                              </span>
+                            )}
                           </span>
                         ))
                         .reverse()}
@@ -75,7 +80,7 @@ export function RecapPhotos({ crewId, year }: { crewId: string; year: number | n
                     {stack.title}
                   </span>
                   <span aria-hidden className="mt-0.5 block truncate text-[12px] leading-tight text-muted">
-                    {date} · {tx.count(stack.count)}
+                    {date}
                   </span>
                 </Link>
               </li>
