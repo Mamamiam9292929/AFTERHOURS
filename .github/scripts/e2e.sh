@@ -34,7 +34,7 @@ setup() {
   wait_for "Push-Stellvertreter" 15 curl -sf http://127.0.0.1:8091/health
 
   # 2. Supabase ohne Dienste, die die Journey nicht braucht.
-  supabase start -x studio,imgproxy,storage-api,logflare,vector,supavisor,postgres-meta
+  supabase start -x studio,imgproxy,logflare,vector,supavisor,postgres-meta
   status_env=$(mktemp)  # enthält Schlüssel – nicht ins Artefakt
   supabase status -o env >"$status_env"
   anon=$(grep -E '^ANON_KEY=' "$status_env" | cut -d= -f2- | tr -d '"')
