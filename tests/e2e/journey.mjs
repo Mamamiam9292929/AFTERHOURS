@@ -1961,6 +1961,7 @@ await step("P10 – Fotos vom Abend: hochladen ohne Metadaten, ansehen, löschen
   check((await dialog(bob).getByRole("button", { name: "Foto löschen" }).count()) === 1, "beim eigenen Foto erscheint „Foto löschen“");
   // Wischen nach rechts = zurück.
   const view = dialog(bob).getByTestId("photo-view");
+  await b.waitForTimeout(500); // Blätter-Animation abwarten, damit die Lage des Fotos feststeht
   const box = await view.boundingBox();
   if (box) {
     const y = box.y + box.height / 2;

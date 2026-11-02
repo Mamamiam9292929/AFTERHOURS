@@ -160,9 +160,10 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
     if (dragStart.current != null) setDrag(e.clientX - dragStart.current);
   }
-  function onPointerUp() {
+  // Die Strecke kommt aus dem Ereignis selbst – der letzte Stand von `drag` kann beim Loslassen noch fehlen.
+  function onPointerUp(e: PointerEvent<HTMLDivElement>) {
     if (dragStart.current == null) return;
-    const moved = drag;
+    const moved = e.type === "pointercancel" ? 0 : e.clientX - dragStart.current;
     dragStart.current = null;
     setDrag(0);
     if (moved < -SWIPE_THRESHOLD) step(1);
