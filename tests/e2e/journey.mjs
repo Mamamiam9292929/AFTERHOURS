@@ -1860,6 +1860,98 @@ await step("P3 – Kosten aufteilen: wer hat was ausgelegt, wer gibt wem", async
   check(true, "Bob sieht seinen ungleichen Anteil im Stand: gibt 28 €");
 });
 
+await step("P10 – Fotos vom Abend: hochladen ohne Metadaten, ansehen, löschen (Alice, Bob)", async () => {
+  const sql = (q) => execFileSync("psql", [DB_URL, "-Atqc", q]).toString().trim();
+  const { page } = alice;
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  const panel = page.locator("section#fotos");
+  await panel.getByRole("heading", { name: "Fotos vom Abend" }).waitFor();
+  check((await panel.getAttribute("data-tone")) === "pink", "Fotos als Glas-Karte mit eigenem Schein");
+  await panel.getByText("Noch keine Fotos.").waitFor();
+  check(await panel.getByText("Nur eure Crew sieht die Fotos.", { exact: false }).isVisible(), "Hinweis: nur die Crew, Aufnahmeort fällt weg");
+
+  // Testfoto 2400 × 1800 als JPEG mit EXIF-Block, der einen erkennbaren Standort trägt.
+  const base = Buffer.from(
+    await page.evaluate(() => {
+      const c = document.createElement("canvas");
+      c.width = 2400;
+      c.height = 1800;
+      const x = c.getContext("2d");
+      const g = x.createLinearGradient(0, 0, 2400, 1800);
+      g.addColorStop(0, "#c6ff3d");
+      g.addColorStop(1, "#7b5cff");
+      x.fillStyle = g;
+      x.fillRect(0, 0, 2400, 1800);
+      return c.toDataURL("image/jpeg", 0.9).split(",")[1];
+    }),
+    "base64",
+  );
+  const marker = "AFTERHOURS-GPS-52.5200N-13.4050E";
+  const exif = Buffer.concat([Buffer.from("Exif\0\0", "binary"), Buffer.from([0x49, 0x49, 0x2a, 0x00, 0x08, 0, 0, 0, 0, 0, 0, 0, 0, 0]), Buffer.from(marker)]);
+  const app1 = Buffer.concat([Buffer.from([0xff, 0xe1, (exif.length + 2) >> 8, (exif.length + 2) & 0xff]), exif]);
+  const photo = Buffer.concat([base.subarray(0, 2), app1, base.subarray(2)]);
+  check(photo.includes(marker), "Testfoto trägt einen Standort in den Metadaten");
+
+  // Ein Foto und ein PDF: das PDF wird abgewiesen, das Foto trotzdem geteilt.
+  await panel.getByTestId("photos-input").setInputFiles([
+    { name: "abend.jpg", mimeType: "image/jpeg", buffer: photo },
+    { name: "notiz.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
+  ]);
+  await toast(alice, "Foto geteilt.");
+  await panel.getByTestId("plan-photo").first().waitFor();
+  check(await panel.getByText("Dieses Foto lässt sich nicht hochladen. Versuch ein anderes.").isVisible(), "Nicht-Bild wird mit verständlicher Meldung abgewiesen");
+  check((await panel.getByTestId("photos-count").innerText()).trim() === "1 Foto", "Zähler: 1 Foto");
+  check(await panel.getByText("Du kannst noch 9 Fotos teilen.").isVisible(), "Alice sieht, wie viele Fotos sie noch teilen kann");
+  const row = sql(`select width || 'x' || height || ' ' || path from public.plan_photos where plan_id = '${ids.plan}'`);
+  check(row.startsWith("1600x1200 ") && row.endsWith(".webp"), `auf 1600 × 1200 verkleinert und als WebP gespeichert (${row.split(" ")[0]})`);
+  const src = await panel.getByTestId("plan-photo").first().locator("img").getAttribute("src");
+  const stored = Buffer.from(await (await fetch(src)).arrayBuffer());
+  check(stored.subarray(0, 4).toString() === "RIFF" && stored.subarray(8, 12).toString() === "WEBP", "gespeicherte Datei ist ein WebP");
+  check(!stored.includes(marker) && !stored.includes("Exif"), "Standort und EXIF sind nicht mitgekommen");
+  check(stored.length < 2 * 1024 * 1024, `Datei unter 2 MB (${Math.round(stored.length / 1024)} kB)`);
+  await noOverflow(alice, "Fotos vom Abend");
+  await a11y(alice, "fotos");
+  await panel.scrollIntoViewIfNeeded();
+  await shot(alice, "17c-fotos");
+
+  // Ohne Anmeldung kein Zugriff auf die Datei.
+  const path = row.split(" ")[1];
+  if (ANON) {
+    const anon = await fetch(`${API}/storage/v1/object/authenticated/plan-photos/${path}`, { headers: { apikey: ANON, Authorization: `Bearer ${ANON}` } });
+    check(anon.status >= 400, `ohne Anmeldung keine Datei (${anon.status})`);
+  }
+
+  // Bob sieht das Foto groß, kann es aber nicht löschen; er teilt selbst eins.
+  const b = bob.page;
+  await b.goto(`${APP}/plans/${ids.plan}`);
+  const bobPanel = b.locator("section#fotos");
+  await bobPanel.getByRole("button", { name: "Foto von Alice ansehen" }).click();
+  const big = dialog(bob).getByRole("img", { name: "Foto von Alice vom Abend" });
+  await big.waitFor();
+  check(await big.evaluate((img) => img.decode().then(() => img.naturalWidth === 1600, () => false)), "Bob sieht das Foto in voller Größe");
+  check((await dialog(bob).getByRole("button", { name: "Foto löschen" }).count()) === 0, "Bob kann Alices Foto nicht löschen");
+  await noOverflow(bob, "Foto groß");
+  await shot(bob, "17c-foto-gross");
+  await dialog(bob).getByRole("button", { name: "Schließen" }).first().click();
+  await bobPanel.getByTestId("photos-input").setInputFiles({ name: "bob.png", mimeType: "image/png", buffer: PNG });
+  await toast(bob, "Foto geteilt.");
+  await bobPanel.getByTestId("plan-photo").nth(1).waitFor();
+  check(true, "Bob teilt ein Foto");
+  await noOverflow(bob, "Fotos vom Abend");
+  ids.bobPhotoPath = sql(`select path from public.plan_photos where plan_id = '${ids.plan}' and uploaded_by = (select id from auth.users where email = '${bob.email}')`);
+
+  // Alice löscht ihr Foto: Zeile und Datei sind weg, Bobs Foto bleibt.
+  await page.reload();
+  await panel.getByRole("button", { name: "Foto von dir ansehen" }).click();
+  await dialog(alice).getByRole("button", { name: "Foto löschen" }).click();
+  await dialog(alice).getByText("Das Foto verschwindet für die ganze Crew.").waitFor();
+  await dialog(alice).getByRole("button", { name: "Endgültig löschen" }).click();
+  await toast(alice, "Foto gelöscht.");
+  await panel.getByRole("button", { name: "Foto von dir ansehen" }).waitFor({ state: "detached" });
+  check((await panel.getByTestId("plan-photo").count()) === 1, "Bobs Foto bleibt");
+  check(sql(`select count(*) from storage.objects where bucket_id = 'plan-photos' and name = '${path}'`) === "0", "Alices Datei ist aus dem Speicher gelöscht");
+});
+
 await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await bob.page.goto(`${APP}/crews/${ids.crew}`);
   await bob.page.getByRole("tab", { name: "Chat" }).click();
@@ -2744,6 +2836,21 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   check((await rows("profiles")).length === 1, "API: nur das eigene Profil lesbar");
   check((await rows("notifications")).every((n) => n.type !== "poll_created"), "API: keine fremden Benachrichtigungen lesbar");
   check((await rows("reward_transactions")).length === 0, "API: keine fremden Punkte lesbar");
+  // P10: Fotos der fremden Crew – weder Zeilen noch Dateien noch Upload.
+  check((await rows("plan_photos")).length === 0, "API: keine fremden Fotos lesbar");
+  if (ids.bobPhotoPath) {
+    const mt = await token(mallory);
+    const file = await fetch(`${API}/storage/v1/object/authenticated/plan-photos/${ids.bobPhotoPath}`, { headers: { apikey: ANON, Authorization: `Bearer ${mt}` } });
+    check(file.status >= 400, `Speicher: fremdes Foto nicht abrufbar (${file.status})`);
+    const sign = await fetch(`${API}/storage/v1/object/sign/plan-photos/${ids.bobPhotoPath}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${mt}`, "Content-Type": "application/json" }, body: JSON.stringify({ expiresIn: 60 }) });
+    check(sign.status >= 400, `Speicher: keine signierte Adresse für fremdes Foto (${sign.status})`);
+    const over = await fetch(`${API}/storage/v1/object/plan-photos/${ids.bobPhotoPath}`, { method: "PUT", headers: { apikey: ANON, Authorization: `Bearer ${mt}`, "Content-Type": "image/webp", "x-upsert": "true" }, body: PNG });
+    check(over.status >= 400, `Speicher: fremdes Foto nicht überschreibbar (${over.status})`);
+    const del = await fetch(`${API}/storage/v1/object/plan-photos`, { method: "DELETE", headers: { apikey: ANON, Authorization: `Bearer ${mt}`, "Content-Type": "application/json" }, body: JSON.stringify({ prefixes: [ids.bobPhotoPath] }) });
+    const deleted = del.ok ? await del.json() : [];
+    check(Array.isArray(deleted) && deleted.length === 0, "Speicher: fremdes Foto nicht löschbar");
+  }
+  check((await api(mallory, "POST", "rpc/reserve_plan_photo", { p_plan_id: ids.plan, p_width: 800, p_height: 600 })).status === 403, "API: kein Foto-Platz in fremdem Plan");
 
   const option = (await api(alice, "GET", `poll_options?select=id&poll_id=eq.${ids.poll}&limit=1`)).json[0].id;
   check((await api(mallory, "POST", "rpc/cast_vote", { p_option_id: option, p_response: "yes" })).status === 403, "API: fremde Abstimmung – Stimme wird abgewiesen (403)");
