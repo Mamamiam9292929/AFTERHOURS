@@ -106,6 +106,11 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       ? "Es ist dein Foto: Für die Crew ist es ausgeblendet, bis jemand anderes entscheidet. Löschen kannst du es jederzeit."
       : "Für die Crew ausgeblendet, bis du entscheidest: wieder zeigen oder löschen.",
   }),
+  // P16: Am Morgen nach dem Abend einmal, ohne auslösende Person – nur „gestern“, wenn es stimmt.
+  plan_photo_nudge: (_actor, p) => ({
+    title: p.yesterday ? "Fotos von gestern? Teilt sie mit der Crew" : "Fotos vom Abend? Teilt sie mit der Crew",
+    body: str(p, "title"),
+  }),
   // P4 Etappe 2: Am Tag des Plans einmal, ohne auslösende Person; die Frage nur, solange die Zusage fehlt.
   plan_day_reminder: (_actor, p) => ({
     title: str(p, "starts_at") ? `Heute ${formatTime(str(p, "starts_at"))}: ${str(p, "title")}` : `Heute: ${str(p, "title")}`,
@@ -248,6 +253,7 @@ export const settings = {
       results: { title: "Ergebnisse", body: "Wenn eine Abstimmung endet." },
       plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten und Absagen." },
       dayReminders: { title: "Am Tag des Plans", body: "Morgens einmal „Heute 20:00 Uhr: Bowling“ – außer du hast abgesagt." },
+      photoNudges: { title: "Fotos vom Abend", body: "Am Morgen danach einmal, wenn du dabei warst und noch kaum Fotos geteilt sind." },
       bookings: { title: "Reservierungen", body: "Wenn sich der Stand einer Reservierung ändert." },
       rides: { title: "Mitfahrten", body: "Anfragen und Zusagen für Fahrgemeinschaften." },
       costs: { title: "Kosten teilen", body: "Neue Ausgaben, an denen du beteiligt bist, und Rückzahlungen." },
