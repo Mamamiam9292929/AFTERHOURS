@@ -103,7 +103,7 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
         </Section>
       )}
       <CrewBalances crewId={crew.id} userId={user.id} plans={crewPlans} />
-      <CrewRecap plans={crewPlans} />
+      <CrewRecap crewId={crew.id} plans={crewPlans} />
       {past.length > 0 && (
         <Section title={t.crews.detail.pastPlans}>
           <div className="grid gap-5 lg:grid-cols-2">

@@ -183,3 +183,24 @@ export function crewYearRecap(plans: readonly RecapPlan[], year: number): CrewRe
   // Mitte Dezember als „jetzt“: Die letzten zwölf Monate sind dann genau Januar bis Dezember.
   return crewRecap(inYear, new Date(Date.UTC(year, 11, 15, 12)));
 }
+
+/** P10 Etappe 2c · Ein Abend mit Fotos, wie `crew_photo_stacks` ihn liefert (jüngster zuerst). */
+export interface RecapPhotoStack {
+  plan_id: string;
+  title: string;
+  starts_at: string;
+  /** Zahl der Fotos, die die Person sehen darf */
+  count: number;
+  /** die drei neuesten, neuestes zuerst */
+  photos: { id: string; path: string; width: number; height: number }[];
+}
+
+/**
+ * Welche Stapel der Rückblick zeigt: „Insgesamt“ die jüngsten, im Jahr nur Abende dieses Jahres (Berliner Zeit),
+ * höchstens `limit`. Abende ohne Fotos fallen weg (z. B. wenn ein Foto inzwischen gelöscht ist).
+ */
+export function recapPhotoStacks<T extends RecapPhotoStack>(stacks: readonly T[], year: number | null, limit = 3): T[] {
+  return stacks
+    .filter((s) => s.count > 0 && s.photos.length > 0 && (year === null || berlinYear(s.starts_at) === year))
+    .slice(0, limit);
+}

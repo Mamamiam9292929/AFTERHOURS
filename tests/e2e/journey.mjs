@@ -2057,7 +2057,9 @@ await step("P10 Etappe 3 – Fotos aufräumen: gelöschter Plan und Fotos nach 1
   await page.goto(`${APP}/plans/${ids.plan}`);
   const panel = page.locator("section#fotos");
   await panel.getByRole("heading", { name: "Fotos vom Abend" }).waitFor();
-  check(await panel.getByText("12 Monate nach dem Abend löscht die App die Fotos von selbst.", { exact: false }).isVisible(), "Hinweis auf die Löschfrist bei den Fotos");
+  // Der Hinweis steht erst da, wenn die Fotos geladen sind (vorher Platzhalter) – also warten statt sofort prüfen.
+  await panel.getByText("12 Monate nach dem Abend löscht die App die Fotos von selbst.", { exact: false }).waitFor();
+  check(true, "Hinweis auf die Löschfrist bei den Fotos");
 
   // Zwei weitere Abende der Crew: einer vor 13 Monaten, einer von gestern (wird gleich gelöscht).
   const aliceId = sql(`select id from auth.users where email = '${alice.email}'`);
@@ -2214,6 +2216,52 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     if (SHOTS) await yearSaved.saveAs(path.join(SHOTS, "21f-euer-jahr-bild.png"));
     await recapView.getByRole("button", { name: "Insgesamt" }).click();
     check((await bobRecap.getByTestId("recap-heading").innerText()).trim().toLowerCase() === "alle eure abende", "Rückblick: zurück zu „Insgesamt“");
+
+    // P10 Etappe 2c – Fotos im Rückblick: Bobs Foto vom abgeschlossenen Abend liegt als kleiner Stapel darunter.
+    const recapPhotos = bobRecap.getByTestId("recap-photos");
+    await recapPhotos.getByRole("heading", { name: "Eure Fotos" }).waitFor();
+    const recapStack = recapPhotos.getByTestId("recap-photo-stack");
+    await recapStack.first().waitFor();
+    check((await recapStack.count()) === 1, "Rückblick: ein Abend mit Fotos als Stapel");
+    const stackLabel = (await recapStack.getAttribute("aria-label")) ?? "";
+    check(/^1 Foto von „.+“, .+ – ansehen$/.test(stackLabel), `Rückblick: Stapel mit Zahl, Abend und Datum („${stackLabel}“)`);
+    check(await recapStack.locator("img").first().evaluate((img) => img.decode().then(() => img.naturalWidth > 0, () => false)), "Rückblick: Foto geladen (signierte Adresse)");
+    await recapStack.scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Rückblick mit Fotos");
+    await a11y(bob, "rueckblick-fotos");
+    await shot(bob, "21g-rueckblick-fotos");
+    // Jahresansicht: der Abend liegt im Jahr, also bleibt der Stapel.
+    await recapView.getByRole("button", { name: String(recapYear) }).click();
+    check((await recapPhotos.getByTestId("recap-photo-stack").count()) === 1, "Euer Jahr: Stapel des Abends im Jahr");
+    await recapView.getByRole("button", { name: "Insgesamt" }).click();
+
+    // Carol hat Bobs Foto gemeldet (P10 Etappe 2a) – im Rückblick fehlt es für sie auch nach „Wieder zeigen“.
+    // Erst der Fehlerzustand (Server antwortet nicht), dann nach „Erneut versuchen“ der leere Zustand.
+    const c = carol.page;
+    await c.route("**/rest/v1/rpc/crew_photo_stacks", (route) =>
+      route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ code: "42501", message: "forbidden" }) }),
+    );
+    await c.goto(`${APP}/crews/${ids.crew}`);
+    const carolPhotos = c.getByTestId("crew-recap").getByTestId("recap-photos");
+    await carolPhotos.getByText("Die Fotos lassen sich gerade nicht laden.").waitFor();
+    check((await carolPhotos.getAttribute("data-state")) === "error", "Rückblick-Fotos: Fehlerzustand mit „Erneut versuchen“");
+    await c.unroute("**/rest/v1/rpc/crew_photo_stacks");
+    await carolPhotos.getByRole("button", { name: "Erneut versuchen" }).click();
+    await carolPhotos.getByText("Teilt Fotos auf der Planseite", { exact: false }).waitFor();
+    check((await carolPhotos.getByTestId("recap-photo-stack").count()) === 0, "Carol sieht das selbst gemeldete Foto nicht im Rückblick (leerer Zustand)");
+    await carolPhotos.scrollIntoViewIfNeeded();
+    await noOverflow(carol, "Rückblick ohne Fotos");
+    await shot(carol, "21h-rueckblick-fotos-leer");
+
+    // Tipp auf den Stapel führt zu „Fotos vom Abend“ des Plans.
+    await recapStack.click();
+    await bob.page.waitForURL(`**/plans/${ids.plan}#fotos`);
+    await bob.page.locator("section#fotos").getByTestId("plan-photo").first().waitFor();
+    await bob.page.waitForFunction(() => {
+      const top = document.getElementById("fotos")?.getBoundingClientRect().top;
+      return top != null && top >= -2 && top < window.innerHeight - 40;
+    }, null, { timeout: 5000 });
+    check(true, "Tipp auf den Stapel springt zu „Fotos vom Abend“");
   } else {
     check((await alice.page.getByTestId("crew-recap").count()) === 0, "ohne abgeschlossenen Plan kein Rückblick");
   }
