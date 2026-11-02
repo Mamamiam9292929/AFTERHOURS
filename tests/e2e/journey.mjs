@@ -1706,7 +1706,7 @@ await step("P14 – Wer bringt was? Mitbring-Liste auf der Planseite (Alice, Bob
   }
 });
 
-await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Carol, Mallory)", async () => {
+await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Carol)", async () => {
   if (!DB_URL) {
     console.log("   (E2E_DB_URL nicht gesetzt – Live-Standort wird übersprungen)");
     return;
@@ -1734,7 +1734,7 @@ await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Car
 
     // Eine halbe Stunde vor Beginn: Teilen geht. Alice steht am Alexanderplatz.
     sql(`update public.plans set starts_at = now() + interval '30 minutes' where id = '${ids.plan}'`);
-    await page.context().grantPermissions(["geolocation"], { origin: APP });
+    await page.context().grantPermissions(["geolocation"]);
     await page.context().setGeolocation({ latitude: 52.52186, longitude: 13.41321, accuracy: 15 });
     await page.reload();
     await panel.getByText("Noch teilt niemand aus der Crew seinen Standort.").waitFor();
@@ -1751,7 +1751,7 @@ await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Car
     check(minutes >= 178 && minutes <= 180, `P13: Freigabe gilt höchstens 3 Stunden (${minutes} min)`);
 
     // Bob („vielleicht“) steht 300 m weiter am Fernsehturm und sieht Alice.
-    await bob.page.context().grantPermissions(["geolocation"], { origin: APP });
+    await bob.page.context().grantPermissions(["geolocation"]);
     await bob.page.context().setGeolocation({ latitude: 52.52082, longitude: 13.40942, accuracy: 20 });
     await bob.page.goto(`${APP}/plans/${ids.plan}`);
     const bobPanel = bob.page.locator("section#live");
@@ -1778,9 +1778,6 @@ await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Car
       check(((await api(carol, "GET", `plan_live_locations?plan_id=eq.${ids.plan}&select=user_id`)).json ?? []).length === 0, "API: Carol liest keine Positionen");
       const carolShare = await api(carol, "POST", "rpc/share_plan_live_location", { p_plan_id: ids.plan, p_latitude: 52.5, p_longitude: 13.4 });
       check(carolShare.status === 400 && /live_location_not_going/.test(JSON.stringify(carolShare.json)), `API: Carol kann nicht teilen (${carolShare.status})`);
-      check(((await api(mallory, "GET", `plan_live_locations?plan_id=eq.${ids.plan}&select=user_id`)).json ?? []).length === 0, "API: Mallory liest keine Positionen");
-      const malloryShare = await api(mallory, "POST", "rpc/share_plan_live_location", { p_plan_id: ids.plan, p_latitude: 52.5, p_longitude: 13.4 });
-      check(malloryShare.status === 403, `API: Mallory teilt nicht bei fremden Plänen (${malloryShare.status})`);
       check((await api(bob, "PATCH", `plan_live_locations?plan_id=eq.${ids.plan}`, { expires_at: "2099-01-01T00:00:00Z" })).status === 403, "API: Frist nicht direkt verlängerbar (403)");
       const anon = await api(null, "GET", `plan_live_locations?select=user_id`);
       check(anon.status >= 400 || (Array.isArray(anon.json) && anon.json.length === 0), `API: ohne Anmeldung nichts (${anon.status})`);
@@ -1806,7 +1803,11 @@ await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Car
       const [userId, status] = row.split("=");
       sql(`update public.plan_participants set attendance_status = '${status}' where plan_id = '${ids.plan}' and user_id = '${userId}'`);
     }
-    for (const user of [alice, bob]) await user.page.context().clearPermissions();
+    // Seiten verlassen, bevor die Freigabe im Browser endet – sonst meldet die laufende Beobachtung „nicht freigegeben“.
+    for (const user of [alice, bob]) {
+      await user.page.goto(`${APP}/plans/${ids.plan}`).catch(() => {});
+      await user.page.context().clearPermissions();
+    }
   }
 });
 
@@ -3204,6 +3205,10 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
     check(Array.isArray(deleted) && deleted.length === 0, "Speicher: fremdes Foto nicht löschbar");
   }
   check((await api(mallory, "POST", "rpc/reserve_plan_photo", { p_plan_id: ids.plan, p_width: 800, p_height: 600 })).status === 403, "API: kein Foto-Platz in fremdem Plan");
+  // P13: Live-Standorte fremder Pläne – weder lesen noch teilen.
+  check((await rows("plan_live_locations")).length === 0, "API: keine fremden Live-Standorte lesbar");
+  const liveShare = await api(mallory, "POST", "rpc/share_plan_live_location", { p_plan_id: ids.plan, p_latitude: 52.5, p_longitude: 13.4 });
+  check(liveShare.status === 403, `API: kein Live-Standort in fremdem Plan (${liveShare.status})`);
 
   const option = (await api(alice, "GET", `poll_options?select=id&poll_id=eq.${ids.poll}&limit=1`)).json[0].id;
   check((await api(mallory, "POST", "rpc/cast_vote", { p_option_id: option, p_response: "yes" })).status === 403, "API: fremde Abstimmung – Stimme wird abgewiesen (403)");
