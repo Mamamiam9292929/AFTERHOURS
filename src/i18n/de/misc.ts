@@ -99,6 +99,13 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       ? { title: `Bei „${title}“ bekommst du noch ${formatEuro(balance)}`, body: "Schon zurückbekommen? Dann tippe bei „Kosten teilen“ auf „Erledigt“." }
       : { title: `Bei „${title}“ sind von dir noch ${formatEuro(-balance)} offen`, body: "Schon erledigt? Dann tippe bei „Kosten teilen“ auf „Erledigt“." };
   },
+  // P10 Etappe 2a: Ein Foto wurde gemeldet – an Organisation und Crew-Admins, ohne Namen der meldenden Person.
+  plan_photo_reported: (_actor, p) => ({
+    title: `Foto bei „${str(p, "title", "eurem Abend")}“ gemeldet`,
+    body: p.own
+      ? "Es ist dein Foto: Für die Crew ist es ausgeblendet, bis jemand anderes entscheidet. Löschen kannst du es jederzeit."
+      : "Für die Crew ausgeblendet, bis du entscheidest: wieder zeigen oder löschen.",
+  }),
   // P4 Etappe 2: Am Tag des Plans einmal, ohne auslösende Person; die Frage nur, solange die Zusage fehlt.
   plan_day_reminder: (_actor, p) => ({
     title: str(p, "starts_at") ? `Heute ${formatTime(str(p, "starts_at"))}: ${str(p, "title")}` : `Heute: ${str(p, "title")}`,
@@ -351,7 +358,7 @@ export const privacy = {
         "Profil: Anzeigename, optional Profilbild, Stadt und Interessen.",
         "Aktivität: Crews, Nachrichten im Crew-Chat, Abstimmungen, Stimmen, Pläne, Zusagen, Reservierungsvermerke, Mitfahrten, Punkte und Benachrichtigungen.",
         "Einstellungen: Budget, Entfernung, Benachrichtigungen und deine Wahl zur Standortfreigabe.",
-        "Fotos zum Plan (nur wenn du welche teilst): das verkleinerte Foto – ohne Aufnahmeort, Kamera und Uhrzeit, die nimmt die App vorher heraus – sowie wer es wann geteilt hat. Sehen kann es nur die Crew des Plans. Du kannst deine Fotos jederzeit löschen; löschst du dein Konto, sind sie für niemanden mehr sichtbar.",
+        "Fotos zum Plan (nur wenn du welche teilst): das verkleinerte Foto – ohne Aufnahmeort, Kamera und Uhrzeit, die nimmt die App vorher heraus – sowie wer es wann geteilt hat. Sehen kann es nur die Crew des Plans. Du kannst deine Fotos jederzeit löschen; löschst du dein Konto, sind sie für niemanden mehr sichtbar. Meldest du ein Foto, speichern wir den Grund; Organisation und Crew-Admins sehen ihn ohne deinen Namen.",
         "Push-Mitteilungen (nur wenn du sie einschaltest): je Gerät die Adresse beim Push-Dienst deines Browsers, zwei öffentliche Schlüssel zum Verschlüsseln und ein Gerätename wie „Chrome auf Android“.",
       ],
     },

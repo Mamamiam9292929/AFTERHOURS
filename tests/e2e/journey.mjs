@@ -1952,6 +1952,63 @@ await step("P10 – Fotos vom Abend: hochladen ohne Metadaten, ansehen, löschen
   check(sql(`select count(*) from storage.objects where bucket_id = 'plan-photos' and name = '${path}'`) === "0", "Alices Datei ist aus dem Speicher gelöscht");
 });
 
+await step("P10 Etappe 2a – Foto melden: weg für Carol, ausgeblendet für die Crew, Alice entscheidet (Carol, Bob, Alice)", async () => {
+  const sql = (q) => execFileSync("psql", [DB_URL, "-Atqc", q]).toString().trim();
+  const c = carol.page;
+  await c.goto(`${APP}/plans/${ids.plan}`);
+  const panel = c.locator("section#fotos");
+  await panel.getByRole("button", { name: "Foto von Bob ansehen" }).click();
+  await dialog(carol).getByRole("button", { name: "Melden" }).click();
+  await dialog(carol).getByText("Warum soll das Foto weg?").waitFor();
+  const send = dialog(carol).getByRole("button", { name: "Foto melden" });
+  check(await send.isDisabled(), "ohne Grund lässt sich nicht melden");
+  check(await dialog(carol).getByText("Niemand erfährt, dass du es gemeldet hast.", { exact: false }).isVisible(), "Hinweis: anonym, für dich sofort weg");
+  await dialog(carol).getByRole("button", { name: "Ich bin drauf und will das nicht" }).click();
+  await noOverflow(carol, "Foto melden");
+  await a11y(carol, "foto-melden");
+  await shot(carol, "17d-foto-melden");
+  await send.click();
+  await toast(carol, "Gemeldet – das Foto ist für dich weg.");
+  await panel.getByRole("button", { name: "Foto von Bob ansehen" }).waitFor({ state: "detached" });
+  check(true, "für Carol ist Bobs Foto sofort weg");
+  check(sql(`select count(*) from public.reports where entity_type = 'plan_photo' and status = 'open'`) === "1", "Meldung gespeichert");
+
+  // Bob sieht sein Foto mit gelber Pille und Hinweis, ohne Grund und ohne Namen.
+  const b = bob.page;
+  await b.goto(`${APP}/plans/${ids.plan}`);
+  const bobPanel = b.locator("section#fotos");
+  await bobPanel.locator('[data-testid="plan-photo"][data-flagged]').getByText("Gemeldet").waitFor();
+  await bobPanel.getByRole("button", { name: "Foto von dir ansehen" }).click();
+  await dialog(bob).getByText("Jemand hat dein Foto gemeldet.", { exact: false }).waitFor();
+  check(!(await dialog(bob).innerText()).includes("Carol"), "Bob erfährt nicht, wer gemeldet hat");
+  check(!(await dialog(bob).innerText()).includes("Ich bin drauf"), "Bob sieht den Grund nicht");
+  await dialog(bob).getByRole("button", { name: "Schließen" }).first().click();
+
+  // Alice (Organisatorin) bekommt Bescheid, sieht den Grund und zeigt das Foto wieder.
+  const a = alice.page;
+  await a.goto(`${APP}/notifications`);
+  await a.getByText(/^Foto bei „.+“ gemeldet$/).first().click();
+  await a.waitForURL(/\/plans\/[0-9a-f-]{36}#fotos/);
+  check(true, "Benachrichtigung führt zu „Fotos vom Abend“");
+  const alicePanel = a.locator("section#fotos");
+  await alicePanel.getByRole("button", { name: "Foto von Bob ansehen" }).click();
+  const flag = dialog(alice).getByTestId("photo-flag");
+  await flag.waitFor();
+  check((await flag.innerText()).includes("„Ich bin drauf und will das nicht“"), "Alice sieht den Grund");
+  check(!(await flag.innerText()).includes("Carol"), "ohne Namen der meldenden Person");
+  await noOverflow(alice, "Gemeldetes Foto");
+  await shot(alice, "17e-foto-gemeldet");
+  await dialog(alice).getByRole("button", { name: "Wieder zeigen" }).click();
+  await toast(alice, "Das Foto ist wieder für die Crew sichtbar.");
+  check(sql(`select status from public.reports where entity_type = 'plan_photo'`) === "dismissed", "Meldung abgelehnt");
+  await b.reload();
+  await bobPanel.getByRole("button", { name: "Foto von dir ansehen" }).waitFor();
+  check((await bobPanel.locator('[data-testid="plan-photo"][data-flagged]').count()) === 0, "bei Bob keine gelbe Pille mehr");
+  await c.reload();
+  await panel.getByRole("heading", { name: "Fotos vom Abend" }).waitFor();
+  check((await panel.getByRole("button", { name: "Foto von Bob ansehen" }).count()) === 0, "für Carol bleibt das Foto weg");
+});
+
 await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   await bob.page.goto(`${APP}/crews/${ids.crew}`);
   await bob.page.getByRole("tab", { name: "Chat" }).click();

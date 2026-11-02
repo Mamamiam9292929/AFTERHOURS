@@ -28,6 +28,7 @@ const AREA: Record<string, InboxArea> = {
   ride_request: "plan",
   ride_confirmed: "plan",
   plan_day_reminder: "plan",
+  plan_photo_reported: "plan",
   reward_earned: "reward",
   plan_expense: "money",
   plan_settlement: "money",
@@ -59,6 +60,8 @@ export function inboxTone(type: string, payload: Record<string, unknown> = {}): 
   // „Diesmal aussetzen“: der Abend fällt aus, der Stammtisch läuft weiter – Gelb statt Rot.
   if (type === "plan_cancelled") return payload.skipped ? "amber" : "danger";
   if (type === "crew_member_removed") return "danger";
+  // P10: Gemeldetes Foto wartet auf eine Entscheidung – Gelb wie offene Meldungen im Admin-Bereich.
+  if (type === "plan_photo_reported") return "amber";
   if (type === "ride_confirmed" && !payload.accepted) return "danger";
   if (type === "booking_status" && (payload.status === "unavailable" || payload.status === "failed")) return "danger";
   return AREA_TONE[inboxArea(type)];

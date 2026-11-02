@@ -32,7 +32,7 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'app_private' and has_function_privilege('authenticated', p.oid, 'execute')
      and p.proname not in ('is_crew_member', 'has_crew_role', 'shares_crew_with', 'can_access_poll',
-                           'can_access_plan', 'can_access_ride_offer', 'is_admin', 'plan_photo_allowed')),
+                           'can_access_plan', 'can_access_ride_offer', 'is_admin', 'plan_photo_allowed', 'plan_photo_visible')),
   0, 'interne Funktionen sind für angemeldete Nutzer nicht ausführbar – Ausnahmen: Prüfungen für RLS-Policies (auch auf storage.objects, P10)');
 
 select is(

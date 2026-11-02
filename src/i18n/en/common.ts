@@ -176,6 +176,8 @@ export const errors = {
     plan_photo_limit: "This plan already has 50 photos. Delete a few to make room.",
     plan_photo_user_limit: "You've already shared 10 photos for this plan. Delete one to share a new one.",
     plan_photo_missing: "The photo didn't arrive. Please try again.",
+    plan_photo_own: "You can't report your own photo – just delete it.",
+    plan_photo_own_review: "Someone else with admin rights decides about your own photo. You can delete it any time.",
     invalid_expense_description: "What was it for? Please use 2 to 80 characters.",
     invalid_expense_amount: "Please enter an amount between €0.01 and €10,000.",
     invalid_expense_split: "Only crew members can pay or be included – choose at least one person.",
