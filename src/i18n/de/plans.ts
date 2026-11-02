@@ -335,6 +335,14 @@ export const plans = {
     flaggedOwnManager: "Jemand hat dein Foto gemeldet. Für die Crew ist es ausgeblendet; über dein eigenes Foto entscheidet jemand anderes mit Verwaltungsrecht. Löschen kannst du es jederzeit.",
     keep: "Wieder zeigen",
     kept: "Das Foto ist wieder für die Crew sichtbar.",
+    // P10 Etappe 2b: Stapel und Blättern
+    stack: (n: number) => `Alle ${n} Fotos durchblättern`,
+    stackHint: "Antippen und durchblättern",
+    previous: "Vorheriges Foto",
+    next: "Nächstes Foto",
+    position: (n: number, total: number) => `${n} / ${total}`,
+    positionLabel: (n: number, total: number, name: string) => `Foto ${n} von ${total}, von ${name}`,
+    swipeHint: "Wischen oder Pfeiltasten",
   },
   items: {
     title: "Wer bringt was?",

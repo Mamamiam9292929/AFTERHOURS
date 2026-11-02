@@ -723,6 +723,40 @@
   .stage-art {
     touch-action: pan-y;
   }
+  /*
+   * P10 Etappe 2b · Fotos vom Abend als Stapel: oben das neueste Foto, dahinter bis zu zwei weitere,
+   * leicht gedreht wie hingeworfene Abzüge. Beim Darüberfahren fächert der Stapel etwas auf.
+   */
+  .photo-stack .photo-layer {
+    transition: transform 0.35s var(--ease-out-soft);
+  }
+  .photo-stack .photo-layer[data-layer="1"] {
+    transform: translate(-7%, 3%) rotate(-7deg) scale(0.92);
+  }
+  .photo-stack .photo-layer[data-layer="2"] {
+    transform: translate(7%, 4%) rotate(6deg) scale(0.9);
+  }
+  .photo-stack:hover .photo-layer[data-layer="0"],
+  .photo-stack:focus-visible .photo-layer[data-layer="0"] {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+  .photo-stack:hover .photo-layer[data-layer="1"],
+  .photo-stack:focus-visible .photo-layer[data-layer="1"] {
+    transform: translate(-11%, 4%) rotate(-10deg) scale(0.92);
+  }
+  .photo-stack:hover .photo-layer[data-layer="2"],
+  .photo-stack:focus-visible .photo-layer[data-layer="2"] {
+    transform: translate(11%, 5%) rotate(9deg) scale(0.9);
+  }
+  .photo-view {
+    touch-action: pan-y;
+  }
+  .photo-view.is-entering-next {
+    animation: deck-in-next 0.36s var(--ease-out-soft) backwards;
+  }
+  .photo-view.is-entering-prev {
+    animation: deck-in-prev 0.36s var(--ease-out-soft) backwards;
+  }
   /* V2 Etappe 3l · Benachrichtigung: Schein des Bereichs (src/lib/inbox.ts); ungelesen stärker, mit Lime-Kante. */
   .inbox-card {
     --c: var(--color-violet);

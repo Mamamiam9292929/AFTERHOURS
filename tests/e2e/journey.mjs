@@ -1938,6 +1938,43 @@ await step("P10 – Fotos vom Abend: hochladen ohne Metadaten, ansehen, löschen
   await bobPanel.getByTestId("plan-photo").nth(1).waitFor();
   check(true, "Bob teilt ein Foto");
   await noOverflow(bob, "Fotos vom Abend");
+
+  // Etappe 2b: Ab zwei Fotos liegt oben ein Stapel (neuestes vorn); in der Großansicht blättern.
+  const stack = bobPanel.getByRole("button", { name: "Alle 2 Fotos durchblättern" });
+  await stack.waitFor();
+  check((await stack.locator("[data-layer]").count()) === 2, "Stapel mit beiden Fotos");
+  await noOverflow(bob, "Fotostapel");
+  await a11y(bob, "fotostapel");
+  await stack.scrollIntoViewIfNeeded();
+  await shot(bob, "17c-fotostapel");
+  await stack.click();
+  await dialog(bob).getByRole("img", { name: "Foto von dir vom Abend" }).waitFor();
+  check((await dialog(bob).getByTestId("photo-position").innerText()).trim() === "2 / 2", "Stapel öffnet das neueste Foto (2 / 2)");
+  check(await dialog(bob).getByRole("button", { name: "Nächstes Foto" }).isDisabled(), "am letzten Foto geht es nicht weiter");
+  await dialog(bob).getByRole("button", { name: "Vorheriges Foto" }).click();
+  await dialog(bob).getByRole("img", { name: "Foto von Alice vom Abend" }).waitFor();
+  check((await dialog(bob).getByTestId("photo-position").innerText()).trim() === "1 / 2", "Pfeil blättert zum Foto davor");
+  check((await dialog(bob).getByRole("button", { name: "Foto löschen" }).count()) === 0, "auch beim Blättern kein Löschen fremder Fotos");
+  await b.keyboard.press("ArrowRight");
+  await dialog(bob).getByRole("img", { name: "Foto von dir vom Abend" }).waitFor();
+  check(true, "Pfeiltaste blättert weiter");
+  check((await dialog(bob).getByRole("button", { name: "Foto löschen" }).count()) === 1, "beim eigenen Foto erscheint „Foto löschen“");
+  // Wischen nach rechts = zurück.
+  const view = dialog(bob).getByTestId("photo-view");
+  const box = await view.boundingBox();
+  if (box) {
+    const y = box.y + box.height / 2;
+    await b.mouse.move(box.x + box.width * 0.3, y);
+    await b.mouse.down();
+    await b.mouse.move(box.x + box.width * 0.3 + 60, y, { steps: 4 });
+    await b.mouse.move(box.x + box.width * 0.3 + 140, y, { steps: 4 });
+    await b.mouse.up();
+    await dialog(bob).getByRole("img", { name: "Foto von Alice vom Abend" }).waitFor();
+    check(true, "Wischen blättert zurück");
+  }
+  await noOverflow(bob, "Foto groß mit Blättern");
+  await shot(bob, "17c-foto-blaettern");
+  await dialog(bob).getByRole("button", { name: "Schließen" }).first().click();
   ids.bobPhotoPath = sql(`select path from public.plan_photos where plan_id = '${ids.plan}' and uploaded_by = (select id from auth.users where email = '${bob.email}')`);
 
   // Alice löscht ihr Foto: Zeile und Datei sind weg, Bobs Foto bleibt.
@@ -1949,6 +1986,7 @@ await step("P10 – Fotos vom Abend: hochladen ohne Metadaten, ansehen, löschen
   await toast(alice, "Foto gelöscht.");
   await panel.getByRole("button", { name: "Foto von dir ansehen" }).waitFor({ state: "detached" });
   check((await panel.getByTestId("plan-photo").count()) === 1, "Bobs Foto bleibt");
+  check((await panel.getByTestId("photo-stack").count()) === 0, "mit nur einem Foto kein Stapel");
   check(sql(`select count(*) from storage.objects where bucket_id = 'plan-photos' and name = '${path}'`) === "0", "Alices Datei ist aus dem Speicher gelöscht");
 });
 
