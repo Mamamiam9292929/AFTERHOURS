@@ -555,7 +555,7 @@ await step("Schritt 3 – Einladungslink erzeugen", async () => {
   const qrBox = await qr.boundingBox();
   const modules = Number(await qr.getAttribute("data-modules"));
   check(qrBox.width >= 200 && qrBox.width / (modules + 8) >= 4, `W9: groß genug zum Scannen (${Math.round(qrBox.width)} px, ${modules} Module)`);
-  check(await dialog(alice).getByText(/^Kamera aufs Handy halten/).isVisible(), "W9: Hinweis zum Scannen");
+  check(await dialog(alice).getByText(/^Mit der Handy-Kamera scannen/).isVisible(), "W9: Hinweis zum Scannen");
   check(qrRequests.length === 0, `W9: keine Anfrage an Dritte (${qrRequests.join(", ")})`);
   alice.page.off("request", onQrRequest);
   await shot(alice, "05b-einladung-qr");

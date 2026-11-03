@@ -186,7 +186,7 @@ export const crews = {
     qrShow: "Als QR-Code zeigen",
     qrHide: "QR-Code ausblenden",
     qrLabel: (crew: string) => `QR-Code mit dem Einladungslink für „${crew}“`,
-    qrHint: "Kamera aufs Handy halten – der Link öffnet sich direkt. Am besten mit hellem Bildschirm.",
+    qrHint: "Mit der Handy-Kamera scannen – der Link öffnet sich direkt. Am besten mit hellem Bildschirm.",
     qrTooLong: "Dieser Link ist zu lang für einen QR-Code. Kopiere oder teile ihn stattdessen.",
     another: "Weiteren Link erstellen",
     listTitle: "Einladungslinks",
