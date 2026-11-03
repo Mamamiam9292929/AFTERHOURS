@@ -7,7 +7,7 @@
  * das `t` nutzt, ausgewertet wird. Deutsche Nutzer laden nichts zusätzlich. Scheitert das Nachladen
  * (z. B. offline ohne gespeicherte Dateien), bleibt die Oberfläche deutsch statt leer.
  * F7 · Startet schlank: Sofort geladen wird nur der Kern (`deCore` bzw. `loadEnglish`). Die Texte einzelner
- * Seiten (`PageTexts`: Startseite, Punkte, Datenschutz, Admin, Assistent) lädt `loadTexts` erst mit ihrer
+ * Seiten (`PageTexts`: Startseite, Punkte, Datenschutz, Admin, Assistent, Einstellungen) lädt `loadTexts` erst mit ihrer
  * Seite – der Router startet das parallel zum Seiten-Chunk, und jede dieser Seiten wartet am Modulanfang
  * per `await loadTexts(…)`, bevor sie `t.<bereich>` liest. `t` behält den vollen Typ; ein Bereich, der
  * noch nicht geladen ist, fehlt zur Laufzeit.

@@ -154,7 +154,7 @@ export function ProfilePage() {
         }}
         icon={<IconLogout className="size-4" aria-hidden />}
       >
-        {t.settings.account.signOut}
+        {t.profile.signOut}
       </Button>
     </div>
   );

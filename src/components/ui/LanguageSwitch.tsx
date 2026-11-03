@@ -2,7 +2,7 @@ import { useState } from "react";
 import { IconGlobe } from "@/components/icons";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { saveMyLocale } from "@/features/profile/api";
-import { locale, t } from "@/i18n";
+import { locale } from "@/i18n";
 import { LANGUAGE_NAMES, LOCALES, storeLocale, type Locale } from "@/i18n/locale";
 import { cn } from "@/lib/cn";
 import { Chip } from "./Controls";
@@ -24,8 +24,11 @@ export async function switchLocale(next: Locale, persist?: (locale: Locale) => P
   window.location.reload();
 }
 
-/** Sprachnamen in ihrer eigenen Sprache – wer die aktuelle Sprache nicht liest, findet seine trotzdem. */
-export function LanguageChips({ className }: { className?: string }) {
+/**
+ * Sprachnamen in ihrer eigenen Sprache – wer die aktuelle Sprache nicht liest, findet seine trotzdem.
+ * F8 · Die Beschriftung kommt von der Seite (Einstellungs-Texte liegen nicht im Start-Bundle).
+ */
+export function LanguageChips({ label, className }: { label: string; className?: string }) {
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const choose = (option: Locale) => {
@@ -34,7 +37,7 @@ export function LanguageChips({ className }: { className?: string }) {
     void switchLocale(option, user ? saveMyLocale : undefined);
   };
   return (
-    <div role="group" aria-label={t.settings.language.label} aria-busy={busy || undefined} className={cn("flex flex-wrap gap-2", className)} data-testid="language-chips">
+    <div role="group" aria-label={label} aria-busy={busy || undefined} className={cn("flex flex-wrap gap-2", className)} data-testid="language-chips">
       {LOCALES.map((option) => (
         <Chip key={option} selected={option === locale} onToggle={() => choose(option)}>
           <span lang={option}>{LANGUAGE_NAMES[option]}</span>

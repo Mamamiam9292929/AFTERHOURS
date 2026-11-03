@@ -4,6 +4,7 @@ import { deCore } from "./core";
 import { landing } from "./landing";
 import { privacy } from "./privacy";
 import { rewards } from "./rewards";
+import { settings } from "./settings";
 
 /**
  * Deutsches Wörterbuch, vollständig. Seine Struktur ist die Vorlage für jede weitere Sprache.
@@ -17,6 +18,7 @@ export const de = {
   privacy,
   admin,
   assistant,
+  settings,
 };
 
 /** F7 · Bereiche, die nicht im Start-Bundle liegen, sondern mit ihrer Seite nachgeladen werden. */

@@ -118,7 +118,7 @@ test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deu
   const { loadEnglish, englishPageTexts } = await import("../../src/i18n/en/index.ts");
   const pageKeys = Object.keys(de).filter((key) => !(key in deCore)).sort();
   // Diese Bereiche liegen nicht im Start-Bundle – jeder neue gehört bewusst hierher (und in den Router).
-  assert.deepEqual(pageKeys, ["admin", "assistant", "landing", "privacy", "rewards"]);
+  assert.deepEqual(pageKeys, ["admin", "assistant", "landing", "privacy", "rewards", "settings"]);
   assert.deepEqual(Object.keys(germanPageTexts).sort(), pageKeys);
   assert.deepEqual(Object.keys(englishPageTexts).sort(), pageKeys);
   // Kern + nachgeladene Bereiche ergeben genau das ganze Wörterbuch.
@@ -128,4 +128,37 @@ test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deu
   const enCore = await loadEnglish();
   assert.deepEqual(Object.keys(enCore).sort(), Object.keys(deCore).sort(), "englischer Kern ohne Seitentexte");
   for (const key of pageKeys) assert.equal((await englishPageTexts[key]()).constructor, Object);
+});
+
+test("F8: Einstellungs-Texte nur dort, wo sie vorher geladen werden", async () => {
+  const { readdir, readFile } = await import("node:fs/promises");
+  const { join, relative } = await import("node:path");
+  const root = new URL("../../", import.meta.url).pathname;
+  // Jede dieser Dateien wartet vor dem ersten Lesen auf `loadTexts("settings")` – bzw. nutzt nur den Typ.
+  const allowed = new Map([
+    ["src/features/profile/SettingsPage.tsx", "await loadTexts(\"settings\")"],
+    ["src/features/onboarding/OnboardingPage.tsx", "await loadTexts(\"settings\")"],
+    ["src/lib/push.ts", "await loadTexts(\"settings\")"],
+    ["src/features/profile/notificationGroups.ts", "keyof typeof t.settings"],
+  ]);
+  const files = [];
+  async function walk(dir) {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (/\.(ts|tsx)$/.test(entry.name)) files.push(path);
+    }
+  }
+  await walk(join(root, "src"));
+  const users = [];
+  for (const file of files) {
+    const name = relative(root, file);
+    if (name.startsWith("src/i18n/")) continue;
+    const source = await readFile(file, "utf8");
+    if (!/\bt\.settings\b/.test(source)) continue;
+    users.push(name);
+    assert.ok(allowed.has(name), `${name} liest t.settings, lädt die Einstellungs-Texte aber nicht`);
+    assert.ok(source.includes(allowed.get(name)), `${name}: ${allowed.get(name)} fehlt`);
+  }
+  assert.deepEqual(users.sort(), [...allowed.keys()].sort());
 });

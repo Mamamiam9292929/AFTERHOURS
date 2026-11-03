@@ -50,7 +50,7 @@ const AuthConfirmPage = page(authPages, "AuthConfirmPage");
 const ResetPasswordPage = page(authPages, "ResetPasswordPage");
 
 const LandingPage = page(() => import("@/features/landing/LandingPage"), "LandingPage", ["landing"]);
-const OnboardingPage = page(() => import("@/features/onboarding/OnboardingPage"), "OnboardingPage");
+const OnboardingPage = page(() => import("@/features/onboarding/OnboardingPage"), "OnboardingPage", ["settings"]);
 const HomePage = page(() => import("@/features/home/HomePage"), "HomePage");
 const QuickStartPage = page(() => import("@/features/home/QuickStartPage"), "QuickStartPage");
 const DiscoverPage = page(() => import("@/features/discover/DiscoverPage"), "DiscoverPage");
@@ -69,7 +69,7 @@ const SharedPollPage = page(() => import("@/features/polls/SharedPollPage"), "Sh
 const RewardsPage = page(() => import("@/features/rewards/RewardsPage"), "RewardsPage", ["rewards"]);
 const NotificationsPage = page(() => import("@/features/notifications/NotificationsPage"), "NotificationsPage");
 const ProfilePage = page(() => import("@/features/profile/ProfilePage"), "ProfilePage");
-const SettingsPage = page(() => import("@/features/profile/SettingsPage"), "SettingsPage");
+const SettingsPage = page(() => import("@/features/profile/SettingsPage"), "SettingsPage", ["settings"]);
 const PrivacyPage = page(() => import("@/features/profile/PrivacyPage"), "PrivacyPage", ["privacy"]);
 const AdminPage = page(() => import("@/features/admin/AdminPage"), "AdminPage", ["admin"]);
 const AssistantPage = page(() => import("@/features/assistant/AssistantPage"), "AssistantPage", ["assistant"]);
