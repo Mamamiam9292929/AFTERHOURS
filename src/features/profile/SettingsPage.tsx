@@ -18,7 +18,7 @@ import { forgetNext } from "@/features/auth/next";
 import { useCrews } from "@/features/crews/api";
 import { useMyBirthday, useSetMyBirthday, type MyBirthday } from "@/features/crews/birthdaysApi";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
-import { locale, t } from "@/i18n";
+import { loadTexts, locale, t } from "@/i18n";
 import { LANGUAGE_NAMES } from "@/i18n/locale";
 import { daysInMonth } from "@/lib/birthdays";
 import { cn } from "@/lib/cn";
@@ -35,6 +35,9 @@ import { devicePreset, isGroupOnDevice, matchesPreset, setGroupOnDevice } from "
 import { useCalendarFeed, useProfile, usePushDevices, useRenewCalendarFeed, useRevokeCalendarFeed, useSetPushMutedTypes, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
 import { AvatarPicker } from "./AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "./notificationGroups";
+
+/** F8 · Einstellungs-Texte liegen nicht im Start-Bundle. */
+await loadTexts("settings");
 
 const toggle = <T,>(list: T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
@@ -239,7 +242,7 @@ function LanguageCard() {
         </StatusPill>
       }
     >
-      <LanguageChips />
+      <LanguageChips label={t.settings.language.label} />
       {locale !== "de" && <p className="mt-4 text-[13px] leading-snug text-faint">{t.settings.language.notTranslated}</p>}
     </Card>
   );

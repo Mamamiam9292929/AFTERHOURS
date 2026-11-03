@@ -15,10 +15,13 @@ import { type InvitationPreview, useAcceptInvitation, useInvitationPreview } fro
 import { useProfile, useSettings, useUpdateProfile, useUpdateSettings } from "@/features/profile/api";
 import { AvatarPicker } from "@/features/profile/AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "@/features/profile/notificationGroups";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { errorMessage } from "@/lib/errors";
 import { useDocumentTitle } from "@/lib/hooks";
 import type { ActivityCategory, Interest, UserSettings } from "@/lib/types";
+
+/** F8 · Namen der Benachrichtigungs-Gruppen kommen aus den Einstellungs-Texten (nicht im Start-Bundle). */
+await loadTexts("settings");
 
 const STEPS = 3;
 const INVITE_TARGET = /^\/join\/([0-9a-f]{64})$/;

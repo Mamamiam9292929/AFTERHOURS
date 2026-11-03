@@ -7,4 +7,5 @@ export const germanPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]> 
   privacy: () => import("./privacy").then((m) => m.privacy),
   admin: () => import("./admin").then((m) => m.admin),
   assistant: () => import("./assistant").then((m) => m.assistant),
+  settings: () => import("./settings").then((m) => m.settings),
 };

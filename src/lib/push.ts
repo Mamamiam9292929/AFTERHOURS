@@ -1,4 +1,4 @@
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { isIosSafari, isStandalone } from "@/lib/pwa";
 import { supabase } from "@/lib/supabase";
 
@@ -140,6 +140,8 @@ export async function enablePush(): Promise<string> {
   } catch {
     throw { code: "push_unavailable" };
   }
+  // F8 · Gerätename aus den Einstellungs-Texten – auf der Einstellungsseite längst geladen, sonst hier.
+  await loadTexts("settings");
   const { error } = await supabase.rpc("save_push_subscription", {
     p_endpoint: subscription.endpoint,
     p_p256dh: bytesToBase64Url(subscription.getKey("p256dh")),
