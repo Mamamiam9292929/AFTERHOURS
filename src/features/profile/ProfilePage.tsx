@@ -9,7 +9,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { useCrews } from "@/features/crews/api";
 import { CrewRow } from "@/features/crews/CrewsPage";
 import { isUpcoming, usePlans } from "@/features/plans/api";
-import { totalPoints, useRewards } from "@/features/rewards/RewardsPage";
+import { totalPoints, useRewards } from "@/features/rewards/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";

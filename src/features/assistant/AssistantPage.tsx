@@ -10,9 +10,12 @@ import { ActivityCard } from "@/features/discover/ActivityCard";
 import { typicalPriceCents } from "@/features/discover/api";
 import { MAX_POLL_OPTIONS, usePollDraft } from "@/features/polls/draft";
 import { useProfile } from "@/features/profile/api";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { useDocumentTitle } from "@/lib/hooks";
 import { assistantProvider, isAssistantEnabled, type AssistantReply } from "./provider";
+
+/** F7 · Texte dieser Seite kommen nicht mit dem Start-Bundle; der Router lädt sie parallel zum Chunk. */
+await loadTexts("assistant");
 
 export function AssistantPage() {
   useDocumentTitle(t.assistant.title);

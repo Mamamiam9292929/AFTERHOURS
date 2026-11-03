@@ -5,6 +5,7 @@ import { PageSpinner } from "@/components/ui/Feedback";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { PublicOnly, RequireAuth, RequireOnboarded } from "@/features/auth/guards";
 import { DraftBar } from "@/features/polls/DraftBar";
+import { loadTexts, type PageTexts } from "@/i18n";
 import { NotFoundPage, RouteError } from "./errors";
 import { ShareTargetPage } from "./ShareTarget";
 import { preloadWhenIdle, smoothNavigation } from "./transitions";
@@ -16,11 +17,22 @@ import { preloadWhenIdle, smoothNavigation } from "./transitions";
 /*
  * Ist der Chunk schon da (vorgeladen oder einmal besucht), rendert die Seite sofort – ohne den einen
  * Suspense-Durchlauf, den React.lazy sonst immer braucht. Das hält Seitenwechsel ohne Spinner (D7).
+ *
+ * F7 · `texts`: Seitentexte, die nicht im Start-Bundle liegen. Sie laden parallel zum Seiten-Chunk statt erst,
+ * wenn das Seitenmodul sie anfordert (dort wartet `await loadTexts(…)` nur noch auf dieselbe Anfrage).
+ * Scheitert eines von beiden, darf der nächste Versuch neu laden.
  */
-function page<T extends Record<string, unknown>, K extends keyof T>(load: () => Promise<T>, name: K) {
+function page<T extends Record<string, unknown>, K extends keyof T>(load: () => Promise<T>, name: K, texts: PageTexts[] = []) {
   let loaded: React.ComponentType | null = null;
   let pending: Promise<React.ComponentType> | null = null;
-  const preload = () => (pending ??= load().then((module) => (loaded = module[name] as React.ComponentType)));
+  const preload = () =>
+    (pending ??= Promise.all([load(), loadTexts(...texts)]).then(
+      ([module]) => (loaded = module[name] as React.ComponentType),
+      (error: unknown) => {
+        pending = null;
+        throw error;
+      },
+    ));
   const Lazy = lazy(async () => ({ default: await preload() }));
   function Page() {
     const Loaded = loaded;
@@ -37,7 +49,7 @@ const ForgotPasswordPage = page(authPages, "ForgotPasswordPage");
 const AuthConfirmPage = page(authPages, "AuthConfirmPage");
 const ResetPasswordPage = page(authPages, "ResetPasswordPage");
 
-const LandingPage = page(() => import("@/features/landing/LandingPage"), "LandingPage");
+const LandingPage = page(() => import("@/features/landing/LandingPage"), "LandingPage", ["landing"]);
 const OnboardingPage = page(() => import("@/features/onboarding/OnboardingPage"), "OnboardingPage");
 const HomePage = page(() => import("@/features/home/HomePage"), "HomePage");
 const QuickStartPage = page(() => import("@/features/home/QuickStartPage"), "QuickStartPage");
@@ -54,13 +66,13 @@ const PlanCreatePage = page(() => import("@/features/plans/PlanCreatePage"), "Pl
 const PlanDetailPage = page(() => import("@/features/plans/PlanDetailPage"), "PlanDetailPage");
 const SharedPlanPage = page(() => import("@/features/plans/SharedPlanPage"), "SharedPlanPage");
 const SharedPollPage = page(() => import("@/features/polls/SharedPollPage"), "SharedPollPage");
-const RewardsPage = page(() => import("@/features/rewards/RewardsPage"), "RewardsPage");
+const RewardsPage = page(() => import("@/features/rewards/RewardsPage"), "RewardsPage", ["rewards"]);
 const NotificationsPage = page(() => import("@/features/notifications/NotificationsPage"), "NotificationsPage");
 const ProfilePage = page(() => import("@/features/profile/ProfilePage"), "ProfilePage");
 const SettingsPage = page(() => import("@/features/profile/SettingsPage"), "SettingsPage");
-const PrivacyPage = page(() => import("@/features/profile/PrivacyPage"), "PrivacyPage");
-const AdminPage = page(() => import("@/features/admin/AdminPage"), "AdminPage");
-const AssistantPage = page(() => import("@/features/assistant/AssistantPage"), "AssistantPage");
+const PrivacyPage = page(() => import("@/features/profile/PrivacyPage"), "PrivacyPage", ["privacy"]);
+const AdminPage = page(() => import("@/features/admin/AdminPage"), "AdminPage", ["admin"]);
+const AssistantPage = page(() => import("@/features/assistant/AssistantPage"), "AssistantPage", ["assistant"]);
 
 /** W6: „/“ ist ohne Konto die öffentliche Startseite, mit Konto geht es direkt zu Home. */
 function Root() {

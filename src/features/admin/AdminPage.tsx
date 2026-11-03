@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/features/auth/AuthProvider";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
 import { useIsAdmin } from "@/features/profile/api";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
@@ -18,6 +18,9 @@ import { qk } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
 import { APP_LOCALE, formatDateTime, formatDateWithYear } from "@/lib/time";
 import type { Activity, AuditLogEntry, Report, ReportStatus } from "@/lib/types";
+
+/** F7 · Texte dieser Seite kommen nicht mit dem Start-Bundle; der Router lädt sie parallel zum Chunk. */
+await loadTexts("admin");
 
 type Tab = "overview" | "activities" | "reports" | "audit";
 
