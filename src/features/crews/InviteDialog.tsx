@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { IconCopy, IconLink, IconShare } from "@/components/icons";
+import { IconCopy, IconLink, IconQr, IconShare } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { FormMessage, SelectField } from "@/components/ui/Field";
+import { QrCode } from "@/components/ui/QrCode";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/errors";
@@ -19,12 +20,15 @@ export function InviteDialog({ crew, open, onClose }: { crew: Crew; open: boolea
   const [hours, setHours] = useState("168");
   const [maxUses, setMaxUses] = useState("20");
   const [created, setCreated] = useState<CreatedInvitation | null>(null);
+  // W9: QR-Code zum Scannen am Tisch – erst auf Tipp, damit der Link nicht ungefragt groß auf dem Bildschirm steht.
+  const [showQr, setShowQr] = useState(false);
   const link = created ? `${siteUrl()}/join/${created.token}` : "";
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   useEffect(() => {
     if (open) {
       setCreated(null);
+      setShowQr(false);
       create.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,7 +71,32 @@ export function InviteDialog({ crew, open, onClose }: { crew: Crew; open: boolea
               </Button>
             )}
           </div>
-          <Button variant="ghost" block onClick={() => setCreated(null)}>
+          <Button
+            variant="secondary"
+            block
+            aria-expanded={showQr}
+            aria-controls="invite-qr"
+            onClick={() => setShowQr((v) => !v)}
+            icon={<IconQr className="size-4" aria-hidden />}
+          >
+            {showQr ? t.crews.invite.qrHide : t.crews.invite.qrShow}
+          </Button>
+          {showQr && (
+            <div id="invite-qr" className="space-y-2.5">
+              <div className="mx-auto w-full max-w-64">
+                <QrCode value={link} label={t.crews.invite.qrLabel(crew.name)} fallback={<FormMessage>{t.crews.invite.qrTooLong}</FormMessage>} />
+              </div>
+              <p className="text-center text-[13px] leading-snug text-muted">{t.crews.invite.qrHint}</p>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            block
+            onClick={() => {
+              setCreated(null);
+              setShowQr(false);
+            }}
+          >
             {t.crews.invite.another}
           </Button>
         </div>
