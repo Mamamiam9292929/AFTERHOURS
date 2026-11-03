@@ -2,7 +2,7 @@ import { useState } from "react";
 import { IconGlobe } from "@/components/icons";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { saveMyLocale } from "@/features/profile/api";
-import { locale, t } from "@/i18n";
+import { locale } from "@/i18n";
 import { LANGUAGE_NAMES, LOCALES, storeLocale, type Locale } from "@/i18n/locale";
 import { cn } from "@/lib/cn";
 import { Chip } from "./Controls";
