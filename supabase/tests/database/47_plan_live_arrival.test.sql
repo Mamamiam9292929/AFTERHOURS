@@ -103,7 +103,8 @@ select is((select count(*)::int from public.plan_live_locations where user_id = 
 select tests.login('bob');
 select ok(public.share_plan_live_location(tests.var('gleich')::uuid, 52.5236, 13.4116) is not null, 'Bob teilt neu');
 -- Bisher zählt eine Ansage (45 Minuten); abgewiesene Aufrufe zählen nicht (Fehler rollt zurück).
-select is((select count(*)::int from generate_series(1, 29) g cross join lateral public.set_plan_live_arrival(tests.var('gleich')::uuid, 10) e), 29, 'bis zur Grenze geht es');
+-- `g` im Aufruf, damit Postgres die Funktion je Zeile aufruft statt einmal zwischenzuspeichern.
+select is((select count(*)::int from generate_series(1, 29) g cross join lateral public.set_plan_live_arrival(tests.var('gleich')::uuid, 10 + g * 0) e), 29, 'bis zur Grenze geht es');
 select throws_ok(format($$ select public.set_plan_live_arrival(%L, 10) $$, tests.var('gleich')), 'P0001', 'rate_limited', 'höchstens 30 Ansagen je Stunde');
 
 select * from finish();
