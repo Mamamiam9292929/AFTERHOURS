@@ -30,6 +30,7 @@ import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { LivePanel } from "./LivePanel";
+import { AgainCard } from "./PlanAgain";
 import { PlanForm } from "./PlanForm";
 import { PlanPanel } from "./PlanPanel";
 import { RepeatCard, RepeatLine, SkippedNotice } from "./PlanRepeat";
@@ -206,6 +207,9 @@ export function PlanDetailPage() {
             </div>
             {locked && <p className="mt-2.5 text-[13px] text-faint">{t.plans.detail.attendance.locked}</p>}
           </section>
+
+          {/* P17: Direkt unter der (gesperrten) Antwort – der beste Moment für die nächste Runde. */}
+          {plan.status === "completed" && <AgainCard plan={plan} placeName={place?.name ?? null} />}
 
           <dl className="plan-facts mt-4 divide-y divide-line rounded-card border border-white/[0.08] px-4 sm:px-5">
             <Fact icon={<IconPlans aria-hidden />} label={t.plans.detail.what}>

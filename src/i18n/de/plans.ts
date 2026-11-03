@@ -204,6 +204,14 @@ export const plans = {
       cancelled: "Dieser Plan wurde abgesagt.",
       completed: "Dieser Plan ist abgeschlossen.",
     },
+    again: {
+      title: "Nochmal?",
+      leadPlace: (place: string) => `War gut bei ${place}? Ein Tipp, und die Crew sucht den nächsten Termin dort.`,
+      lead: "War ein guter Abend? Ein Tipp, und die Crew sucht den nächsten Termin.",
+      went: (n: number) => (n === 1 ? "1 war dabei" : `${n} waren dabei`),
+      findDatePlace: "Nochmal hier – Termin finden",
+      findDate: "Termin für nochmal finden",
+    },
     followUp: {
       title: "Was kommt als Nächstes?",
       body: "Ideen für eure nächste Unternehmung.",
