@@ -2728,6 +2728,68 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P19 – Nachfragen beim Plan: Bob organisiert (390 px), alle anderen haben noch nicht geantwortet. Ein Tipp auf
+  // „Nachfragen“ fragt alle ohne Antwort; Carol (einfaches Mitglied) bekommt „Bob fragt: Bist du dabei?“, sieht selbst
+  // aber keinen Knopf. Ein zweiter Tipp innerhalb von 6 Stunden wird abgewiesen.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const askPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${bobId}', 'Minigolf am Kanal', now() + interval '3 days', 'proposed')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status)
+      select '${askPlan}', m.user_id, case when m.user_id = '${bobId}' then 'going'::public.attendance_status else 'invited'::public.attendance_status end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    const others = Number(psql(`select count(*) from public.crew_members where crew_id = '${ids.crew}' and user_id <> '${bobId}'`));
+    try {
+      await bob.page.goto(`${APP}/plans/${askPlan}`);
+      await bob.page.getByRole("heading", { level: 1, name: "Minigolf am Kanal" }).waitFor();
+      const ask = bob.page.getByTestId("plan-remind");
+      await ask.waitFor();
+      check((await ask.getAttribute("aria-label")) === `Nachfragen – alle ${others} ohne Antwort fragen, ob sie dabei sind`, "Nachfragen: Knopf bei „Noch offen“ mit verständlicher Beschriftung");
+      await noOverflow(bob, "Nachfragen");
+      await a11y(bob, "plan-nachfragen");
+      // Das Bild zeigt „Wer kommt“ mit dem Knopf, nicht den Kopf der Seite.
+      await ask.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21h-plan-nachfragen");
+      await ask.click();
+      await toast(bob, `${others} Personen gefragt.`);
+      check(psql(`select count(*) from public.notifications where type = 'plan_reminder' and related_entity_id = '${askPlan}' and actor_id = '${bobId}'`) ===
+        psql(`select count(*) from public.crew_members m left join public.user_settings s on s.user_id = m.user_id
+          where m.crew_id = '${ids.crew}' and m.user_id <> '${bobId}' and coalesce(s.notification_preferences ->> 'plan_reminder', 'true') <> 'false'`),
+        "Nachfragen: alle ohne Antwort bekommen genau eine Benachrichtigung");
+      await ask.click();
+      await toast(bob, "Du hast gerade erst erinnert. Die nächste Erinnerung ist in 6 Stunden möglich.");
+      check(true, "Nachfragen: zweiter Tipp innerhalb von 6 Stunden wird abgewiesen");
+
+      // Carol: kein Knopf (nicht ihr Plan), aber die Nachfrage in den Benachrichtigungen – Antippen öffnet den Plan.
+      await carol.page.goto(`${APP}/plans/${askPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Minigolf am Kanal" }).waitFor();
+      await carol.page.getByText(/Noch offen \(\d+\)/).first().waitFor();
+      check((await carol.page.getByTestId("plan-remind").count()) === 0, "Nachfragen: einfache Mitglieder sehen keinen Knopf bei fremden Plänen");
+      await carol.page.goto(`${APP}/notifications`);
+      const asked = carol.page.getByRole("link", { name: /Bob fragt: Bist du dabei\?/ }).filter({ hasText: "Minigolf am Kanal" });
+      await asked.waitFor();
+      check(true, "Nachfragen: „Bob fragt: Bist du dabei?“ mit Plan und Termin");
+      await shot(carol, "21i-nachfrage-benachrichtigung");
+      await asked.first().click();
+      await carol.page.waitForURL(`**/plans/${askPlan}`);
+      await carol.page.getByRole("radiogroup", { name: "Bist du dabei?" }).waitFor();
+      check(true, "Nachfrage führt zur Antwortkarte des Plans");
+      // Ohne Anmeldung lässt sich nicht nachfragen.
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/remind_plan`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: askPlan }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Nachfragen (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${askPlan}'; delete from public.plans where id = '${askPlan}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });

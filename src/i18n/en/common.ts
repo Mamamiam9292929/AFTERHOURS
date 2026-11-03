@@ -160,6 +160,7 @@ export const errors = {
     starts_too_late: "Plans can be created at most two years ahead.",
     ends_before_start: "The end has to be after the start.",
     plan_locked: "This plan is finished or cancelled and can't be changed any more.",
+    plan_already_started: "The plan has already started – you can only ask before it does.",
     invalid_repeat_rule: "We don't know this repeat option.",
     repeat_no_nth: "From the 29th on, this weekday doesn't occur in every month. Choose “every last …” or every week.",
     repeat_not_last_week: "“Every last …” only works if the plan is in the last week of the month.",

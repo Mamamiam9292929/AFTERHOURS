@@ -180,6 +180,10 @@ export const plans = {
       saved: "Antwort gespeichert.",
       locked: "Antworten lassen sich nicht mehr ändern.",
       groups: { going: "Dabei", maybe: "Vielleicht", invited: "Noch offen", declined: "Abgesagt" },
+      // P19: Nachfragen bei allen ohne Antwort.
+      remind: "Nachfragen",
+      remindLabel: (n: number) => (n === 1 ? "Nachfragen – die Person ohne Antwort fragen, ob sie dabei ist" : `Nachfragen – alle ${n} ohne Antwort fragen, ob sie dabei sind`),
+      reminded: (n: number) => (n === 0 ? "Alle haben schon geantwortet – niemand wurde gefragt." : n === 1 ? "1 Person gefragt." : `${n} Personen gefragt.`),
     },
     manage: {
       title: "Organisieren",

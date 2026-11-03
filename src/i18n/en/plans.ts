@@ -186,6 +186,9 @@ export const plans = {
       saved: "Answer saved.",
       locked: "Answers can no longer be changed.",
       groups: { going: "In", maybe: "Maybe", invited: "No answer yet", declined: "Out" },
+      remind: "Ask",
+      remindLabel: (n: number) => (n === 1 ? "Ask – check whether the person without an answer is in" : `Ask – check whether all ${n} without an answer are in`),
+      reminded: (n: number) => (n === 0 ? "Everyone has answered – nobody was asked." : n === 1 ? "Asked 1 person." : `Asked ${n} people.`),
     },
     manage: {
       title: "Organise",

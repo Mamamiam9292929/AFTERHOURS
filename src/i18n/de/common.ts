@@ -162,6 +162,7 @@ export const errors = {
     starts_too_late: "Pläne lassen sich höchstens zwei Jahre im Voraus anlegen.",
     ends_before_start: "Das Ende muss nach dem Beginn liegen.",
     plan_locked: "Dieser Plan ist abgeschlossen oder abgesagt und lässt sich nicht mehr ändern.",
+    plan_already_started: "Der Plan hat schon angefangen – nachfragen geht nur vorher.",
     invalid_repeat_rule: "Diese Wiederholung kennen wir nicht.",
     repeat_no_nth: "Ab dem 29. gibt es diesen Wochentag nicht in jedem Monat. Wähle „jeden letzten …“ oder jede Woche.",
     repeat_not_last_week: "„Jeden letzten …“ geht nur, wenn der Plan in der letzten Woche des Monats liegt.",

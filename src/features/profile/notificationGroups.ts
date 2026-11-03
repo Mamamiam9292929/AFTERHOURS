@@ -6,6 +6,7 @@ export const NOTIFICATION_GROUPS: { key: keyof typeof t.settings.notifications.g
   { key: "polls", types: ["poll_created"] },
   { key: "reminders", types: ["poll_reminder"] },
   { key: "answers", types: ["poll_vote", "plan_attendance"] },
+  { key: "planReminders", types: ["plan_reminder"] },
   { key: "results", types: ["poll_result"] },
   { key: "plans", types: ["plan_created", "plan_changed", "plan_cancelled"] },
   { key: "dayReminders", types: ["plan_day_reminder"] },

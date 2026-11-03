@@ -2,7 +2,7 @@ import { ShareButton } from "@/components/ui/ShareButton";
 import { planShare } from "@/lib/share";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { IconBack, IconBasket, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
+import { IconBack, IconBasket, IconBell, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
 import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -25,7 +25,7 @@ import { liveStage } from "@/lib/live";
 import { mapProvider } from "@/lib/maps";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
-import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
+import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useRemindPlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
@@ -94,6 +94,7 @@ export function PlanDetailPage() {
   const activity = useActivity(plan?.activity_id);
   const setAttendance = useSetAttendance(planId ?? "");
   const setStatus = useSetPlanStatus(planId ?? "");
+  const remind = useRemindPlan(planId ?? "");
   const update = useUpdatePlan(planId ?? "");
   // W2: Teilen-Link vorab holen – das Teilen-Menü muss direkt auf den Tipp hin aufgehen.
   const shareToken = usePlanShareToken(plan?.id, Boolean(plan) && plan?.status !== "cancelled");
@@ -291,12 +292,29 @@ export function PlanDetailPage() {
                 {GROUPS.map((status) => {
                   const group = plan.participants.filter((p) => p.attendance_status === status);
                   if (group.length === 0) return null;
+                  // P19: Wer organisiert (oder Owner/Admin ist), fragt alle ohne Antwort mit einem Tipp – nur vor Beginn.
+                  const askable = status === "invited" && canManage && !locked && !started ? group.filter((p) => p.user_id !== user.id).length : 0;
                   return (
                     <div key={status}>
-                      <p className="flex items-center gap-2 text-[13px] font-semibold text-muted">
-                        <span aria-hidden className={cn("size-2 rounded-full", GROUP_DOT[status])} />
-                        {t.plans.detail.attendance.groups[status]} ({group.length})
-                      </p>
+                      <div className="flex min-h-9 items-center justify-between gap-3">
+                        <p className="flex items-center gap-2 text-[13px] font-semibold text-muted">
+                          <span aria-hidden className={cn("size-2 rounded-full", GROUP_DOT[status])} />
+                          {t.plans.detail.attendance.groups[status]} ({group.length})
+                        </p>
+                        {askable > 0 && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            data-testid="plan-remind"
+                            aria-label={t.plans.detail.attendance.remindLabel(askable)}
+                            loading={remind.isPending}
+                            onClick={() => remind.mutate(undefined, { onSuccess: (n) => toast.success(t.plans.detail.attendance.reminded(n)), onError: (error) => toast.error(error) })}
+                            icon={<IconBell className="size-4" aria-hidden />}
+                          >
+                            {t.plans.detail.attendance.remind}
+                          </Button>
+                        )}
+                      </div>
                       <ul className="mt-2 flex flex-wrap gap-2">
                         {group.map((p) => {
                           const person = people.lookup(p.user_id);
