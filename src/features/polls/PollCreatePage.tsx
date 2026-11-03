@@ -21,7 +21,8 @@ import { centsToInput, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { suggestDateSlots, type SuggestedSlot } from "@/lib/slots";
 import { categoryWorld } from "@/lib/stage";
-import { addDays, calendarDaysBetween, formatDateLong, formatTime, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
+import { birthdaySlots } from "@/lib/birthdays";
+import { addDays, calendarDaysBetween, formatDateLong, formatPlainDate, formatTime, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
 import type { Activity, ActivityCategory, PollKind } from "@/lib/types";
 import { ActivityPicker } from "./ActivityPicker";
 import { useCreateDatePoll, useCreatePoll, useCreateWherePoll, usePoll, type PollOptionInput } from "./api";
@@ -73,6 +74,17 @@ function placeTitle(name: string): string {
   return title.length <= 80 ? title : t.polls.create.dates.defaultTitle;
 }
 
+/**
+ * P20: „Feier planen“ von der Crew-Seite (`?birthday=YYYY-MM-DD&for=Name`) – nur ein gültiges Datum ab heute
+ * und höchstens ein Jahr voraus, Name wie ein Anzeigename (2–40 Zeichen).
+ */
+function linkedBirthday(date: string | null, name: string | null): { date: string; name: string } | null {
+  const day = linkedDate(date);
+  const who = name?.trim() ?? "";
+  if (!day || calendarDaysBetween(today(), day) > 366 || who.length < 2 || who.length > 40) return null;
+  return { date: day, name: who };
+}
+
 let rowCounter = 0;
 const newKey = () => `opt-${++rowCounter}`;
 
@@ -107,7 +119,11 @@ export function PollCreatePage() {
   const [pickedPlace, setPickedPlace] = useState<Activity | null>(null);
   const fixedPlace = kind === "date" && placeId ? (pickedPlace?.id === placeId ? pickedPlace : (placeQuery.data ?? null)) : null;
   const placeMissing = kind === "date" && Boolean(placeId) && !fixedPlace && (placeQuery.isError || (placeQuery.isSuccess && !placeQuery.data));
-  const [slots, setSlots] = useState<SlotRow[]>(defaultSlots);
+  const [birthday] = useState(() => (kind === "date" ? linkedBirthday(params.get("birthday"), params.get("for")) : null));
+  const [slots, setSlots] = useState<SlotRow[]>(() => {
+    const around = birthday ? birthdaySlots(birthday.date, today()) : [];
+    return around.length >= MIN_DATE_SLOTS ? around.map((date) => ({ key: newKey(), date, time: "19:00" })) : defaultSlots();
+  });
   const [crewId, setCrewId] = useState(params.get("crew") ?? "");
   // P1 Etappe 3b: Hat die Crew eine Gewohnheit (Lieblingstag, übliche Uhrzeit), stehen deren nächste Termine
   // statt des Wochenendes drin – aber nur, solange niemand die Termine selbst angefasst hat.
@@ -117,7 +133,8 @@ export function PollCreatePage() {
     [plans.data, crewId],
   );
   const suggestionKey = suggestion ? suggestion.slots.map((s) => `${s.date} ${s.time}`).join("|") : "";
-  const slotsTouched = useRef(false);
+  // Termine rund um einen Geburtstag gelten wie selbst gewählt – die Gewohnheit der Crew überschreibt sie nicht.
+  const slotsTouched = useRef(Boolean(birthday));
   const [prefilled, setPrefilled] = useState(false);
   useEffect(() => {
     if (slotsTouched.current) return;
@@ -159,7 +176,12 @@ export function PollCreatePage() {
     const at = sharedDate ? zonedToUtc(sharedDate, "12:00") : null;
     return at ? t.polls.create.defaultTitle(t.weekdays[zonedParts(at).weekday]) : t.polls.create.pollTitlePlaceholder;
   }, [sharedDate]);
-  const dateTitle = fixedPlace ? placeTitle(fixedPlace.name) : t.polls.create.dates.defaultTitle;
+  const birthdayTitle = birthday ? t.polls.create.dates.birthdayTitle(birthday.name) : null;
+  const dateTitle = fixedPlace
+    ? placeTitle(fixedPlace.name)
+    : birthdayTitle && birthdayTitle.length <= 80
+      ? birthdayTitle
+      : t.polls.create.dates.defaultTitle;
   useEffect(() => {
     if (!titleTouched.current) setTitle(kind === "date" ? dateTitle : suggestedTitle);
   }, [suggestedTitle, kind, dateTitle]);
@@ -383,6 +405,11 @@ export function PollCreatePage() {
               <p className="text-[13px] text-muted">{t.polls.create.dates.hint}</p>
               <span className={cn(GLASS_PILL, "h-8 text-[13px]")}>{t.polls.create.count(slots.length, MAX_DATE_SLOTS)}</span>
             </div>
+            {birthday && (
+              <p className="text-[13px] font-medium text-pink" data-testid="date-birthday-hint">
+                {t.polls.create.dates.birthdayHint(birthday.name, formatPlainDate(birthday.date, "long"))}
+              </p>
+            )}
             {suggestion && (
               <div className="rounded-[20px] border border-lime/40 bg-lime/[0.08] p-4" data-testid="date-suggestions">
                 <p className="flex items-center gap-2 text-sm font-semibold text-lime">

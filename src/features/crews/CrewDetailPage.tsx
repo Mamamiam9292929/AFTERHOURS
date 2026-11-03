@@ -29,6 +29,7 @@ import {
   useRemoveMember, useRevokeInvitation, useSendMessage, useSetMemberRole, useUpdateCrew, type CrewWithMembers,
 } from "./api";
 import { CrewBalances } from "./CrewBalances";
+import { CrewBirthdays } from "./CrewBirthdays";
 import { CrewForm } from "./CrewForm";
 import { CrewRecap } from "./CrewRecap";
 import { InviteDialog } from "./InviteDialog";
@@ -103,6 +104,7 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
         </Section>
       )}
       <CrewBalances crewId={crew.id} userId={user.id} plans={crewPlans} />
+      <CrewBirthdays crewId={crew.id} userId={user.id} />
       <CrewRecap crewId={crew.id} plans={crewPlans} />
       {past.length > 0 && (
         <Section title={t.crews.detail.pastPlans}>

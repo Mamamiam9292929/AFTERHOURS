@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { IconBell, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconGlobe, IconInfo, IconLock, IconLogout, IconPin, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
+import { IconBell, IconCake, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconGlobe, IconInfo, IconLock, IconLogout, IconPin, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { Chip, SwitchRow } from "@/components/ui/Controls";
@@ -16,9 +16,11 @@ import { CATEGORIES, INTERESTS } from "@/data/options";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { forgetNext } from "@/features/auth/next";
 import { useCrews } from "@/features/crews/api";
+import { useMyBirthday, useSetMyBirthday, type MyBirthday } from "@/features/crews/birthdaysApi";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
 import { locale, t } from "@/i18n";
 import { LANGUAGE_NAMES } from "@/i18n/locale";
+import { daysInMonth } from "@/lib/birthdays";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
@@ -26,7 +28,7 @@ import { copyText, useDocumentTitle, useNow } from "@/lib/hooks";
 import { currentPushSubscription, disablePush, enablePush, loadPushConfig, pushSupport } from "@/lib/push";
 import { qk } from "@/lib/query";
 import { siteUrl, supabase } from "@/lib/supabase";
-import { formatAgo } from "@/lib/time";
+import { APP_LOCALE, formatAgo } from "@/lib/time";
 import { password as passwordRule, validate } from "@/lib/validation";
 import type { ActivityCategory, Interest, LocationSharingMode, Profile, UserSettings } from "@/lib/types";
 import { devicePreset, isGroupOnDevice, matchesPreset, setGroupOnDevice } from "@/lib/pushgroups";
@@ -67,6 +69,7 @@ const ITEM = PANEL_ITEM;
 
 const SECTIONS = [
   { id: "profile", title: t.settings.profile.title },
+  { id: "birthday", title: t.settings.birthday.title },
   { id: "language", title: t.settings.language.title },
   { id: "preferences", title: t.settings.preferences.title },
   { id: "location", title: t.settings.location.title },
@@ -129,6 +132,95 @@ function ProfileCard({ profile }: { profile: Profile }) {
         </Button>
       </form>
     </Card>
+  );
+}
+
+const MONTH_NAME = new Intl.DateTimeFormat(APP_LOCALE, { month: "long", timeZone: "UTC" });
+const DAY_MONTH = new Intl.DateTimeFormat(APP_LOCALE, { day: "numeric", month: "long", timeZone: "UTC" });
+const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: MONTH_NAME.format(new Date(Date.UTC(2024, i, 1))) }));
+
+/** P20 · Geburtstag ohne Jahr – Tag und Monat, sichtbar für die eigenen Crews. */
+function BirthdayCard() {
+  const toast = useToast();
+  const birthday = useMyBirthday();
+  return (
+    <Card
+      id="birthday"
+      title={t.settings.birthday.title}
+      lead={t.settings.birthday.lead}
+      icon={<IconCake className="size-5" />}
+      tone="pink"
+      status={birthday.data ? <StatusPill tone="glass" testId="birthday-status">{DAY_MONTH.format(new Date(Date.UTC(2024, birthday.data.month - 1, birthday.data.day)))}</StatusPill> : undefined}
+    >
+      {birthday.isPending ? (
+        <Skeleton className="h-28" />
+      ) : birthday.isError ? (
+        <ErrorState error={birthday.error} onRetry={() => void birthday.refetch()} />
+      ) : (
+        <BirthdayForm key={birthday.data ? `${birthday.data.month}-${birthday.data.day}` : "none"} value={birthday.data} onSaved={(removed) => toast.success(removed ? t.settings.birthday.removed : t.settings.birthday.saved)} />
+      )}
+    </Card>
+  );
+}
+
+function BirthdayForm({ value, onSaved }: { value: MyBirthday | null; onSaved: (removed: boolean) => void }) {
+  const save = useSetMyBirthday();
+  const [month, setMonth] = useState(value ? String(value.month) : "");
+  const [day, setDay] = useState(value ? String(value.day) : "");
+  const [error, setError] = useState<string | null>(null);
+  const days = daysInMonth(Number(month) || 1);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!month || !day) {
+      setError(t.settings.birthday.incomplete);
+      return;
+    }
+    setError(null);
+    save.mutate({ month: Number(month), day: Number(day) }, { onSuccess: () => onSaved(false) });
+  }
+
+  return (
+    <form onSubmit={submit} noValidate className="space-y-4">
+      <div className="grid grid-cols-[5.5rem_1fr] gap-3">
+        <SelectField label={t.settings.birthday.day} name="birthday_day" value={day} onChange={(e) => setDay(e.target.value)}>
+          <option value="">–</option>
+          {Array.from({ length: days }, (_, i) => (
+            <option key={i + 1} value={String(i + 1)}>
+              {i + 1}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField
+          label={t.settings.birthday.month}
+          name="birthday_month"
+          value={month}
+          onChange={(e) => {
+            const next = e.target.value;
+            setMonth(next);
+            if (day && Number(day) > daysInMonth(Number(next) || 1)) setDay("");
+          }}
+        >
+          <option value="">{t.settings.birthday.choose}</option>
+          {MONTHS.map((m) => (
+            <option key={m.value} value={String(m.value)}>
+              {m.label}
+            </option>
+          ))}
+        </SelectField>
+      </div>
+      {(error || save.isError) && <FormMessage>{error ?? errorMessage(save.error)}</FormMessage>}
+      <div className="flex flex-wrap gap-3">
+        <Button type="submit" loading={save.isPending && save.variables !== null}>
+          {t.settings.birthday.save}
+        </Button>
+        {value && (
+          <Button type="button" variant="ghost" loading={save.isPending && save.variables === null} onClick={() => save.mutate(null, { onSuccess: () => onSaved(true) })} icon={<IconTrash className="size-4" aria-hidden />}>
+            {t.settings.birthday.remove}
+          </Button>
+        )}
+      </div>
+    </form>
   );
 }
 
@@ -801,6 +893,7 @@ export function SettingsPage() {
       </div>
       <div className="max-w-2xl space-y-5">
         <ProfileCard profile={profile.data} />
+        <BirthdayCard />
         <LanguageCard />
         <PreferencesCard profile={profile.data} settings={settings.data} />
         <LocationCard settings={settings.data} />

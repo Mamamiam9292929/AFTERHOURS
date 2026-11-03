@@ -167,6 +167,19 @@ export const settings = {
   back: "Profile",
   jumpLabel: "Settings sections",
   profile: { title: "Profile", saved: "Profile saved." },
+  // P20: Geburtstag ohne Jahr, sichtbar für die eigenen Crews.
+  birthday: {
+    title: "Birthday",
+    lead: "Day and month only, no year. Everyone in your crews can see it – on the crew page once it's coming up. Optional, remove it any time.",
+    day: "Day",
+    month: "Month",
+    choose: "Please choose",
+    save: "Save birthday",
+    remove: "Remove",
+    saved: "Birthday saved.",
+    removed: "Birthday removed.",
+    incomplete: "Choose a day and a month.",
+  },
   language: {
     title: "Language",
     label: "App language",

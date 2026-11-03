@@ -141,6 +141,7 @@ export const errors = {
     ends_in_past: "The poll has to end in the future.",
     ends_too_late: "A poll can run for at most 90 days.",
     invalid_options: "A poll needs 1 to 10 options, each with a title or place.",
+    invalid_birthday: "That day doesn't exist. Choose a day and a month.",
     invalid_slots: "A date poll needs 2 to 10 different dates, at most a year ahead.",
     slot_in_past: "At least one of the dates is in the past.",
     date_poll_undecided: "The date isn't settled yet – the place comes once “When can you make it?” is decided.",
