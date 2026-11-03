@@ -228,6 +228,8 @@
   .ticket[data-answer="past"] {
     background: var(--color-surface);
     opacity: 0.82;
+    /* Gedämpft: „Abgesagt“ (Rot auf Rot-Schimmer) bliebe sonst unter 4,5:1 (P20-Journey, Crew-Seite). */
+    --color-danger: #ff9e95;
   }
   /* Datum als Kachel in der Karte (eingerückt, eigener Radius) statt Abriss mit Perforation. */
   .ticket-stub {

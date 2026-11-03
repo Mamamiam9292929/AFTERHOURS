@@ -3972,11 +3972,11 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   check(await page.getByText("Live nur während eines Plans").isVisible(), "P13: Einstellungen sagen ehrlich, dass Live-Standort nur rund um einen Plan geht");
   // V2 Etappe 3k: Bereiche als Glas-Karten mit Farbschein, Stand als Pille, Sprung-Pillen oben.
   const tones = await page.locator("main section.plan-panel").evaluateAll((els) => els.map((el) => `${el.id}:${el.dataset.tone}`));
-  check(tones.join(",") === "profile:violet,language:lime,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: sieben Glas-Karten mit Farbschein (${tones.join(", ")})`);
+  check(tones.join(",") === "profile:violet,birthday:pink,language:lime,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: acht Glas-Karten mit Farbschein (${tones.join(", ")})`);
   check((await page.getByTestId("location-status").innerText()).trim() === "Aus", "Standort-Pille sagt „Aus“");
   check((await page.getByTestId("calendar-status").innerText()).trim() === "Kein Abo", "Kalender-Pille: „Kein Abo“");
   const jump = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
-  check((await jump.getByRole("link").count()) === 7, "sieben Sprung-Pillen");
+  check((await jump.getByRole("link").count()) === 8, "acht Sprung-Pillen");
   await jump.getByRole("link", { name: "Kalender-Abo" }).click();
   await page.waitForURL(/#calendar$/);
   check(true, "Sprung-Pille führt zum Kalender-Abo");
