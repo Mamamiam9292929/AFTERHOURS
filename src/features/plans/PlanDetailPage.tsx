@@ -208,6 +208,9 @@ export function PlanDetailPage() {
             {locked && <p className="mt-2.5 text-[13px] text-faint">{t.plans.detail.attendance.locked}</p>}
           </section>
 
+          {/* P17: Direkt unter der (gesperrten) Antwort – der beste Moment für die nächste Runde. */}
+          {plan.status === "completed" && <AgainCard plan={plan} placeName={place?.name ?? null} />}
+
           <dl className="plan-facts mt-4 divide-y divide-line rounded-card border border-white/[0.08] px-4 sm:px-5">
             <Fact icon={<IconPlans aria-hidden />} label={t.plans.detail.what}>
               <span className="font-semibold">{plan.title}</span>
@@ -359,8 +362,6 @@ export function PlanDetailPage() {
           {(started || locked) && bringSection}
 
           {!(started || locked) && expensesSection}
-
-          {plan.status === "completed" && <AgainCard plan={plan} placeName={place?.name ?? null} />}
 
           {plan.status === "completed" && <FollowUp plan={plan} city={place?.city ?? null} />}
         </div>

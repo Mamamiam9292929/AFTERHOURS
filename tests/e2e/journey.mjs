@@ -1899,6 +1899,7 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   const againLink = again.getByRole("link", { name: "Nochmal hier – Termin finden" });
   const againHref = (await againLink.getAttribute("href")) ?? "";
   check(againHref.includes("kind=date") && againHref.includes(`crew=${ids.crew}`) && againHref.includes("place="), "P17: Link führt zur Terminsuche mit Crew und Ort");
+  await again.scrollIntoViewIfNeeded();
   await shot(alice, "19a-nochmal");
   await againLink.click();
   await page.waitForURL(/\/polls\/new\?/);

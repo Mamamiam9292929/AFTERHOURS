@@ -34,7 +34,7 @@ export function AgainCard({ plan, placeName }: { plan: PlanWithParticipants; pla
         ) : null
       }
       lead={withPlace && placeName ? t.plans.detail.again.leadPlace(placeName) : t.plans.detail.again.lead}
-      className="mt-9"
+      className="mt-4"
     >
       <ButtonLink to={againLink(plan)} size="lg" className="w-full sm:w-auto" icon={<IconCalendar className="size-5" aria-hidden />}>
         {withPlace ? t.plans.detail.again.findDatePlace : t.plans.detail.again.findDate}
