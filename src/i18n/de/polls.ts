@@ -146,6 +146,12 @@ export const polls = {
     fixedPlaceLoading: "Fester Ort",
     dateOpen: "Termin offen",
     /** P5 Etappe 2: Wetter je Vorschlag einer laufenden Abstimmung. */
+    /** P18: Eigene Pläne, die beim Termin eines Vorschlags schon anstehen (nur für dich sichtbar). */
+    busy: {
+      overlap: (title: string, time: string) => `Schon verplant: ${title}, ${time}`,
+      day: (title: string, time: string) => `Am selben Tag: ${title}, ${time}`,
+      more: (n: number) => (n === 1 ? "und 1 weiterer Plan" : `und ${n} weitere Pläne`),
+    },
     weather: {
       label: (title: string) => `Wetter für ${title}`,
       loading: "Wetter wird geladen …",

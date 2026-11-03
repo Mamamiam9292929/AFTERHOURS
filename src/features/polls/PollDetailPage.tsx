@@ -18,7 +18,9 @@ import { useCreatePlanFromPoll, usePlans } from "@/features/plans/api";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { DecidedMoment } from "./DecidedMoment";
+import { OptionBusy } from "./OptionBusy";
 import { SwipeDeck } from "./SwipeDeck";
+import { busyFor, relevantPlans } from "@/lib/busy";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
@@ -72,9 +74,11 @@ interface OptionCardProps {
   /** P5 Etappe 2: Wetter zu Ort und Termin – nur in laufenden Abstimmungen. */
   weather?: PollOptionWeather;
   weatherLoading?: boolean;
+  /** P18: „Schon verplant: …“ – eigene Pläne zum Termin, nur in laufenden Abstimmungen. */
+  busy?: React.ReactNode;
 }
 
-function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, weather, weatherLoading = false }: OptionCardProps) {
+function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, weather, weatherLoading = false, busy }: OptionCardProps) {
   const { option } = tally;
   const overBudget = poll.budget_cents != null && option.estimated_price_cents != null && option.estimated_price_cents > poll.budget_cents;
   const names = (ids: string[]) =>
@@ -115,6 +119,7 @@ function OptionCard({ tally, poll, disabled, isWinner, onVote, lookup, action, w
           {overBudget && !isDate && <span className="ml-2 font-semibold text-amber">{t.polls.detail.overBudget}</span>}
         </p>
         <OptionWeather title={option.title} weather={weather} loading={weatherLoading} />
+        {busy}
 
         {/* Stand als Balken: Anteil der Zusagen an der Crew, eigene Zusage mit Lime-Rahmen. */}
         <div className="relative mt-3.5 flex min-h-14 items-center gap-3 overflow-hidden rounded-control bg-raised/70 py-2 pl-3 pr-4">
@@ -668,6 +673,17 @@ export function PollDetailPage() {
   const lookup = (id: string | null | undefined) =>
     id && isGuestId(id) ? { id, display_name: guestNames.get(id) ?? "?", avatar_url: null } : people.lookup(id);
 
+  // P18: Was du zu den Terminen der Vorschläge schon vorhast – aus deinen eigenen Plänen, nur solange
+  // abgestimmt wird. Pläne aus dieser Abstimmung und den verknüpften (Stichwahl, Termin ↔ „Und wo?“) zählen nicht.
+  const ownPolls = new Set([poll.id, poll.parent_poll_id, poll.date_poll_id, runoff?.id, where.active?.id].filter((id): id is string => Boolean(id)));
+  const myPlans = !summary.isOver && plans.data ? relevantPlans(plans.data, user.id, ownPolls) : [];
+  const busyOf = (option: PollOption, tone: "card" | "deck" = "card") => {
+    const hit = myPlans.length > 0 ? busyFor(option, myPlans) : null;
+    if (!hit) return null;
+    const other = hit.plan.crew_id !== poll.crew_id ? crews.data?.find((c) => c.id === hit.plan.crew_id) : undefined;
+    return <OptionBusy hit={hit} crewLabel={other ? `${other.emoji} ${other.name}` : null} tone={tone} />;
+  };
+
   function castVote(optionId: string, response: VoteResponse | null) {
     vote.mutate({ optionId, response }, { onError: (error) => toast.error(error) });
   }
@@ -799,7 +815,7 @@ export function PollDetailPage() {
           {/* S5 Etappe 2: Entscheidet sich die Abstimmung jetzt, springt die Seite zum Plan bzw. zur Stichwahl. */}
           <DecidedMoment key={poll.id} open={!summary.isOver} auto={poll.auto_decide && (!closed || poll.closed_by == null)} plan={plan} runoffId={runoff?.id} />
           {!summary.isOver && (
-            <SwipeDeck tallies={summary.tallies} onVote={(optionId, response) => castVote(optionId, response)} when={(tally) => optionWhen(tally.option)} memberCount={memberIds.length} />
+            <SwipeDeck tallies={summary.tallies} onVote={(optionId, response) => castVote(optionId, response)} when={(tally) => optionWhen(tally.option)} extra={(tally) => busyOf(tally.option, "deck")} memberCount={memberIds.length} />
           )}
 
           <ul className="space-y-3">
@@ -814,6 +830,7 @@ export function PollDetailPage() {
                 lookup={lookup}
                 weather={weatherWanted ? weatherByOption.get(tally.option.id) : undefined}
                 weatherLoading={weatherWanted && weather.isPending && weatherFor(tally.option)}
+                busy={busyOf(tally.option)}
                 action={
                   closed && poll.is_tie && canManage && !plan && !runoff && tally.leading ? (
                     <Button variant="secondary" size="sm" onClick={() => setPlanOption(tally.option)}>

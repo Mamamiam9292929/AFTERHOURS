@@ -141,6 +141,12 @@ export const polls = {
     fixedPlace: (name: string) => `At ${name}`,
     fixedPlaceLoading: "Fixed place",
     dateOpen: "Date open",
+    /** P18: Own plans already on at the time of an option (visible only to you). */
+    busy: {
+      overlap: (title: string, time: string) => `Already booked: ${title}, ${time}`,
+      day: (title: string, time: string) => `Same day: ${title}, ${time}`,
+      more: (n: number) => (n === 1 ? "and 1 more plan" : `and ${n} more plans`),
+    },
     weather: {
       label: (title: string) => `Weather for ${title}`,
       loading: "Loading weather …",

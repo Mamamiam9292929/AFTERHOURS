@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { IconCheck, IconClose, IconHelp } from "@/components/icons";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -31,11 +31,14 @@ export function SwipeDeck({
   tallies,
   onVote,
   when,
+  extra,
   memberCount,
 }: {
   tallies: OptionTally[];
   onVote: (optionId: string, response: VoteResponse) => void;
   when: (tally: OptionTally) => string;
+  /** P18: Zeile unter dem Termin, z. B. „Schon verplant: Kino, 19:30 Uhr“. */
+  extra?: (tally: OptionTally) => ReactNode;
   memberCount: number;
 }) {
   const open = tallies.filter((tally) => tally.mine === null);
@@ -139,6 +142,7 @@ export function SwipeDeck({
                     <div>
                       <p className="display break-words text-[34px] uppercase leading-[0.95] sm:text-[40px]">{tally.option.title}</p>
                       <p className="mt-3 text-[16px] font-bold">{when(tally)}</p>
+                      {extra?.(tally)}
                     </div>
                   </div>
                 );
