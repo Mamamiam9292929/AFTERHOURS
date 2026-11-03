@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { IconAward, IconCircleCheck, IconInfo, IconRewards, IconSparkles } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
@@ -6,30 +5,18 @@ import { Button } from "@/components/ui/Button";
 import { DemoBadge, EmptyState, ErrorState, ListSkeleton, Notice } from "@/components/ui/Feedback";
 import { PanelCard } from "@/components/ui/PanelCard";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
-import { locale, t } from "@/i18n";
+import { loadTexts, locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
-import { qk } from "@/lib/query";
-import { supabase } from "@/lib/supabase";
 import { formatDateWithYear } from "@/lib/time";
-import type { RewardTransaction } from "@/lib/types";
 import "@/styles/motion.css";
+import { totalPoints, useRewards } from "./api";
+
+/** F7 · Texte dieser Seite kommen nicht mit dem Start-Bundle; der Router lädt sie parallel zum Chunk. */
+await loadTexts("rewards");
 
 const LEVEL_THRESHOLDS = [0, 50, 150, 300, 600];
-
-export function useRewards() {
-  return useQuery({
-    queryKey: qk.rewards,
-    queryFn: async (): Promise<RewardTransaction[]> => {
-      const { data, error } = await supabase.from("reward_transactions").select("*").order("created_at", { ascending: false }).limit(500);
-      if (error) throw error;
-      return data as RewardTransaction[];
-    },
-  });
-}
-
-export const totalPoints = (transactions: RewardTransaction[] | undefined) => (transactions ?? []).reduce((sum, tx) => sum + tx.points_delta, 0);
 
 export function RewardsPage() {
   useDocumentTitle(t.rewards.title);

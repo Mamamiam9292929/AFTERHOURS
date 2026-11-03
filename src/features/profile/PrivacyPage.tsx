@@ -4,9 +4,12 @@ import { Logo } from "@/components/ui/Logo";
 import { PanelCard } from "@/components/ui/PanelCard";
 import { GLASS_PILL } from "@/components/ui/Pill";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle } from "@/lib/hooks";
+
+/** F7 · Texte dieser Seite kommen nicht mit dem Start-Bundle; der Router lädt sie parallel zum Chunk. */
+await loadTexts("privacy");
 
 /**
  * V2 Etappe 3o · Je Abschnitt der Datenschutz-Seite: Sprungziel, Symbol und Farbschein (nur als Licht, nie als
