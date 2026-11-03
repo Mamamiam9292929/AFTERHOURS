@@ -174,6 +174,8 @@ export const errors = {
     plan_item_taken: "Das bringt inzwischen schon jemand anderes mit.",
     live_location_not_going: "Standort teilen kann nur, wer dabei ist oder „vielleicht“ gesagt hat.",
     live_location_outside_window: "Standort teilen geht nur ab 2 Stunden vor Beginn bis zum Ende des Plans.",
+    live_location_not_sharing: "Teil erst deinen Standort – dann kannst du sagen, wann du da bist.",
+    invalid_arrival: "Wähl, in wie vielen Minuten du da bist (1 bis 120).",
     invalid_location: "Dieser Standort ist ungültig.",
     invalid_plan_photo: "Dieses Foto lässt sich nicht hochladen. Versuch ein anderes.",
     plan_photos_not_yet: "Fotos gehen erst, wenn der Plan begonnen hat.",

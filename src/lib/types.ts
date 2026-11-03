@@ -301,6 +301,8 @@ export interface PlanLiveLocation {
   started_at: string;
   updated_at: string;
   expires_at: string;
+  /** P13 Etappe 2b: angesagte Ankunft („Bin gleich da“), sonst `null`. */
+  arrival_eta: string | null;
 }
 
 export interface PlanItem {

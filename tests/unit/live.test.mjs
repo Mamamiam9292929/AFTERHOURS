@@ -1,7 +1,7 @@
 // P13 · Live-Standort: Zeitfenster, Frist, Entfernungen und sparsames Senden (src/lib/live.ts).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { distanceMeters, isStale, liveStage, liveWindow, roundDistance, shareUntil, shouldSend } from "../../src/lib/live.ts";
+import { arrivalState, distanceMeters, isAtPlace, isStale, liveStage, liveWindow, roundDistance, shareUntil, shouldSend, walkMinutes } from "../../src/lib/live.ts";
 
 const plan = (starts_at, ends_at = null, status = "confirmed") => ({ starts_at, ends_at, status });
 const at = (iso) => new Date(iso);
@@ -88,4 +88,34 @@ test("Stadtplan: Personen am selben Fleck rücken auseinander, Einzelne bleiben"
   for (const [i, j] of [[0, 1], [1, 2], [0, 2]]) {
     assert.ok(Math.hypot(chain[i].x - chain[j].x, chain[i].y - chain[j].y) >= 30 - 1e-9);
   }
+});
+
+// P13 Etappe 2b · „Bin gleich da“
+test("Gehzeit: Luftlinie × 1,3 bei 80 m/min, nur zwischen „am Ort“ und 3 km", () => {
+  assert.equal(walkMinutes(800), 13);
+  assert.equal(walkMinutes(100), 2);
+  assert.equal(walkMinutes(3000), 49);
+  assert.equal(walkMinutes(60), null, "schon am Ort");
+  assert.equal(walkMinutes(3001), null, "zu weit für eine Gehzeit");
+  assert.equal(walkMinutes(Number.NaN), null);
+});
+
+test("Am Ort: bis 75 m, plus Ungenauigkeit bis höchstens 75 m", () => {
+  const place = { latitude: 52.5158, longitude: 13.4983 };
+  const north = (m) => ({ latitude: place.latitude + m / 111_195, longitude: place.longitude });
+  assert.equal(isAtPlace(north(10), place), true);
+  assert.equal(isAtPlace(north(70), place), true);
+  assert.equal(isAtPlace(north(100), place), false);
+  assert.equal(isAtPlace({ ...north(100), accuracy_m: 40 }, place), true, "Ungenauigkeit zählt mit");
+  assert.equal(isAtPlace({ ...north(200), accuracy_m: 5000 }, place), false, "höchstens 75 m Zugabe");
+  assert.equal(isAtPlace(north(0), null), false, "ohne Ort kein „da“");
+});
+
+test("Ansage: keine, offen, vorbei", () => {
+  const now = at("2026-11-06T19:00:00Z");
+  assert.equal(arrivalState(null, now), "none");
+  assert.equal(arrivalState("kaputt", now), "none");
+  assert.equal(arrivalState("2026-11-06T19:10:00Z", now), "upcoming");
+  assert.equal(arrivalState("2026-11-06T19:00:00Z", now), "past");
+  assert.equal(arrivalState("2026-11-06T18:50:00Z", now), "past");
 });
