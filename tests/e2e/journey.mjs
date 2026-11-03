@@ -5286,7 +5286,7 @@ await step("P4 – Push-Mitteilungen: Gerät anmelden, verschlüsselter Push, Te
   await context.close();
 });
 
-await step("P18 – „Schon verplant“: eigene Pläne beim Abstimmen über Termine (Bob, Carol)", async () => {
+await step("P18 – „Schon verplant“: eigene Pläne beim Abstimmen über Termine, auf der Abstimmung und auf Home (Bob, Carol)", async () => {
   if (!DB_URL || !ANON) {
     console.log("   (E2E_DB_URL/SUPABASE_ANON_KEY nicht gesetzt – übersprungen)");
     return;
@@ -5351,6 +5351,18 @@ await step("P18 – „Schon verplant“: eigene Pläne beim Abstimmen über Ter
     await busy(carol, l2).waitFor();
     check((await busy(carol, l2).innerText()).trim() === `Schon verplant: Flohmarkt ${RUN}, 20:00 Uhr`, "P18: Carol sieht ihren Flohmarkt um 20:00");
     check((await busy(carol, l1).count()) === 0, "P18: Bobs Kino taucht bei Carol nicht auf");
+
+    // Etappe 2: Auch beim Abstimmen direkt auf Home („Deine Antwort fehlt“) steht der Hinweis unter dem Vorschlag.
+    await carol.page.goto(`${APP}/home`);
+    const quick = carol.page.getByRole("region", { name: `Gleich hier abstimmen: Wann geht's? ${RUN}` });
+    await quick.getByTestId("poll-quick-option").waitFor();
+    check((await quick.getByTestId("poll-quick-option").innerText()).trim().toLowerCase() === l1.toLowerCase() && (await quick.getByTestId("poll-option-busy").count()) === 0,
+      "P18 Etappe 2: Home – erster Termin ohne Hinweis (Carol ist beim Kino nur eingeladen)");
+    await quick.getByRole("button", { name: "Überspringen" }).click();
+    await quick.getByTestId("poll-option-busy").waitFor();
+    check((await quick.getByTestId("poll-option-busy").innerText()).trim() === `Schon verplant: Flohmarkt ${RUN}, 20:00 Uhr`, "P18 Etappe 2: Home – nächster Termin sagt „Schon verplant: Flohmarkt“");
+    await noOverflow(carol, "Home mit „Schon verplant“");
+    await a11y(carol, "home-schon-verplant");
 
     // Ist die Abstimmung vorbei, verschwinden die Hinweise.
     check((await api(bob, "POST", "rpc/close_poll", { p_poll_id: pollId })).status < 300, "P18: Bob beendet die Abstimmung");

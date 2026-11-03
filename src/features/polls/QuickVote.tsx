@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
@@ -29,6 +29,8 @@ interface PollQuickVoteProps {
   now: Date;
   /** Erster Tipp: Home hält die Abstimmung dann unter „Deine Antwort fehlt“, bis du durch bist. */
   onTouched: (pollId: string) => void;
+  /** P18 Etappe 2: „Schon verplant: …“ unter dem Vorschlag. */
+  busy?: (option: PollOption) => ReactNode;
 }
 
 /**
@@ -37,7 +39,7 @@ interface PollQuickVoteProps {
  * `cast_vote` wie auf der Abstimmung) und legt sofort den nächsten Vorschlag auf. „Überspringen“ lässt einen
  * Vorschlag ohne Antwort; geändert wird auf der Abstimmung. Schlägt das Speichern fehl, kommt der Vorschlag zurück.
  */
-export function PollQuickVote({ poll, memberIds, userId, now, onTouched }: PollQuickVoteProps) {
+export function PollQuickVote({ poll, memberIds, userId, now, onTouched, busy }: PollQuickVoteProps) {
   const toast = useToast();
   const vote = useVote(poll.id);
   const [answered, setAnswered] = useState<ReadonlyMap<string, QuickResponse>>(new Map());
@@ -103,6 +105,7 @@ export function PollQuickVote({ poll, memberIds, userId, now, onTouched }: PollQ
           {current.option.title}
         </p>
         <p className="mt-1.5 text-[14px] text-muted">{[when, t.polls.swipe.going(current.going)].filter(Boolean).join(" · ")}</p>
+        {busy?.(current.option)}
         <div role="group" aria-label={t.home.quickVote.answer(current.option.title)} className="quick-answer mt-3.5 grid grid-cols-3 gap-2">
           {ANSWERS.map(({ response, label }) => (
             <button key={response} type="button" data-response={response} onClick={() => void answer(current.id, response)} className="vote-pill">

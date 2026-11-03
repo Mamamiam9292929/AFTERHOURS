@@ -20,6 +20,7 @@ import { usePolls } from "@/features/polls/api";
 import { isPollOver } from "@/features/polls/logic";
 import { QuickPollLauncher } from "@/features/polls/QuickPoll";
 import { PollCard } from "@/features/polls/PollCard";
+import { busyLine, myBusyPlans } from "@/features/polls/OptionBusy";
 import { PollQuickVote } from "@/features/polls/QuickVote";
 import { usePeople, useProfile, useSettings } from "@/features/profile/api";
 import { t } from "@/i18n";
@@ -266,7 +267,14 @@ export function HomePage() {
                       <div key={poll.id}>
                         <PollCard poll={poll} crew={crewById.get(poll.crew_id)} memberIds={membersOf(poll.crew_id)} userId={user.id} now={now} />
                         <div className="mt-2.5">
-                          <PollQuickVote poll={poll} memberIds={membersOf(poll.crew_id)} userId={user.id} now={now} onTouched={touch} />
+                          <PollQuickVote
+                            poll={poll}
+                            memberIds={membersOf(poll.crew_id)}
+                            userId={user.id}
+                            now={now}
+                            onTouched={touch}
+                            busy={(option) => busyLine(option, myBusyPlans(plans.data, user.id, poll, polls.data), poll.crew_id, crews.data)}
+                          />
                         </div>
                       </div>
                     ))}

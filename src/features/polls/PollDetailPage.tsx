@@ -18,9 +18,8 @@ import { useCreatePlanFromPoll, usePlans } from "@/features/plans/api";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { DecidedMoment } from "./DecidedMoment";
-import { OptionBusy } from "./OptionBusy";
+import { busyLine, myBusyPlans } from "./OptionBusy";
 import { SwipeDeck } from "./SwipeDeck";
-import { busyFor, relevantPlans } from "@/lib/busy";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
@@ -675,14 +674,8 @@ export function PollDetailPage() {
 
   // P18: Was du zu den Terminen der Vorschläge schon vorhast – aus deinen eigenen Plänen, nur solange
   // abgestimmt wird. Pläne aus dieser Abstimmung und den verknüpften (Stichwahl, Termin ↔ „Und wo?“) zählen nicht.
-  const ownPolls = new Set([poll.id, poll.parent_poll_id, poll.date_poll_id, runoff?.id, where.active?.id].filter((id): id is string => Boolean(id)));
-  const myPlans = !summary.isOver && plans.data ? relevantPlans(plans.data, user.id, ownPolls) : [];
-  const busyOf = (option: PollOption, tone: "card" | "deck" = "card") => {
-    const hit = myPlans.length > 0 ? busyFor(option, myPlans) : null;
-    if (!hit) return null;
-    const other = hit.plan.crew_id !== poll.crew_id ? crews.data?.find((c) => c.id === hit.plan.crew_id) : undefined;
-    return <OptionBusy hit={hit} crewLabel={other ? `${other.emoji} ${other.name}` : null} tone={tone} />;
-  };
+  const myPlans = summary.isOver ? [] : myBusyPlans(plans.data, user.id, poll, allPolls.data);
+  const busyOf = (option: PollOption, tone: "card" | "deck" = "card") => busyLine(option, myPlans, poll.crew_id, crews.data, tone);
 
   function castVote(optionId: string, response: VoteResponse | null) {
     vote.mutate({ optionId, response }, { onError: (error) => toast.error(error) });
