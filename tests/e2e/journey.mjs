@@ -5481,6 +5481,7 @@ await step("P20 – Geburtstage in der Crew: eintragen, „Bald Geburtstag“, F
   check(await panel.getByTestId("crew-birthday-add").isVisible(), "P20: Carol ohne Eintrag sieht „Geburtstag eintragen“");
   await noOverflow(carol, "Crew-Seite mit Geburtstag");
   await a11y(carol, "crew-geburtstage");
+  await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
   await shot(carol, "64-crew-geburtstage");
 
   // Bob selbst sieht „Dein Geburtstag“ ohne „Feier planen“ und ohne Hinweis.
