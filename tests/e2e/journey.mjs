@@ -4013,6 +4013,12 @@ await step("P11 – Startseite mit englischem Browser und Sprachlink (Gast)", as
     const demo = await page.locator("figure").first().innerText();
     check(/Bowling/.test(demo) && /Cinema/.test(demo), "Satz-Probe zerlegt den englischen Beispielsatz");
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "02b-startseite-englisch.png"), fullPage: false });
+    // F7: Datenschutz-Texte liegen nicht im Start-Bundle – sie kommen beim Wechsel auf die Seite, auf Englisch.
+    await page.getByRole("link", { name: "Privacy", exact: true }).first().click();
+    await page.getByRole("heading", { level: 1, name: /Privacy and your data/i }).waitFor();
+    check((await page.getByText("No tracking").count()) >= 1, "F7: Datenschutz-Seite lädt ihre Texte nach – auf Englisch");
+    await page.goBack();
+    await page.getByRole("link", { name: "Start a crew" }).first().waitFor();
     await Promise.all([page.waitForEvent("load"), page.getByTestId("language-link").click()]);
     await page.getByRole("link", { name: "Crew gründen" }).first().waitFor();
     check((await page.evaluate(() => document.documentElement.lang)) === "de", "Sprachlink wechselt auf Deutsch");
