@@ -196,6 +196,17 @@ export function useSetPlanStatus(planId: string) {
   });
 }
 
+/** P19: Alle ohne Antwort fragen, ob sie dabei sind. Liefert die Zahl der gefragten Personen. */
+export function useRemindPlan(planId: string) {
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc("remind_plan", { p_plan_id: planId });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+}
+
 export function useSetAttendance(planId: string) {
   const client = useQueryClient();
   const { user } = useAuth();

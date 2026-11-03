@@ -107,6 +107,11 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       : "Für die Crew ausgeblendet, bis du entscheidest: wieder zeigen oder löschen.",
   }),
   // P16: Am Morgen nach dem Abend einmal, ohne auslösende Person – nur „gestern“, wenn es stimmt.
+  // P19: Organisator:in fragt alle ohne Antwort – mit Termin, damit man ohne Öffnen weiß, worum es geht.
+  plan_reminder: (actor, p) => ({
+    title: `${actor} fragt: Bist du dabei?`,
+    body: str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title"),
+  }),
   plan_photo_nudge: (_actor, p) => ({
     title: p.yesterday ? "Fotos von gestern? Teilt sie mit der Crew" : "Fotos vom Abend? Teilt sie mit der Crew",
     body: str(p, "title"),
@@ -200,6 +205,7 @@ export const settings = {
     groups: {
       polls: { title: "Neue Abstimmungen", body: "Wenn jemand in deiner Crew eine Abstimmung startet." },
       reminders: { title: "Erinnerungen", body: "Wenn deine Antwort auf eine Abstimmung noch fehlt – von Hand oder kurz vor dem Ende." },
+      planReminders: { title: "Nachfragen zu Plänen", body: "Wenn jemand fragt, ob du bei einem Plan dabei bist, und deine Antwort noch fehlt." },
       answers: { title: "Neue Antworten", body: "Wenn jemand auf deine Abstimmung oder deinen Plan antwortet." },
       results: { title: "Ergebnisse", body: "Wenn eine Abstimmung endet." },
       plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten und Absagen." },

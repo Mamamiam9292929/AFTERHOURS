@@ -103,6 +103,10 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       ? "It's your photo: it's hidden from the crew until someone else decides. You can delete it any time."
       : "Hidden from the crew until you decide: show it again or delete it.",
   }),
+  plan_reminder: (actor, p) => ({
+    title: `${actor} asks: are you in?`,
+    body: str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p),
+  }),
   plan_photo_nudge: (_actor, p) => ({
     title: p.yesterday ? "Photos from last night? Share them with the crew" : "Photos from the night? Share them with the crew",
     body: serverTitle(p),
@@ -193,6 +197,7 @@ export const settings = {
     groups: {
       polls: { title: "New polls", body: "When someone in your crew starts a poll." },
       reminders: { title: "Reminders", body: "When you still haven't answered a poll – sent by hand or shortly before it closes." },
+      planReminders: { title: "Plan check-ins", body: "When someone asks whether you're in on a plan you haven't answered yet." },
       answers: { title: "New replies", body: "When someone replies to your poll or your plan." },
       results: { title: "Results", body: "When a poll ends." },
       plans: { title: "Plans", body: "New plans, changes to time, place or cost, and cancellations." },
