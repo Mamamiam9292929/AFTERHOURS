@@ -30,6 +30,7 @@ import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { LivePanel } from "./LivePanel";
+import { AgainCard } from "./PlanAgain";
 import { PlanForm } from "./PlanForm";
 import { PlanPanel } from "./PlanPanel";
 import { RepeatCard, RepeatLine, SkippedNotice } from "./PlanRepeat";
@@ -358,6 +359,8 @@ export function PlanDetailPage() {
           {(started || locked) && bringSection}
 
           {!(started || locked) && expensesSection}
+
+          {plan.status === "completed" && <AgainCard plan={plan} placeName={place?.name ?? null} />}
 
           {plan.status === "completed" && <FollowUp plan={plan} city={place?.city ?? null} />}
         </div>

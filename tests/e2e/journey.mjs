@@ -1890,6 +1890,23 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   await page.getByText("Abgeschlossen").first().waitFor();
   await page.getByRole("heading", { name: "Was kommt als Nächstes?" }).waitFor();
   check(true, "abgeschlossener Plan schlägt Folgeaktivitäten vor");
+  // P17: „Nochmal?“ – ein Tipp startet die Terminsuche für denselben Ort mit derselben Crew.
+  const again = page.getByTestId("plan-again");
+  await again.waitFor();
+  check((await again.getByRole("heading", { name: "Nochmal?" }).count()) === 1, "P17: abgeschlossener Plan fragt „Nochmal?“");
+  check((await again.innerText()).includes("War gut bei Strike District Bowling?"), "P17: Karte nennt den Ort des Abends");
+  check(/^\d+ waren? dabei$/.test((await page.getByTestId("plan-again-went").innerText()).trim()), "P17: Pille zählt, wer dabei war");
+  const againLink = again.getByRole("link", { name: "Nochmal hier – Termin finden" });
+  const againHref = (await againLink.getAttribute("href")) ?? "";
+  check(againHref.includes("kind=date") && againHref.includes(`crew=${ids.crew}`) && againHref.includes("place="), "P17: Link führt zur Terminsuche mit Crew und Ort");
+  await shot(alice, "19a-nochmal");
+  await againLink.click();
+  await page.waitForURL(/\/polls\/new\?/);
+  await page.getByTestId("poll-form-date-place-chosen").waitFor();
+  check((await page.getByTestId("poll-form-date-place-chosen").innerText()).includes("Strike District Bowling"), "P17: Terminsuche hat den Ort schon eingetragen");
+  check((await page.getByRole("radiogroup", { name: "Für welche Crew?" }).getByRole("radio", { checked: true }).count()) === 1, "P17: Crew ist vorgewählt");
+  await page.goBack();
+  await again.waitFor();
   await page.goto(`${APP}/rewards`);
   await page.getByText("Plan organisiert").first().waitFor();
   check((await page.locator("section[aria-labelledby=balance-label]").innerText()).includes("40"), "Organisatorin erhält 30 + 10 Punkte");
