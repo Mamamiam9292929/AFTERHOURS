@@ -59,6 +59,20 @@ export const crews = {
     aloneBody: "Invite your friends – without them there's nothing to vote on.",
     notFoundTitle: "This crew doesn't exist",
     notFoundBody: "It was deleted or you're no longer a member.",
+    /** P20: Geburtstage in der Crew (nur Tag und Monat). */
+    birthdays: {
+      title: "Birthdays soon",
+      lead: "One tap and the crew votes on when to celebrate.",
+      today: "Today",
+      tomorrow: "Tomorrow",
+      inDays: (n: number) => `in ${n} days`,
+      you: "You",
+      yourDay: "Your birthday",
+      plan: "Plan a party",
+      planLabel: (name: string) => `Plan a party for ${name}`,
+      addOwn: "Add your birthday",
+      addOwnBody: "Add day and month – then your crew sees when it's time to celebrate. No year, remove it any time.",
+    },
   },
   /** P9 · Crew-Rückblick: was die Crew gemeinsam erlebt hat (nur abgeschlossene Pläne, keine Rangliste von Personen). */
   recap: {

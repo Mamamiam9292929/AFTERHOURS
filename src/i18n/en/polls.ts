@@ -44,6 +44,9 @@ export const polls = {
     dates: {
       lead: "Suggest a few dates – everyone says when they can make it. Where to go, you sort out afterwards.",
       defaultTitle: "When can you make it?",
+      /** P20: „Feier planen“ von der Crew-Seite. */
+      birthdayTitle: (name: string) => `${name}'s birthday – when shall we celebrate?`,
+      birthdayHint: (name: string, date: string) => `Around ${name}'s birthday on ${date} – change the dates as you like.`,
       title: "Dates",
       hint: "2 to 10 dates. The time is optional.",
       dateLabel: (n: number) => `Date ${n}`,

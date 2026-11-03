@@ -10,6 +10,7 @@ export {
   LuBell as IconBell,
   LuBellOff as IconBellOff,
   LuBot as IconBot,
+  LuCake as IconCake,
   LuCalendar as IconCalendar,
   LuCalendarCheck as IconCalendarCheck,
   LuCalendarPlus as IconCalendarPlus,

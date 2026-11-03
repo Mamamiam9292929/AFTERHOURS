@@ -3972,11 +3972,11 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   check(await page.getByText("Live nur während eines Plans").isVisible(), "P13: Einstellungen sagen ehrlich, dass Live-Standort nur rund um einen Plan geht");
   // V2 Etappe 3k: Bereiche als Glas-Karten mit Farbschein, Stand als Pille, Sprung-Pillen oben.
   const tones = await page.locator("main section.plan-panel").evaluateAll((els) => els.map((el) => `${el.id}:${el.dataset.tone}`));
-  check(tones.join(",") === "profile:violet,language:lime,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: sieben Glas-Karten mit Farbschein (${tones.join(", ")})`);
+  check(tones.join(",") === "profile:violet,birthday:pink,language:lime,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: acht Glas-Karten mit Farbschein (${tones.join(", ")})`);
   check((await page.getByTestId("location-status").innerText()).trim() === "Aus", "Standort-Pille sagt „Aus“");
   check((await page.getByTestId("calendar-status").innerText()).trim() === "Kein Abo", "Kalender-Pille: „Kein Abo“");
   const jump = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
-  check((await jump.getByRole("link").count()) === 7, "sieben Sprung-Pillen");
+  check((await jump.getByRole("link").count()) === 8, "acht Sprung-Pillen");
   await jump.getByRole("link", { name: "Kalender-Abo" }).click();
   await page.waitForURL(/#calendar$/);
   check(true, "Sprung-Pille führt zum Kalender-Abo");
@@ -5435,6 +5435,86 @@ await step("P18 – „Schon verplant“: eigene Pläne beim Abstimmen über Ter
     if (pollId) psql(`delete from public.polls where id = '${pollId}'`);
     psql(`delete from public.plans where id in (${Object.values(plans).map((p) => `'${p.id}'`).join(", ")})`);
   }
+});
+
+await step("P20 – Geburtstage in der Crew: eintragen, „Bald Geburtstag“, Feier planen, entfernen (Bob, Carol)", async () => {
+  if (!DB_URL || !ANON) {
+    console.log("   (E2E_DB_URL/SUPABASE_ANON_KEY nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const bobName = psql(`select p.display_name from public.profiles p join auth.users u on u.id = p.id where u.email = '${bob.email}'`);
+  const berlinDate = (offsetDays) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + offsetDays * 86_400_000));
+  const birthday = berlinDate(5);
+  const [, month, day] = birthday.split("-").map(Number);
+  const longDate = new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${birthday}T12:00:00Z`));
+  const dayMonth = new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", day: "numeric", month: "long" }).format(new Date(`${birthday}T12:00:00Z`));
+
+  // Bob trägt Tag und Monat ein (ohne Jahr).
+  const { page } = bob;
+  await page.goto(`${APP}/settings#birthday`);
+  const card = page.locator("section#birthday");
+  await card.getByLabel("Tag").waitFor();
+  check((await card.getByTestId("birthday-status").count()) === 0, "P20: ohne Eintrag kein Geburtstag in den Einstellungen");
+  await card.getByRole("button", { name: "Geburtstag speichern" }).click();
+  await card.getByText("Wähl Tag und Monat aus.").waitFor();
+  check(true, "P20: ohne Tag und Monat wird nichts gespeichert");
+  await card.getByLabel("Monat").selectOption(String(month));
+  await card.getByLabel("Tag").selectOption(String(day));
+  await card.getByRole("button", { name: "Geburtstag speichern" }).click();
+  await toast(bob, "Geburtstag gespeichert.");
+  await card.getByTestId("birthday-status").waitFor();
+  check((await card.getByTestId("birthday-status").innerText()).trim() === dayMonth, `P20: Stand als Pille „${dayMonth}“`);
+  check(psql(`select b.month || '-' || b.day from public.birthdays b join auth.users u on u.id = b.user_id where u.email = '${bob.email}'`) === `${month}-${day}`,
+    "P20: gespeichert sind nur Tag und Monat");
+  await noOverflow(bob, "Einstellungen mit Geburtstag");
+  await a11y(bob, "einstellungen-geburtstag");
+  await shot(bob, "63-geburtstag-einstellungen");
+
+  // Carol sieht auf der Crew-Seite „Bald Geburtstag“ – und den Hinweis, ihren eigenen einzutragen.
+  await carol.page.goto(`${APP}/crews/${ids.crew}`);
+  const panel = carol.page.getByTestId("crew-birthdays");
+  await panel.getByTestId("crew-birthday").first().waitFor();
+  const row = panel.getByTestId("crew-birthday").filter({ hasText: bobName });
+  check((await row.count()) === 1 && (await row.innerText()).includes("in 5 Tagen") && (await row.innerText()).includes(longDate),
+    `P20: Carol sieht Bobs Geburtstag „${longDate}“ in 5 Tagen`);
+  check(await panel.getByTestId("crew-birthday-add").isVisible(), "P20: Carol ohne Eintrag sieht „Geburtstag eintragen“");
+  await noOverflow(carol, "Crew-Seite mit Geburtstag");
+  await a11y(carol, "crew-geburtstage");
+  await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await shot(carol, "64-crew-geburtstage");
+
+  // Bob selbst sieht „Dein Geburtstag“ ohne „Feier planen“ und ohne Hinweis.
+  await page.goto(`${APP}/crews/${ids.crew}`);
+  const own = page.getByTestId("crew-birthdays");
+  await own.getByTestId("crew-birthday").first().waitFor();
+  check((await own.getByText("Dein Geburtstag").count()) === 1 && (await own.getByRole("link", { name: /Feier/ }).count()) === 0 && (await own.getByTestId("crew-birthday-add").count()) === 0,
+    "P20: Bob sieht „Dein Geburtstag“, ohne „Feier planen“ und ohne Hinweis");
+
+  // „Feier planen“ → Termin-Abstimmung rund um den Geburtstag, Frage vorbelegt.
+  await row.getByRole("link", { name: `Feier für ${bobName} planen` }).click();
+  await carol.page.waitForURL(/\/polls\/new\?/);
+  await carol.page.getByTestId("date-birthday-hint").waitFor();
+  check((await carol.page.getByLabel("Frage an die Crew").inputValue()) === `Geburtstag von ${bobName} – wann feiern wir?`, "P20: Frage „Geburtstag von … – wann feiern wir?“ vorbelegt");
+  const slotCount = await carol.page.getByTestId("poll-form-slot").count();
+  check(slotCount >= 2 && slotCount <= 4, `P20: ${slotCount} Termine rund um den Geburtstag vorgeschlagen`);
+  await noOverflow(carol, "Feier planen");
+  await shot(carol, "65-geburtstag-feier-planen");
+
+  // Ungültiges Datum im Link: normale Termin-Abstimmung.
+  await carol.page.goto(`${APP}/polls/new?crew=${ids.crew}&kind=date&birthday=2020-01-01&for=Bob`);
+  await carol.page.getByTestId("poll-form-dates").waitFor();
+  check((await carol.page.getByTestId("date-birthday-hint").count()) === 0 && (await carol.page.getByLabel("Frage an die Crew").inputValue()) === "Wann könnt ihr?",
+    "P20: vergangenes Datum im Link wird ignoriert");
+
+  // Bob entfernt seinen Geburtstag wieder.
+  await page.goto(`${APP}/settings#birthday`);
+  await card.getByRole("button", { name: "Entfernen" }).click();
+  await toast(bob, "Geburtstag entfernt.");
+  check(psql(`select count(*) from public.birthdays b join auth.users u on u.id = b.user_id where u.email = '${bob.email}'`) === "0", "P20: entfernt ist entfernt");
+  await carol.page.goto(`${APP}/crews/${ids.crew}`);
+  await carol.page.getByTestId("crew-birthday-add").waitFor();
+  check((await carol.page.getByTestId("crew-birthday").count()) === 0, "P20: danach sieht Carol nur noch den Hinweis");
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
