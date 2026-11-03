@@ -55,3 +55,16 @@ export function useStopLiveLocation(planId: string) {
     onSettled: () => void client.invalidateQueries({ queryKey: qk.planLive(planId) }),
   });
 }
+
+/** P13 Etappe 2b · „Bin gleich da“: Ankunft in Minuten ansagen (`null` nimmt sie zurück); liefert die Uhrzeit vom Server. */
+export function useSetLiveArrival(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (minutes: number | null): Promise<string | null> => {
+      const { data, error } = await supabase.rpc("set_plan_live_arrival", { p_plan_id: planId, p_minutes: minutes });
+      if (error) throw error;
+      return (data as string | null) ?? null;
+    },
+    onSettled: () => void client.invalidateQueries({ queryKey: qk.planLive(planId) }),
+  });
+}

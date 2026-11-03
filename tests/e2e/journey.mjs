@@ -1800,6 +1800,41 @@ await step("P13 – Wo seid ihr? Live-Standort rund um den Plan (Alice, Bob, Car
     await panel.getByTestId("live-person").filter({ hasText: "Bob" }).waitFor({ timeout: 40_000 });
     check(true, "P13: Alice sieht Bob ohne Neuladen");
 
+    // P13 Etappe 2b: „Bin gleich da“ – Alice sagt an, wann sie da ist; Bob sieht die Uhrzeit.
+    const picker = panel.getByTestId("live-arrival-picker");
+    await picker.waitFor();
+    check(await picker.getByText("Wann bist du da?").isVisible(), "P13 2b: „Wann bist du da?“ in der eigenen Freigabe");
+    check((await picker.getByRole("button").count()) === 5, "P13 2b: fünf Antipp-Knöpfe (5 bis 45 Minuten)");
+    check((await picker.getByText(/^Zu Fuß rund/).count()) === 0, "P13 2b: keine Gehzeit bei rund 6 km Luftlinie – nichts Geschätztes, wo Gehen keine Annahme ist");
+    await picker.getByRole("button", { name: "in 15 Min." }).click();
+    await toast(alice, /^Die Crew sieht: gegen \d\d:\d\d Uhr da\.$/);
+    const myArrival = panel.getByTestId("live-arrival-mine");
+    await myArrival.waitFor();
+    check(/^Du bist gegen \d\d:\d\d Uhr da$/.test((await myArrival.innerText()).trim()), "P13 2b: eigene Ansage als Lime-Pille");
+    const etaMinutes = Number(sql(`select round(extract(epoch from arrival_eta - now()) / 60) from public.plan_live_locations where plan_id = '${ids.plan}' and user_id = '${uidOf(alice)}'`));
+    check(etaMinutes >= 14 && etaMinutes <= 15, `P13 2b: Uhrzeit vom Server, 15 Minuten ab jetzt (${etaMinutes})`);
+    const aliceEta = aliceRow.getByTestId("live-arrival");
+    await aliceEta.waitFor({ timeout: 40_000 });
+    check(/^da gegen \d\d:\d\d Uhr$/.test((await aliceEta.innerText()).trim()), "P13 2b: Bob sieht „da gegen …“ bei Alice");
+    // Bob steht am Ort (Position direkt gesetzt, damit nicht auf das nächste Senden gewartet werden muss).
+    sql(`update public.plan_live_locations set latitude = 52.5158, longitude = 13.4983 where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`);
+    const bobThere = panel.getByTestId("live-person").filter({ hasText: "Bob" }).getByTestId("live-arrival");
+    await bobThere.filter({ hasText: "Ist da" }).waitFor({ timeout: 40_000 });
+    check(true, "P13 2b: Alice sieht Bob als „Ist da“, sobald er am Ort steht");
+    await panel.scrollIntoViewIfNeeded();
+    await shot(alice, "17d-bin-gleich-da");
+    if (ANON) {
+      const carolEta = await api(carol, "POST", "rpc/set_plan_live_arrival", { p_plan_id: ids.plan, p_minutes: 10 });
+      check(carolEta.status === 400 && /live_location_not_going/.test(JSON.stringify(carolEta.json)), `API: Carol (abgesagt) sagt keine Ankunft an (${carolEta.status})`);
+      check((await api(bob, "PATCH", `plan_live_locations?plan_id=eq.${ids.plan}`, { arrival_eta: null })).status === 403, "API: Ankunft nicht direkt änderbar (403)");
+      const tooLong = await api(alice, "POST", "rpc/set_plan_live_arrival", { p_plan_id: ids.plan, p_minutes: 500 });
+      check(tooLong.status === 400 && /invalid_arrival/.test(JSON.stringify(tooLong.json)), `API: mehr als 2 Stunden wird abgewiesen (${tooLong.status})`);
+    }
+    await panel.getByRole("button", { name: "Zurücknehmen" }).click();
+    await toast(alice, "Ansage zurückgenommen.");
+    await picker.waitFor();
+    check(sql(`select coalesce(arrival_eta::text, 'leer') from public.plan_live_locations where plan_id = '${ids.plan}' and user_id = '${uidOf(alice)}'`) === "leer", "P13 2b: „Zurücknehmen“ löscht die Ansage");
+
     // Carol hat abgesagt: kein Knopf, keine Positionen – auch nicht über die API.
     await carol.page.goto(`${APP}/plans/${ids.plan}`);
     await carol.page.locator("section#live").getByText(/^Nur wer dabei ist oder „vielleicht“ gesagt hat/).waitFor();
@@ -3239,6 +3274,8 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
   check((await rows("plan_live_locations")).length === 0, "API: keine fremden Live-Standorte lesbar");
   const liveShare = await api(mallory, "POST", "rpc/share_plan_live_location", { p_plan_id: ids.plan, p_latitude: 52.5, p_longitude: 13.4 });
   check(liveShare.status === 403, `API: kein Live-Standort in fremdem Plan (${liveShare.status})`);
+  const liveEta = await api(mallory, "POST", "rpc/set_plan_live_arrival", { p_plan_id: ids.plan, p_minutes: 10 });
+  check(liveEta.status === 403, `API: keine Ankunft in fremdem Plan (${liveEta.status})`);
 
   const option = (await api(alice, "GET", `poll_options?select=id&poll_id=eq.${ids.poll}&limit=1`)).json[0].id;
   check((await api(mallory, "POST", "rpc/cast_vote", { p_option_id: option, p_response: "yes" })).status === 403, "API: fremde Abstimmung – Stimme wird abgewiesen (403)");

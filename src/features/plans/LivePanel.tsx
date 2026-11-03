@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { IconNavigation } from "@/components/icons";
 import { Avatar, type Person } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -9,13 +9,26 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatNumber } from "@/lib/format";
-import { distanceMeters, isStale, liveStage, liveWindow, roundDistance, shareUntil, shouldSend, type LivePoint } from "@/lib/live";
+import {
+  ARRIVAL_CHOICES,
+  arrivalState,
+  distanceMeters,
+  isAtPlace,
+  isStale,
+  liveStage,
+  liveWindow,
+  roundDistance,
+  shareUntil,
+  shouldSend,
+  walkMinutes,
+  type LivePoint,
+} from "@/lib/live";
 import { formatAgo, formatTime } from "@/lib/time";
 import type { PlanLiveLocation } from "@/lib/types";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 import type { PlanWithParticipants } from "./api";
 import { LiveMap, type LiveMapPerson } from "./LiveMap";
-import { usePlanLiveLocations, useShareLiveLocation, useStopLiveLocation } from "./liveApi";
+import { usePlanLiveLocations, useSetLiveArrival, useShareLiveLocation, useStopLiveLocation } from "./liveApi";
 
 interface LivePanelProps {
   plan: PlanWithParticipants;
@@ -187,6 +200,7 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
             </StatusPill>
           </div>
           <p className="text-sm leading-snug text-muted">{watching ? t.plans.live.sharingLive : t.plans.live.sharingPaused(formatAgo(myRow.updated_at, now))}</p>
+          <ArrivalPicker planId={plan.id} row={myRow} point={myPoint ?? myRow} place={place} now={now} />
           <div className="flex flex-wrap gap-2">
             {!watching && (
               <Button size="sm" loading={locating} onClick={start} icon={<IconNavigation className="size-4" aria-hidden />}>
@@ -215,7 +229,7 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
       ) : (
         <ul className="space-y-2" aria-label={t.plans.live.listLabel}>
           {others.map(({ row, distance }) => (
-            <LiveRow key={row.user_id} row={row} person={lookup(row.user_id)} distance={distance} fromYou={reference?.mine ?? false} now={now} />
+            <LiveRow key={row.user_id} row={row} person={lookup(row.user_id)} distance={distance} fromYou={reference?.mine ?? false} place={place} now={now} />
           ))}
         </ul>
       )}
@@ -224,14 +238,125 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
   );
 }
 
-function LiveRow({ row, person, distance, fromYou, now }: { row: PlanLiveLocation; person: Person | null; distance: number | null; fromYou: boolean; now: Date }) {
+/** Kleine Pille in der Zeile einer Person: „Ist da“, „da gegen 20:15“ oder ehrlich „wollte 20:15 da sein“. */
+function ArrivalTag({ tone, children }: { tone: "lime" | "glass"; children: ReactNode }) {
+  return (
+    <span
+      data-testid="live-arrival"
+      data-tone={tone}
+      className={cn(
+        "inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-bold whitespace-nowrap",
+        tone === "lime" ? "bg-lime text-lime-ink" : "border border-white/15 bg-white/[0.06] text-muted",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * P13 Etappe 2b · „Bin gleich da“: eigene Ansage, wann man ungefähr da ist. Die Uhrzeit rechnet der Server; die
+ * Gehzeit unter den Knöpfen ist nur eine Schätzung aus der Luftlinie und steht so da. Wer schon am Ort steht,
+ * braucht nichts anzusagen.
+ */
+function ArrivalPicker({ planId, row, point, place, now }: { planId: string; row: PlanLiveLocation; point: LivePoint; place: LivePoint | null; now: Date }) {
+  const arrival = useSetLiveArrival(planId);
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const state = arrivalState(row.arrival_eta, now);
+
+  if (isAtPlace({ ...point, accuracy_m: row.accuracy_m }, place)) {
+    return (
+      <StatusPill tone="lime" testId="live-arrival-mine">
+        {t.plans.live.arrival.youAtPlace}
+      </StatusPill>
+    );
+  }
+
+  function choose(minutes: number | null) {
+    arrival.mutate(minutes, {
+      onSuccess: (eta) => {
+        setEditing(false);
+        toast.success(eta ? t.plans.live.arrival.saved(formatTime(new Date(eta))) : t.plans.live.arrival.cleared);
+      },
+      onError: (error) => toast.error(error),
+    });
+  }
+
+  if (state !== "none" && !editing) {
+    const time = formatTime(new Date(row.arrival_eta!));
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusPill tone={state === "upcoming" ? "lime" : "glass"} testId="live-arrival-mine">
+          {state === "upcoming" ? t.plans.live.arrival.mine(time) : t.plans.live.arrival.minePast(time)}
+        </StatusPill>
+        <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
+          {t.plans.live.arrival.change}
+        </Button>
+        <Button size="sm" variant="ghost" loading={arrival.isPending && arrival.variables === null} onClick={() => choose(null)}>
+          {t.plans.live.arrival.clear}
+        </Button>
+      </div>
+    );
+  }
+
+  const walk = place ? walkMinutes(distanceMeters(point, place)) : null;
+  return (
+    <fieldset className="space-y-2" data-testid="live-arrival-picker">
+      <legend className="mb-2 text-sm font-semibold text-fg">{t.plans.live.arrival.question}</legend>
+      <div className="flex flex-wrap gap-2">
+        {ARRIVAL_CHOICES.map((minutes) => (
+          <button
+            key={minutes}
+            type="button"
+            disabled={arrival.isPending}
+            onClick={() => choose(minutes)}
+            className={cn(
+              "inline-flex h-10 items-center rounded-full border border-line-strong px-4 text-sm font-semibold text-fg transition-colors hover:border-lime hover:text-lime disabled:opacity-50",
+              arrival.isPending && arrival.variables === minutes && "border-lime bg-lime text-lime-ink",
+            )}
+          >
+            {t.plans.live.arrival.choice(minutes)}
+          </button>
+        ))}
+      </div>
+      {walk != null && <p className="text-[13px] leading-snug text-muted">{t.plans.live.arrival.walk(walk)}</p>}
+    </fieldset>
+  );
+}
+
+function LiveRow({
+  row,
+  person,
+  distance,
+  fromYou,
+  place,
+  now,
+}: {
+  row: PlanLiveLocation;
+  person: Person | null;
+  distance: number | null;
+  fromYou: boolean;
+  place: LivePoint | null;
+  now: Date;
+}) {
   const stale = isStale(row.updated_at, now);
   const away = distance == null ? null : (fromYou ? t.plans.live.fromYou : t.plans.live.fromPlace)(distanceLabel(distance));
+  const there = isAtPlace(row, place);
+  const arrival = there ? "none" : arrivalState(row.arrival_eta, now);
   return (
     <li data-testid="live-person" data-stale={stale || undefined} className={cn(PANEL_ITEM, "flex min-h-14 items-center gap-3 py-2 pr-3 pl-2.5")}>
       <Avatar person={person} size="sm" decorative />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-fg">{person?.display_name ?? t.states.formerMember}</p>
+        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="truncate font-semibold text-fg">{person?.display_name ?? t.states.formerMember}</span>
+          {there && <ArrivalTag tone="lime">{t.plans.live.arrival.atPlace}</ArrivalTag>}
+          {arrival !== "none" && (
+            <ArrivalTag tone={arrival === "upcoming" ? "lime" : "glass"}>
+              {(arrival === "upcoming" ? t.plans.live.arrival.eta : t.plans.live.arrival.etaPast)(formatTime(new Date(row.arrival_eta!)))}
+            </ArrivalTag>
+          )}
+        </p>
         <p className="mt-0.5 text-[13px] text-muted">
           {t.plans.live.updated(formatAgo(row.updated_at, now))}
           {row.accuracy_m != null && row.accuracy_m > 100 && ` · ${t.plans.live.accuracy(row.accuracy_m)}`}

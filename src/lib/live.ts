@@ -130,3 +130,33 @@ export function spreadMarkers(points: ScreenPoint[], gap = LIVE_MARKER_GAP): Scr
   }
   return out;
 }
+
+/** P13 Etappe 2b · „Bin gleich da“: Auswahl in Minuten (der Server nimmt 1–120). */
+export const ARRIVAL_CHOICES = [5, 10, 15, 30, 45] as const;
+/** Zu Fuß: Luftlinie × Umweg-Faktor bei rund 4,8 km/h. Nur als Hinweis, nur bis zu dieser Entfernung. */
+const WALK_DETOUR = 1.3;
+const WALK_M_PER_MIN = 80;
+export const WALK_MAX_M = 3_000;
+/** Ab hier gilt eine Position als „am Ort“ (plus Ungenauigkeit des Geräts, höchstens 75 m). */
+export const AT_PLACE_M = 75;
+
+/** Geschätzte Gehzeit in Minuten aus der Luftlinie; `null`, wenn zu weit (dann ist Gehen keine sinnvolle Annahme) oder schon da. */
+export function walkMinutes(meters: number): number | null {
+  if (!Number.isFinite(meters) || meters <= AT_PLACE_M || meters > WALK_MAX_M) return null;
+  return Math.max(1, Math.round((meters * WALK_DETOUR) / WALK_M_PER_MIN));
+}
+
+/** Steht die Position am Ort? Großzügig um die Ungenauigkeit des Geräts (bis 75 m) erweitert. */
+export function isAtPlace(point: LivePoint & { accuracy_m?: number | null }, place: LivePoint | null): boolean {
+  if (!place) return false;
+  const slack = Math.min(Math.max(point.accuracy_m ?? 0, 0), AT_PLACE_M);
+  return distanceMeters(point, place) <= AT_PLACE_M + slack;
+}
+
+/** Angesagte Ankunft: noch offen oder schon vorbei (dann ehrlich als „wollte … da sein“). */
+export function arrivalState(eta: string | null | undefined, now: Date): "none" | "upcoming" | "past" {
+  if (!eta) return "none";
+  const t = new Date(eta).getTime();
+  if (!Number.isFinite(t)) return "none";
+  return t > now.getTime() ? "upcoming" : "past";
+}

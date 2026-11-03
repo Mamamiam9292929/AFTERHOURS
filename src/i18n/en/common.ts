@@ -173,6 +173,8 @@ export const errors = {
     plan_item_taken: "Someone else is already bringing that.",
     live_location_not_going: "Only people who are in or said \"maybe\" can share their location.",
     live_location_outside_window: "Location sharing only works from 2 hours before the start until the end of the plan.",
+    live_location_not_sharing: "Share your location first – then you can say when you'll be there.",
+    invalid_arrival: "Pick how many minutes until you're there (1 to 120).",
     invalid_location: "This location is invalid.",
     invalid_plan_photo: "This photo can't be uploaded. Try another one.",
     plan_photos_not_yet: "Photos can be added once the plan has started.",
