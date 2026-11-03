@@ -1904,7 +1904,9 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   await page.waitForURL(/\/polls\/new\?/);
   await page.getByTestId("poll-form-date-place-chosen").waitFor();
   check((await page.getByTestId("poll-form-date-place-chosen").innerText()).includes("Strike District Bowling"), "P17: Terminsuche hat den Ort schon eingetragen");
-  check((await page.getByRole("radiogroup", { name: "Für welche Crew?" }).getByRole("radio", { checked: true }).count()) === 1, "P17: Crew ist vorgewählt");
+  // Mit nur einer Crew blendet das Formular die Auswahl aus; mit mehreren muss die Crew des Plans gewählt sein.
+  const crewPicker = page.getByTestId("poll-form-crew");
+  check((await crewPicker.count()) === 0 || (await crewPicker.getByRole("radio", { checked: true }).count()) === 1, "P17: Crew ist vorgewählt (oder die einzige)");
   await page.goBack();
   await again.waitFor();
   await page.goto(`${APP}/rewards`);
