@@ -2749,6 +2749,8 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       check((await ask.getAttribute("aria-label")) === `Nachfragen – alle ${others} ohne Antwort fragen, ob sie dabei sind`, "Nachfragen: Knopf bei „Noch offen“ mit verständlicher Beschriftung");
       await noOverflow(bob, "Nachfragen");
       await a11y(bob, "plan-nachfragen");
+      // Das Bild zeigt „Wer kommt“ mit dem Knopf, nicht den Kopf der Seite.
+      await ask.evaluate((el) => el.scrollIntoView({ block: "center" }));
       await shot(bob, "21h-plan-nachfragen");
       await ask.click();
       await toast(bob, `${others} Personen gefragt.`);
