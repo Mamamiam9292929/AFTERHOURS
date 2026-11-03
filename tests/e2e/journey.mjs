@@ -5286,6 +5286,83 @@ await step("P4 – Push-Mitteilungen: Gerät anmelden, verschlüsselter Push, Te
   await context.close();
 });
 
+await step("P18 – „Schon verplant“: eigene Pläne beim Abstimmen über Termine (Bob, Carol)", async () => {
+  if (!DB_URL || !ANON) {
+    console.log("   (E2E_DB_URL/SUPABASE_ANON_KEY nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const uidOf = (user) => psql(`select id from auth.users where email = '${user.email}'`);
+  const [bobId, carolId] = [uidOf(bob), uidOf(carol)];
+  const berlinDate = (offsetDays) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + offsetDays * 86_400_000));
+  const label = (date) => new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00Z`));
+  const [d1, d2, d3] = [berlinDate(20), berlinDate(21), berlinDate(22)];
+  const [l1, l2, l3] = [label(d1), label(d2), label(d3)];
+  // Pläne der Crew um die drei Termine: Bob ist beim Kino dabei, beim Brunch „vielleicht“, zum Flohmarkt
+  // (Carol) nur eingeladen, bei der Hütte dabei – die ist aber abgesagt.
+  const plans = {
+    kino: { id: crypto.randomUUID(), title: `Kino ${RUN}`, at: `${d1} 19:30`, status: "confirmed", by: bobId, answers: { [bobId]: "going" } },
+    brunch: { id: crypto.randomUUID(), title: `Brunch ${RUN}`, at: `${d2} 11:00`, status: "proposed", by: carolId, answers: { [bobId]: "maybe", [carolId]: "declined" } },
+    markt: { id: crypto.randomUUID(), title: `Flohmarkt ${RUN}`, at: `${d2} 20:00`, status: "confirmed", by: carolId, answers: { [carolId]: "going", [bobId]: "invited" } },
+    huette: { id: crypto.randomUUID(), title: `Hütte ${RUN}`, at: `${d3} 18:00`, status: "cancelled", by: carolId, answers: { [carolId]: "going", [bobId]: "going" } },
+  };
+  let pollId = null;
+  try {
+    for (const p of Object.values(plans)) {
+      psql(`insert into public.plans (id, crew_id, created_by, title, starts_at, status)
+            values ('${p.id}', '${ids.crew}', '${p.by}', '${p.title}', '${p.at}'::timestamp at time zone 'Europe/Berlin', '${p.status}');
+            insert into public.plan_participants (plan_id, user_id, attendance_status)
+            select '${p.id}', a.key::uuid, a.value::public.attendance_status from jsonb_each_text('${JSON.stringify(p.answers)}'::jsonb) a
+            on conflict (plan_id, user_id) do update set attendance_status = excluded.attendance_status;`);
+    }
+    const created = await api(bob, "POST", "rpc/create_date_poll", {
+      p_crew_id: ids.crew,
+      p_title: `Wann geht's? ${RUN}`,
+      p_ends_at: new Date(Date.now() + 2 * 3600_000).toISOString(),
+      p_slots: [{ date: d1, time: "20:00" }, { date: d2, time: "20:00" }, { date: d3 }],
+    });
+    check(created.status < 300 && typeof created.json === "string", `Bob startet „Wann könnt ihr?“ mit drei Terminen (${created.status})`);
+    pollId = created.json;
+
+    const { page } = bob;
+    await page.goto(`${APP}/polls/${pollId}`);
+    const busy = (user, option) => optionCard(user, option).getByTestId("poll-option-busy");
+    await busy(bob, l1).waitFor();
+    const kino = busy(bob, l1);
+    check((await kino.innerText()).trim() === `Schon verplant: Kino ${RUN}, 19:30 Uhr` && (await kino.getAttribute("data-kind")) === "overlap",
+      `P18: 20:00 überschneidet sich mit Bobs Kino um 19:30 („${(await kino.innerText()).trim()}“)`);
+    const brunch = busy(bob, l2);
+    check((await brunch.innerText()).trim() === `Am selben Tag: Brunch ${RUN}, 11:00 Uhr` && (await brunch.getAttribute("data-kind")) === "day",
+      `P18: „vielleicht“ zählt, nur eingeladen (Flohmarkt 20:00) nicht – daher nur „am selben Tag“ („${(await brunch.innerText()).trim()}“)`);
+    check((await busy(bob, l3).count()) === 0, "P18: abgesagte Pläne zählen nicht, Termin ohne Uhrzeit bleibt ohne Hinweis");
+    const deck = page.getByTestId("swipe-deck");
+    check(await deck.getByText(`Schon verplant: Kino ${RUN}, 19:30 Uhr`).isVisible(), "P18: auch die oberste Karte im Stapel sagt es");
+    check((await deck.getByRole("link", { name: /Kino/ }).count()) === 0, "P18: im Stapel kein Link (Karten dahinter sind für Screenreader ausgeblendet)");
+    await noOverflow(bob, "Abstimmung mit „Schon verplant“");
+    await a11y(bob, "abstimmung-schon-verplant");
+    await shot(bob, "62-schon-verplant");
+    await kino.getByRole("link", { name: `Schon verplant: Kino ${RUN}, 19:30 Uhr` }).click();
+    await page.waitForURL(new RegExp(`/plans/${plans.kino.id}$`));
+    await page.getByRole("heading", { level: 1, name: `Kino ${RUN}` }).waitFor();
+    check(true, "P18: ein Tipp auf den Hinweis führt zum Plan");
+
+    // Jede Person sieht nur ihre eigenen Pläne: Carol ist beim Flohmarkt dabei, beim Kino nur eingeladen.
+    await carol.page.goto(`${APP}/polls/${pollId}`);
+    await busy(carol, l2).waitFor();
+    check((await busy(carol, l2).innerText()).trim() === `Schon verplant: Flohmarkt ${RUN}, 20:00 Uhr`, "P18: Carol sieht ihren Flohmarkt um 20:00");
+    check((await busy(carol, l1).count()) === 0, "P18: Bobs Kino taucht bei Carol nicht auf");
+
+    // Ist die Abstimmung vorbei, verschwinden die Hinweise.
+    check((await api(bob, "POST", "rpc/close_poll", { p_poll_id: pollId })).status < 300, "P18: Bob beendet die Abstimmung");
+    await page.goto(`${APP}/polls/${pollId}`);
+    await page.getByText("Beendet", { exact: true }).first().waitFor();
+    check((await page.getByTestId("poll-option-busy").count()) === 0, "P18: beendete Abstimmung ohne Hinweise");
+  } finally {
+    if (pollId) psql(`delete from public.polls where id = '${pollId}'`);
+    psql(`delete from public.plans where id in (${Object.values(plans).map((p) => `'${p.id}'`).join(", ")})`);
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);
