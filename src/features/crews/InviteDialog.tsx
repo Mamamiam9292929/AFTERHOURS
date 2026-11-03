@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { IconCopy, IconLink, IconQr, IconShare } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { FormMessage, SelectField } from "@/components/ui/Field";
-import { QrCode } from "@/components/ui/QrCode";
+import { Skeleton } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/errors";
@@ -12,6 +12,9 @@ import { siteUrl } from "@/lib/supabase";
 import { formatDateTime } from "@/lib/time";
 import type { Crew } from "@/lib/types";
 import { useCreateInvitation, type CreatedInvitation } from "./api";
+
+// W9: QR-Encoder nur laden, wenn jemand den Code sehen will.
+const QrCode = lazy(() => import("@/components/ui/QrCode"));
 
 /** Einladungslink erzeugen. Der Link wird genau einmal angezeigt – gespeichert ist nur sein Hash. */
 export function InviteDialog({ crew, open, onClose }: { crew: Crew; open: boolean; onClose: () => void }) {
@@ -83,8 +86,10 @@ export function InviteDialog({ crew, open, onClose }: { crew: Crew; open: boolea
           </Button>
           {showQr && (
             <div id="invite-qr" className="space-y-2.5">
-              <div className="mx-auto w-full max-w-64">
-                <QrCode value={link} label={t.crews.invite.qrLabel(crew.name)} fallback={<FormMessage>{t.crews.invite.qrTooLong}</FormMessage>} />
+              <div className="mx-auto w-full" style={{ maxWidth: 256 }}>
+                <Suspense fallback={<Skeleton className="aspect-square w-full" />}>
+                  <QrCode value={link} label={t.crews.invite.qrLabel(crew.name)} fallback={<FormMessage>{t.crews.invite.qrTooLong}</FormMessage>} />
+                </Suspense>
               </div>
               <p className="text-center text-[13px] leading-snug text-muted">{t.crews.invite.qrHint}</p>
             </div>
