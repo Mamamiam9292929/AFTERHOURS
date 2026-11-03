@@ -182,6 +182,12 @@ export const crews = {
     copyFailed: "Kopieren nicht möglich. Markiere den Link und kopiere ihn von Hand.",
     share: "Teilen",
     shareText: (crew: string) => `Komm in meine Crew „${crew}“ bei AFTERHOURS:`,
+    /** W9: Link als QR-Code – entsteht im Browser, kein Dienst sieht den Link. */
+    qrShow: "Als QR-Code zeigen",
+    qrHide: "QR-Code ausblenden",
+    qrLabel: (crew: string) => `QR-Code mit dem Einladungslink für „${crew}“`,
+    qrHint: "Mit der Handy-Kamera scannen – der Link öffnet sich direkt. Am besten mit hellem Bildschirm.",
+    qrTooLong: "Dieser Link ist zu lang für einen QR-Code. Kopiere oder teile ihn stattdessen.",
     another: "Weiteren Link erstellen",
     listTitle: "Einladungslinks",
     listEmpty: "Noch keine Einladungslinks erstellt.",

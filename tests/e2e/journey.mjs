@@ -540,6 +540,27 @@ await step("Schritt 3 – Einladungslink erzeugen", async () => {
   ids.invite = await input.inputValue();
   check(/\/join\/[0-9a-f]{64}$/.test(ids.invite), "Einladungslink enthält einen 64-stelligen Token");
   await shot(alice, "05-einladung");
+  // W9: Link als QR-Code – erst auf Tipp, im Browser erzeugt, kein Bild von außen.
+  check((await dialog(alice).getByTestId("qr-code").count()) === 0, "W9: QR-Code erst auf Tipp");
+  const qrRequests = [];
+  const onQrRequest = (request) => {
+    if (!request.url().startsWith(APP) && !/supabase|127\.0\.0\.1|localhost/.test(request.url())) qrRequests.push(request.url());
+  };
+  alice.page.on("request", onQrRequest);
+  await dialog(alice).getByRole("button", { name: "Als QR-Code zeigen" }).click();
+  const qr = dialog(alice).getByRole("img", { name: "QR-Code mit dem Einladungslink für „Weekend Crew“" });
+  await qr.waitFor();
+  const { qrMatrix, qrPath } = await import("../../src/lib/qr.ts");
+  check((await qr.locator("path").getAttribute("d")) === qrPath(qrMatrix(ids.invite)), "W9: QR-Code enthält genau den Einladungslink");
+  const qrBox = await qr.boundingBox();
+  const modules = Number(await qr.getAttribute("data-modules"));
+  check(qrBox.width >= 200 && qrBox.width / (modules + 8) >= 4, `W9: groß genug zum Scannen (${Math.round(qrBox.width)} px, ${modules} Module)`);
+  check(await dialog(alice).getByText(/^Mit der Handy-Kamera scannen/).isVisible(), "W9: Hinweis zum Scannen");
+  check(qrRequests.length === 0, `W9: keine Anfrage an Dritte (${qrRequests.join(", ")})`);
+  alice.page.off("request", onQrRequest);
+  await shot(alice, "05b-einladung-qr");
+  await dialog(alice).getByRole("button", { name: "QR-Code ausblenden" }).click();
+  check((await dialog(alice).getByTestId("qr-code").count()) === 0, "W9: QR-Code lässt sich ausblenden");
   await dialog(alice).getByRole("button", { name: "Schließen" }).click();
 });
 
