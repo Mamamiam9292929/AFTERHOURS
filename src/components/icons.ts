@@ -62,7 +62,6 @@ export {
   LuPencil as IconEdit,
   LuPhone as IconPhone,
   LuPlus as IconPlus,
-  LuQrCode as IconQr,
   LuRefreshCw as IconRefresh,
   LuRepeat as IconRepeat,
   LuSearch as IconSearch,

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { IconCopy, IconLink, IconQr, IconShare } from "@/components/icons";
+import { IconCopy, IconLink, IconPhoneApp, IconShare } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { FormMessage, SelectField } from "@/components/ui/Field";
@@ -80,7 +80,7 @@ export function InviteDialog({ crew, open, onClose }: { crew: Crew; open: boolea
             aria-expanded={showQr}
             aria-controls="invite-qr"
             onClick={() => setShowQr((v) => !v)}
-            icon={<IconQr className="size-4" aria-hidden />}
+            icon={<IconPhoneApp className="size-4" aria-hidden />}
           >
             {showQr ? t.crews.invite.qrHide : t.crews.invite.qrShow}
           </Button>
