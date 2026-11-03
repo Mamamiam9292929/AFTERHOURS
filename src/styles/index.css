@@ -194,7 +194,8 @@
   .ticket[data-answer="declined"] {
     border-color: transparent;
     --color-fg: #0b0b10;
-    --color-muted: rgb(11 11 16 / 0.78);
+    /* 0.86 statt 0.78: Status-Pille („Vorgeschlagen“, Grund raised) auf Rot erreicht sonst nur 4,2:1 (P18-Journey). */
+    --color-muted: rgb(11 11 16 / 0.86);
     --color-faint: rgb(11 11 16 / 0.7);
     --color-surface: rgb(11 11 16 / 0.12);
     --color-raised: rgb(11 11 16 / 0.14);
