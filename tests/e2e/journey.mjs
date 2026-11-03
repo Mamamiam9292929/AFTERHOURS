@@ -743,6 +743,23 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   ids.pollShareUrl = pollShared?.url;
   check(/stimm mit ab, bis /.test(pollShared?.text ?? "") && !/Alice|Bob|Carol/.test(pollShared?.text ?? ""), `Abstimmung teilen: Text mit Frist, ohne Namen („${pollShared?.text}“)`);
   await unstubShare(bob.page);
+  // W9 Etappe 2: derselbe Link als QR-Code – für Freunde am Tisch, im Browser erzeugt.
+  {
+    const { qrMatrix, qrPath } = await import("../../src/lib/qr.ts");
+    await bob.page.getByRole("button", { name: "Als QR-Code zeigen" }).click();
+    const qrDialog = bob.page.getByRole("dialog", { name: "Zum Scannen" });
+    const qr = qrDialog.getByRole("img", { name: `QR-Code mit dem Link zu „${ids.pollTitle}“` });
+    await qr.waitFor();
+    check((await qr.locator("path").getAttribute("d")) === qrPath(qrMatrix(ids.pollShareUrl)), "W9 Etappe 2: QR-Code enthält genau den geteilten Abstimmungs-Link");
+    const box = await qr.boundingBox();
+    const modules = Number(await qr.getAttribute("data-modules"));
+    check(box.width >= 200 && box.width / (modules + 8) >= 4, `W9 Etappe 2: groß genug zum Scannen (${Math.round(box.width)} px, ${modules} Module)`);
+    check(await qrDialog.getByText(/^Freunde am Tisch halten die Handy-Kamera drauf/).isVisible(), "W9 Etappe 2: Hinweis zum Scannen");
+    await shot(bob, "11a-abstimmung-qr");
+    await qrDialog.getByRole("button", { name: "Schließen" }).click();
+    await qrDialog.waitFor({ state: "detached" });
+    check(true, "W9 Etappe 2: QR-Dialog schließt");
+  }
 
   await answer(bob, "Strike District Bowling", "Bin dabei").click();
   await answer(bob, "Lichtspielhaus Nord", "Vielleicht").click();
@@ -1488,6 +1505,17 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   check(/^Strike District Bowling – .+\. Bist du dabei\?$/.test(shared?.text ?? ""), `Plan teilen: Titel, Zeitpunkt, Frage („${shared?.text}“)`);
   check(!/Alice|Bob|Carol|@/.test(JSON.stringify(shared ?? {})), "Plan teilen: keine Namen oder E-Mail-Adressen im geteilten Text");
   await shot(carol, "16a-plan-teilen");
+  // W9 Etappe 2: Plan-Link als QR-Code (Tablet).
+  {
+    const { qrMatrix, qrPath } = await import("../../src/lib/qr.ts");
+    await page.getByRole("button", { name: "Als QR-Code zeigen" }).click();
+    const qr = page.getByRole("dialog", { name: "Zum Scannen" }).getByRole("img", { name: "QR-Code mit dem Link zu „Strike District Bowling“" });
+    await qr.waitFor();
+    check((await qr.locator("path").getAttribute("d")) === qrPath(qrMatrix(ids.shareUrl)), "W9 Etappe 2: QR-Code enthält genau den geteilten Plan-Link");
+    await shot(carol, "16b-plan-qr");
+    await page.keyboard.press("Escape");
+    await page.getByRole("dialog", { name: "Zum Scannen" }).waitFor({ state: "detached" });
+  }
   // Rückfall ohne Teilen-Menü: Text und Link landen in der Zwischenablage.
   await unstubShare(page);
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(APP).origin }).catch(() => {});

@@ -161,7 +161,7 @@ export function PlanDetailPage() {
           <span className="truncate">{crew ? `${crew.emoji} ${crew.name}` : t.plans.detail.back}</span>
         </Link>
         {/* W8/W2: Plan in den Gruppenchat teilen – mit Vorschau-Link, nicht mehr bei abgesagten Plänen. */}
-        {plan.status !== "cancelled" && <ShareButton label={t.share.plan} content={() => planShare(plan, shareToken.data)} className="shrink-0" />}
+        {plan.status !== "cancelled" && <ShareButton label={t.share.plan} content={() => planShare(plan, shareToken.data)} qr={Boolean(shareToken.data)} className="shrink-0" />}
       </div>
       <div className="max-w-3xl">
         <FeatureTicket plan={plan} crew={crew} userId={user.id} lookup={people.lookup} now={now} hero />
