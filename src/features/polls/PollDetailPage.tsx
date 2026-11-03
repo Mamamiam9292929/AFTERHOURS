@@ -681,7 +681,7 @@ export function PollDetailPage() {
           </span>
         }
         back={crew ? { to: `/crews/${crew.id}`, label: t.polls.detail.backToCrew(`${crew.emoji} ${crew.name}`) } : { to: "/plans", label: t.polls.detail.back }}
-        actions={!summary.isOver ? <ShareButton label={t.share.poll} content={() => pollShare(poll, shareToken.data)} /> : undefined}
+        actions={!summary.isOver ? <ShareButton label={t.share.poll} content={() => pollShare(poll, shareToken.data)} qr={Boolean(shareToken.data)} /> : undefined}
         lead={
           // V2 Etappe 3d: Kopf der Abstimmung als Reihe aus Pillen – Frist in Lime, Beteiligung mit kleinem
           // Balken, Eigenschaften der Abstimmung als Glas-Pillen.

@@ -9,6 +9,14 @@ export const common = {
     pollText: (title: string, until: string) => `${title} – stimm mit ab, bis ${until}.`,
     copied: "Text und Link kopiert – füg ihn im Gruppenchat ein.",
     failed: "Teilen hat nicht geklappt. Kopiere den Link aus der Adresszeile.",
+    // W9 Etappe 2: denselben Link als QR-Code zeigen – für Freunde am selben Tisch.
+    qr: {
+      show: "Als QR-Code zeigen",
+      title: "Zum Scannen",
+      label: (title: string) => `QR-Code mit dem Link zu „${title}“`,
+      hint: "Freunde am Tisch halten die Handy-Kamera drauf und landen direkt hier – ohne Link herumzuschicken.",
+      tooLong: "Dieser Link ist zu lang für einen QR-Code. Teile ihn stattdessen.",
+    },
   },
   actions: {
     save: "Speichern",

@@ -10,6 +10,13 @@ export const common = {
     pollText: (title: string, until: string) => `${title} – vote by ${until}.`,
     copied: "Text and link copied – paste it into your group chat.",
     failed: "Sharing didn't work. Copy the link from the address bar.",
+    qr: {
+      show: "Show as QR code",
+      title: "Ready to scan",
+      label: (title: string) => `QR code with the link to “${title}”`,
+      hint: "Friends at the table point their phone camera at it and land right here – no link to pass around.",
+      tooLong: "This link is too long for a QR code. Share it instead.",
+    },
   },
   actions: {
     save: "Save",
