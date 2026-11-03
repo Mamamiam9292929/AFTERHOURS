@@ -1,19 +1,22 @@
-import type { de } from "../de";
+import type { de, PageTexts } from "../de";
+import type { deCore } from "../de/core";
 
 /**
  * P11 · Englisches Wörterbuch. Wird nur geladen, wenn die Oberfläche englisch ist (eigene Chunks je Datei,
  * damit kein Seiten-Chunk über das Größenbudget wächst). Jede Datei prüft ihre Struktur mit
  * `satisfies typeof <deutsch>` – fehlt ein Schlüssel, bricht der TypeScript-Lauf der CI ab.
+ *
+ * F7 · `loadEnglish` lädt nur den Kern. Seitentexte kommen wie auf Deutsch erst mit ihrer Seite
+ * (`loadTexts` in src/i18n/index.ts); `loadEnglishFull` ist für die Unit-Tests.
  */
-export async function loadEnglish(): Promise<typeof de> {
-  const [common, auth, crews, discover, enums, home, landing, misc, plans, polls] = await Promise.all([
+export async function loadEnglish(): Promise<typeof deCore> {
+  const [common, auth, crews, discover, enums, home, misc, plans, polls] = await Promise.all([
     import("./common"),
     import("./auth"),
     import("./crews"),
     import("./discover"),
     import("./enums"),
     import("./home"),
-    import("./landing"),
     import("./misc"),
     import("./plans"),
     import("./polls"),
@@ -24,7 +27,6 @@ export async function loadEnglish(): Promise<typeof de> {
     errors: common.errors,
     enums: enums.enums,
     auth: auth.auth,
-    landing: landing.landing,
     home: home.home,
     onboarding: home.onboarding,
     discover: discover.discover,
@@ -32,11 +34,25 @@ export async function loadEnglish(): Promise<typeof de> {
     polls: polls.polls,
     plans: plans.plans,
     notifications: misc.notifications,
-    rewards: misc.rewards,
     profile: misc.profile,
     settings: misc.settings,
-    privacy: misc.privacy,
-    admin: misc.admin,
-    assistant: misc.assistant,
-  } satisfies typeof de;
+  } satisfies typeof deCore;
+}
+
+/** Englische Seitentexte – je Bereich ein eigener Chunk. */
+export const englishPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]> } = {
+  landing: () => import("./landing").then((m) => m.landing),
+  rewards: () => import("./rewards").then((m) => m.rewards),
+  privacy: () => import("./privacy").then((m) => m.privacy),
+  admin: () => import("./admin").then((m) => m.admin),
+  assistant: () => import("./assistant").then((m) => m.assistant),
+};
+
+/** Ganzes englisches Wörterbuch (Kern und alle Seitentexte) – für die Unit-Tests. */
+export async function loadEnglishFull(): Promise<typeof de> {
+  const core = await loadEnglish();
+  const entries = await Promise.all(
+    (Object.keys(englishPageTexts) as PageTexts[]).map(async (name) => [name, await englishPageTexts[name]()] as const),
+  );
+  return { ...core, ...Object.fromEntries(entries) } as typeof de;
 }

@@ -1,0 +1,25 @@
+/** F7 · Texte für KI-Assistent (AssistantPage). Eigener Chunk – lädt erst mit der Seite (`loadTexts` in src/i18n/index.ts). */
+export const assistant = {
+  title: "Planungsassistent",
+  lead: "Beschreib in einem Satz, was ihr vorhabt – der Assistent schlägt passende Orte vor.",
+  disabled: {
+    title: "Der Assistent ist noch nicht eingerichtet",
+    body: "Die Schnittstelle ist vorbereitet: Die Edge Function „assistant“ liegt im Projekt, braucht aber einen KI-Schlüssel als Server-Secret. Solange der fehlt, bleibt der Assistent aus – er erfindet keine Antworten.",
+    how: "Einrichtung: siehe README, Abschnitt „KI-Assistent“.",
+    alternative: "Bis dahin findest du Orte über Discover und die Filter dort.",
+    toDiscover: "Zu Discover",
+  },
+  inputLabel: "Deine Anfrage",
+  placeholder: "Wir sind sechs und wollen heute Abend etwas für maximal 30 € pro Person machen.",
+  examples: ["Etwas Aktives für 5 Leute, höchstens 20 € pro Person", "Zwei Stunden drinnen, ab 14 Jahren", "Bowling und danach essen gehen"],
+  submit: "Vorschläge finden",
+  thinking: "Der Assistent sucht …",
+  understood: "So habe ich dich verstanden",
+  missing: "Dazu fehlt mir noch eine Angabe",
+  suggestions: "Vorschläge",
+  noSuggestions: "Zu dieser Anfrage gibt es in den vorhandenen Daten keinen passenden Ort.",
+  why: "Warum",
+  caveat: "Preise und Öffnungszeiten stammen aus den hinterlegten Daten und können abweichen. Verfügbarkeit ist nicht geprüft. Der Assistent bucht und bezahlt nichts.",
+  addToPoll: "Abstimmung vorbereiten",
+  unavailable: "Der Assistent ist gerade nicht erreichbar. Nutze solange Discover.",
+};

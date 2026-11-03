@@ -210,6 +210,14 @@ export const plans = {
       cancelled: "This plan was cancelled.",
       completed: "This plan is completed.",
     },
+    again: {
+      title: "Again?",
+      leadPlace: (place: string) => `Good night at ${place}? One tap and the crew finds the next date there.`,
+      lead: "Good night? One tap and the crew finds the next date.",
+      went: (n: number) => (n === 1 ? "1 was there" : `${n} were there`),
+      findDatePlace: "Same place – find a date",
+      findDate: "Find a date to do it again",
+    },
     followUp: {
       title: "What's next?",
       body: "Ideas for your next outing.",

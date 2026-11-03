@@ -20,8 +20,8 @@ register(`data:text/javascript,${encodeURIComponent(hook)}`, import.meta.url);
 
 const { pickLocale, intlLocale, localeSyncStep } = await import("../../src/i18n/locale.ts");
 const { de } = await import("../../src/i18n/de/index.ts");
-const { loadEnglish } = await import("../../src/i18n/en/index.ts");
-const en = await loadEnglish();
+const { loadEnglishFull } = await import("../../src/i18n/en/index.ts");
+const en = await loadEnglishFull();
 
 test("Sprachwahl: eigene Wahl vor Browser-Sprache, sonst Deutsch", () => {
   assert.equal(pickLocale("en", ["de-DE"]), "en");
@@ -105,10 +105,27 @@ test("Sprache im Profil: speichern, übernehmen oder nichts tun", () => {
 });
 
 test("P11 Etappe 2e: Benachrichtigungen zeigen „Stichwahl: …“ auf Englisch als „Runoff: …“", async () => {
-  const en = await loadEnglish();
   const created = en.notifications.text.poll_created("Ana", { title: "Stichwahl: Bowling", runoff: true, auto: true });
   assert.equal(created.body, "Runoff: Bowling");
   assert.equal(en.notifications.text.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Runoff: Bowling");
   assert.equal(en.notifications.text.poll_vote("Ana", { title: "Bowling" }).body, "Bowling");
   assert.equal(de.notifications.text.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Stichwahl: Bowling");
+});
+
+test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deutsch und Englisch", async () => {
+  const { deCore } = await import("../../src/i18n/de/core.ts");
+  const { germanPageTexts } = await import("../../src/i18n/de/pages.ts");
+  const { loadEnglish, englishPageTexts } = await import("../../src/i18n/en/index.ts");
+  const pageKeys = Object.keys(de).filter((key) => !(key in deCore)).sort();
+  // Diese Bereiche liegen nicht im Start-Bundle – jeder neue gehört bewusst hierher (und in den Router).
+  assert.deepEqual(pageKeys, ["admin", "assistant", "landing", "privacy", "rewards"]);
+  assert.deepEqual(Object.keys(germanPageTexts).sort(), pageKeys);
+  assert.deepEqual(Object.keys(englishPageTexts).sort(), pageKeys);
+  // Kern + nachgeladene Bereiche ergeben genau das ganze Wörterbuch.
+  const deParts = { ...deCore };
+  for (const key of pageKeys) deParts[key] = await germanPageTexts[key]();
+  assert.deepEqual([...shape(deParts)].sort(), [...shape(de)].sort());
+  const enCore = await loadEnglish();
+  assert.deepEqual(Object.keys(enCore).sort(), Object.keys(deCore).sort(), "englischer Kern ohne Seitentexte");
+  for (const key of pageKeys) assert.equal((await englishPageTexts[key]()).constructor, Object);
 });

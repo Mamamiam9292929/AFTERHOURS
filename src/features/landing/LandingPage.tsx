@@ -20,11 +20,14 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Feedback";
 import { Logo } from "@/components/ui/Logo";
 import { LanguageLink } from "@/components/ui/LanguageSwitch";
-import { locale, t } from "@/i18n";
+import { loadTexts, locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle } from "@/lib/hooks";
 import { parseQuickPoll } from "@/lib/quickpoll";
 import { formatTime, nextWeekday, ticketDate, zonedToUtc } from "@/lib/time";
+
+/** F7 · Texte dieser Seite kommen nicht mit dem Start-Bundle; der Router lädt sie parallel zum Chunk. */
+await loadTexts("landing");
 
 const copy = t.landing;
 

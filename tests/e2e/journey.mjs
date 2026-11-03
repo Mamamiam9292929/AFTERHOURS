@@ -1911,6 +1911,26 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   await page.getByText("Abgeschlossen").first().waitFor();
   await page.getByRole("heading", { name: "Was kommt als Nächstes?" }).waitFor();
   check(true, "abgeschlossener Plan schlägt Folgeaktivitäten vor");
+  // P17: „Nochmal?“ – ein Tipp startet die Terminsuche für denselben Ort mit derselben Crew.
+  const again = page.getByTestId("plan-again");
+  await again.waitFor();
+  check((await again.getByRole("heading", { name: "Nochmal?" }).count()) === 1, "P17: abgeschlossener Plan fragt „Nochmal?“");
+  check((await again.innerText()).includes("War gut bei Strike District Bowling?"), "P17: Karte nennt den Ort des Abends");
+  check(/^\d+ waren? dabei$/.test((await page.getByTestId("plan-again-went").innerText()).trim()), "P17: Pille zählt, wer dabei war");
+  const againLink = again.getByRole("link", { name: "Nochmal hier – Termin finden" });
+  const againHref = (await againLink.getAttribute("href")) ?? "";
+  check(againHref.includes("kind=date") && againHref.includes(`crew=${ids.crew}`) && againHref.includes("place="), "P17: Link führt zur Terminsuche mit Crew und Ort");
+  await again.scrollIntoViewIfNeeded();
+  await shot(alice, "19a-nochmal");
+  await againLink.click();
+  await page.waitForURL(/\/polls\/new\?/);
+  await page.getByTestId("poll-form-date-place-chosen").waitFor();
+  check((await page.getByTestId("poll-form-date-place-chosen").innerText()).includes("Strike District Bowling"), "P17: Terminsuche hat den Ort schon eingetragen");
+  // Mit nur einer Crew blendet das Formular die Auswahl aus; mit mehreren muss die Crew des Plans gewählt sein.
+  const crewPicker = page.getByTestId("poll-form-crew");
+  check((await crewPicker.count()) === 0 || (await crewPicker.getByRole("radio", { checked: true }).count()) === 1, "P17: Crew ist vorgewählt (oder die einzige)");
+  await page.goBack();
+  await again.waitFor();
   await page.goto(`${APP}/rewards`);
   await page.getByText("Plan organisiert").first().waitFor();
   check((await page.locator("section[aria-labelledby=balance-label]").innerText()).includes("40"), "Organisatorin erhält 30 + 10 Punkte");
@@ -4034,6 +4054,12 @@ await step("P11 – Startseite mit englischem Browser und Sprachlink (Gast)", as
     const demo = await page.locator("figure").first().innerText();
     check(/Bowling/.test(demo) && /Cinema/.test(demo), "Satz-Probe zerlegt den englischen Beispielsatz");
     if (SHOTS) await page.screenshot({ path: path.join(SHOTS, "02b-startseite-englisch.png"), fullPage: false });
+    // F7: Datenschutz-Texte liegen nicht im Start-Bundle – sie kommen beim Wechsel auf die Seite, auf Englisch.
+    await page.getByRole("link", { name: "Privacy", exact: true }).first().click();
+    await page.getByRole("heading", { level: 1, name: /Privacy and your data/i }).waitFor();
+    check((await page.getByText("No tracking").count()) >= 1, "F7: Datenschutz-Seite lädt ihre Texte nach – auf Englisch");
+    await page.goBack();
+    await page.getByRole("link", { name: "Start a crew" }).first().waitFor();
     await Promise.all([page.waitForEvent("load"), page.getByTestId("language-link").click()]);
     await page.getByRole("link", { name: "Crew gründen" }).first().waitFor();
     check((await page.evaluate(() => document.documentElement.lang)) === "de", "Sprachlink wechselt auf Deutsch");

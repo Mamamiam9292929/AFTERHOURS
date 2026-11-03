@@ -1,33 +1,23 @@
-import { auth } from "./auth";
-import { common, errors, validation } from "./common";
-import { crews } from "./crews";
-import { discover } from "./discover";
-import { enums } from "./enums";
-import { home, onboarding } from "./home";
+import { admin } from "./admin";
+import { assistant } from "./assistant";
+import { deCore } from "./core";
 import { landing } from "./landing";
-import { admin, assistant, notifications, privacy, profile, rewards, settings } from "./misc";
-import { plans } from "./plans";
-import { polls } from "./polls";
+import { privacy } from "./privacy";
+import { rewards } from "./rewards";
 
-/** Deutsches Wörterbuch. Seine Struktur ist die Vorlage für jede weitere Sprache. */
+/**
+ * Deutsches Wörterbuch, vollständig. Seine Struktur ist die Vorlage für jede weitere Sprache.
+ * Die App importiert hiervon nur den Typ; zur Laufzeit lädt sie den Kern (`deCore`) sofort und die
+ * Seitentexte (`PageTexts`) erst mit ihrer Seite. Die Unit-Tests prüfen das ganze Wörterbuch.
+ */
 export const de = {
-  ...common,
-  validation,
-  errors,
-  enums,
-  auth,
+  ...deCore,
   landing,
-  home,
-  onboarding,
-  discover,
-  crews,
-  polls,
-  plans,
-  notifications,
   rewards,
-  profile,
-  settings,
   privacy,
   admin,
   assistant,
 };
+
+/** F7 · Bereiche, die nicht im Start-Bundle liegen, sondern mit ihrer Seite nachgeladen werden. */
+export type PageTexts = Exclude<keyof typeof de, keyof typeof deCore>;
