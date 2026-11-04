@@ -29,6 +29,7 @@ import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useRem
 import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
+import { storedPlanGuestSecret } from "./guestsApi";
 import { LivePanel } from "./LivePanel";
 import { AgainCard } from "./PlanAgain";
 import { PlanForm } from "./PlanForm";
@@ -42,6 +43,8 @@ import { RidesPanel } from "./RidesPanel";
 const PhotosPanel = lazy(() => import("./PhotosPanel").then((m) => ({ default: m.PhotosPanel })));
 // W10: Schalter und Gäste nur für Organisator:in, Owner und Admins – eigener Chunk.
 const PlanGuestsPanel = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestsPanel })));
+// W10 Etappe 2: nur geladen, wenn auf diesem Gerät ein Gast-Geheimnis zum Teilen-Link liegt.
+const PlanGuestClaimCard = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestClaimCard })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -100,6 +103,7 @@ export function PlanDetailPage() {
   const update = useUpdatePlan(planId ?? "");
   // W2: Teilen-Link vorab holen – das Teilen-Menü muss direkt auf den Tipp hin aufgehen.
   const shareToken = usePlanShareToken(plan?.id, Boolean(plan) && plan?.status !== "cancelled");
+  const guestSecret = useMemo(() => storedPlanGuestSecret(shareToken.data), [shareToken.data]);
   const [editOpen, setEditOpen] = useState(false);
   const [confirming, setConfirming] = useState<Extract<PlanStatus, "cancelled" | "completed"> | null>(null);
   useDocumentTitle(plan?.title);
@@ -210,6 +214,13 @@ export function PlanDetailPage() {
             </div>
             {locked && <p className="mt-2.5 text-[13px] text-faint">{t.plans.detail.attendance.locked}</p>}
           </section>
+
+          {/* W10 Etappe 2: Hier schon als Gast über den Link geantwortet? Dann mit einem Tipp übernehmen. */}
+          {!locked && shareToken.data && guestSecret && (
+            <Suspense fallback={null}>
+              <PlanGuestClaimCard planId={plan.id} token={shareToken.data} secret={guestSecret} />
+            </Suspense>
+          )}
 
           {/* P17: Direkt unter der (gesperrten) Antwort – der beste Moment für die nächste Runde. */}
           {plan.status === "completed" && <AgainCard plan={plan} placeName={place?.name ?? null} />}

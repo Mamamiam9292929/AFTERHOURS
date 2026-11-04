@@ -220,6 +220,7 @@ export const errors = {
     plan_guests_started: "Der Plan hat schon angefangen – über den Link geht das nur vorher.",
     plan_guest_member: "Du bist in dieser Crew – sag direkt in der App zu.",
     plan_guest_limit: "Bei diesem Plan haben schon 30 Gäste geantwortet – mehr gehen nicht.",
+    plan_guest_not_found: "Diese Gast-Antwort gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.",
     guest_not_found: "Diese Gast-Stimme gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.",
     // Supabase Auth
     invalid_credentials: "E-Mail-Adresse oder Passwort stimmen nicht.",

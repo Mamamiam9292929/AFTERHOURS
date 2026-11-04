@@ -107,3 +107,62 @@ export function useRemovePlanGuest(planId: string) {
     },
   });
 }
+
+/**
+ * W10 Etappe 2 · Geheimnis eines früheren Gast-Besuchs auf diesem Gerät – ohne ein neues anzulegen.
+ * Die Planseite fragt damit, ob die angemeldete Person hier schon als Gast geantwortet hat.
+ */
+export function storedPlanGuestSecret(token: string | null | undefined): string | null {
+  if (!token) return null;
+  try {
+    const stored = localStorage.getItem(secretKey(token));
+    return stored && /^[0-9a-f]{64}$/.test(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+function forgetPlanGuestSecret(token: string) {
+  try {
+    localStorage.removeItem(secretKey(token));
+  } catch {
+    // nichts zu tun
+  }
+}
+
+export type PlanGuestClaimPreview = { status: "none" } | { status: "found"; name: string; answer: GuestAnswer; own: GuestAnswer | null };
+
+const claimKey = (planId: string) => ["plan-guest-claim", planId] as const;
+
+export function usePlanGuestClaimPreview(planId: string, secret: string | null) {
+  return useQuery({
+    queryKey: [...claimKey(planId), secret ? "secret" : "none"] as const,
+    enabled: Boolean(secret),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    queryFn: async (): Promise<PlanGuestClaimPreview> => {
+      const { data, error } = await supabase.rpc("plan_guest_claim_preview", { p_plan_id: planId, p_secret: secret });
+      if (error) throw error;
+      return data as PlanGuestClaimPreview;
+    },
+  });
+}
+
+/** `keep`: true übernimmt die Gast-Antwort (eigene Antwort hat Vorrang), false löscht sie. */
+export function useClaimPlanGuest(planId: string, token: string, secret: string | null) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (keep: boolean): Promise<{ claimed: boolean; status: GuestAnswer | null }> => {
+      const { data, error } = await supabase.rpc("claim_plan_guest", { p_plan_id: planId, p_secret: secret, p_keep: keep });
+      if (error) throw error;
+      return data as { claimed: boolean; status: GuestAnswer | null };
+    },
+    onSuccess: () => forgetPlanGuestSecret(token),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: claimKey(planId) });
+      void client.invalidateQueries({ queryKey: qk.plan(planId) });
+      void client.invalidateQueries({ queryKey: qk.plans });
+    },
+  });
+}
