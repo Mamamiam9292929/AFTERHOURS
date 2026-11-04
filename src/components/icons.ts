@@ -62,6 +62,7 @@ export {
   LuNavigation as IconNavigation,
   LuPencil as IconEdit,
   LuPhone as IconPhone,
+  LuPlane as IconPlane,
   LuPlus as IconPlus,
   LuQrCode as IconQr,
   LuRefreshCw as IconRefresh,

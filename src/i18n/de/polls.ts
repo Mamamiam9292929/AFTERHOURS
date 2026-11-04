@@ -155,6 +155,16 @@ export const polls = {
       day: (title: string, time: string) => `Am selben Tag: ${title}, ${time}`,
       more: (n: number) => (n === 1 ? "und 1 weiterer Plan" : `und ${n} weitere Pläne`),
     },
+    /** P21: wer an einem Termin laut „Bin weg“ nicht da ist. */
+    away: {
+      you: "du",
+      line: (names: string[]) => {
+        const shown = names.length > 3 ? names.slice(0, 3) : names;
+        const rest = names.length - shown.length;
+        if (rest > 0) return `Nicht da: ${shown.join(", ")} und ${rest} weitere`;
+        return `Nicht da: ${shown.length > 1 ? `${shown.slice(0, -1).join(", ")} und ${shown[shown.length - 1]}` : shown[0]}`;
+      },
+    },
     weather: {
       label: (title: string) => `Wetter für ${title}`,
       loading: "Wetter wird geladen …",

@@ -46,6 +46,10 @@ export const qk = {
   myBirthday: (userId: string) => ["birthdays", "me", userId] as const,
   crewBirthdays: (crewId: string) => ["birthdays", "crew", crewId] as const,
   myCrewBirthdays: (userId: string) => ["birthdays", "crews", userId] as const,
+  /** P21: Abwesenheiten; Präfix `absencesAll` invalidiert eigene und alle Crews. */
+  absencesAll: ["absences"] as const,
+  myAbsences: (userId: string) => ["absences", "me", userId] as const,
+  crewAbsences: (crewId: string) => ["absences", "crew", crewId] as const,
   invitationPreview: (token: string) => ["invitation", token] as const,
   activities: ["activities"] as const,
   activity: (id: string) => ["activities", id] as const,

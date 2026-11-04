@@ -13,6 +13,7 @@ export const privacy = {
         "Konto: deine E-Mail-Adresse und ein verschlüsseltes Passwort (bei Supabase Auth).",
         "Profil: Anzeigename, optional Profilbild, Stadt und Interessen.",
         "Geburtstag (nur wenn du ihn einträgst): Tag und Monat, ohne Jahr. Sehen können ihn die Mitglieder deiner Crews, eine Woche vorher bekommen sie einmal eine Erinnerung; entfernst du ihn, ist er sofort weg.",
+        "„Bin weg“ (nur wenn du etwas einträgst): Beginn und Ende eines Zeitraums, ohne Grund und Ort. Sehen können ihn die Mitglieder deiner Crews, bis er vorbei ist; danach löscht die App ihn beim nächsten Eintragen.",
         "Aktivität: Crews, Nachrichten im Crew-Chat, Abstimmungen, Stimmen, Pläne, Zusagen, Reservierungsvermerke, Mitfahrten, Punkte und Benachrichtigungen.",
         "Einstellungen: Budget, Entfernung, Benachrichtigungen und deine Wahl zur Standortfreigabe.",
         "Fotos zum Plan (nur wenn du welche teilst): das verkleinerte Foto – ohne Aufnahmeort, Kamera und Uhrzeit, die nimmt die App vorher heraus – sowie wer es wann geteilt hat. Sehen kann es nur die Crew des Plans. Du kannst deine Fotos jederzeit löschen. Löschst du dein Konto oder wird der Plan oder die Crew gelöscht, löscht die App auch die Dateien; spätestens 12 Monate nach dem Abend verschwinden die Fotos von selbst. Meldest du ein Foto, speichern wir den Grund; Organisation und Crew-Admins sehen ihn ohne deinen Namen.",

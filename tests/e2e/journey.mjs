@@ -3972,11 +3972,11 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   check(await page.getByText("Live nur während eines Plans").isVisible(), "P13: Einstellungen sagen ehrlich, dass Live-Standort nur rund um einen Plan geht");
   // V2 Etappe 3k: Bereiche als Glas-Karten mit Farbschein, Stand als Pille, Sprung-Pillen oben.
   const tones = await page.locator("main section.plan-panel").evaluateAll((els) => els.map((el) => `${el.id}:${el.dataset.tone}`));
-  check(tones.join(",") === "profile:violet,birthday:pink,language:lime,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: acht Glas-Karten mit Farbschein (${tones.join(", ")})`);
+  check(tones.join(",") === "profile:violet,birthday:pink,absences:violet,language:lime,preferences:pink,location:violet,notifications:pink,calendar:lime,account:violet", `Einstellungen: neun Glas-Karten mit Farbschein (${tones.join(", ")})`);
   check((await page.getByTestId("location-status").innerText()).trim() === "Aus", "Standort-Pille sagt „Aus“");
   check((await page.getByTestId("calendar-status").innerText()).trim() === "Kein Abo", "Kalender-Pille: „Kein Abo“");
   const jump = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
-  check((await jump.getByRole("link").count()) === 8, "acht Sprung-Pillen");
+  check((await jump.getByRole("link").count()) === 9, "neun Sprung-Pillen");
   await jump.getByRole("link", { name: "Kalender-Abo" }).click();
   await page.waitForURL(/#calendar$/);
   check(true, "Sprung-Pille führt zum Kalender-Abo");
@@ -5565,6 +5565,94 @@ await step("P20 – Geburtstage in der Crew: eintragen, „Bald Geburtstag“, F
   await carol.page.goto(`${APP}/`);
   await carol.page.waitForLoadState("networkidle");
   check((await carol.page.getByTestId("home-birthdays").count()) === 0, "P20 Etappe 2: danach auch auf Home nichts mehr");
+});
+
+await step("P21 – „Bin weg“: Zeitraum eintragen, „Nicht da“ bei „Wann könnt ihr?“, entfernen (Bob, Carol)", async () => {
+  if (!DB_URL || !ANON) {
+    console.log("   (E2E_DB_URL/SUPABASE_ANON_KEY nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const bobName = psql(`select p.display_name from public.profiles p join auth.users u on u.id = p.id where u.email = '${bob.email}'`);
+  const berlinDate = (offsetDays) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + offsetDays * 86_400_000));
+  const label = (date) => new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00Z`));
+  const [d1, d2, d3] = [berlinDate(40), berlinDate(41), berlinDate(42)];
+  const [l1, l2, l3] = [label(d1), label(d2), label(d3)];
+
+  // Bob trägt ein, dass er an den ersten beiden Terminen weg ist.
+  const { page } = bob;
+  await page.goto(`${APP}/settings#absences`);
+  const card = page.locator("section#absences");
+  await card.getByText("Gerade nichts eingetragen.").waitFor();
+  check((await card.getByTestId("absences-status").count()) === 0, "P21: ohne Eintrag keine Pille");
+  await card.getByRole("button", { name: "Eintragen" }).click();
+  await card.getByText("Wähl Beginn und Ende aus.").waitFor();
+  check(true, "P21: ohne Tage wird nichts eingetragen");
+  await card.getByLabel("Von").fill(d1);
+  await card.getByLabel("Bis").fill(d2);
+  await card.getByRole("button", { name: "Eintragen" }).click();
+  await toast(bob, "Eingetragen.");
+  await card.getByTestId("absence").first().waitFor();
+  check((await card.getByTestId("absence").count()) === 1 && (await card.getByTestId("absence").innerText()).includes("2 Tage"), "P21: Zeitraum mit „2 Tage“ in der Liste");
+  check((await card.getByTestId("absences-status").innerText()).trim() === "1 Zeitraum", "P21: Stand als Pille „1 Zeitraum“");
+  check(psql(`select a.starts_on || '/' || a.ends_on from public.absences a join auth.users u on u.id = a.user_id where u.email = '${bob.email}'`) === `${d1}/${d2}`,
+    "P21: gespeichert sind nur Beginn und Ende");
+  await noOverflow(bob, "Einstellungen mit „Bin weg“");
+  await a11y(bob, "einstellungen-bin-weg");
+  await card.evaluate((el) => el.scrollIntoView({ block: "start" }));
+  await shot(bob, "68-bin-weg-einstellungen");
+
+  let pollId = null;
+  try {
+    const created = await api(bob, "POST", "rpc/create_date_poll", {
+      p_crew_id: ids.crew,
+      p_title: `Wann passt's? ${RUN}`,
+      p_ends_at: new Date(Date.now() + 2 * 3600_000).toISOString(),
+      p_slots: [{ date: d1, time: "20:00" }, { date: d2 }, { date: d3, time: "19:00" }],
+    });
+    check(created.status < 300 && typeof created.json === "string", `P21: Bob startet „Wann könnt ihr?“ mit drei Terminen (${created.status})`);
+    pollId = created.json;
+
+    // Carol sieht unter den ersten beiden Terminen „Nicht da: Bob“, unter dem dritten nichts.
+    const away = (user, option) => optionCard(user, option).getByTestId("poll-option-away");
+    await carol.page.goto(`${APP}/polls/${pollId}`);
+    await away(carol, l1).waitFor();
+    check((await away(carol, l1).innerText()).trim() === `Nicht da: ${bobName}`, `P21: Carol sieht „Nicht da: ${bobName}“ am ${l1}`);
+    check((await away(carol, l2).innerText()).trim() === `Nicht da: ${bobName}`, "P21: auch am Termin ohne Uhrzeit");
+    check((await away(carol, l3).count()) === 0, "P21: am dritten Termin ist niemand weg");
+    check(await carol.page.getByTestId("swipe-deck").getByText(`Nicht da: ${bobName}`).first().isVisible(), "P21: auch die oberste Karte im Stapel sagt es");
+    await noOverflow(carol, "Abstimmung mit „Nicht da“");
+    await a11y(carol, "abstimmung-nicht-da");
+    await optionCard(carol, l1).evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(carol, "69-bin-weg-abstimmung");
+
+    // Bob sieht sich selbst als „du“.
+    await page.goto(`${APP}/polls/${pollId}`);
+    await away(bob, l1).waitFor();
+    check((await away(bob, l1).innerText()).trim() === "Nicht da: du", "P21: Bob sieht „Nicht da: du“");
+
+    // Ohne Anmeldung keine Abwesenheiten.
+    const res = await fetch(`${API}/rest/v1/rpc/crew_absences`, {
+      method: "POST",
+      headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_crew_id: ids.crew }),
+    });
+    check(res.status === 401 || res.status === 403, `P21: ohne Anmeldung keine Abwesenheiten (${res.status})`);
+
+    // Bob entfernt den Zeitraum – danach steht bei Carol nichts mehr.
+    await page.goto(`${APP}/settings#absences`);
+    await card.getByRole("button", { name: /entfernen$/ }).click();
+    await toast(bob, "Entfernt.");
+    await card.getByText("Gerade nichts eingetragen.").waitFor();
+    check(psql(`select count(*) from public.absences a join auth.users u on u.id = a.user_id where u.email = '${bob.email}'`) === "0", "P21: entfernt ist entfernt");
+    await carol.page.goto(`${APP}/polls/${pollId}`);
+    await optionCard(carol, l1).waitFor();
+    await carol.page.waitForLoadState("networkidle");
+    check((await carol.page.getByTestId("poll-option-away").count()) === 0, "P21: danach sieht Carol keinen Hinweis mehr");
+  } finally {
+    if (pollId) psql(`delete from public.polls where id = '${pollId}'`);
+    psql(`delete from public.absences a using auth.users u where u.id = a.user_id and u.email = '${bob.email}'`);
+  }
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
