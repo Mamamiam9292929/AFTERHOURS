@@ -5655,6 +5655,87 @@ await step("P21 – „Bin weg“: Zeitraum eintragen, „Nicht da“ bei „Wan
   }
 });
 
+await step("P21 Etappe 2 – „Gerade weg“ auf der Crew-Seite, beim Anlegen von „Wann könnt ihr?“ und auf Home (Bob, Carol)", async () => {
+  if (!DB_URL || !ANON) {
+    console.log("   (E2E_DB_URL/SUPABASE_ANON_KEY nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const bobName = psql(`select p.display_name from public.profiles p join auth.users u on u.id = p.id where u.email = '${bob.email}'`);
+  const berlinDate = (offsetDays) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + offsetDays * 86_400_000));
+  const short = (date) => new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`));
+  const [d0, d1, d2, d5] = [berlinDate(0), berlinDate(1), berlinDate(2), berlinDate(5)];
+  const title = `Wer kann? ${RUN}`;
+  let pollId = null;
+  try {
+    // Bob ist ab heute drei Tage weg (eingetragen wie über „Bin weg“, hier direkt in der Datenbank).
+    psql(`insert into public.absences (user_id, starts_on, ends_on) select id, '${d0}', '${d2}' from auth.users where email = '${bob.email}'`);
+
+    // Crew-Seite: Carol sieht „Gerade weg“ mit Bob und „bis …“, dazu den Weg zum eigenen Eintrag.
+    const { page } = carol;
+    await page.goto(`${APP}/crews/${ids.crew}`);
+    const card = page.getByTestId("crew-away");
+    await card.waitFor();
+    check((await card.getByRole("heading").first().innerText()).trim() === "Gerade weg", "P21 Etappe 2: Karte „Gerade weg“ auf der Crew-Seite");
+    const row = card.getByTestId("crew-away-row");
+    check((await row.count()) === 1 && (await row.innerText()).includes(bobName), `P21 Etappe 2: ${bobName} steht drin`);
+    const until = (await row.innerText()).replace(/\s+/g, " ");
+    check(until.includes(`bis ${short(d2)}`) || until.includes(`bis ${short(d2).replace(".", "")}`), `P21 Etappe 2: „bis ${short(d2)}“ (${until})`);
+    check(await card.getByTestId("crew-away-add").isVisible(), "P21 Etappe 2: Carol (nicht weg) sieht „Selbst bald weg? Eintragen“");
+    await noOverflow(carol, "Crew-Seite mit „Gerade weg“");
+    await a11y(carol, "crew-gerade-weg");
+    await card.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(carol, "70-gerade-weg-crew");
+
+    // Bob selbst: „Du“, ohne den Weg zum Eintragen.
+    await bob.page.goto(`${APP}/crews/${ids.crew}`);
+    await bob.page.getByTestId("crew-away").waitFor();
+    check((await bob.page.getByTestId("crew-away-row").innerText()).includes("Du"), "P21 Etappe 2: Bob sieht sich als „Du“");
+    check((await bob.page.getByTestId("crew-away-add").count()) === 0, "P21 Etappe 2: kein „Eintragen“ für Bob");
+
+    // Anlegen von „Wann könnt ihr?“: Termin morgen → „Nicht da: Bob“ direkt unter dem Termin; in 5 Tagen nichts.
+    await page.goto(`${APP}/polls/new?kind=date&crew=${ids.crew}`);
+    const slots = page.getByTestId("poll-form-slot");
+    await slots.first().waitFor();
+    await slots.nth(0).getByLabel("Termin 1", { exact: true }).fill(d1);
+    await slots.nth(1).getByLabel("Termin 2", { exact: true }).fill(d5);
+    await slots.nth(0).getByTestId("poll-option-away").waitFor();
+    check((await slots.nth(0).getByTestId("poll-option-away").innerText()).trim() === `Nicht da: ${bobName}`, `P21 Etappe 2: beim Anlegen „Nicht da: ${bobName}“ unter Termin 1`);
+    check((await slots.nth(1).getByTestId("poll-option-away").count()) === 0, "P21 Etappe 2: unter dem Termin in 5 Tagen nichts");
+    await noOverflow(carol, "„Wann könnt ihr?“ anlegen mit „Nicht da“");
+    await a11y(carol, "termin-anlegen-nicht-da");
+    await slots.nth(0).evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(carol, "71-nicht-da-anlegen");
+
+    // Home: Bob fragt nach zwei Terminen, an denen er weg ist – Carol sieht es beim Abstimmen auf Home.
+    const created = await api(bob, "POST", "rpc/create_date_poll", {
+      p_crew_id: ids.crew,
+      p_title: title,
+      p_ends_at: new Date(Date.now() + 2 * 3600_000).toISOString(),
+      p_slots: [{ date: d1, time: "20:00" }, { date: d2, time: "19:00" }],
+    });
+    check(created.status < 300 && typeof created.json === "string", `P21 Etappe 2: Bob startet „Wann könnt ihr?“ (${created.status})`);
+    pollId = created.json;
+    await page.goto(`${APP}/`);
+    const mine = page.locator(`section[aria-label="Gleich hier abstimmen: ${title}"]`);
+    await mine.waitFor();
+    await mine.getByTestId("poll-option-away").waitFor();
+    check((await mine.getByTestId("poll-option-away").innerText()).trim() === `Nicht da: ${bobName}`, `P21 Etappe 2: auf Home „Nicht da: ${bobName}“ beim Abstimmen`);
+    await noOverflow(carol, "Home mit „Nicht da“");
+    await mine.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(carol, "72-nicht-da-home");
+
+    // Vorbei: ohne Eintrag keine Karte mehr auf der Crew-Seite.
+    psql(`delete from public.absences a using auth.users u where u.id = a.user_id and u.email = '${bob.email}'`);
+    await page.goto(`${APP}/crews/${ids.crew}`);
+    await page.waitForLoadState("networkidle");
+    check((await page.getByTestId("crew-away").count()) === 0, "P21 Etappe 2: ohne Abwesende keine Karte");
+  } finally {
+    if (pollId) psql(`delete from public.polls where id = '${pollId}'`);
+    psql(`delete from public.absences a using auth.users u where u.id = a.user_id and u.email = '${bob.email}'`);
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);

@@ -50,3 +50,53 @@ export function absenceProblem(starts: string, ends: string, today: string): Abs
   if (daysBetween(today, starts) > ABSENCE_MAX_AHEAD_DAYS) return "far";
   return null;
 }
+
+const addDay = (date: string, days: number) => new Date(toUtc(date) + days * 86_400_000).toISOString().slice(0, 10);
+
+export interface AwaySoon {
+  user_id: string;
+  starts_on: string;
+  ends_on: string;
+  /** Läuft schon (Beginn ≤ heute). */
+  now: boolean;
+}
+
+/**
+ * P21 Etappe 2 · „Gerade weg“ auf der Crew-Seite: je Person der Zeitraum, der heute läuft oder innerhalb von
+ * `horizonDays` beginnt. Überlappende oder lückenlos aneinander anschließende Zeiträume einer Person zählen als
+ * einer („bis 25.11.“ statt „bis 20.11.“). Laufende zuerst (früheres Ende vorn), dann kommende nach Beginn;
+ * bei Gleichstand in der Reihenfolge von `order`, Unbekannte dahinter nach ID.
+ */
+export function awaySoon(list: readonly Absence[], today: string, horizonDays = 14, order: readonly string[] = []): AwaySoon[] {
+  if (!DATE.test(today)) return [];
+  const until = addDay(today, horizonDays);
+  const byUser = new Map<string, Absence[]>();
+  for (const a of list) {
+    if (!DATE.test(a.starts_on) || !DATE.test(a.ends_on) || a.ends_on < a.starts_on) continue;
+    byUser.set(a.user_id, [...(byUser.get(a.user_id) ?? []), a]);
+  }
+  const result: AwaySoon[] = [];
+  for (const [userId, ranges] of byUser) {
+    const sorted = [...ranges].sort((a, b) => a.starts_on.localeCompare(b.starts_on));
+    const merged: { starts_on: string; ends_on: string }[] = [];
+    for (const r of sorted) {
+      const last = merged[merged.length - 1];
+      if (last && r.starts_on <= addDay(last.ends_on, 1)) {
+        if (r.ends_on > last.ends_on) last.ends_on = r.ends_on;
+      } else merged.push({ starts_on: r.starts_on, ends_on: r.ends_on });
+    }
+    const hit = merged.find((r) => r.ends_on >= today && r.starts_on <= until);
+    if (hit) result.push({ user_id: userId, ...hit, now: hit.starts_on <= today });
+  }
+  const rank = (id: string) => {
+    const index = order.indexOf(id);
+    return index === -1 ? order.length : index;
+  };
+  return result.sort(
+    (a, b) =>
+      Number(b.now) - Number(a.now) ||
+      (a.now ? a.ends_on.localeCompare(b.ends_on) : a.starts_on.localeCompare(b.starts_on)) ||
+      rank(a.user_id) - rank(b.user_id) ||
+      a.user_id.localeCompare(b.user_id),
+  );
+}

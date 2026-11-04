@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { IconCalendar, IconCrews, IconEdit, IconHourglass, IconPin, IconPlus, IconSparkles, IconTrash, IconVote } from "@/components/icons";
+import { IconCalendar, IconCrews, IconEdit, IconHourglass, IconPin, IconPlane, IconPlus, IconSparkles, IconTrash, IconVote } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Controls";
@@ -9,11 +9,14 @@ import { FormMessage, TextAreaField, TextField } from "@/components/ui/Field";
 import { CHOICE_CARD, CHOICE_CARD_ON, DateTile, FormCard } from "@/components/ui/FormCard";
 import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
+import { useUser } from "@/features/auth/AuthProvider";
+import { useCrewAbsences } from "@/features/crews/absencesApi";
 import { useCrews } from "@/features/crews/api";
 import { CrewPicker } from "@/features/crews/CrewPicker";
 import { typicalPriceCents, useActivity } from "@/features/discover/api";
 import { usePlans } from "@/features/plans/api";
 import { planCountdown } from "@/features/plans/PlanTicket";
+import { usePeople } from "@/features/profile/api";
 import { locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
@@ -22,12 +25,14 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { suggestDateSlots, type SuggestedSlot } from "@/lib/slots";
 import { categoryWorld } from "@/lib/stage";
 import { birthdaySlots } from "@/lib/birthdays";
+import { awayOn } from "@/lib/absences";
 import { addDays, calendarDaysBetween, formatDateLong, formatPlainDate, formatTime, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
 import type { Activity, ActivityCategory, PollKind } from "@/lib/types";
 import { ActivityPicker } from "./ActivityPicker";
 import { useCreateDatePoll, useCreatePoll, useCreateWherePoll, usePoll, type PollOptionInput } from "./api";
 import { MAX_POLL_OPTIONS, usePollDraft } from "./draft";
 import { dateOptionLabel, upcomingDateWinner } from "./logic";
+import { awayLine } from "./OptionAway";
 
 interface OptionRow {
   key: string;
@@ -125,6 +130,10 @@ export function PollCreatePage() {
     return around.length >= MIN_DATE_SLOTS ? around.map((date) => ({ key: newKey(), date, time: "19:00" })) : defaultSlots();
   });
   const [crewId, setCrewId] = useState(params.get("crew") ?? "");
+  // P21 Etappe 2: Schon beim Anlegen von „Wann könnt ihr?“ steht unter jedem Termin, wer laut „Bin weg“ fehlt.
+  const user = useUser();
+  const people = usePeople();
+  const absences = useCrewAbsences(crewId, kind === "date" && Boolean(crewId));
   // P1 Etappe 3b: Hat die Crew eine Gewohnheit (Lieblingstag, übliche Uhrzeit), stehen deren nächste Termine
   // statt des Wochenendes drin – aber nur, solange niemand die Termine selbst angefasst hat.
   const plans = usePlans();
@@ -212,6 +221,9 @@ export function PollCreatePage() {
     slotsTouched.current = true;
     setSlots((rows) => rows.map((r) => (r.key === key ? { ...r, ...update } : r)));
   };
+  const slotMembers = crews.data?.find((c) => c.id === crewId)?.members.map((m) => m.user_id) ?? [];
+  const slotAway = (date: string) => awayOn(absences.data ?? [], date).some((id) => slotMembers.includes(id));
+
   function removeSlot(key: string) {
     slotsTouched.current = true;
     setSlots((rows) => rows.filter((r) => r.key !== key));
@@ -433,6 +445,12 @@ export function PollCreatePage() {
                       <li key={`${slot.date} ${slot.time}`}>
                         <Chip selected={slots.some((r) => sameSlot(r, slot))} onToggle={() => toggleSuggested(slot)}>
                           {t.polls.create.dates.suggest.chip(t.polls.create.dates.suggest.short[slot.weekday] ?? "", locale === "en" ? `${Number(day)}/${Number(month)}` : `${day}.${month}.`, slot.time)}
+                          {slotAway(slot.date) && (
+                            <>
+                              <IconPlane className="ml-1 inline size-3.5 align-[-2px]" aria-hidden data-testid="date-suggestion-away" />
+                              <span className="sr-only"> {t.polls.create.dates.suggest.someoneAway}</span>
+                            </>
+                          )}
                         </Chip>
                       </li>
                     );
@@ -464,6 +482,7 @@ export function PollCreatePage() {
                       <IconTrash className="size-[18px] text-muted" aria-hidden />
                     </IconButton>
                   </div>
+                  {awayLine(row.date, absences.data, slotMembers, user.id, people.lookup)}
                 </li>
               ))}
             </ol>

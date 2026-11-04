@@ -64,6 +64,8 @@ export const polls = {
         short: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
         chip: (weekday: string, date: string, time: string) => `${weekday} ${date} · ${time}`,
         listLabel: "Termine, die zu euch passen",
+        /** P21 Etappe 2: Vorschlag, an dem laut „Bin weg“ jemand aus der Crew weg ist (für Screenreader). */
+        someoneAway: "– jemand ist weg",
       },
       /** P5 Etappe 3: Steht der Ort schon fest, fragt die Abstimmung nur nach dem Tag – mit Wetter je Termin. */
       place: {

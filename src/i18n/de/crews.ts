@@ -71,6 +71,20 @@ export const crews = {
       addOwn: "Geburtstag eintragen",
       addOwnBody: "Trag Tag und Monat ein – dann sieht deine Crew, wann es Zeit für eine Feier ist. Ohne Jahr, jederzeit entfernbar.",
     },
+    /** P21 Etappe 2: wer aus der Crew laut „Bin weg“ gerade oder in den nächsten 14 Tagen weg ist. */
+    away: {
+      titleNow: "Gerade weg",
+      titleSoon: "Bald weg",
+      lead: "Laut „Bin weg“ – plant Termine am besten drumherum.",
+      you: "Du",
+      untilToday: "bis heute",
+      untilTomorrow: "bis morgen",
+      until: (date: string) => `bis ${date}`,
+      fromTomorrow: "ab morgen",
+      from: (date: string) => `ab ${date}`,
+      range: (from: string, to: string) => (from === to ? from : `${from} – ${to}`),
+      addOwn: "Selbst bald weg? Eintragen",
+    },
   },
   /** P9 · Crew-Rückblick: was die Crew gemeinsam erlebt hat (nur abgeschlossene Pläne, keine Rangliste von Personen). */
   recap: {

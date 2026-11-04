@@ -29,6 +29,7 @@ import {
   useRemoveMember, useRevokeInvitation, useSendMessage, useSetMemberRole, useUpdateCrew, type CrewWithMembers,
 } from "./api";
 import { CrewBalances } from "./CrewBalances";
+import { CrewAway } from "./CrewAway";
 import { CrewBirthdays } from "./CrewBirthdays";
 import { CrewForm } from "./CrewForm";
 import { CrewRecap } from "./CrewRecap";
@@ -104,6 +105,8 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
         </Section>
       )}
       <CrewBalances crewId={crew.id} userId={user.id} plans={crewPlans} />
+      {/* P21 Etappe 2: wer gerade oder bald weg ist – vor den Geburtstagen, weil es die Terminsuche betrifft. */}
+      <CrewAway crewId={crew.id} userId={user.id} memberIds={memberIds} />
       <CrewBirthdays crewId={crew.id} userId={user.id} />
       <CrewRecap crewId={crew.id} plans={crewPlans} />
       {past.length > 0 && (

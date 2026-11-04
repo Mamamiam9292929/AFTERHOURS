@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/Toast";
+import { useCrewAbsences } from "@/features/crews/absencesApi";
+import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { pendingOptions, type QuickResponse } from "@/lib/quickvote";
 import { formatPlainDate, formatPlainTime } from "@/lib/time";
 import type { PollOption } from "@/lib/types";
 import { useVote } from "./api";
 import { summarizePoll, type PollWithDetails } from "./logic";
+import { awayLine } from "./OptionAway";
 
 const ANSWERS: { response: QuickResponse; label: string }[] = [
   { response: "yes", label: t.enums.vote.yes },
@@ -49,6 +52,9 @@ export function PollQuickVote({ poll, memberIds, userId, now, onTouched, busy }:
   const pending = pendingOptions(options, new Set(answered.keys()), skipped);
   const current = pending[0];
   const isDate = poll.kind === "date";
+  // P21 Etappe 2: „Nicht da: Bob“ auch beim Abstimmen auf Home – nur laden, wenn ein Vorschlag einen Termin hat.
+  const absences = useCrewAbsences(poll.crew_id, poll.options.some((o) => o.proposed_date));
+  const people = usePeople();
 
   async function answer(optionId: string, response: QuickResponse) {
     onTouched(poll.id);
@@ -106,6 +112,7 @@ export function PollQuickVote({ poll, memberIds, userId, now, onTouched, busy }:
         </p>
         <p className="mt-1.5 text-[14px] text-muted">{[when, t.polls.swipe.going(current.going)].filter(Boolean).join(" · ")}</p>
         {busy?.(current.option)}
+        {awayLine(current.option.proposed_date, absences.data, memberIds, userId, people.lookup)}
         <div role="group" aria-label={t.home.quickVote.answer(current.option.title)} className="quick-answer mt-3.5 grid grid-cols-3 gap-2">
           {ANSWERS.map(({ response, label }) => (
             <button key={response} type="button" data-response={response} onClick={() => void answer(current.id, response)} className="vote-pill">
