@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { IconSpinner } from "@/components/icons";
+import { IconInfo, IconSpinner } from "@/components/icons";
 import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -21,8 +21,10 @@ const ANSWERS: { value: Answer; label: string; response: "yes" | "maybe" | "no" 
  * und sein Ticket trägt die Farbe deiner Antwort.
  * V2 Etappe 3d: Antworten als Pillen wie auf Planseite und Abstimmung; die angetippte Pille füllt sich
  * sofort in ihrer Antwortfarbe (grün dabei, gelb vielleicht, rot kann nicht), während gespeichert wird.
+ * P23 Etappe 2: Wurde der Plan verschoben und alle neu gefragt, steht die alte Antwort wie auf der Planseite
+ * darunter („Vorher: Bin dabei“), und ihre Pille trägt eine gestrichelte Kante – ein Tipp bestätigt sie neu.
  */
-export function PlanQuickAnswer({ plan, className }: { plan: Pick<Plan, "id" | "title">; className?: string }) {
+export function PlanQuickAnswer({ plan, previous, className }: { plan: Pick<Plan, "id" | "title">; previous?: Answer | null; className?: string }) {
   const toast = useToast();
   const setAttendance = useSetAttendance(plan.id);
   const [chosen, setChosen] = useState<Answer | null>(null);
@@ -38,8 +40,10 @@ export function PlanQuickAnswer({ plan, className }: { plan: Pick<Plan, "id" | "
     });
   }
 
-  return (
-    <div role="group" aria-label={t.plans.quickAnswer(plan.title)} className={cn("quick-answer grid grid-cols-3 gap-2", className)}>
+  const before = previous ? ANSWERS.find((a) => a.value === previous) : undefined;
+
+  const pills = (
+    <div role="group" aria-label={t.plans.quickAnswer(plan.title)} className={cn("quick-answer grid grid-cols-3 gap-2", !before && className)}>
       {ANSWERS.map(({ value, label, response }) => {
         const busy = setAttendance.isPending && chosen === value;
         return (
@@ -50,6 +54,7 @@ export function PlanQuickAnswer({ plan, className }: { plan: Pick<Plan, "id" | "
             aria-busy={busy || undefined}
             data-response={response}
             data-chosen={chosen === value || undefined}
+            data-previous={before?.value === value || undefined}
             onClick={() => answer(value)}
             className="vote-pill gap-1.5"
           >
@@ -58,6 +63,19 @@ export function PlanQuickAnswer({ plan, className }: { plan: Pick<Plan, "id" | "
           </button>
         );
       })}
+    </div>
+  );
+
+  if (!before) return pills;
+  return (
+    <div className={className}>
+      {pills}
+      {!chosen && (
+        <p className="mt-2 flex items-center gap-2 text-[13px] leading-snug text-muted" data-testid="plan-quick-asked-again">
+          <IconInfo className="size-4 shrink-0" aria-hidden />
+          {t.plans.detail.attendance.askedAgain(before.label)}
+        </p>
+      )}
     </div>
   );
 }

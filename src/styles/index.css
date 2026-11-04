@@ -610,6 +610,19 @@
     opacity: 0.6;
   }
   /* V2 Etappe 3d · Zusage auf Home: die angetippte Pille füllt sich sofort in ihrer Antwortfarbe. */
+  /* P23 Etappe 2 · neu gefragt: die alte Antwort gestrichelt in ihrer Farbe. */
+  .quick-answer .vote-pill[data-previous]:not([data-chosen]) {
+    border-style: dashed;
+    border-color: var(--a);
+    color: var(--a);
+    --a: #c8ff2e;
+  }
+  .quick-answer .vote-pill[data-previous][data-response="maybe"] {
+    --a: #ffc93d;
+  }
+  .quick-answer .vote-pill[data-previous][data-response="no"] {
+    --a: #ff6b5e;
+  }
   .quick-answer .vote-pill[data-chosen] {
     opacity: 1;
     border-color: var(--a);
