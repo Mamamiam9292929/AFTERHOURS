@@ -98,7 +98,7 @@ export function PlanForm({ initial, submitLabel, pending, error, onSubmit, befor
           <TextField label={t.plans.create.time} name="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
         </div>
         {offerAskAgain && answers && (
-          <div data-testid="plan-ask-again" className="rounded-control border border-lime/30 bg-lime/[0.06] px-4 py-1">
+          <div data-testid="plan-ask-again" className="rounded-control border border-lime/40 bg-lime/10 px-4 py-1.5">
             <SwitchRow label={t.plans.detail.manage.askAgain} description={t.plans.detail.manage.askAgainBody(answered, answers.guests)} checked={askAgain} onChange={setAskAgain} />
           </div>
         )}

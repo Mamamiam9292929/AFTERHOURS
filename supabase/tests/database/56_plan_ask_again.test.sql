@@ -56,8 +56,10 @@ select is((select count(*)::int from public.plan_participants where plan_id = te
 -- ---- Verschieben und neu fragen ----------------------------------------------------------------------
 select tests.login('alice');
 select public.update_plan(tests.var('plan')::uuid, 'Bowling', now() + interval '4 days');
+select tests.logout();
 select is((select count(*)::int from public.notifications where type = 'plan_changed' and related_entity_id = tests.var('plan')::uuid), 3,
   'update_plan benachrichtigt Bob, Carol und Dave');
+select tests.login('alice');
 select is(public.ask_plan_again(tests.var('plan')::uuid), 3, 'zwei Mitglieder mit Antwort und ein Gast werden neu gefragt');
 
 select tests.logout();
