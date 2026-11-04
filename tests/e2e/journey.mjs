@@ -2981,6 +2981,73 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P23 – Neue Uhrzeit, alle neu fragen: Bob verschiebt seinen Plan (390 px), Carol hatte zugesagt. Beim Ändern der
+  // Uhrzeit erscheint „Alle neu fragen“ (vorausgewählt); nach dem Speichern steht Carol wieder bei „Noch offen“, sieht
+  // „Vorher: Bin dabei“ und bekommt „Neue Zeit: … – bist du noch dabei?“ statt nur „Plan geändert“.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const carolId = psql(`select id from auth.users where email = '${carol.email}'`);
+    const movePlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${bobId}', 'Tischtennis im Park', date_trunc('day', now()) + interval '4 days 19 hours', 'confirmed')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
+      select '${movePlan}', m.user_id,
+        case when m.user_id in ('${bobId}', '${carolId}') then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
+        case when m.user_id in ('${bobId}', '${carolId}') then now() end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    try {
+      await bob.page.goto(`${APP}/plans/${movePlan}`);
+      await bob.page.getByRole("heading", { level: 1, name: "Tischtennis im Park" }).waitFor();
+      await bob.page.getByRole("button", { name: "Plan bearbeiten" }).click();
+      const form = dialog(bob);
+      await form.getByLabel("Treffpunkt").fill("An der Platte");
+      check((await form.getByTestId("plan-ask-again").count()) === 0, "Neu fragen: ohne neue Zeit kein Schalter");
+      await form.getByLabel("Uhrzeit").fill("21:30");
+      const askAgain = form.getByTestId("plan-ask-again");
+      await askAgain.waitFor();
+      check((await askAgain.getByRole("switch").getAttribute("aria-checked")) === "true", "Neu fragen: bei neuer Zeit vorausgewählt");
+      check((await askAgain.innerText()).includes("1 Antwort gilt für die alte Zeit"), "Neu fragen: sagt, wie viele Antworten betroffen sind");
+      await noOverflow(bob, "Neu fragen");
+      await a11y(bob, "plan-neu-fragen");
+      await askAgain.scrollIntoViewIfNeeded();
+      await shot(bob, "21j-plan-neu-fragen");
+      await form.getByRole("button", { name: "Änderungen speichern" }).click();
+      await toast(bob, "Plan aktualisiert – 1 Person wird neu gefragt.");
+      check(psql(`select attendance_status || '/' || previous_status from public.plan_participants where plan_id = '${movePlan}' and user_id = '${carolId}'`) === "invited/going",
+        "Neu fragen: Carol ist wieder offen, vorher dabei");
+      check(psql(`select attendance_status from public.plan_participants where plan_id = '${movePlan}' and user_id = '${bobId}'`) === "going",
+        "Neu fragen: Bobs eigene Zusage bleibt");
+      check(psql(`select count(*) from public.notifications where related_entity_id = '${movePlan}' and user_id = '${carolId}' and type = 'plan_changed'`) === "1",
+        "Neu fragen: Carol bekommt genau eine Benachrichtigung");
+
+      await carol.page.goto(`${APP}/plans/${movePlan}`);
+      const hint = carol.page.getByTestId("plan-asked-again");
+      await hint.waitFor();
+      check((await hint.innerText()).trim() === "Neue Zeit – passt es dir noch? Vorher: Bin dabei", "Neu fragen: Carol sieht ihre alte Antwort als Hinweis");
+      check((await carol.page.getByRole("radio", { name: "Bin dabei" }).getAttribute("aria-checked")) === "false", "Neu fragen: Antwortkarte wieder offen");
+      await noOverflow(carol, "Neu gefragt");
+      await shot(carol, "21k-plan-neu-gefragt");
+      await carol.page.getByRole("radio", { name: "Vielleicht" }).click();
+      await toast(carol, "Antwort gespeichert.");
+      await hint.waitFor({ state: "detached" });
+      check(true, "Neu fragen: nach der neuen Antwort verschwindet der Hinweis");
+      await carol.page.goto(`${APP}/notifications`);
+      await carol.page.getByText("Neue Zeit: Tischtennis im Park – bist du noch dabei?").first().waitFor();
+      check(true, "Neu fragen: Benachrichtigung „Neue Zeit: … – bist du noch dabei?“");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/ask_plan_again`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: movePlan }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Zurücksetzen (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${movePlan}'; delete from public.plans where id = '${movePlan}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });

@@ -43,6 +43,10 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
         ? { title: "Entschieden – der Plan steht", body: str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title") }
         : { title: `${actor} hat einen Plan erstellt`, body: str(p, "title") },
   plan_changed: (actor, p) => {
+    // P23: verschoben und „Alle neu fragen“ – die alte Antwort gilt nicht mehr.
+    if (p.asked_again) {
+      return { title: `Neue Zeit: ${str(p, "title")} – bist du noch dabei?`, body: str(p, "starts_at") ? `${actor} hat verschoben auf ${formatDateTime(str(p, "starts_at"))}` : `${actor} hat den Plan verschoben` };
+    }
     const labels: Record<string, string> = { starts_at: "Zeit", address: "Ort", meeting_point: "Treffpunkt", cost: "Kosten" };
     const changed = Array.isArray(p.changed) ? (p.changed as string[]).map((key) => labels[key] ?? key).join(", ") : "";
     return { title: `${actor} hat einen Plan geändert${changed ? `: ${changed}` : ""}`, body: str(p, "title") };

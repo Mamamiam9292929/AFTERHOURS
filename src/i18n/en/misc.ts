@@ -45,6 +45,9 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
         ? { title: "Decided – the plan is set", body: str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p) }
         : { title: `${actor} created a plan`, body: serverTitle(p) },
   plan_changed: (actor, p) => {
+    if (p.asked_again) {
+      return { title: `New time: ${serverTitle(p)} – are you still in?`, body: str(p, "starts_at") ? `${actor} moved it to ${formatDateTime(str(p, "starts_at"))}` : `${actor} moved the plan` };
+    }
     const labels: Record<string, string> = { starts_at: "time", address: "place", meeting_point: "meeting point", cost: "cost" };
     const changed = Array.isArray(p.changed) ? (p.changed as string[]).map((key) => labels[key] ?? key).join(", ") : "";
     return { title: `${actor} changed a plan${changed ? `: ${changed}` : ""}`, body: serverTitle(p) };
