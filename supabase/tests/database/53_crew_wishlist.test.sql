@@ -56,6 +56,9 @@ select throws_ok($$ select public.add_crew_wish(tests.var('crew')::uuid, tests.v
 select throws_ok($$ select public.add_crew_wish(tests.var('crew')::uuid, gen_random_uuid()) $$, 'P0001', 'unknown_activity', 'unbekannter Ort wird abgewiesen');
 select throws_ok($$ select public.add_crew_wish(tests.var('mallory_crew')::uuid, tests.var('kart')::uuid) $$, '42501', 'forbidden', 'in fremde Crew merken: verboten');
 
+-- Alles in einer Transaktion hat dieselbe Zeit: Bobs Eintrag liegt eine Stunde zurück.
+select tests.logout();
+update public.crew_wishes set created_at = now() - interval '1 hour' where id = tests.var('wish')::uuid;
 select tests.login('carol');
 select lives_ok($$ select public.add_crew_wish(tests.var('crew')::uuid, tests.var('kart')::uuid) $$, 'Carol merkt die Kartbahn');
 select is((select array_agg(name order by created_at desc) from public.crew_wishes(tests.var('crew')::uuid)), array['Kartbahn Nord', 'Bowling am Ring'], 'neueste zuerst');

@@ -81,17 +81,17 @@ export function CrewWishlist({ crewId, userId }: { crewId: string; userId: strin
           </div>
         ) : (
           <>
-            <ul className="grid gap-1.5">
+            <ul className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
               {list.map((wish) => {
                 const by = wish.added_by === userId ? tx.byYou : wish.added_by ? people.lookup(wish.added_by)?.display_name : null;
                 return (
-                  <li key={wish.activity_id} data-testid="crew-wish" className={cn(PANEL_ITEM, "flex items-center gap-3 py-2 pl-2 pr-1.5")}>
+                  <li key={wish.activity_id} data-testid="crew-wish" className={cn(PANEL_ITEM, "flex min-w-0 items-center gap-3 py-2 pl-2 pr-1.5")}>
                     <span aria-hidden className="cat-world size-12 shrink-0 overflow-hidden rounded-[16px] border border-white/10" data-world={categoryWorld(wish.category)}>
                       <CategoryArt category={wish.category} onLight />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-2">
-                        <Link to={`/activities/${wish.activity_id}`} className="truncate font-semibold text-fg underline-offset-2 hover:underline">
+                        <Link to={`/activities/${wish.activity_id}`} className="min-w-0 truncate font-semibold text-fg underline-offset-2 hover:underline">
                           {wish.name}
                         </Link>
                         {wish.is_demo && <DemoBadge className="shrink-0" />}
