@@ -9,6 +9,9 @@ import { useSetAttendance } from "./api";
 type Answer = Exclude<AttendanceStatus, "invited">;
 
 /** V2: gleiche Farbnamen wie die Pillen der Abstimm- und Planseiten-Karten (`.vote-pill[data-response]`). */
+/** P23 Etappe 2: Farbe der alten Antwort – inline, damit das Start-CSS nicht wächst. */
+const PREVIOUS_COLOR: Record<Answer, string> = { going: "#c8ff2e", maybe: "#ffc93d", declined: "#ff6b5e" };
+
 const ANSWERS: { value: Answer; label: string; response: "yes" | "maybe" | "no" }[] = [
   { value: "going", label: t.plans.detail.attendance.going, response: "yes" },
   { value: "maybe", label: t.plans.detail.attendance.maybe, response: "maybe" },
@@ -55,6 +58,7 @@ export function PlanQuickAnswer({ plan, previous, className }: { plan: Pick<Plan
             data-response={response}
             data-chosen={chosen === value || undefined}
             data-previous={before?.value === value || undefined}
+            style={before?.value === value && chosen === null ? { borderStyle: "dashed", borderColor: PREVIOUS_COLOR[value], color: PREVIOUS_COLOR[value] } : undefined}
             onClick={() => answer(value)}
             className="vote-pill gap-1.5"
           >
