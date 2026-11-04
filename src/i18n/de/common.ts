@@ -216,6 +216,10 @@ export const errors = {
     guest_join_off: "Die Crew nimmt über diese Abstimmung gerade keine Gäste auf. Frag im Gruppenchat nach dem Einladungslink.",
     guest_limit: "Bei dieser Abstimmung haben schon 30 Gäste mitgestimmt – mehr gehen nicht.",
     already_member: "Du bist in dieser Crew – stimm direkt in der App ab.",
+    plan_guests_off: "Bei diesem Plan kann man gerade nicht über den Link zusagen.",
+    plan_guests_started: "Der Plan hat schon angefangen – über den Link geht das nur vorher.",
+    plan_guest_member: "Du bist in dieser Crew – sag direkt in der App zu.",
+    plan_guest_limit: "Bei diesem Plan haben schon 30 Gäste geantwortet – mehr gehen nicht.",
     guest_not_found: "Diese Gast-Stimme gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.",
     // Supabase Auth
     invalid_credentials: "E-Mail-Adresse oder Passwort stimmen nicht.",

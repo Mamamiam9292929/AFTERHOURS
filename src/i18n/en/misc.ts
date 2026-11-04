@@ -56,10 +56,13 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
           body: str(p, "next_starts_at") ? `Next date: ${formatDateTime(str(p, "next_starts_at"))}` : "The regular carries on.",
         }
       : { title: `${actor} cancelled a plan`, body: serverTitle(p) },
-  plan_attendance: (actor, p) => ({
-    title: p.status === "going" ? `${actor} is in` : p.status === "maybe" ? `${actor} might come` : `${actor} can't make it`,
-    body: serverTitle(p),
-  }),
+  plan_attendance: (actor, p) => {
+    const who = p.guest ? `${str(p, "guest")} (guest)` : actor;
+    return {
+      title: p.status === "going" ? `${who} is in` : p.status === "maybe" ? `${who} might come` : `${who} can't make it`,
+      body: serverTitle(p),
+    };
+  },
   booking_status: (_actor, p) => {
     const status: Record<string, string> = { confirmed: "Booking confirmed", unavailable: "Booking not possible: nothing available", failed: "Booking failed", cancelled_by_user: "Booking cancelled" };
     return { title: status[str(p, "status")] ?? "Booking status changed", body: serverTitle(p) };

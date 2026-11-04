@@ -233,6 +233,18 @@ export interface Plan {
   cancelled_at: string | null;
   /** P8 Etappe 2: Termin einer Serie „diesmal ausgesetzt“ (status = cancelled, die Serie läuft weiter). */
   skipped_at?: string | null;
+  /** W10: Freunde ohne Konto dürfen über den Teilen-Link zusagen. */
+  guests_allowed?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** W10: Zusage ohne Konto über den Teilen-Link – die Crew sieht Name und Antwort, nie das Geheimnis. */
+export interface PlanGuest {
+  id: string;
+  plan_id: string;
+  display_name: string;
+  attendance_status: Exclude<AttendanceStatus, "invited">;
   created_at: string;
   updated_at: string;
 }

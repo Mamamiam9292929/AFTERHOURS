@@ -1601,6 +1601,109 @@ await step("W2 – Geteilter Plan: Vorschau im Messenger und für Freunde ohne K
   check(true, "Mitglied: Teilen-Link führt direkt zum Plan");
 });
 
+await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
+  if (!ids.shareUrl) throw new Error("kein Teilen-Link aus W8");
+  const token = new URL(ids.shareUrl).pathname.split("/").pop();
+  // Einfache Mitglieder sehen den Schalter nicht und können ihn auch über die API nicht umlegen.
+  await bob.page.goto(`${APP}/plans/${ids.plan}`);
+  await bob.page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  check((await bob.page.locator("#gaeste").count()) === 0, "W10: einfache Mitglieder sehen „Freunde ohne Konto“ nicht");
+  const bobToggle = await api(bob, "POST", "rpc/set_plan_guests", { p_plan_id: ids.plan, p_allowed: true });
+  check(bobToggle.status >= 400, `W10: Bob kann Zusagen ohne Konto nicht einschalten (HTTP ${bobToggle.status})`);
+  const malloryToggle = await api(mallory, "POST", "rpc/set_plan_guests", { p_plan_id: ids.plan, p_allowed: true });
+  check(malloryToggle.status >= 400, `W10: Außenstehende auch nicht (HTTP ${malloryToggle.status})`);
+
+  // Alice organisiert: Schalter an, Leerzustand.
+  const { page } = alice;
+  await page.goto(`${APP}/plans/${ids.plan}`);
+  await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
+  const panel = page.locator("#gaeste");
+  await panel.getByRole("switch").waitFor();
+  check((await panel.getByRole("switch").getAttribute("aria-checked")) === "false", "W10: Zusagen ohne Konto sind standardmäßig aus");
+  await panel.getByRole("switch").click();
+  await toast(alice, "Freunde ohne Konto können jetzt über den Link zusagen.");
+  await panel.getByText("Noch hat niemand über den Link geantwortet.").waitFor();
+  check(await panel.getByTestId("plan-guests-count").filter({ hasText: "Noch keine" }).isVisible(), "W10: Leerzustand mit Pille „Noch keine“");
+  await shot(alice, "16e-plan-gaeste-an");
+
+  // Dana hat kein Konto: Zusagekarte mit Ort und Treffpunkt, ohne Namen der Crew.
+  const guest = await newUser("Dana", "mobile");
+  try {
+    await guest.page.goto(ids.shareUrl);
+    await guest.page.getByRole("heading", { level: 1, name: "Bist du dabei?" }).waitFor();
+    const where = guest.page.getByTestId("rsvp-where");
+    await where.waitFor();
+    check((await where.innerText()).includes("Demochaussee 220"), "W10: Gast sieht, wohin es geht");
+    check((await where.innerText()).includes("U-Bahn Ausgang Nord"), "W10: Gast sieht den Treffpunkt");
+    check(!/Alice|Bob|Carol/.test(await guest.page.locator("body").innerText()), "W10: keine Namen der Crew");
+    // Ohne Namen geht nichts raus.
+    await guest.page.getByRole("radio", { name: "Bin dabei" }).click();
+    await guest.page.getByRole("button", { name: "Antwort senden" }).click();
+    await guest.page.getByText("Bitte gib deinen Namen ein (mindestens 2 Zeichen).").waitFor();
+    check(true, "W10: ohne Namen kein Senden");
+    await guest.page.getByLabel("Dein Name").fill("Dana");
+    await shot(guest, "16f-plan-gast-zusage");
+    // Fehlerzustand: Antwort des Servers wird verständlich angezeigt.
+    await guest.page.route("**/rpc/guest_rsvp_shared_plan", (route) =>
+      route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ code: "P0001", message: "plan_guests_started", details: null, hint: null }) }),
+    );
+    await guest.page.getByRole("button", { name: "Antwort senden" }).click();
+    await guest.page.getByText("Der Plan hat schon angefangen – über den Link geht das nur vorher.").waitFor();
+    check(true, "W10: Fehler beim Senden wird angezeigt");
+    await guest.page.unroute("**/rpc/guest_rsvp_shared_plan");
+    await guest.page.getByRole("button", { name: "Antwort senden" }).click();
+    await guest.page.getByRole("heading", { level: 1, name: "Hallo Dana" }).waitFor();
+    check((await guest.page.getByTestId("rsvp-card").getAttribute("data-answer")) === "yes", "W10: Karte in der Antwortfarbe (grün dabei)");
+    check(await guest.page.getByTestId("rsvp-cta").isVisible(), "W10: danach der Weg zum eigenen Konto");
+    // Ein Tipp ändert die Antwort.
+    const changed = guest.page.waitForResponse((r) => r.url().includes("/rpc/guest_rsvp_shared_plan") && r.ok());
+    await guest.page.getByRole("radio", { name: "Vielleicht" }).click();
+    await changed;
+    await guest.page.waitForFunction(() => document.querySelector('[data-testid="rsvp-card"]')?.getAttribute("data-answer") === "maybe");
+    check(true, "W10: ein Tipp ändert die Antwort auf „Vielleicht“");
+    await shot(guest, "16g-plan-gast-eingetragen");
+
+    // Die Crew sieht Dana bei „Wer“, Alice bekommt Bescheid.
+    await page.reload();
+    await page.getByTestId("who-guest").filter({ hasText: "Dana (Gast)" }).waitFor();
+    check((await page.getByTestId("who-guest").getAttribute("data-status")) === "maybe", "W10: Dana steht bei „Vielleicht“, gekennzeichnet als Gast");
+    check(await panel.getByTestId("plan-guest").filter({ hasText: "Dana (Gast)" }).isVisible(), "W10: Dana in der Gästeliste");
+    const notes = await api(alice, "GET", "notifications?type=eq.plan_attendance&select=payload,actor_id");
+    check(Array.isArray(notes.json) && notes.json.some((n) => n.payload?.guest === "Dana" && n.actor_id === null), "W10: Alice bekommt Bescheid über Danas Antwort");
+    await shot(alice, "16h-plan-gast-in-der-crew");
+    const anonRead = await api(null, "GET", "plan_guests?select=display_name");
+    check(!(Array.isArray(anonRead.json) && anonRead.json.length > 0), "W10: ohne Konto liest niemand die Gäste über die API");
+    const bobAsGuest = await api(bob, "POST", "rpc/guest_rsvp_shared_plan", { p_token: token, p_secret: "b".repeat(64), p_name: "Bob", p_status: "going" });
+    check(bobAsGuest.status >= 400 && bobAsGuest.json?.message === "plan_guest_member", "W10: Mitglieder sagen nicht als Gast zu");
+
+    // Zurückziehen, dann mit dem gemerkten Namen ein Tipp.
+    await guest.page.getByTestId("rsvp-withdraw").click();
+    await guest.page.getByText("Deine Antwort ist zurückgezogen.").waitFor();
+    await guest.page.getByRole("heading", { level: 1, name: "Bist du dabei?" }).waitFor();
+    await guest.page.getByTestId("rsvp-one-tap").waitFor();
+    const declined = guest.page.waitForResponse((r) => r.url().includes("/rpc/guest_rsvp_shared_plan") && r.ok());
+    await guest.page.getByRole("radio", { name: "Kann nicht" }).click();
+    await declined;
+    await guest.page.getByRole("heading", { level: 1, name: "Hallo Dana" }).waitFor();
+    check(true, "W10: zurückziehen und mit gemerktem Namen per Tipp absagen");
+
+    // Alice entfernt Dana und schaltet aus – der Link zeigt wieder nur die Karte.
+    await page.reload();
+    await panel.getByRole("button", { name: "Dana entfernen" }).click();
+    await dialog(alice).getByRole("button", { name: "Entfernen" }).click();
+    await toast(alice, "Gast entfernt.");
+    await panel.getByRole("switch").click();
+    await toast(alice, "Zusagen über den Link sind aus.");
+    check((await page.getByTestId("who-guest").count()) === 0, "W10: entfernte Gäste stehen nicht mehr bei „Wer“");
+    await guest.page.reload();
+    await guest.page.getByRole("heading", { level: 1, name: "Bist du dabei?" }).waitFor();
+    check((await guest.page.getByTestId("rsvp-card").count()) === 0 && (await guest.page.getByRole("link", { name: "Konto erstellen" }).isVisible()), "W10: ausgeschaltet zeigt der Link nur noch die Karte");
+  } finally {
+    users.splice(users.indexOf(guest), 1);
+    await guest.context.close();
+  }
+});
+
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {
   const { page } = alice;
   check(await page.getByText("16 € pro Person").isVisible(), "Plan zeigt die Kostenschätzung pro Person (Richtwert des Ortes)");

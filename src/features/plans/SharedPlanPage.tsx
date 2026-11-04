@@ -12,6 +12,7 @@ import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { formatTime, ticketDate } from "@/lib/time";
 import { type SharedPlanPreview, useSharedPlanPreview } from "./api";
 import { planCountdown } from "./PlanTicket";
+import { SharedPlanRsvp } from "./SharedPlanRsvp";
 
 type Valid = Extract<SharedPlanPreview, { status: "valid" }>;
 
@@ -61,16 +62,23 @@ export function SharedPlanPage() {
 
   if (result.plan_id) return <Navigate to={`/plans/${result.plan_id}`} replace />;
 
-  if (user) {
-    return (
-      <AuthLayout hero={<SharedPlanTicket data={result} />} title={t.plans.shared.outsiderTitle} intro={t.plans.shared.outsiderIntro}>
-        <ButtonLink to="/home" size="lg" block variant="secondary">
-          {t.plans.shared.toHome}
-        </ButtonLink>
-      </AuthLayout>
-    );
+  const fallback = user ? (
+    <AuthLayout hero={<SharedPlanTicket data={result} />} title={t.plans.shared.outsiderTitle} intro={t.plans.shared.outsiderIntro}>
+      <ButtonLink to="/home" size="lg" block variant="secondary">
+        {t.plans.shared.toHome}
+      </ButtonLink>
+    </AuthLayout>
+  ) : null;
+  // W10: Die Crew erlaubt Zusagen ohne Konto – dann steht hier die Zusagekarte.
+  if (token && result.plan.guests) {
+    return <SharedPlanRsvp token={token} hero={<SharedPlanTicket data={result} />} signedIn={Boolean(user)} fallback={fallback ?? <GuestInvite data={result} />} />;
   }
+  if (fallback) return fallback;
+  return <GuestInvite data={result} />;
+}
 
+/** Ohne Konto und ohne Freigabe: Karte und der Weg in die App. */
+function GuestInvite({ data: result }: { data: Valid }) {
   return (
     <AuthLayout
       hero={<SharedPlanTicket data={result} />}

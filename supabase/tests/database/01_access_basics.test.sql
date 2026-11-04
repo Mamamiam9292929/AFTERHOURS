@@ -25,8 +25,10 @@ select is(
                        'public.preview_shared_poll(text)'::regprocedure, 'public.shared_poll_ballot(text, text)'::regprocedure,
                        'public.guest_vote_shared_poll(text, text, text, jsonb)'::regprocedure,
                        'public.guest_join_shared_poll(text, text)'::regprocedure,
+                       'public.shared_plan_rsvp(text, text)'::regprocedure,
+                       'public.guest_rsvp_shared_plan(text, text, text, text)'::regprocedure,
                        'public.calendar_feed_events(text)'::regprocedure)),
-  0, 'anon darf keine Funktion ausführen – Ausnahmen: Einladungsvorschau (W1), Plan- und Abstimmungs-Vorschau (W2), Stimmzettel, Abstimmen und Beitrittslink als Gast (W3), Kalender-Abo (P2)');
+  0, 'anon darf keine Funktion ausführen – Ausnahmen: Einladungsvorschau (W1), Plan- und Abstimmungs-Vorschau (W2), Stimmzettel, Abstimmen und Beitrittslink als Gast (W3), Zusagen als Gast beim Plan (W10), Kalender-Abo (P2)');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
