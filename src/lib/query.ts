@@ -26,6 +26,8 @@ export const qk = {
   profile: (userId: string) => ["profile", userId] as const,
   settings: (userId: string) => ["settings", userId] as const,
   people: ["people"] as const,
+  /** P12: Welche Anmeldeanbieter (Google, Apple) im Supabase-Projekt eingeschaltet sind. */
+  authProviders: ["auth-providers"] as const,
   isAdmin: (userId: string) => ["is-admin", userId] as const,
   /** P2 Etappe 2: eigener Abo-Link für Kalender-Apps. */
   calendarFeed: (userId: string) => ["calendar-feed", userId] as const,

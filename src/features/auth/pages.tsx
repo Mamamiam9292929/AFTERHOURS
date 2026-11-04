@@ -5,6 +5,7 @@ import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { PageSpinner } from "@/components/ui/Feedback";
 import { locale, t } from "@/i18n";
+import { oauthReturnFailed } from "@/lib/authproviders";
 import { errorMessage } from "@/lib/errors";
 import { siteUrl, supabase } from "@/lib/supabase";
 import { email as emailRule, minLength, password as passwordRule, required, validate } from "@/lib/validation";
@@ -12,6 +13,7 @@ import { AuthLayout } from "./AuthLayout";
 import { useAuth } from "./AuthProvider";
 import { ContinueAfterAuth } from "./guards";
 import { peekNext } from "./next";
+import { SocialSignIn } from "./SocialSignIn";
 
 const linkClass = "font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime";
 
@@ -92,6 +94,7 @@ export function LoginPage() {
         </>
       }
     >
+      <SocialSignIn />
       <form onSubmit={submit} noValidate className="space-y-5">
         <TextField label={t.auth.fields.email} name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} required />
         <PasswordField label={t.auth.fields.password} name="password" value={password} onChange={setPassword} error={errors.password} autoComplete="current-password" />
@@ -159,32 +162,35 @@ export function RegisterForm({ submitLabel = t.auth.register.submit }: { submitL
   }
 
   return (
-    <form onSubmit={submit} noValidate className="space-y-5">
-      <TextField label={t.auth.fields.displayName} name="display_name" autoComplete="nickname" maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} error={errors.displayName} hint={t.auth.fields.displayNameHint} required />
-      <TextField label={t.auth.fields.email} name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} required />
-      <PasswordField label={t.auth.fields.password} name="password" value={password} onChange={setPassword} error={errors.password} hint={t.auth.fields.passwordHint} autoComplete="new-password" />
-      <div className="space-y-1.5">
-        <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
-          <input type="checkbox" name="age" checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-lime)]" aria-invalid={Boolean(errors.age)} />
-          {t.auth.register.ageConfirm}
-        </label>
-        {errors.age && (
-          <p role="alert" className="text-[13px] text-danger">
-            {errors.age}
-          </p>
-        )}
-      </div>
-      {formError && <FormMessage>{formError}</FormMessage>}
-      <Button type="submit" size="lg" block loading={busy}>
-        {submitLabel}
-      </Button>
-      <p className="text-[13px] leading-snug text-faint">
-        {t.auth.register.privacyNote}{" "}
-        <Link to="/privacy" className="underline underline-offset-2 hover:text-fg">
-          {t.auth.register.privacyLink}
-        </Link>
-      </p>
-    </form>
+    <>
+      <SocialSignIn />
+      <form onSubmit={submit} noValidate className="space-y-5">
+        <TextField label={t.auth.fields.displayName} name="display_name" autoComplete="nickname" maxLength={40} value={displayName} onChange={(e) => setDisplayName(e.target.value)} error={errors.displayName} hint={t.auth.fields.displayNameHint} required />
+        <TextField label={t.auth.fields.email} name="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} required />
+        <PasswordField label={t.auth.fields.password} name="password" value={password} onChange={setPassword} error={errors.password} hint={t.auth.fields.passwordHint} autoComplete="new-password" />
+        <div className="space-y-1.5">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
+            <input type="checkbox" name="age" checked={ageConfirmed} onChange={(e) => setAgeConfirmed(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-lime)]" aria-invalid={Boolean(errors.age)} />
+            {t.auth.register.ageConfirm}
+          </label>
+          {errors.age && (
+            <p role="alert" className="text-[13px] text-danger">
+              {errors.age}
+            </p>
+          )}
+        </div>
+        {formError && <FormMessage>{formError}</FormMessage>}
+        <Button type="submit" size="lg" block loading={busy}>
+          {submitLabel}
+        </Button>
+        <p className="text-[13px] leading-snug text-faint">
+          {t.auth.register.privacyNote}{" "}
+          <Link to="/privacy" className="underline underline-offset-2 hover:text-fg">
+            {t.auth.register.privacyLink}
+          </Link>
+        </p>
+      </form>
+    </>
   );
 }
 
@@ -296,7 +302,9 @@ export function AuthConfirmPage() {
   const [params] = useSearchParams();
   const tokenHash = params.get("token_hash");
   const type = params.get("type");
-  const [failed, setFailed] = useState(() => /error(_code)?=/.test(window.location.hash) || params.has("error"));
+  // P12: Rückkehr von Google/Apple (`?via=oauth`) – eigene Texte, der Link aus einer E-Mail ist es ja nicht.
+  const viaOAuth = params.get("via") === "oauth";
+  const [failed, setFailed] = useState(() => oauthReturnFailed(window.location.search, window.location.hash));
   const [verifying, setVerifying] = useState(Boolean(tokenHash));
 
   useEffect(() => {
@@ -314,17 +322,18 @@ export function AuthConfirmPage() {
   }, [tokenHash, type]);
 
   if (user && !verifying) return <ContinueAfterAuth />;
-  if (loading || verifying) return <PageSpinner label={t.auth.confirm.working} />;
+  const texts = viaOAuth ? t.auth.social : t.auth.confirm;
+  if (loading || verifying) return <PageSpinner label={texts.working} />;
   if (failed || !user) {
     return (
-      <AuthLayout title={t.auth.confirm.failedTitle} intro={t.auth.confirm.failedBody}>
+      <AuthLayout title={texts.failedTitle} intro={texts.failedBody}>
         <ButtonLink to="/login" size="lg" block>
           {t.auth.confirm.toLogin}
         </ButtonLink>
       </AuthLayout>
     );
   }
-  return <PageSpinner label={t.auth.confirm.working} />;
+  return <PageSpinner label={texts.working} />;
 }
 
 // ------------------------------------------------------------------------------------------------
