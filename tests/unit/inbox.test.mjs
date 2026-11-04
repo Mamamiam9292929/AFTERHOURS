@@ -9,6 +9,7 @@ const TYPES = [
   "plan_created", "plan_changed", "plan_cancelled", "plan_attendance",
   "booking_status", "ride_request", "ride_confirmed", "reward_earned",
   "plan_expense", "plan_settlement", "plan_expense_reminder", "plan_day_reminder", "plan_photo_reported", "plan_photo_nudge", "plan_reminder",
+  "birthday_reminder",
   "spontaneous_ask", "spontaneous_answer", "spontaneous_match",
 ];
 
@@ -27,6 +28,8 @@ test("jede Art hat einen Bereich und einen Farbschein", () => {
   assert.equal(inboxArea("plan_photo_nudge"), "plan");
   assert.equal(inboxTone("plan_photo_nudge"), "lime");
   assert.equal(inboxArea("plan_reminder"), "plan", "P19: Nachfrage gehört zum Plan");
+  assert.equal(inboxArea("birthday_reminder"), "crew", "P20: Geburtstag gehört zur Crew");
+  assert.equal(inboxTone("birthday_reminder"), "pink");
   assert.equal(inboxArea("spontaneous_match"), "spontaneous");
   assert.equal(inboxArea("etwas_neues"), "crew", "unbekannte Art verschwindet nicht");
 });

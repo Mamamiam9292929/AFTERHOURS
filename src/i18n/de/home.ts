@@ -35,6 +35,11 @@ export const home = {
   startPoll: "Abstimmung starten",
   createPlan: "Plan erstellen",
   needsAnswer: "Deine Antwort fehlt",
+  /** P20 Etappe 2: Geburtstage aus den eigenen Crews in den nächsten 7 Tagen. */
+  birthdays: {
+    title: "Bald Geburtstag",
+    lead: "Aus deinen Crews in den nächsten 7 Tagen – ein Tipp, und ihr stimmt ab, wann gefeiert wird.",
+  },
   nextUp: "Als Nächstes",
   runningPolls: "Laufende Abstimmungen",
   /** D3 Etappe 1 · Abstimmen direkt auf Home, Vorschlag für Vorschlag. */

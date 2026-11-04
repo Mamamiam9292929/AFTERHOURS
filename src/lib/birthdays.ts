@@ -59,7 +59,7 @@ export function nextBirthday(month: number, day: number, today: string): string 
 }
 
 /** Geburtstage innerhalb der nächsten `windowDays` Tage, der nächste zuerst (bei Gleichstand stabil nach Person). */
-export function upcomingBirthdays(list: readonly Birthday[], today: string, windowDays = BIRTHDAY_WINDOW_DAYS): UpcomingBirthday[] {
+export function upcomingBirthdays<T extends Birthday>(list: readonly T[], today: string, windowDays = BIRTHDAY_WINDOW_DAYS): (T & UpcomingBirthday)[] {
   return list
     .filter((b) => isValidBirthday(b.month, b.day))
     .map((b) => {
@@ -99,4 +99,46 @@ export function birthdaySlots(date: string, today: string): string[] {
     }
   }
   return [...new Set(candidates)].filter((d) => d >= today).sort().slice(0, 4);
+}
+
+/** P20 Etappe 2: So weit voraus zeigt Home Geburtstage – so weit vorher kommt auch die Erinnerung. */
+export const HOME_BIRTHDAY_DAYS = 7;
+
+export interface CrewBirthday extends Birthday {
+  crew_id: string;
+}
+
+export interface HomeBirthday extends UpcomingBirthday {
+  crew_id: string;
+}
+
+/**
+ * Geburtstage für Home aus `my_crew_birthdays` (eine Zeile je Person und Crew, ohne die eigene Person):
+ * jede Person einmal – mit der ersten Crew in `crewOrder` (Reihenfolge der Crews in der App), sonst der
+ * ersten gelieferten –, nur heute bis in `windowDays` Tagen, der nächste zuerst.
+ */
+export function homeBirthdays(
+  rows: readonly CrewBirthday[],
+  today: string,
+  userId: string,
+  crewOrder: readonly string[] = [],
+  windowDays = HOME_BIRTHDAY_DAYS,
+): HomeBirthday[] {
+  const rank = (crewId: string) => {
+    const index = crewOrder.indexOf(crewId);
+    return index === -1 ? crewOrder.length : index;
+  };
+  const byPerson = new Map<string, CrewBirthday>();
+  for (const row of rows) {
+    if (row.user_id === userId) continue;
+    const seen = byPerson.get(row.user_id);
+    if (!seen || rank(row.crew_id) < rank(seen.crew_id)) byPerson.set(row.user_id, row);
+  }
+  return upcomingBirthdays([...byPerson.values()], today, windowDays);
+}
+
+/** „Feier planen“: Termin-Abstimmung für die Crew rund um den Geburtstag (`PollCreatePage` liest `birthday`/`for`). */
+export function birthdayPollLink(crewId: string, date: string, name: string): string {
+  const params = new URLSearchParams({ crew: crewId, kind: "date", birthday: date, for: name });
+  return `/polls/new?${params.toString()}`;
 }

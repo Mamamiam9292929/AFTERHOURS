@@ -11,4 +11,10 @@ const euroCents = new Intl.NumberFormat("en-GB", { style: "currency", currency: 
 
 export const formatTime = (v: Date | string) => time.format(new Date(v));
 export const formatDateTime = (v: Date | string) => `${dateShort.format(new Date(v))}, ${formatTime(v)}`;
+/** Kalenderdatum ohne Uhrzeit (YYYY-MM-DD), z. B. „Saturday 14 November“ – unabhängig von der Zeitzone. */
+const plainDateLong = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" });
+export const formatPlainDateLong = (date: string) => {
+  const [y, m, d] = date.split("-").map(Number);
+  return y && m && d ? plainDateLong.format(new Date(Date.UTC(y, m - 1, d, 12))) : date;
+};
 export const formatEuro = (cents: number) => (cents % 100 === 0 ? euroWhole.format(cents / 100) : euroCents.format(cents / 100));

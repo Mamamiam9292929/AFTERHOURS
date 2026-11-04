@@ -1,14 +1,14 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { IconCake, IconForward } from "@/components/icons";
-import { Avatar } from "@/components/ui/Avatar";
+import { Avatar, type Person } from "@/components/ui/Avatar";
 import { ButtonLink } from "@/components/ui/Button";
 import { ErrorState } from "@/components/ui/Feedback";
 import { PanelCard } from "@/components/ui/PanelCard";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
-import { upcomingBirthdays } from "@/lib/birthdays";
+import { birthdayPollLink, upcomingBirthdays, type UpcomingBirthday } from "@/lib/birthdays";
 import { cn } from "@/lib/cn";
 import { useNow } from "@/lib/hooks";
 import { formatPlainDate, zonedParts } from "@/lib/time";
@@ -16,10 +16,38 @@ import { useCrewBirthdays, useMyBirthday } from "./birthdaysApi";
 
 const tx = t.crews.detail.birthdays;
 
-/** „Feier planen“: Termin-Abstimmung für die Crew rund um den Geburtstag (`PollCreatePage` liest `birthday`/`for`). */
-export function birthdayPollLink(crewId: string, date: string, name: string): string {
-  const params = new URLSearchParams({ crew: crewId, kind: "date", birthday: date, for: name });
-  return `/polls/new?${params.toString()}`;
+/** Eine Zeile „Bald Geburtstag“ – auf der Crew-Seite und auf Home (dort mit dem Namen der Crew). */
+export function BirthdayRow({
+  birthday,
+  crewId,
+  person,
+  self,
+  crewName,
+}: {
+  birthday: UpcomingBirthday;
+  crewId: string;
+  person: Person | null | undefined;
+  self: boolean;
+  crewName?: string;
+}) {
+  const name = person?.display_name ?? t.states.formerMember;
+  const when = birthday.inDays === 0 ? tx.today : birthday.inDays === 1 ? tx.tomorrow : tx.inDays(birthday.inDays);
+  const date = formatPlainDate(birthday.date, "long");
+  return (
+    <li data-testid="crew-birthday" className={cn(PANEL_ITEM, "flex flex-wrap items-center gap-3 px-4 py-3")}>
+      <Avatar person={person} size="sm" decorative />
+      <span className="min-w-0 flex-1 basis-32">
+        <span className="block truncate font-semibold text-fg">{self ? tx.yourDay : name}</span>
+        <span className="block text-[13px] text-muted">{crewName ? `${date} · ${crewName}` : date}</span>
+      </span>
+      <StatusPill tone={birthday.inDays === 0 ? "lime" : "glass"}>{when}</StatusPill>
+      {!self && (
+        <ButtonLink to={birthdayPollLink(crewId, birthday.date, name)} size="sm" variant="secondary" aria-label={tx.planLabel(name)}>
+          {tx.plan}
+        </ButtonLink>
+      )}
+    </li>
+  );
 }
 
 /**
@@ -35,6 +63,11 @@ export function CrewBirthdays({ crewId, userId }: { crewId: string; userId: stri
   const now = useNow(60_000);
   const today = zonedParts(now).date;
   const upcoming = useMemo(() => upcomingBirthdays(birthdays.data ?? [], today), [birthdays.data, today]);
+  // P20 Etappe 2: Die Erinnerung führt zu `/crews/<id>#geburtstage` – sobald die Karte steht, dorthin.
+  const loaded = birthdays.isSuccess && !mine.isPending;
+  useEffect(() => {
+    if (loaded && window.location.hash === "#geburtstage") document.getElementById("geburtstage")?.scrollIntoView({ block: "start" });
+  }, [loaded]);
 
   if (birthdays.isPending || mine.isPending) return null;
   if (birthdays.isError) {
@@ -46,8 +79,6 @@ export function CrewBirthdays({ crewId, userId }: { crewId: string; userId: stri
   }
   const missingOwn = !mine.isError && mine.data === null;
   if (upcoming.length === 0 && !missingOwn) return null;
-
-  const when = (inDays: number) => (inDays === 0 ? tx.today : inDays === 1 ? tx.tomorrow : tx.inDays(inDays));
 
   return (
     <div className="mt-9 max-w-2xl">
@@ -61,26 +92,9 @@ export function CrewBirthdays({ crewId, userId }: { crewId: string; userId: stri
       >
         {upcoming.length > 0 && (
           <ul className="grid gap-1.5">
-            {upcoming.map((b) => {
-              const person = people.lookup(b.user_id);
-              const self = b.user_id === userId;
-              const name = person?.display_name ?? t.states.formerMember;
-              return (
-                <li key={b.user_id} data-testid="crew-birthday" className={cn(PANEL_ITEM, "flex flex-wrap items-center gap-3 px-4 py-3")}>
-                  <Avatar person={person} size="sm" decorative />
-                  <span className="min-w-0 flex-1 basis-32">
-                    <span className="block truncate font-semibold text-fg">{self ? tx.yourDay : name}</span>
-                    <span className="block text-[13px] text-muted">{formatPlainDate(b.date, "long")}</span>
-                  </span>
-                  <StatusPill tone={b.inDays === 0 ? "lime" : "glass"}>{when(b.inDays)}</StatusPill>
-                  {!self && (
-                    <ButtonLink to={birthdayPollLink(crewId, b.date, name)} size="sm" variant="secondary" aria-label={tx.planLabel(name)}>
-                      {tx.plan}
-                    </ButtonLink>
-                  )}
-                </li>
-              );
-            })}
+            {upcoming.map((b) => (
+              <BirthdayRow key={b.user_id} birthday={b} crewId={crewId} person={people.lookup(b.user_id)} self={b.user_id === userId} />
+            ))}
           </ul>
         )}
         {missingOwn && (

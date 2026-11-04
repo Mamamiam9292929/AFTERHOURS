@@ -1,5 +1,5 @@
 import { formatEuro } from "@/lib/format";
-import { formatDateTime, formatTime } from "@/lib/time";
+import { formatDateTime, formatPlainDate, formatTime } from "@/lib/time";
 import type { NotificationType } from "@/lib/types";
 
 type Payload = Record<string, unknown>;
@@ -111,6 +111,11 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
   plan_reminder: (actor, p) => ({
     title: `${actor} fragt: Bist du dabei?`,
     body: str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title"),
+  }),
+  // P20 Etappe 2: eine Woche vorher, Person = Geburtstagskind, Datum ohne Jahr als YYYY-MM-DD.
+  birthday_reminder: (actor, p) => ({
+    title: str(p, "date") ? `${actor} hat am ${formatPlainDate(str(p, "date"), "long")} Geburtstag` : `${actor} hat bald Geburtstag`,
+    body: str(p, "crew_name") ? `Feier planen mit „${str(p, "crew_name")}“?` : "Feier planen?",
   }),
   plan_photo_nudge: (_actor, p) => ({
     title: p.yesterday ? "Fotos von gestern? Teilt sie mit der Crew" : "Fotos vom Abend? Teilt sie mit der Crew",
