@@ -1,7 +1,7 @@
 // P20 · Geburtstage in der Crew (src/lib/birthdays.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { birthdaySlots, daysBetween, isValidBirthday, nextBirthday, upcomingBirthdays } from "../../src/lib/birthdays.ts";
+import { birthdayPollLink, birthdaySlots, daysBetween, homeBirthdays, isValidBirthday, nextBirthday, upcomingBirthdays } from "../../src/lib/birthdays.ts";
 
 test("gültige Geburtstage ohne Jahr", () => {
   assert.equal(isValidBirthday(2, 29), true);
@@ -78,4 +78,38 @@ test("Wochenende davor schon vorbei: das danach, nie Vergangenes", () => {
   assert.deepEqual(birthdaySlots("2026-11-08", "2026-11-07"), ["2026-11-07", "2026-11-08", "2026-11-13", "2026-11-14"]);
   // Geburtstag heute (Samstag): Freitag ist vorbei.
   assert.deepEqual(birthdaySlots("2026-11-07", "2026-11-07"), ["2026-11-07", "2026-11-13"]);
+});
+
+test("Home: jede Person einmal, nur heute bis in 7 Tagen, ohne dich", () => {
+  const rows = [
+    { user_id: "bob", crew_id: "crew-b", month: 11, day: 14 },
+    { user_id: "bob", crew_id: "crew-a", month: 11, day: 14 },
+    { user_id: "carol", crew_id: "crew-a", month: 11, day: 7 },
+    { user_id: "dave", crew_id: "crew-a", month: 11, day: 15 },
+    { user_id: "me", crew_id: "crew-a", month: 11, day: 8 },
+    { user_id: "erik", crew_id: "crew-a", month: 11, day: 6 },
+  ];
+  const list = homeBirthdays(rows, "2026-11-07", "me", ["crew-a", "crew-b"]);
+  assert.deepEqual(list.map((b) => [b.user_id, b.crew_id, b.date, b.inDays]), [
+    ["carol", "crew-a", "2026-11-07", 0],
+    ["bob", "crew-a", "2026-11-14", 7],
+  ]);
+  // Crew-Reihenfolge der App entscheidet, in welcher Crew gefeiert wird.
+  assert.equal(homeBirthdays(rows, "2026-11-07", "me", ["crew-b", "crew-a"]).find((b) => b.user_id === "bob")?.crew_id, "crew-b");
+  // Unbekannte Reihenfolge: die erste gelieferte Crew.
+  assert.equal(homeBirthdays(rows, "2026-11-07", "me").find((b) => b.user_id === "bob")?.crew_id, "crew-b");
+});
+
+test("Home: über den Jahreswechsel und am 29. Februar", () => {
+  const rows = [
+    { user_id: "anna", crew_id: "c", month: 1, day: 3 },
+    { user_id: "ben", crew_id: "c", month: 2, day: 29 },
+  ];
+  assert.deepEqual(homeBirthdays(rows, "2026-12-29", "me").map((b) => [b.user_id, b.date]), [["anna", "2027-01-03"]]);
+  assert.deepEqual(homeBirthdays(rows, "2027-02-21", "me").map((b) => [b.user_id, b.date, b.inDays]), [["ben", "2027-02-28", 7]]);
+  assert.deepEqual(homeBirthdays(rows, "2027-02-20", "me"), []);
+});
+
+test("„Feier planen“ führt zur Termin-Abstimmung mit Datum und Namen", () => {
+  assert.equal(birthdayPollLink("c1", "2026-11-14", "Bob & Co"), "/polls/new?crew=c1&kind=date&birthday=2026-11-14&for=Bob+%26+Co");
 });

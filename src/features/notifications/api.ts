@@ -14,6 +14,7 @@ import type { AppNotification } from "@/lib/types";
  * - P10 Etappe 3: Fotos aufräumen – abgelaufene (12 Monate nach dem Abend) und gelöschte Plan-Fotos
  *   verschwinden auch als Datei aus dem Speicher (Edge Function `photo-cleanup`, Fehler sind egal).
  * - P16: am Morgen nach einem Abend „Fotos von gestern?“ an alle, die zugesagt hatten (eigene Crews, danach Push).
+ * - P20 Etappe 2: eine Woche vor einem Geburtstag in den eigenen Crews an alle außer das Geburtstagskind (danach Push).
  * - P15: Abstimmungen in ihren letzten drei Stunden (an alle ohne Stimme). Das Fenster ist kurz, deshalb
  *   fragt die App danach höchstens alle 15 Minuten erneut (beim Aktualisieren der Liste).
  * Scheitert das (Netz, Rate Limit), bleibt es bei der Liste – beim nächsten Start versucht es die App wieder.
@@ -43,6 +44,7 @@ async function checkExpenseReminders(userId: string) {
     supabase.rpc("send_plan_day_reminders"),
     supabase.rpc("send_poll_closing_reminders"),
     supabase.rpc("send_plan_photo_nudges"),
+    supabase.rpc("send_birthday_reminders"),
   ]);
   // P4: Beim Start einmal die Push-Warteschlange anstoßen – falls seit dem letzten Mal etwas liegen blieb.
   kickPush();

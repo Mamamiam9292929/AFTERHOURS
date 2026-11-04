@@ -31,6 +31,8 @@ const AREA: Record<string, InboxArea> = {
   plan_photo_reported: "plan",
   plan_photo_nudge: "plan",
   plan_reminder: "plan",
+  // P20 Etappe 2: Geburtstage gehören zur Crew.
+  birthday_reminder: "crew",
   reward_earned: "reward",
   plan_expense: "money",
   plan_settlement: "money",

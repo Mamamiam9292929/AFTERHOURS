@@ -17,6 +17,7 @@ export const NOTIFICATION_GROUPS: { key: keyof typeof t.settings.notifications.g
   { key: "spontaneous", types: ["spontaneous_ask", "spontaneous_answer", "spontaneous_match"] },
   { key: "costReminders", types: ["plan_expense_reminder"] },
   { key: "crew", types: ["crew_member_joined", "crew_role_changed", "crew_member_removed"] },
+  { key: "birthdays", types: ["birthday_reminder"] },
   { key: "rewards", types: ["reward_earned"] },
 ];
 
