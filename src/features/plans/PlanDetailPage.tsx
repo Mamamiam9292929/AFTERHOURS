@@ -128,7 +128,11 @@ export function PlanDetailPage() {
   const canManage = plan.created_by === user.id || canManageCrew(myRole(crew, user.id));
   const locked = plan.status === "completed" || plan.status === "cancelled";
   const started = hasStarted(plan, now);
-  const mine = plan.participants.find((p) => p.user_id === user.id)?.attendance_status ?? "invited";
+  const myRow = plan.participants.find((p) => p.user_id === user.id);
+  const mine = myRow?.attendance_status ?? "invited";
+  // P23: Der Plan wurde verschoben und alle neu gefragt – die alte Antwort steht als Hinweis da.
+  const previous = mine === "invited" && !locked ? (myRow?.previous_status ?? null) : null;
+  const othersAnswered = plan.participants.filter((p) => p.user_id !== user.id && p.attendance_status !== "invited").length;
   const costs = estimateCosts(plan);
   const place = activity.data ?? null;
   const organizer = plan.created_by === user.id ? t.plans.detail.organizerYou : t.plans.detail.organizer(people.lookup(plan.created_by)?.display_name ?? t.states.formerMember);
@@ -212,6 +216,12 @@ export function PlanDetailPage() {
                 );
               })}
             </div>
+            {previous && (
+              <p className="mt-2.5 flex items-center gap-2 text-[13px] leading-snug text-muted" data-testid="plan-asked-again">
+                <IconInfo className="size-4 shrink-0" aria-hidden />
+                {t.plans.detail.attendance.askedAgain(ANSWERS.find((a) => a.value === previous)?.label ?? previous)}
+              </p>
+            )}
             {locked && <p className="mt-2.5 text-[13px] text-faint">{t.plans.detail.attendance.locked}</p>}
           </section>
 
@@ -459,11 +469,12 @@ export function PlanDetailPage() {
           error={update.isError ? errorMessage(update.error) : null}
           allowUnchangedPast
           flat
+          answers={started ? undefined : { members: othersAnswered, guests: plan.guests?.length ?? 0 }}
           onSubmit={(values) =>
             update.mutate(values, {
-              onSuccess: () => {
+              onSuccess: (asked) => {
                 setEditOpen(false);
-                toast.success(t.plans.detail.manage.saved);
+                toast.success(asked === null ? t.plans.detail.manage.saved : t.plans.detail.manage.askedAgain(asked));
               },
             })
           }

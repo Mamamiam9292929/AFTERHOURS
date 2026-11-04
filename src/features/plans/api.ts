@@ -117,6 +117,8 @@ export interface PlanFormValues {
   notes?: string | null;
   costPerPersonCents?: number | null;
   totalCostCents?: number | null;
+  /** P23: Nur beim Bearbeiten – nach dem Speichern alle mit Antwort neu fragen (neue Zeit). */
+  askAgain?: boolean;
 }
 
 export function useCreatePlan() {
@@ -171,7 +173,7 @@ export function useCreatePlanFromPoll() {
 export function useUpdatePlan(planId: string) {
   const invalidate = useInvalidatePlans();
   return useMutation({
-    mutationFn: async (input: PlanFormValues) => {
+    mutationFn: async (input: PlanFormValues): Promise<number | null> => {
       const { error } = await supabase.rpc("update_plan", {
         p_plan_id: planId,
         p_title: input.title,
@@ -184,6 +186,11 @@ export function useUpdatePlan(planId: string) {
         p_total_cost_cents: input.totalCostCents ?? null,
       });
       if (error) throw error;
+      // P23: Erst nach der neuen Zeit zurücksetzen – schlägt das Speichern fehl, bleiben alle Antworten.
+      if (!input.askAgain) return null;
+      const asked = await supabase.rpc("ask_plan_again", { p_plan_id: planId });
+      if (asked.error) throw asked.error;
+      return asked.data as number;
     },
     onSuccess: invalidate,
   });

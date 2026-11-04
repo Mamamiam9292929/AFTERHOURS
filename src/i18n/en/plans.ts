@@ -191,6 +191,7 @@ export const plans = {
       remind: "Ask",
       remindLabel: (n: number) => (n === 1 ? "Ask – check whether the person without an answer is in" : `Ask – check whether all ${n} without an answer are in`),
       reminded: (n: number) => (n === 0 ? "Everyone has answered – nobody was asked." : n === 1 ? "Asked 1 person." : `Asked ${n} people.`),
+      askedAgain: (previous: string) => `New time – does it still work for you? Before: ${previous}`,
     },
     manage: {
       title: "Organise",
@@ -198,6 +199,11 @@ export const plans = {
       editTitle: "Edit plan",
       editBody: "If the time, place, meeting point or costs change, the crew gets notified.",
       saved: "Plan updated.",
+      askAgain: "Ask everyone again",
+      askAgainBody: (n: number, guests: number) =>
+        `${n === 1 ? "1 answer is" : `${n} answers are`} for the old time. If this is on, everyone is back to "No answer yet" and gets asked whether it still works.` +
+        (guests > 0 ? ` ${guests === 1 ? "The answer of the guest" : `The ${guests} answers of guests`} without an account ${guests === 1 ? "is" : "are"} deleted – they answer again via the link.` : ""),
+      askedAgain: (n: number) => (n === 0 ? "Plan updated – there were no answers to reset." : n === 1 ? "Plan updated – 1 person is asked again." : `Plan updated – ${n} people are asked again.`),
       confirm: "Confirm plan",
       confirmed: "Plan confirmed.",
       complete: "Mark as completed",

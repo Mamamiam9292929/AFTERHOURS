@@ -187,6 +187,8 @@ export const plans = {
       remind: "Nachfragen",
       remindLabel: (n: number) => (n === 1 ? "Nachfragen – die Person ohne Antwort fragen, ob sie dabei ist" : `Nachfragen – alle ${n} ohne Antwort fragen, ob sie dabei sind`),
       reminded: (n: number) => (n === 0 ? "Alle haben schon geantwortet – niemand wurde gefragt." : n === 1 ? "1 Person gefragt." : `${n} Personen gefragt.`),
+      // P23: Der Plan wurde verschoben, die alte Antwort gilt nicht mehr.
+      askedAgain: (previous: string) => `Neue Zeit – passt es dir noch? Vorher: ${previous}`,
     },
     manage: {
       title: "Organisieren",
@@ -194,6 +196,12 @@ export const plans = {
       editTitle: "Plan bearbeiten",
       editBody: "Ändern sich Zeit, Ort, Treffpunkt oder Kosten, wird die Crew benachrichtigt.",
       saved: "Plan aktualisiert.",
+      // P23: Neue Uhrzeit – alle neu fragen.
+      askAgain: "Alle neu fragen",
+      askAgainBody: (n: number, guests: number) =>
+        `${n === 1 ? "1 Antwort gilt" : `${n} Antworten gelten`} für die alte Zeit. Ist das an, steht bei allen wieder „Noch offen“ und sie werden gefragt, ob es noch passt.` +
+        (guests > 0 ? ` ${guests === 1 ? "Die Antwort des Gasts" : `Die ${guests} Antworten der Gäste`} ohne Konto ${guests === 1 ? "wird" : "werden"} gelöscht – über den Link sagen sie neu zu.` : ""),
+      askedAgain: (n: number) => (n === 0 ? "Plan aktualisiert – es gab keine Antworten zurückzusetzen." : n === 1 ? "Plan aktualisiert – 1 Person wird neu gefragt." : `Plan aktualisiert – ${n} werden neu gefragt.`),
       confirm: "Plan bestätigen",
       confirmed: "Plan bestätigt.",
       complete: "Als abgeschlossen markieren",

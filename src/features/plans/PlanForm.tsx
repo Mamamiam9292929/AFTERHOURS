@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { IconCalendar, IconEdit, IconEuro, IconPin } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
+import { SwitchRow } from "@/components/ui/Controls";
 import { FormMessage, TextAreaField, TextField } from "@/components/ui/Field";
 import { DateTile, FormCard } from "@/components/ui/FormCard";
 import { t } from "@/i18n";
@@ -33,6 +34,8 @@ interface PlanFormProps {
   allowUnchangedPast?: boolean;
   /** Im Dialog: Abschnitte ohne eigene Karte (der Dialog ist schon eine Fläche). */
   flat?: boolean;
+  /** P23 (nur Bearbeiten): Antworten anderer (Mitglieder/Gäste) – ändert sich die Zeit, „Alle neu fragen“ anbieten. */
+  answers?: { members: number; guests: number };
 }
 
 /**
@@ -40,7 +43,7 @@ interface PlanFormProps {
  * Glas-Karten (Was & wann · Wo · Kosten · Noch was?); oben zeigt eine Datumskachel wie auf der Plan-Karte,
  * was gerade eingetragen ist.
  */
-export function PlanForm({ initial, submitLabel, pending, error, onSubmit, before, after, allowUnchangedPast = false, flat = false }: PlanFormProps) {
+export function PlanForm({ initial, submitLabel, pending, error, onSubmit, before, after, allowUnchangedPast = false, flat = false, answers }: PlanFormProps) {
   const start = initial.startsAt ? zonedParts(initial.startsAt) : null;
   const [title, setTitle] = useState(initial.title ?? "");
   const [date, setDate] = useState(start?.date ?? "");
@@ -51,6 +54,8 @@ export function PlanForm({ initial, submitLabel, pending, error, onSubmit, befor
   const [totalCost, setTotalCost] = useState(centsToInput(initial.totalCostCents));
   const [notes, setNotes] = useState(initial.notes ?? "");
   const [errors, setErrors] = useState<Record<string, string | null>>({});
+  // P23: vorausgewählt – wer verschiebt, will in aller Regel wissen, ob es den anderen noch passt.
+  const [askAgain, setAskAgain] = useState(true);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -74,10 +79,13 @@ export function PlanForm({ initial, submitLabel, pending, error, onSubmit, befor
       notes: notes.trim() || null,
       costPerPersonCents: costCents ?? null,
       totalCostCents: totalCents ?? null,
+      askAgain: offerAskAgain && askAgain,
     });
   }
 
   const preview = date && time ? zonedToUtc(date, time) : null;
+  const answered = (answers?.members ?? 0) + (answers?.guests ?? 0);
+  const offerAskAgain = Boolean(answers && answered > 0 && preview && initial.startsAt && new Date(initial.startsAt).getTime() !== preview.getTime());
 
   return (
     <form onSubmit={submit} noValidate className={flat ? "space-y-5" : "space-y-4"}>
@@ -89,6 +97,11 @@ export function PlanForm({ initial, submitLabel, pending, error, onSubmit, befor
           <TextField label={t.plans.create.date} name="date" type="date" min={allowUnchangedPast ? undefined : today()} max={addDays(today(), 730)} value={date} onChange={(e) => setDate(e.target.value)} error={errors.when} required />
           <TextField label={t.plans.create.time} name="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
         </div>
+        {offerAskAgain && answers && (
+          <div data-testid="plan-ask-again" className="rounded-control border border-lime/40 bg-lime/10 px-4 py-1.5">
+            <SwitchRow label={t.plans.detail.manage.askAgain} description={t.plans.detail.manage.askAgainBody(answered, answers.guests)} checked={askAgain} onChange={setAskAgain} />
+          </div>
+        )}
       </FormCard>
       <FormCard title={t.plans.create.sections.where} icon={<IconPin className="size-[18px]" />} tone="violet" flat={flat} testId="plan-form-where">
         <TextField label={t.plans.create.address} name="address" value={address} onChange={(e) => setAddress(e.target.value)} maxLength={200} autoComplete="off" optional />
