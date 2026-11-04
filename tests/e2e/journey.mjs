@@ -1667,7 +1667,9 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await page.reload();
     await page.getByTestId("who-guest").filter({ hasText: "Dana (Gast)" }).waitFor();
     check((await page.getByTestId("who-guest").getAttribute("data-status")) === "maybe", "W10: Dana steht bei „Vielleicht“, gekennzeichnet als Gast");
-    check(await panel.getByTestId("plan-guest").filter({ hasText: "Dana (Gast)" }).isVisible(), "W10: Dana in der Gästeliste");
+    // Die Gästeliste ist ein eigener Chunk und lädt ihre Texte nach – erst warten, dann prüfen.
+    await panel.getByTestId("plan-guest").filter({ hasText: "Dana (Gast)" }).waitFor();
+    check(true, "W10: Dana in der Gästeliste");
     const notes = await api(alice, "GET", "notifications?type=eq.plan_attendance&select=payload,actor_id");
     check(Array.isArray(notes.json) && notes.json.some((n) => n.payload?.guest === "Dana" && n.actor_id === null), "W10: Alice bekommt Bescheid über Danas Antwort");
     await shot(alice, "16w4-plan-gast-in-der-crew");
