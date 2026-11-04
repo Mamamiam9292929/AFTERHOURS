@@ -89,6 +89,9 @@ export const crews = {
       startPollAll: (n: number) => (n === 1 ? "The place goes into the poll – you can add more there." : `All ${n} go into the poll – you can drop some there.`),
       startPollNewest: (n: number) => `The ${n} newest go into the poll – you can drop some there.`,
       demoLeftOut: "Demo places stay out as long as real places are on the list.",
+      /** P22 stage 2: the crew already had a completed evening there. */
+      visited: (date: string) => `Been there · ${date}`,
+      visitedLink: (place: string, date: string) => `“${place}”: to the evening on ${date}`,
     },
     /** P21 Etappe 2: who in the crew is away now or in the next 14 days. */
     away: {

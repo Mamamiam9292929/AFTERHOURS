@@ -51,3 +51,58 @@ export function wishPollItems(wishes: readonly CrewWish[], max = 10): WishPollIt
   }
   return items;
 }
+
+/** P22 Etappe 2: der letzte gemeinsame Abend der Crew an einem Ort der Liste. */
+export interface WishVisit {
+  planId: string;
+  startsAt: string;
+}
+
+/** Was aus einem Plan gebraucht wird (passt zu `Plan`). */
+export interface WishVisitPlan {
+  id: string;
+  crew_id: string;
+  activity_id: string | null;
+  status: string;
+  starts_at: string;
+}
+
+/**
+ * „Waren wir schon“: je Ort der letzte abgeschlossene Plan (Status `completed`) dieser Crew an genau diesem
+ * Ort. Abgesagte, anstehende und Pläne anderer Crews zählen nicht – die Merkliste gehört der Crew.
+ */
+export function wishVisits(plans: readonly WishVisitPlan[], crewId: string): Map<string, WishVisit> {
+  const visits = new Map<string, WishVisit>();
+  for (const plan of plans) {
+    if (plan.crew_id !== crewId || !plan.activity_id || plan.status !== "completed") continue;
+    const at = new Date(plan.starts_at).getTime();
+    if (Number.isNaN(at)) continue;
+    const known = visits.get(plan.activity_id);
+    if (!known || new Date(known.startsAt).getTime() < at) visits.set(plan.activity_id, { planId: plan.id, startsAt: plan.starts_at });
+  }
+  return visits;
+}
+
+/**
+ * „Von eurer Liste“ beim Anlegen einer Abstimmung: Orte der Merkliste, die noch nicht unter den Vorschlägen
+ * stehen, neueste zuerst, höchstens `max`. Wie bei „Abstimmung daraus“ keine Demo-Orte, solange echte Orte
+ * auf der Liste stehen. Orte, an denen die Crew schon war, rücken ans Ende – Neues zuerst.
+ */
+export function wishSuggestions(
+  wishes: readonly CrewWish[],
+  chosen: ReadonlySet<string>,
+  visits: ReadonlyMap<string, WishVisit> = new Map(),
+  max = 6,
+): CrewWish[] {
+  const real = wishes.filter((w) => !w.is_demo);
+  const pool = (real.length > 0 ? real : wishes).filter((w) => !chosen.has(w.activity_id));
+  const seen = new Set<string>();
+  const unique = pool.filter((w) => {
+    if (seen.has(w.activity_id)) return false;
+    seen.add(w.activity_id);
+    return true;
+  });
+  const fresh = unique.filter((w) => !visits.has(w.activity_id));
+  const visited = unique.filter((w) => visits.has(w.activity_id));
+  return [...fresh, ...visited].slice(0, Math.max(0, max));
+}

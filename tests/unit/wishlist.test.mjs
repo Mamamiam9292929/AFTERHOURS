@@ -52,3 +52,41 @@ test("Demo-Orte nicht unbemerkt mit echten mischen", () => {
   );
   assert.deepEqual(wishPollItems([]), []);
 });
+
+// P22 Etappe 2
+import { wishSuggestions, wishVisits } from "../../src/lib/wishlist.ts";
+
+const plan = (id, extra = {}) => ({ id, crew_id: "crew", activity_id: "a", status: "completed", starts_at: "2026-10-10T18:00:00Z", ...extra });
+
+test("„Waren wir schon“: letzter abgeschlossener Plan der Crew je Ort", () => {
+  const visits = wishVisits(
+    [
+      plan("p1"),
+      plan("p2", { starts_at: "2026-10-24T18:00:00Z" }),
+      plan("p3", { starts_at: "2026-11-20T18:00:00Z", status: "confirmed" }),
+      plan("p4", { starts_at: "2026-10-30T18:00:00Z", status: "cancelled" }),
+      plan("p5", { starts_at: "2026-10-31T18:00:00Z", crew_id: "andere" }),
+      plan("p6", { activity_id: null }),
+      plan("p7", { activity_id: "b", starts_at: "kaputt" }),
+    ],
+    "crew",
+  );
+  assert.deepEqual([...visits.entries()], [["a", { planId: "p2", startsAt: "2026-10-24T18:00:00Z" }]]);
+  assert.equal(wishVisits([], "crew").size, 0);
+});
+
+test("„Von eurer Liste“: ohne gewählte Orte, neueste zuerst, schon besuchte ans Ende, höchstens max", () => {
+  const list = [wish("a"), wish("b"), wish("c"), wish("d"), wish("b")];
+  const visits = new Map([["a", { planId: "p", startsAt: "2026-10-24T18:00:00Z" }]]);
+  assert.deepEqual(wishSuggestions(list, new Set(["c"]), visits).map((w) => w.activity_id), ["b", "d", "a"]);
+  assert.deepEqual(wishSuggestions(list, new Set(), new Map(), 2).map((w) => w.activity_id), ["a", "b"]);
+  assert.deepEqual(wishSuggestions(list, new Set(["a", "b", "c", "d"])), []);
+  assert.deepEqual(wishSuggestions([], new Set()), []);
+});
+
+test("„Von eurer Liste“: Demo-Orte nur, wenn die Liste nichts anderes hat", () => {
+  const mixed = [wish("demo", { is_demo: true }), wish("echt")];
+  assert.deepEqual(wishSuggestions(mixed, new Set()).map((w) => w.activity_id), ["echt"]);
+  assert.deepEqual(wishSuggestions(mixed, new Set(["echt"])).map((w) => w.activity_id), []);
+  assert.deepEqual(wishSuggestions([wish("demo", { is_demo: true })], new Set()).map((w) => w.activity_id), ["demo"]);
+});

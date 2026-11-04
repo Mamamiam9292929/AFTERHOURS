@@ -85,6 +85,11 @@ export const polls = {
     optionsTitle: "Vorschläge",
     optionsHint: "1 bis 10 Vorschläge – Orte aus Discover oder eigene Ideen.",
     addPlace: "Ort hinzufügen",
+    /** P22 Etappe 2: Orte von der Merkliste der gewählten Crew als Antipp-Pillen. */
+    fromWishlist: "Von eurer Liste",
+    fromWishlistHint: "Gemerkt in „Wollen wir mal hin“ – ein Tipp nimmt den Ort dazu.",
+    addWish: (place: string) => `„${place}“ als Vorschlag dazunehmen`,
+    wishVisited: "schon da gewesen",
     addCustom: "Eigenen Vorschlag hinzufügen",
     customPlaceholder: "z. B. Grillen bei Jonas",
     customLabel: (n: number) => `Vorschlag ${n}`,

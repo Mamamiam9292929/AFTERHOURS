@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { IconCalendar, IconCrews, IconEdit, IconHourglass, IconPin, IconPlane, IconPlus, IconSparkles, IconTrash, IconVote } from "@/components/icons";
+import { IconBookmark, IconCalendar, IconCrews, IconEdit, IconHourglass, IconPin, IconPlane, IconPlus, IconSparkles, IconTrash, IconVote } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Controls";
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/features/auth/AuthProvider";
 import { useCrewAbsences } from "@/features/crews/absencesApi";
 import { useCrews } from "@/features/crews/api";
+import { useCrewWishes } from "@/features/crews/wishlistApi";
 import { CrewPicker } from "@/features/crews/CrewPicker";
 import { typicalPriceCents, useActivity } from "@/features/discover/api";
 import { usePlans } from "@/features/plans/api";
@@ -26,6 +27,7 @@ import { suggestDateSlots, type SuggestedSlot } from "@/lib/slots";
 import { categoryWorld } from "@/lib/stage";
 import { birthdaySlots } from "@/lib/birthdays";
 import { awayOn } from "@/lib/absences";
+import { wishPriceCents, wishSuggestions, wishVisits, type CrewWish } from "@/lib/wishlist";
 import { addDays, calendarDaysBetween, formatDateLong, formatPlainDate, formatTime, fromLocalInputValue, nextWeekday, today, toLocalInputValue, zonedParts, zonedToUtc } from "@/lib/time";
 import type { Activity, ActivityCategory, PollKind } from "@/lib/types";
 import { ActivityPicker } from "./ActivityPicker";
@@ -207,6 +209,19 @@ export function PollCreatePage() {
 
   const selectedActivityIds = useMemo(() => new Set(options.map((o) => o.activityId).filter((id): id is string => Boolean(id))), [options]);
   const full = options.length >= MAX_POLL_OPTIONS;
+
+  // P22 Etappe 2: Orte von der Merkliste der gewählten Crew, die noch nicht unter den Vorschlägen stehen –
+  // ein Tipp nimmt sie dazu. Schon besuchte („Waren wir schon“) rücken ans Ende. Kein Laden-/Fehlerzustand:
+  // ohne Liste bleibt das Formular wie bisher, die Merkliste ist nur eine Abkürzung.
+  const wishes = useCrewWishes(crewId, kind === "place");
+  const wishVisitMap = useMemo(() => wishVisits(plans.data ?? [], crewId), [plans.data, crewId]);
+  const wishPicks = useMemo(() => wishSuggestions(wishes.data ?? [], selectedActivityIds, wishVisitMap), [wishes.data, selectedActivityIds, wishVisitMap]);
+  function addWish(wish: CrewWish) {
+    setOptions((rows) => {
+      if (rows.length >= MAX_POLL_OPTIONS || rows.some((r) => r.activityId === wish.activity_id)) return rows;
+      return [...rows, { key: newKey(), activityId: wish.activity_id, category: wish.category, title: wish.name, price: centsToInput(wishPriceCents(wish)), ownWhen: false, date: "", time: "" }];
+    });
+  }
 
   function toggleActivity(activity: Activity) {
     setOptions((rows) => {
@@ -609,6 +624,33 @@ export function PollCreatePage() {
                 </ul>
               )}
               {errors.options && <FormMessage>{errors.options}</FormMessage>}
+              {wishPicks.length > 0 && !full && (
+                <div className="rounded-[20px] border border-lime/25 bg-lime/[0.06] p-3.5" data-testid="poll-form-wishes">
+                  <p className="flex items-center gap-2 text-[14px] font-semibold text-fg">
+                    <IconBookmark className="size-4 shrink-0 text-lime" aria-hidden />
+                    {t.polls.create.fromWishlist}
+                  </p>
+                  <p className="mt-0.5 text-[13px] leading-snug text-muted">{t.polls.create.fromWishlistHint}</p>
+                  <ul className="mt-2.5 flex flex-wrap gap-2">
+                    {wishPicks.map((wish) => (
+                      <li key={wish.activity_id} className="min-w-0 max-w-full">
+                        <button
+                          type="button"
+                          onClick={() => addWish(wish)}
+                          aria-label={t.polls.create.addWish(wish.name)}
+                          className="inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-full border border-line-strong bg-white/[0.04] px-3.5 text-left text-sm font-medium text-fg transition-colors hover:border-lime/60"
+                          data-testid="poll-form-wish"
+                        >
+                          <IconPlus className="size-4 shrink-0 text-lime" aria-hidden />
+                          <span className="min-w-0 truncate">{wish.name}</span>
+                          {wish.is_demo && <span className="shrink-0 text-[12px] text-muted">· {t.states.demo}</span>}
+                          {wishVisitMap.has(wish.activity_id) && <span className="shrink-0 text-[12px] text-muted">· {t.polls.create.wishVisited}</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2.5">
                 <Button variant="secondary" onClick={() => setPickerOpen(true)} disabled={full} icon={<IconPin className="size-4" aria-hidden />}>
                   {t.polls.create.addPlace}
