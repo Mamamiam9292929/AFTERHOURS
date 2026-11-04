@@ -5844,13 +5844,15 @@ await step("P22 – „Wollen wir mal hin“: Orte für die Crew merken, Liste, 
       select '${ids.crew}', u.id, 'Kino-Abend', now() - interval '1 day', 'completed', '${cinema}'
       from auth.users u where u.email = '${carol.email}' returning id || '|' || to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).split("\n")[0].split("|");
     visitPlan = visitId;
-    const longDate = (iso) => new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
+    const berlinYear = (d) => new Intl.DateTimeFormat("en", { timeZone: "Europe/Berlin", year: "numeric" }).format(d);
+    const shortDate = (iso) => new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", day: "numeric", month: "short",
+      ...(berlinYear(new Date(iso)) === berlinYear(new Date()) ? {} : { year: "numeric" }) }).format(new Date(iso));
     const bowlingVisited = psql(`select count(*) from public.plans where crew_id = '${ids.crew}' and activity_id = '${bowling}' and status = 'completed'`) !== "0";
     await page.goto(`${APP}/crews/${ids.crew}#merkliste`);
     const cinemaVisited = rows.nth(0).getByTestId("crew-wish-visited");
     await cinemaVisited.waitFor();
     const cinemaText = (await cinemaVisited.innerText()).trim();
-    check(cinemaText === `Waren wir schon · ${longDate(visitAt)}`, `P22: „Waren wir schon“ am Kino mit dem letzten Abend (${cinemaText})`);
+    check(cinemaText === `Waren wir schon · ${shortDate(visitAt)}`, `P22: „Waren wir schon“ am Kino mit dem letzten Abend (${cinemaText})`);
     check((await cinemaVisited.getAttribute("href"))?.endsWith(`/plans/${visitPlan}`), "P22: Hinweis führt zum letzten Abend");
     check((await rows.nth(1).getByTestId("crew-wish-visited").count()) === (bowlingVisited ? 1 : 0),
       `P22: am Bowling nur mit abgeschlossenem Abend der Crew (${bowlingVisited ? "war schon da" : "noch nicht"})`);

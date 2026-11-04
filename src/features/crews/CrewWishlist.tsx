@@ -13,7 +13,7 @@ import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { categoryWorld } from "@/lib/stage";
-import { formatDateWithYear } from "@/lib/time";
+import { formatDateWithYear, formatDayMonth } from "@/lib/time";
 import { wishPollItems, wishVisits, type CrewWish } from "@/lib/wishlist";
 import { useCrewWishes, useToggleCrewWish } from "./wishlistApi";
 
@@ -115,7 +115,7 @@ export function CrewWishlist({ crewId, userId }: { crewId: string; userId: strin
                           data-testid="crew-wish-visited"
                         >
                           <IconCheck className="size-3.5 shrink-0" aria-hidden />
-                          <span className="truncate">{tx.visited(formatDateWithYear(visit.startsAt))}</span>
+                          <span className="truncate">{tx.visited(formatDayMonth(visit.startsAt))}</span>
                         </Link>
                       )}
                     </span>

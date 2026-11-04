@@ -91,6 +91,12 @@ const relative = new Intl.RelativeTimeFormat(APP_LOCALE, { numeric: "auto" });
 export const formatDateLong = (v: Date | string) => dateLong.format(new Date(v));
 export const formatDateShort = (v: Date | string) => dateShort.format(new Date(v));
 export const formatDateWithYear = (v: Date | string) => dateWithYear.format(new Date(v));
+const dayMonth = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, day: "numeric", month: "short" });
+const dayMonthYear = new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, day: "numeric", month: "short", year: "numeric" });
+/** "4. Nov." – mit Jahr nur, wenn es nicht das laufende (Berliner Zeit) ist. Für knappe Hinweise in Zeilen. */
+export function formatDayMonth(v: Date | string, now: Date = new Date()): string {
+  return (zonedParts(v).year === zonedParts(now).year ? dayMonth : dayMonthYear).format(new Date(v));
+}
 export const formatTime = (v: Date | string) => withClock(timeOnly.format(new Date(v)));
 export const formatDateTime = (v: Date | string) => `${formatDateShort(v)}, ${formatTime(v)}`;
 
