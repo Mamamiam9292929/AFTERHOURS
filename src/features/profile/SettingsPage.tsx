@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { IconBell, IconCake, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconGlobe, IconInfo, IconLock, IconLogout, IconPin, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
+import { IconBell, IconCake, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconGlobe, IconInfo, IconLock, IconLogout, IconPin, IconPlane, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { Chip, SwitchRow } from "@/components/ui/Controls";
@@ -16,11 +16,13 @@ import { CATEGORIES, INTERESTS } from "@/data/options";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { forgetNext } from "@/features/auth/next";
 import { useCrews } from "@/features/crews/api";
+import { useAddAbsence, useMyAbsences, useRemoveAbsence } from "@/features/crews/absencesApi";
 import { useMyBirthday, useSetMyBirthday, type MyBirthday } from "@/features/crews/birthdaysApi";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
 import { loadTexts, locale, t } from "@/i18n";
 import { LANGUAGE_NAMES } from "@/i18n/locale";
-import { daysInMonth } from "@/lib/birthdays";
+import { absenceProblem } from "@/lib/absences";
+import { daysBetween, daysInMonth } from "@/lib/birthdays";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, parseEuroInput } from "@/lib/format";
@@ -28,7 +30,7 @@ import { copyText, useDocumentTitle, useNow } from "@/lib/hooks";
 import { currentPushSubscription, disablePush, enablePush, loadPushConfig, pushSupport } from "@/lib/push";
 import { qk } from "@/lib/query";
 import { siteUrl, supabase } from "@/lib/supabase";
-import { APP_LOCALE, formatAgo } from "@/lib/time";
+import { addDays, APP_LOCALE, formatAgo, today } from "@/lib/time";
 import { password as passwordRule, validate } from "@/lib/validation";
 import type { ActivityCategory, Interest, LocationSharingMode, Profile, UserSettings } from "@/lib/types";
 import { devicePreset, isGroupOnDevice, matchesPreset, setGroupOnDevice } from "@/lib/pushgroups";
@@ -73,6 +75,7 @@ const ITEM = PANEL_ITEM;
 const SECTIONS = [
   { id: "profile", title: t.settings.profile.title },
   { id: "birthday", title: t.settings.birthday.title },
+  { id: "absences", title: t.settings.absences.title },
   { id: "language", title: t.settings.language.title },
   { id: "preferences", title: t.settings.preferences.title },
   { id: "location", title: t.settings.location.title },
@@ -224,6 +227,110 @@ function BirthdayForm({ value, onSaved }: { value: MyBirthday | null; onSaved: (
         )}
       </div>
     </form>
+  );
+}
+
+const RANGE_DAY = new Intl.DateTimeFormat(APP_LOCALE, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const plainDay = (date: string) => {
+  const [y, m, d] = date.split("-").map(Number);
+  return RANGE_DAY.format(new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1, 12)));
+};
+/** „Mo., 10. Nov. – Fr., 20. Nov.“ bzw. ein einzelner Tag. */
+const absenceRange = (a: { starts_on: string; ends_on: string }) =>
+  a.starts_on === a.ends_on ? plainDay(a.starts_on) : `${plainDay(a.starts_on)} – ${plainDay(a.ends_on)}`;
+
+/** P21 · „Bin weg“ – Zeiträume ohne Grund und Ort; die Crews sehen sie bei „Wann könnt ihr?“. */
+function AbsencesCard() {
+  const toast = useToast();
+  const absences = useMyAbsences();
+  const add = useAddAbsence();
+  const remove = useRemoveAbsence();
+  const tx = t.settings.absences;
+  const [startsOn, setStartsOn] = useState("");
+  const [endsOn, setEndsOn] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+  const list = absences.data ?? [];
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const found = absenceProblem(startsOn, endsOn, today());
+    if (found) {
+      setProblem(tx.problems[found]);
+      return;
+    }
+    setProblem(null);
+    add.mutate(
+      { startsOn, endsOn },
+      {
+        onSuccess: () => {
+          setStartsOn("");
+          setEndsOn("");
+          toast.success(tx.added);
+        },
+      },
+    );
+  }
+
+  return (
+    <Card
+      id="absences"
+      title={tx.title}
+      lead={tx.lead}
+      icon={<IconPlane className="size-5" />}
+      tone="violet"
+      status={list.length > 0 ? <StatusPill tone="glass" testId="absences-status">{tx.count(list.length)}</StatusPill> : undefined}
+    >
+      {absences.isPending ? (
+        <Skeleton className="h-28" />
+      ) : absences.isError ? (
+        <ErrorState error={absences.error} onRetry={() => void absences.refetch()} />
+      ) : (
+        <div className="space-y-4">
+          {list.length > 0 ? (
+            <ul className="grid gap-1.5">
+              {list.map((a) => {
+                const range = absenceRange(a);
+                return (
+                  <li key={a.id} data-testid="absence" className={cn(PANEL_ITEM, "flex flex-wrap items-center gap-3 px-4 py-2.5")}>
+                    <span className="min-w-0 flex-1 basis-40">
+                      <span className="block font-semibold text-fg">{range}</span>
+                      <span className="block text-[13px] text-muted">{tx.days(daysBetween(a.starts_on, a.ends_on) + 1)}</span>
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      aria-label={tx.removeLabel(range)}
+                      loading={remove.isPending && remove.variables === a.id}
+                      onClick={() => remove.mutate(a.id, { onSuccess: () => toast.success(tx.removed), onError: (error) => toast.error(error) })}
+                      icon={<IconTrash className="size-4" aria-hidden />}
+                    >
+                      {tx.remove}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">{tx.none}</p>
+          )}
+          <form onSubmit={submit} noValidate className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField label={tx.from} name="absence_from" type="date" min={today()} max={addDays(today(), 730)} value={startsOn}
+                onChange={(e) => {
+                  setStartsOn(e.target.value);
+                  if (!endsOn || endsOn < e.target.value) setEndsOn(e.target.value);
+                }} />
+              <TextField label={tx.to} name="absence_to" type="date" min={startsOn || today()} value={endsOn} onChange={(e) => setEndsOn(e.target.value)} />
+            </div>
+            {(problem || add.isError) && <FormMessage>{problem ?? errorMessage(add.error)}</FormMessage>}
+            <Button type="submit" loading={add.isPending} icon={<IconPlane className="size-4" aria-hidden />}>
+              {tx.add}
+            </Button>
+          </form>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -897,6 +1004,7 @@ export function SettingsPage() {
       <div className="max-w-2xl space-y-5">
         <ProfileCard profile={profile.data} />
         <BirthdayCard />
+        <AbsencesCard />
         <LanguageCard />
         <PreferencesCard profile={profile.data} settings={settings.data} />
         <LocationCard settings={settings.data} />

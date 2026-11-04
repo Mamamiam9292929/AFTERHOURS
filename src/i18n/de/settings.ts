@@ -17,6 +17,28 @@ export const settings = {
     removed: "Geburtstag entfernt.",
     incomplete: "Wähl Tag und Monat aus.",
   },
+  // P21: „Bin weg“ – Zeiträume ohne Grund und Ort, sichtbar für die eigenen Crews.
+  absences: {
+    title: "Bin weg",
+    lead: "Urlaub, Reise, Prüfungszeit? Trag ein, von wann bis wann du weg bist – bei „Wann könnt ihr?“ sieht deine Crew dann unter jedem Termin, wer nicht da ist. Nur die Tage, ohne Grund; vorbei ist vorbei.",
+    from: "Von",
+    to: "Bis",
+    add: "Eintragen",
+    remove: "Entfernen",
+    removeLabel: (range: string) => `${range} entfernen`,
+    added: "Eingetragen.",
+    removed: "Entfernt.",
+    none: "Gerade nichts eingetragen.",
+    count: (n: number) => (n === 1 ? "1 Zeitraum" : `${n} Zeiträume`),
+    days: (n: number) => (n === 1 ? "1 Tag" : `${n} Tage`),
+    problems: {
+      missing: "Wähl Beginn und Ende aus.",
+      order: "Das Ende liegt vor dem Beginn.",
+      past: "Dieser Zeitraum ist schon vorbei.",
+      long: "Höchstens ein Jahr am Stück.",
+      far: "Der Beginn darf höchstens zwei Jahre voraus liegen.",
+    },
+  },
   // P11: Sprache der Oberfläche – gilt für dieses Gerät.
   language: {
     title: "Sprache",

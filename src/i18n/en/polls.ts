@@ -150,6 +150,15 @@ export const polls = {
       day: (title: string, time: string) => `Same day: ${title}, ${time}`,
       more: (n: number) => (n === 1 ? "and 1 more plan" : `and ${n} more plans`),
     },
+    away: {
+      you: "you",
+      line: (names: string[]) => {
+        const shown = names.length > 3 ? names.slice(0, 3) : names;
+        const rest = names.length - shown.length;
+        if (rest > 0) return `Away: ${shown.join(", ")} and ${rest} more`;
+        return `Away: ${shown.length > 1 ? `${shown.slice(0, -1).join(", ")} and ${shown[shown.length - 1]}` : shown[0]}`;
+      },
+    },
     weather: {
       label: (title: string) => `Weather for ${title}`,
       loading: "Loading weather …",
