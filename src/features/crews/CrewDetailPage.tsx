@@ -1,5 +1,5 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { IconBack, IconCalendar, IconCalendarPlus, IconMore, IconPlans, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
 import { PosterTitle, Section } from "@/components/layout/Page";
@@ -34,6 +34,9 @@ import { CrewBirthdays } from "./CrewBirthdays";
 import { CrewForm } from "./CrewForm";
 import { CrewRecap } from "./CrewRecap";
 import { InviteDialog } from "./InviteDialog";
+
+// P22: Merkliste mit Kategorie-Bildern als eigener Chunk – die Crew-Seite bleibt unter der Chunk-Grenze.
+const CrewWishlist = lazy(() => import("./CrewWishlist").then((m) => ({ default: m.CrewWishlist })));
 
 type Tab = "overview" | "chat" | "members" | "settings";
 
@@ -108,6 +111,9 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
       {/* P21 Etappe 2: wer gerade oder bald weg ist – vor den Geburtstagen, weil es die Terminsuche betrifft. */}
       <CrewAway crewId={crew.id} userId={user.id} memberIds={memberIds} />
       <CrewBirthdays crewId={crew.id} userId={user.id} />
+      <Suspense fallback={null}>
+        <CrewWishlist crewId={crew.id} userId={user.id} />
+      </Suspense>
       <CrewRecap crewId={crew.id} plans={crewPlans} />
       {past.length > 0 && (
         <Section title={t.crews.detail.pastPlans}>

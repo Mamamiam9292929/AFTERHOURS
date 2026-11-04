@@ -145,6 +145,7 @@ export const errors = {
     invalid_options: "Eine Abstimmung braucht 1 bis 10 Optionen, jede mit Titel oder Ort.",
     invalid_birthday: "Diesen Tag gibt es nicht. Wähl Tag und Monat aus.",
     invalid_absence: "Dieser Zeitraum geht nicht: Ende nicht vor dem Beginn, nicht vorbei, höchstens ein Jahr lang.",
+    crew_wishlist_full: "Auf der Liste eurer Crew stehen schon 50 Orte. Nehmt einen runter, bevor ihr einen neuen merkt.",
     too_many_absences: "Du hast schon 20 Zeiträume eingetragen. Entferne einen, bevor du einen neuen einträgst.",
     invalid_slots: "Eine Termin-Abstimmung braucht 2 bis 10 verschiedene Termine, höchstens ein Jahr im Voraus.",
     slot_in_past: "Mindestens ein Termin liegt in der Vergangenheit.",

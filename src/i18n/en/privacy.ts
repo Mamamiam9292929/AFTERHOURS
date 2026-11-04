@@ -15,6 +15,7 @@ export const privacy = {
         "Account: your email address and an encrypted password (with Supabase Auth).",
         "Profile: display name, optionally a profile picture, city and interests.",
         "Birthday (only if you add it): day and month, no year. Members of your crews can see it and get one reminder a week before; remove it and it's gone straight away.",
+        "“Let's go there sometime” (only if you save a place): which place, for which crew, when and by whom. Members of that crew can see it; the list belongs to the crew – if you delete your account, the place stays without your name.",
         "“Away” (only if you add something): the start and end of a period, no reason and no place. Members of your crews can see it until it's over; after that the app deletes it the next time you add one.",
         "Activity: crews, messages in the crew chat, polls, votes, plans, replies, booking notes, rides, points and notifications.",
         "Settings: budget, distance, notifications and your choice on location sharing.",

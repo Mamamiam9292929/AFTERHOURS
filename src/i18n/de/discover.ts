@@ -155,6 +155,18 @@ export const discover = {
     createPlan: "Plan erstellen",
     /** P5 Etappe 3: „Wann könnt ihr?“ für genau diesen Ort. */
     findDate: "Termin finden",
+    /** P22: Ort auf die Merkliste einer Crew setzen. */
+    wish: {
+      add: "Für die Crew merken",
+      addFor: (crew: string) => `Für „${crew}“ merken`,
+      saved: "Auf eurer Merkliste",
+      savedFor: (crew: string) => `Auf der Liste von „${crew}“`,
+      dialogTitle: "Für welche Crew merken?",
+      dialogLead: "Der Ort landet bei „Wollen wir mal hin“ auf der Crew-Seite – alle in der Crew sehen ihn.",
+      on: "Gemerkt",
+      off: "Merken",
+      added: (crew: string) => `Gemerkt für „${crew}“`,
+    },
     prepareBooking: "Reservierung vorbereiten",
     bookingDialogTitle: "Reservierung vorbereiten",
     bookingDialogBody: "Eine Reservierung gehört immer zu einem bestätigten Plan – dann stehen Datum, Uhrzeit und Personenzahl fest. Erstelle zuerst den Plan; die Reservierung bereitest du danach direkt dort vor.",

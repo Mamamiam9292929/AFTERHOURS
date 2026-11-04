@@ -158,6 +158,18 @@ export const discover = {
     createPlan: "Create plan",
     /** P5 Etappe 3: „Wann könnt ihr?“ für genau diesen Ort. */
     findDate: "Find a date",
+    /** P22: save a place to a crew's list. */
+    wish: {
+      add: "Save for the crew",
+      addFor: (crew: string) => `Save for “${crew}”`,
+      saved: "On your crew's list",
+      savedFor: (crew: string) => `On “${crew}”'s list`,
+      dialogTitle: "Save for which crew?",
+      dialogLead: "The place lands in “Let's go there sometime” on the crew page – everyone in the crew sees it.",
+      on: "Saved",
+      off: "Save",
+      added: (crew: string) => `Saved for “${crew}”`,
+    },
     prepareBooking: "Prepare booking",
     bookingDialogTitle: "Prepare booking",
     bookingDialogBody: "A booking always belongs to a confirmed plan – that's when date, time and number of people are fixed. Create the plan first; you then prepare the booking right there.",
