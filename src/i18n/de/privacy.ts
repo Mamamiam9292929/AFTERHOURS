@@ -14,6 +14,7 @@ export const privacy = {
         "Anmeldung mit Google oder Apple (nur wenn du sie nutzt): die E-Mail-Adresse, die Kennung deines Kontos dort und die Angaben, die der Anbieter mitschickt (bei Supabase Auth). Für dein Profil übernehmen wir davon nur den Vornamen als Vorschlag, kein Profilbild. Google bzw. Apple erfährt, dass du dich bei AFTERHOURS anmeldest.",
         "Profil: Anzeigename, optional Profilbild, Stadt und Interessen.",
         "Geburtstag (nur wenn du ihn einträgst): Tag und Monat, ohne Jahr. Sehen können ihn die Mitglieder deiner Crews, eine Woche vorher bekommen sie einmal eine Erinnerung; entfernst du ihn, ist er sofort weg.",
+        "„Wollen wir mal hin“ (nur wenn du einen Ort merkst): welcher Ort, für welche Crew, wann und von wem gemerkt. Sehen können das die Mitglieder dieser Crew; die Liste gehört der Crew – löschst du dein Konto, bleibt der Ort ohne deinen Namen stehen.",
         "„Bin weg“ (nur wenn du etwas einträgst): Beginn und Ende eines Zeitraums, ohne Grund und Ort. Sehen können ihn die Mitglieder deiner Crews, bis er vorbei ist; danach löscht die App ihn beim nächsten Eintragen.",
         "Aktivität: Crews, Nachrichten im Crew-Chat, Abstimmungen, Stimmen, Pläne, Zusagen, Reservierungsvermerke, Mitfahrten, Punkte und Benachrichtigungen.",
         "Einstellungen: Budget, Entfernung, Benachrichtigungen und deine Wahl zur Standortfreigabe.",

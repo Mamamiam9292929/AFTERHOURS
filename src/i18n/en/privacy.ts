@@ -16,6 +16,7 @@ export const privacy = {
         "Signing in with Google or Apple (only if you use it): the email address, your account ID there and the details the provider sends along (with Supabase Auth). For your profile we only take the first name as a suggestion, no profile picture. Google or Apple learns that you sign in to AFTERHOURS.",
         "Profile: display name, optionally a profile picture, city and interests.",
         "Birthday (only if you add it): day and month, no year. Members of your crews can see it and get one reminder a week before; remove it and it's gone straight away.",
+        "“Let's go there sometime” (only if you save a place): which place, for which crew, when and by whom. Members of that crew can see it; the list belongs to the crew – if you delete your account, the place stays without your name.",
         "“Away” (only if you add something): the start and end of a period, no reason and no place. Members of your crews can see it until it's over; after that the app deletes it the next time you add one.",
         "Activity: crews, messages in the crew chat, polls, votes, plans, replies, booking notes, rides, points and notifications.",
         "Settings: budget, distance, notifications and your choice on location sharing.",

@@ -5655,6 +5655,184 @@ await step("P21 – „Bin weg“: Zeitraum eintragen, „Nicht da“ bei „Wan
   }
 });
 
+await step("P21 Etappe 2 – „Gerade weg“ auf der Crew-Seite, beim Anlegen von „Wann könnt ihr?“ und auf Home (Bob, Carol)", async () => {
+  if (!DB_URL || !ANON) {
+    console.log("   (E2E_DB_URL/SUPABASE_ANON_KEY nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const bobName = psql(`select p.display_name from public.profiles p join auth.users u on u.id = p.id where u.email = '${bob.email}'`);
+  const berlinDate = (offsetDays) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(new Date(Date.now() + offsetDays * 86_400_000));
+  const short = (date) => new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${date}T12:00:00Z`));
+  const [d0, d1, d2, d5] = [berlinDate(0), berlinDate(1), berlinDate(2), berlinDate(5)];
+  const title = `Wer kann? ${RUN}`;
+  let pollId = null;
+  try {
+    // Bob ist ab heute drei Tage weg (eingetragen wie über „Bin weg“, hier direkt in der Datenbank).
+    psql(`insert into public.absences (user_id, starts_on, ends_on) select id, '${d0}', '${d2}' from auth.users where email = '${bob.email}'`);
+
+    // Crew-Seite: Carol sieht „Gerade weg“ mit Bob und „bis …“, dazu den Weg zum eigenen Eintrag.
+    const { page } = carol;
+    await page.goto(`${APP}/crews/${ids.crew}`);
+    const card = page.getByTestId("crew-away");
+    await card.waitFor();
+    check((await card.getByRole("heading").first().textContent())?.trim() === "Gerade weg", "P21 Etappe 2: Karte „Gerade weg“ auf der Crew-Seite");
+    const row = card.getByTestId("crew-away-row");
+    check((await row.count()) === 1 && (await row.innerText()).includes(bobName), `P21 Etappe 2: ${bobName} steht drin`);
+    const until = (await row.innerText()).replace(/\s+/g, " ");
+    check(/\bbis \S/.test(until) && until.includes(short(d2)), `P21 Etappe 2: Pille „bis …“ mit dem letzten Tag ${short(d2)} (${until})`);
+    check(await card.getByTestId("crew-away-add").isVisible(), "P21 Etappe 2: Carol (nicht weg) sieht „Selbst bald weg? Eintragen“");
+    await noOverflow(carol, "Crew-Seite mit „Gerade weg“");
+    await a11y(carol, "crew-gerade-weg");
+    await card.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(carol, "70-gerade-weg-crew");
+
+    // Bob selbst: „Du“, ohne den Weg zum Eintragen.
+    await bob.page.goto(`${APP}/crews/${ids.crew}`);
+    await bob.page.getByTestId("crew-away").waitFor();
+    check((await bob.page.getByTestId("crew-away-row").innerText()).includes("Du"), "P21 Etappe 2: Bob sieht sich als „Du“");
+    check((await bob.page.getByTestId("crew-away-add").count()) === 0, "P21 Etappe 2: kein „Eintragen“ für Bob");
+
+    // Anlegen von „Wann könnt ihr?“: Termin morgen → „Nicht da: Bob“ direkt unter dem Termin; in 5 Tagen nichts.
+    await page.goto(`${APP}/polls/new?kind=date&crew=${ids.crew}`);
+    const slots = page.getByTestId("poll-form-slot");
+    await slots.first().waitFor();
+    await slots.nth(0).getByLabel("Termin 1", { exact: true }).fill(d1);
+    await slots.nth(1).getByLabel("Termin 2", { exact: true }).fill(d5);
+    await slots.nth(0).getByTestId("poll-option-away").waitFor();
+    check((await slots.nth(0).getByTestId("poll-option-away").innerText()).trim() === `Nicht da: ${bobName}`, `P21 Etappe 2: beim Anlegen „Nicht da: ${bobName}“ unter Termin 1`);
+    check((await slots.nth(1).getByTestId("poll-option-away").count()) === 0, "P21 Etappe 2: unter dem Termin in 5 Tagen nichts");
+    await noOverflow(carol, "„Wann könnt ihr?“ anlegen mit „Nicht da“");
+    await a11y(carol, "termin-anlegen-nicht-da");
+    await slots.nth(0).evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(carol, "71-nicht-da-anlegen");
+
+    // Home: Bob fragt nach zwei Terminen, an denen er weg ist – Carol sieht es beim Abstimmen auf Home.
+    const created = await api(bob, "POST", "rpc/create_date_poll", {
+      p_crew_id: ids.crew,
+      p_title: title,
+      p_ends_at: new Date(Date.now() + 2 * 3600_000).toISOString(),
+      p_slots: [{ date: d1, time: "20:00" }, { date: d2, time: "19:00" }],
+    });
+    check(created.status < 300 && typeof created.json === "string", `P21 Etappe 2: Bob startet „Wann könnt ihr?“ (${created.status})`);
+    pollId = created.json;
+    await page.goto(`${APP}/`);
+    const mine = page.locator(`section[aria-label="Gleich hier abstimmen: ${title}"]`);
+    await mine.waitFor();
+    await mine.getByTestId("poll-option-away").waitFor();
+    check((await mine.getByTestId("poll-option-away").innerText()).trim() === `Nicht da: ${bobName}`, `P21 Etappe 2: auf Home „Nicht da: ${bobName}“ beim Abstimmen`);
+    await noOverflow(carol, "Home mit „Nicht da“");
+    await mine.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(carol, "72-nicht-da-home");
+
+    // Vorbei: ohne Eintrag keine Karte mehr auf der Crew-Seite.
+    psql(`delete from public.absences a using auth.users u where u.id = a.user_id and u.email = '${bob.email}'`);
+    await page.goto(`${APP}/crews/${ids.crew}`);
+    await page.waitForLoadState("networkidle");
+    check((await page.getByTestId("crew-away").count()) === 0, "P21 Etappe 2: ohne Abwesende keine Karte");
+  } finally {
+    if (pollId) psql(`delete from public.polls where id = '${pollId}'`);
+    psql(`delete from public.absences a using auth.users u where u.id = a.user_id and u.email = '${bob.email}'`);
+  }
+});
+
+await step("P22 – „Wollen wir mal hin“: Orte für die Crew merken, Liste, Abstimmung daraus, entfernen (Bob, Carol)", async () => {
+  if (!DB_URL || !ANON) {
+    console.log("   (E2E_DB_URL/SUPABASE_ANON_KEY nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const carolName = psql(`select p.display_name from public.profiles p join auth.users u on u.id = p.id where u.email = '${carol.email}'`);
+  const crewName = psql(`select name from public.crews where id = '${ids.crew}'`);
+  const placeId = (name) => psql(`select id from public.activities where name = '${name}' and is_active order by created_at limit 1`);
+  const bowling = placeId("Strike District Bowling");
+  const cinema = placeId("Lichtspielhaus Nord");
+  const bobCrews = Number(psql(`select count(*) from public.crew_members m join auth.users u on u.id = m.user_id where u.email = '${bob.email}'`));
+  psql(`delete from public.crew_wishes where crew_id = '${ids.crew}'`);
+  const { page } = bob;
+  try {
+    // Leer: Hinweis mit Weg nach Discover (Bob, 390 px).
+    await page.goto(`${APP}/crews/${ids.crew}`);
+    const panel = page.getByTestId("crew-wishlist");
+    await panel.getByTestId("crew-wishlist-empty").waitFor();
+    check((await panel.getByRole("heading").first().textContent())?.trim() === "Wollen wir mal hin", "P22: Karte „Wollen wir mal hin“ auf der Crew-Seite");
+    check(await panel.getByRole("link", { name: "Orte entdecken" }).isVisible(), "P22: leere Liste führt nach Discover");
+    await noOverflow(bob, "Crew-Seite mit leerer Merkliste");
+    await a11y(bob, "crew-merkliste-leer");
+    await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(bob, "73-merkliste-leer");
+
+    // Ortsseite: „Für die Crew merken“ – danach führt der Knopf zur Liste.
+    await page.goto(`${APP}/activities/${bowling}`);
+    const add = page.getByTestId("wish-add");
+    await add.waitFor();
+    check((await add.innerText()).trim() === "Für die Crew merken", "P22: Knopf „Für die Crew merken“ auf der Ortsseite");
+    await add.click();
+    if (bobCrews > 1) await page.getByRole("button", { name: `Für „${crewName}“ merken` }).click();
+    await toast(bob, `Gemerkt für „${crewName}“`);
+    check(psql(`select count(*) from public.crew_wishes where crew_id = '${ids.crew}' and activity_id = '${bowling}'`) === "1", "P22: Ort steht auf der Liste der Crew");
+    if (bobCrews === 1) {
+      await page.getByTestId("wish-saved").waitFor();
+      check((await page.getByTestId("wish-saved").innerText()).trim() === "Auf eurer Merkliste", "P22: danach „Auf eurer Merkliste“");
+      await noOverflow(bob, "Ortsseite gemerkt");
+      await a11y(bob, "ort-gemerkt");
+      await page.getByTestId("wish-saved").evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "74-ort-gemerkt");
+    } else {
+      await page.keyboard.press("Escape");
+    }
+
+    // Carol merkt das Kino (über die API); doppelt merken ändert nichts. Ohne Anmeldung: nichts.
+    const carolAdd = await api(carol, "POST", "rpc/add_crew_wish", { p_crew_id: ids.crew, p_activity_id: cinema });
+    check(carolAdd.status < 300, `P22: Carol merkt „Lichtspielhaus Nord“ (${carolAdd.status})`);
+    await api(carol, "POST", "rpc/add_crew_wish", { p_crew_id: ids.crew, p_activity_id: cinema });
+    check(psql(`select count(*) from public.crew_wishes where crew_id = '${ids.crew}'`) === "2", "P22: doppelt gemerkt steht einmal da");
+    const anon = await api(null, "POST", "rpc/crew_wishes", { p_crew_id: ids.crew });
+    check(anon.status === 401 || anon.status === 403, `P22: ohne Anmeldung keine Merkliste (${anon.status})`);
+
+    // Crew-Seite: neueste zuerst, wer gemerkt hat, Entfernen nur beim eigenen Eintrag (Bob ist Mitglied).
+    await page.goto(`${APP}/crews/${ids.crew}#merkliste`);
+    const rows = panel.getByTestId("crew-wish");
+    await rows.nth(1).waitFor();
+    const first = await rows.nth(0).innerText();
+    const second = await rows.nth(1).innerText();
+    check(first.includes("Lichtspielhaus Nord") && second.includes("Strike District Bowling"), "P22: neueste zuerst");
+    check(first.includes(`gemerkt von ${carolName}`) && second.includes("von dir gemerkt"), "P22: wer gemerkt hat");
+    check((await rows.nth(0).getByTestId("crew-wish-remove").count()) === 0 && (await rows.nth(1).getByTestId("crew-wish-remove").count()) === 1,
+      "P22: Bob darf nur seinen eigenen Eintrag entfernen");
+    check((await panel.getByTestId("crew-wishlist-count").innerText()).trim() === "2 Orte", "P22: Stand „2 Orte“");
+    check((await panel.getByText("Demo").count()) >= 1, "P22: Demo-Orte sind als Demo gekennzeichnet");
+    await noOverflow(bob, "Crew-Seite mit Merkliste");
+    await a11y(bob, "crew-merkliste");
+    await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(bob, "75-merkliste-crew");
+
+    // „Abstimmung daraus“: beide Orte im Formular, Crew vorausgewählt.
+    await panel.getByTestId("crew-wishlist-poll").click();
+    await page.waitForURL(new RegExp(`/polls/new\\?crew=${ids.crew}`));
+    const options = page.getByTestId("poll-form-option");
+    await options.nth(1).waitFor();
+    const optionText = (await options.allInnerTexts()).join(" | ");
+    check((await options.count()) === 2 && optionText.includes("Lichtspielhaus Nord") && optionText.includes("Strike District Bowling"),
+      `P22: Abstimmung mit beiden gemerkten Orten (${optionText.replace(/\s+/g, " ")})`);
+    await noOverflow(bob, "Abstimmung aus der Merkliste");
+    await shot(bob, "76-merkliste-abstimmung");
+
+    // Fremden Eintrag entfernen geht nicht (API), den eigenen schon (Oberfläche).
+    const foreign = await api(bob, "POST", "rpc/remove_crew_wish", { p_crew_id: ids.crew, p_activity_id: cinema });
+    check(foreign.status === 403, `P22: Bob kann Carols Eintrag nicht entfernen (${foreign.status})`);
+    await page.goto(`${APP}/crews/${ids.crew}#merkliste`);
+    await rows.nth(1).waitFor();
+    await rows.nth(1).getByTestId("crew-wish-remove").click();
+    await toast(bob, "„Strike District Bowling“ ist von der Liste.");
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="crew-wish"]').length === 1);
+    check(psql(`select count(*) from public.crew_wishes where crew_id = '${ids.crew}'`) === "1", "P22: eigener Eintrag entfernt, Carols bleibt");
+  } finally {
+    psql(`delete from public.crew_wishes where crew_id = '${ids.crew}'`);
+    await page.evaluate(() => sessionStorage.removeItem("afterhours.poll-draft")).catch(() => {});
+  }
+});
+
 // P12: Google und Apple erscheinen nur, wenn das Supabase-Projekt sie einschaltet (lokal aus – die Probe schaltet sie
 // in der Antwort von /auth/v1/settings ein). Der Anbieter selbst ist nicht erreichbar; geprüft wird, wohin der Knopf führt,
 // die Rückkehr mit Fehler und das Onboarding eines Kontos, das über Google entstanden ist (Altersbestätigung, Vorname).

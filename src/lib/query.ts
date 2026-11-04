@@ -52,6 +52,10 @@ export const qk = {
   absencesAll: ["absences"] as const,
   myAbsences: (userId: string) => ["absences", "me", userId] as const,
   crewAbsences: (crewId: string) => ["absences", "crew", crewId] as const,
+  /** P22: Merkliste der Crew; Präfix `wishesAll` invalidiert Crew-Listen und Ortsseiten. */
+  wishesAll: ["crew-wishes"] as const,
+  crewWishes: (crewId: string) => ["crew-wishes", "crew", crewId] as const,
+  wishCrews: (activityId: string) => ["crew-wishes", "place", activityId] as const,
   invitationPreview: (token: string) => ["invitation", token] as const,
   activities: ["activities"] as const,
   activity: (id: string) => ["activities", id] as const,

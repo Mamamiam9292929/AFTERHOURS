@@ -25,6 +25,7 @@ import type { Activity } from "@/lib/types";
 import { typicalPriceCents, useActivity, usePlaceRegion } from "./api";
 import { openLabel, priceLabel } from "./display";
 import { PlacePhoto } from "./PlacePhoto";
+import { WishButton } from "./WishButton";
 
 const externalLink = "inline-flex items-center gap-1.5 font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime";
 
@@ -324,6 +325,8 @@ export function ActivityDetailPage() {
               <ButtonLink to={`/polls/new?kind=date&place=${a.id}`} variant="secondary" size="lg" block icon={<IconCalendar className="size-5" aria-hidden />}>
                 {t.discover.detail.findDate}
               </ButtonLink>
+              {/* P22: auf die Merkliste der Crew („Wollen wir mal hin“). */}
+              <WishButton activity={a} />
               <Button variant="ghost" block onClick={() => setBookingOpen(true)}>
                 {t.discover.detail.prepareBooking}
               </Button>

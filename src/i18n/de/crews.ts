@@ -71,6 +71,37 @@ export const crews = {
       addOwn: "Geburtstag eintragen",
       addOwnBody: "Trag Tag und Monat ein – dann sieht deine Crew, wann es Zeit für eine Feier ist. Ohne Jahr, jederzeit entfernbar.",
     },
+    /** P22: „Wollen wir mal hin“ – Merkliste der Crew. */
+    wishlist: {
+      title: "Wollen wir mal hin",
+      lead: "Orte, die ihr euch gemerkt habt – mit einem Tipp wird daraus eine Abstimmung.",
+      count: (n: number) => (n === 1 ? "1 Ort" : `${n} Orte`),
+      emptyTitle: "Noch nichts gemerkt",
+      emptyBody: "Seht ihr in Discover etwas, das ihr mal machen wollt? Auf der Seite des Orts „Für die Crew merken“ – dann landet er hier, statt im Chat unterzugehen.",
+      emptyAction: "Orte entdecken",
+      byYou: "von dir gemerkt",
+      by: (name: string) => `gemerkt von ${name}`,
+      remove: (place: string) => `„${place}“ von der Liste nehmen`,
+      removed: (place: string) => `„${place}“ ist von der Liste.`,
+      startPoll: "Abstimmung daraus",
+      startPollAll: (n: number) => (n === 1 ? "Der Ort kommt in die Abstimmung – dort kannst du mehr dazunehmen." : `Alle ${n} kommen in die Abstimmung – dort kannst du noch welche rauswerfen.`),
+      startPollNewest: (n: number) => `Die ${n} neuesten kommen in die Abstimmung – dort kannst du noch welche rauswerfen.`,
+      demoLeftOut: "Demo-Orte bleiben draußen, solange echte Orte auf der Liste stehen.",
+    },
+    /** P21 Etappe 2: wer aus der Crew laut „Bin weg“ gerade oder in den nächsten 14 Tagen weg ist. */
+    away: {
+      titleNow: "Gerade weg",
+      titleSoon: "Bald weg",
+      lead: "Laut „Bin weg“ – plant Termine am besten drumherum.",
+      you: "Du",
+      untilToday: "bis heute",
+      untilTomorrow: "bis morgen",
+      until: (date: string) => `bis ${date}`,
+      fromTomorrow: "ab morgen",
+      from: (date: string) => `ab ${date}`,
+      range: (from: string, to: string) => (from === to ? from : `${from} – ${to}`),
+      addOwn: "Selbst bald weg? Eintragen",
+    },
   },
   /** P9 · Crew-Rückblick: was die Crew gemeinsam erlebt hat (nur abgeschlossene Pläne, keine Rangliste von Personen). */
   recap: {
