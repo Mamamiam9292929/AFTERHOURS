@@ -3976,7 +3976,7 @@ await step("Einstellungen – Standort (Opt-in), Benachrichtigungen, Datenexport
   check((await page.getByTestId("location-status").innerText()).trim() === "Aus", "Standort-Pille sagt „Aus“");
   check((await page.getByTestId("calendar-status").innerText()).trim() === "Kein Abo", "Kalender-Pille: „Kein Abo“");
   const jump = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
-  check((await jump.getByRole("link").count()) === 8, "acht Sprung-Pillen");
+  check((await jump.getByRole("link").count()) === 9, "neun Sprung-Pillen");
   await jump.getByRole("link", { name: "Kalender-Abo" }).click();
   await page.waitForURL(/#calendar$/);
   check(true, "Sprung-Pille führt zum Kalender-Abo");
