@@ -5837,30 +5837,41 @@ await step("P22 – „Wollen wir mal hin“: Orte für die Crew merken, Liste, 
     check((await options.count()) === 2 && (await page.getByTestId("poll-form-wishes").count()) === 0, "P22: ein Tipp nimmt den Ort wieder dazu, Pille weg");
     check((await options.nth(1).getAttribute("data-world")) !== null, "P22: Ort von der Liste in der Farbwelt seiner Kategorie");
 
-    // „Waren wir schon“: Die Crew hatte im Oktober einen abgeschlossenen Abend im Kino (hier direkt in der Datenbank).
-    visitPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, activity_id)
-      select '${ids.crew}', u.id, 'Kino-Abend', timestamptz '2026-10-17 20:00 Europe/Berlin', 'completed', '${cinema}'
-      from auth.users u where u.email = '${carol.email}' returning id`).split("\n")[0];
+    // „Waren wir schon“: Die Crew war gestern im Kino (abgeschlossener Plan, hier direkt in der Datenbank) – das ist
+    // der letzte Abend dort. Ob sie im Bowling schon war, hängt an früheren Schritten; erwartet wird, was die
+    // Datenbank sagt.
+    const [visitId, visitAt] = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, activity_id)
+      select '${ids.crew}', u.id, 'Kino-Abend', now() - interval '1 day', 'completed', '${cinema}'
+      from auth.users u where u.email = '${carol.email}' returning id || '|' || to_char(starts_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`).split("\n")[0].split("|");
+    visitPlan = visitId;
+    const longDate = (iso) => new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
+    const bowlingVisited = psql(`select count(*) from public.plans where crew_id = '${ids.crew}' and activity_id = '${bowling}' and status = 'completed'`) !== "0";
     await page.goto(`${APP}/crews/${ids.crew}#merkliste`);
-    const visited = panel.getByTestId("crew-wish-visited");
-    await visited.waitFor();
-    check((await visited.count()) === 1 && (await visited.innerText()).trim() === "Waren wir schon · 17. Oktober 2026", `P22: „Waren wir schon“ am Kino (${(await visited.innerText()).trim()})`);
-    check((await rows.nth(1).getByTestId("crew-wish-visited").count()) === 0, "P22: am Bowling (noch kein Abend) kein Hinweis");
-    check((await visited.getAttribute("href"))?.endsWith(`/plans/${visitPlan}`), "P22: Hinweis führt zum Abend");
+    const cinemaVisited = rows.nth(0).getByTestId("crew-wish-visited");
+    await cinemaVisited.waitFor();
+    const cinemaText = (await cinemaVisited.innerText()).trim();
+    check(cinemaText === `Waren wir schon · ${longDate(visitAt)}`, `P22: „Waren wir schon“ am Kino mit dem letzten Abend (${cinemaText})`);
+    check((await cinemaVisited.getAttribute("href"))?.endsWith(`/plans/${visitPlan}`), "P22: Hinweis führt zum letzten Abend");
+    check((await rows.nth(1).getByTestId("crew-wish-visited").count()) === (bowlingVisited ? 1 : 0),
+      `P22: am Bowling nur mit abgeschlossenem Abend der Crew (${bowlingVisited ? "war schon da" : "noch nicht"})`);
     await noOverflow(bob, "Merkliste mit „Waren wir schon“");
     await a11y(bob, "crew-merkliste-waren-wir-schon");
     await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
     await shot(bob, "78-merkliste-waren-wir-schon");
 
-    // Im Formular rückt der besuchte Ort ans Ende und trägt „schon da gewesen“.
+    // Im Formular rücken besuchte Orte ans Ende und tragen „schon da gewesen“.
     await page.goto(`${APP}/polls/new?crew=${ids.crew}`);
     await page.evaluate(() => sessionStorage.removeItem("afterhours.poll-draft"));
     await page.reload();
     const wishPills = page.getByTestId("poll-form-wish");
     await wishPills.nth(1).waitFor();
     const pillTexts = (await wishPills.allInnerTexts()).map((x) => x.replace(/\s+/g, " ").trim());
-    check(pillTexts.length === 2 && pillTexts[0].includes("Strike District Bowling") && pillTexts.every((x) => x.includes("· Demo")) && pillTexts[1].includes("Lichtspielhaus Nord") && pillTexts[1].endsWith("· schon da gewesen") && !pillTexts[0].includes("schon da gewesen"),
-      `P22: Neues zuerst, besuchter Ort mit „schon da gewesen“, Demo gekennzeichnet (${pillTexts.join(" | ")})`);
+    const expected = bowlingVisited
+      ? [["Lichtspielhaus Nord", true], ["Strike District Bowling", true]]
+      : [["Strike District Bowling", false], ["Lichtspielhaus Nord", true]];
+    check(pillTexts.length === 2 && pillTexts.every((x) => x.includes("· Demo"))
+      && expected.every(([name, been], i) => pillTexts[i].includes(name) && pillTexts[i].endsWith("· schon da gewesen") === been),
+      `P22: Neues zuerst, besuchte Orte mit „schon da gewesen“, Demo gekennzeichnet (${pillTexts.join(" | ")})`);
 
     // Fremden Eintrag entfernen geht nicht (API), den eigenen schon (Oberfläche).
     const foreign = await api(bob, "POST", "rpc/remove_crew_wish", { p_crew_id: ids.crew, p_activity_id: cinema });
