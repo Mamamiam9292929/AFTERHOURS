@@ -334,7 +334,7 @@ export function PlanDetailPage() {
                             <span aria-hidden className="grid size-6 place-items-center rounded-full border border-dashed border-white/30 text-[10px] font-bold uppercase text-muted">
                               {g.display_name.slice(0, 1)}
                             </span>
-                            {t.plans.detail.guests.label(g.display_name)}
+                            {t.plans.detail.attendance.guest(g.display_name)}
                           </li>
                         ))}
                       </ul>
@@ -347,7 +347,7 @@ export function PlanDetailPage() {
 
           {/* W10: Freunde ohne Konto sagen über den Teilen-Link zu – Schalter und Gäste für die, die organisieren. */}
           {canManage && !locked && (
-            <PlanPanel id="gaeste" title={t.plans.detail.guests.title} icon={<IconUserPlus className="size-5" />} tone="lime">
+            <PlanPanel id="gaeste" title={t.plans.detail.attendance.guestsTitle} icon={<IconUserPlus className="size-5" />} tone="lime">
               <Suspense fallback={<Skeleton className="h-16" />}>
                 <PlanGuestsPanel plan={plan} started={started} />
               </Suspense>

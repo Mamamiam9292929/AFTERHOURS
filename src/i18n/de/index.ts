@@ -2,6 +2,7 @@ import { admin } from "./admin";
 import { assistant } from "./assistant";
 import { deCore } from "./core";
 import { landing } from "./landing";
+import { planGuests } from "./planGuests";
 import { privacy } from "./privacy";
 import { rewards } from "./rewards";
 import { settings } from "./settings";
@@ -19,6 +20,7 @@ export const de = {
   admin,
   assistant,
   settings,
+  planGuests,
 };
 
 /** F7 · Bereiche, die nicht im Start-Bundle liegen, sondern mit ihrer Seite nachgeladen werden. */

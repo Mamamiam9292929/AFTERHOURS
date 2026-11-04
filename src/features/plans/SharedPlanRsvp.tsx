@@ -6,10 +6,13 @@ import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { AuthLayout } from "@/features/auth/AuthLayout";
 import { rememberedGuestName, rememberGuestName } from "@/features/polls/api";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { type GuestAnswer, planGuestSecret, useGuestRsvp, useSharedPlanRsvp } from "./guestsApi";
+
+// F7: Texte der Zusagen ohne Konto liegen nicht im Start-Bundle.
+await loadTexts("planGuests");
 
 const ANSWERS: GuestAnswer[] = ["going", "maybe", "declined"];
 /** Antwortfarben wie auf den Abstimm-Karten (`.vote-card[data-answer]`, `.vote-pill[data-response]`). */
@@ -51,7 +54,7 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
   if (rsvp.isPending) return <PageSpinner />;
   if (rsvp.isError) {
     return (
-      <AuthLayout hero={hero} title={t.plans.shared.rsvp.title}>
+      <AuthLayout hero={hero} title={t.planGuests.rsvp.title}>
         <ErrorState error={rsvp.error} onRetry={() => void rsvp.refetch()} />
       </AuthLayout>
     );
@@ -94,8 +97,8 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
   function submit(event: FormEvent) {
     event.preventDefault();
     const next = {
-      name: clean(name).length < 2 ? t.plans.shared.rsvp.nameMissing : null,
-      answer: chosen ? null : t.plans.shared.rsvp.noAnswer,
+      name: clean(name).length < 2 ? t.planGuests.rsvp.nameMissing : null,
+      answer: chosen ? null : t.planGuests.rsvp.noAnswer,
     };
     setErrors(next);
     if (next.name || next.answer || !chosen) return;
@@ -105,18 +108,18 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
   return (
     <AuthLayout
       hero={hero}
-      title={!open ? t.plans.shared.rsvp.closedTitle : me ? t.plans.shared.rsvp.changeTitle(me.name) : t.plans.shared.rsvp.title}
-      intro={!open ? t.plans.shared.rsvp.closedIntro : me ? t.plans.shared.rsvp.changeIntro : t.plans.shared.rsvp.intro}
+      title={!open ? t.planGuests.rsvp.closedTitle : me ? t.planGuests.rsvp.changeTitle(me.name) : t.planGuests.rsvp.title}
+      intro={!open ? t.planGuests.rsvp.closedIntro : me ? t.planGuests.rsvp.changeIntro : t.planGuests.rsvp.intro}
     >
       {(where || loaded.plan.meeting_point) && (
         <div className="vote-card mb-5 flex gap-3 p-4" data-testid="rsvp-where">
           <IconPin className="mt-0.5 size-5 shrink-0 text-lime" aria-hidden />
           <div className="min-w-0 text-[15px] leading-snug">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{t.plans.shared.rsvp.where}</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{t.planGuests.rsvp.where}</p>
             {where && <p className="mt-1 break-words font-semibold text-fg">{where}</p>}
             {loaded.plan.meeting_point && (
               <p className="mt-1 break-words text-muted">
-                {t.plans.shared.rsvp.meetingPoint}: <span className="text-fg">{loaded.plan.meeting_point}</span>
+                {t.planGuests.rsvp.meetingPoint}: <span className="text-fg">{loaded.plan.meeting_point}</span>
               </p>
             )}
           </div>
@@ -125,10 +128,10 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
 
       <form onSubmit={submit} noValidate className="space-y-5">
         <div className="vote-card p-4 sm:p-5" data-answer={chosen ? CARD_ANSWER[chosen] : undefined} data-testid="rsvp-card">
-          <p className="display text-[17px] uppercase text-fg">{t.plans.shared.rsvp.question}</p>
-          <p className="mt-1 text-sm text-muted">{t.plans.shared.rsvp.counts(loaded.counts.going, loaded.counts.maybe)}</p>
+          <p className="display text-[17px] uppercase text-fg">{t.planGuests.rsvp.question}</p>
+          <p className="mt-1 text-sm text-muted">{t.planGuests.rsvp.counts(loaded.counts.going, loaded.counts.maybe)}</p>
           {open ? (
-            <div role="radiogroup" aria-label={t.plans.shared.rsvp.question} aria-describedby={errors.answer ? "rsvp-answer-error" : undefined} className="mt-3 grid grid-cols-3 gap-2">
+            <div role="radiogroup" aria-label={t.planGuests.rsvp.question} aria-describedby={errors.answer ? "rsvp-answer-error" : undefined} className="mt-3 grid grid-cols-3 gap-2">
               {ANSWERS.map((value) => (
                 <button key={value} type="button" role="radio" aria-checked={chosen === value} data-response={CARD_ANSWER[value]} disabled={answer.isPending && oneTap} onClick={() => tap(value)} className="vote-pill">
                   {t.plans.detail.attendance[value]}
@@ -138,7 +141,7 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
           ) : (
             me && (
               <p className="mt-2 text-sm text-muted">
-                {t.plans.shared.rsvp.yourAnswer}: <span className="font-semibold text-fg">{t.plans.detail.attendance[me.status]}</span>
+                {t.planGuests.rsvp.yourAnswer}: <span className="font-semibold text-fg">{t.plans.detail.attendance[me.status]}</span>
               </p>
             )
           )}
@@ -153,7 +156,7 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
           <div className="space-y-3" data-testid="rsvp-one-tap">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-[28px] border border-white/15 bg-white/[0.06] py-1.5 pl-5 pr-3">
               <p className="text-[15px] text-muted">
-                {t.plans.shared.rsvp.answeringAs} <span className="font-bold text-fg">{knownName}</span>
+                {t.planGuests.rsvp.answeringAs} <span className="font-bold text-fg">{knownName}</span>
               </p>
               <button
                 type="button"
@@ -164,17 +167,17 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
                 }}
                 className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline"
               >
-                {t.plans.shared.rsvp.notMe(knownName)}
+                {t.planGuests.rsvp.notMe(knownName)}
               </button>
             </div>
-            {!me && <p className="text-[13px] leading-snug text-faint">{t.plans.shared.rsvp.tapHint}</p>}
+            {!me && <p className="text-[13px] leading-snug text-faint">{t.planGuests.rsvp.tapHint}</p>}
           </div>
         )}
 
         {open && !oneTap && (
           <>
             <TextField
-              label={t.plans.shared.rsvp.name}
+              label={t.planGuests.rsvp.name}
               name="guest_name"
               autoComplete="given-name"
               value={name}
@@ -184,12 +187,12 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
                 setErrors((prev) => ({ ...prev, name: null }));
               }}
               maxLength={40}
-              hint={t.plans.shared.rsvp.nameHint}
+              hint={t.planGuests.rsvp.nameHint}
               error={errors.name}
               required
             />
             <Button type="submit" size="lg" block loading={answer.isPending}>
-              {me ? t.plans.shared.rsvp.update : t.plans.shared.rsvp.submit}
+              {me ? t.planGuests.rsvp.update : t.planGuests.rsvp.submit}
             </Button>
           </>
         )}
@@ -197,9 +200,9 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
         <div aria-live="polite" className="space-y-2">
           {answer.isError && <FormMessage>{errorMessage(answer.error)}</FormMessage>}
           {answer.isPending ? (
-            <p className="text-sm text-muted">{t.plans.shared.rsvp.saving}</p>
+            <p className="text-sm text-muted">{t.planGuests.rsvp.saving}</p>
           ) : (
-            saved && <FormMessage tone="success">{saved === "saved" ? t.plans.shared.rsvp.saved : t.plans.shared.rsvp.withdrawn}</FormMessage>
+            saved && <FormMessage tone="success">{saved === "saved" ? t.planGuests.rsvp.saved : t.planGuests.rsvp.withdrawn}</FormMessage>
           )}
         </div>
 
@@ -214,16 +217,16 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
             }}
             className={cn("min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline", answer.isPending && "pointer-events-none opacity-60")}
           >
-            {t.plans.shared.rsvp.withdraw}
+            {t.planGuests.rsvp.withdraw}
           </button>
         )}
-        {open && <p className="text-[13px] leading-snug text-faint">{t.plans.shared.rsvp.privacy}</p>}
+        {open && <p className="text-[13px] leading-snug text-faint">{t.planGuests.rsvp.privacy}</p>}
       </form>
 
       {!signedIn && (me || !open) && (
         <div className="vote-card mt-8 p-5 sm:p-6" data-testid="rsvp-cta">
-          <p className="text-[17px] font-bold text-fg">{t.plans.shared.rsvp.ctaTitle}</p>
-          <p className="mt-1.5 text-[15px] leading-snug text-muted">{t.plans.shared.rsvp.ctaBody}</p>
+          <p className="text-[17px] font-bold text-fg">{t.planGuests.rsvp.ctaTitle}</p>
+          <p className="mt-1.5 text-[15px] leading-snug text-muted">{t.planGuests.rsvp.ctaBody}</p>
           <ButtonLink to="/register" variant="secondary" block className="mt-4">
             {t.plans.shared.register}
           </ButtonLink>

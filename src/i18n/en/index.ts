@@ -46,6 +46,7 @@ export const englishPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]>
   admin: () => import("./admin").then((m) => m.admin),
   assistant: () => import("./assistant").then((m) => m.assistant),
   settings: () => import("./settings").then((m) => m.settings),
+  planGuests: () => import("./planGuests").then((m) => m.planGuests),
 };
 
 /** Ganzes englisches Wörterbuch (Kern und alle Seitentexte) – für die Unit-Tests. */
