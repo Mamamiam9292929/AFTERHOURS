@@ -5736,6 +5736,103 @@ await step("P21 Etappe 2 – „Gerade weg“ auf der Crew-Seite, beim Anlegen v
   }
 });
 
+await step("P22 – „Wollen wir mal hin“: Orte für die Crew merken, Liste, Abstimmung daraus, entfernen (Bob, Carol)", async () => {
+  if (!DB_URL || !ANON) {
+    console.log("   (E2E_DB_URL/SUPABASE_ANON_KEY nicht gesetzt – übersprungen)");
+    return;
+  }
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const carolName = psql(`select p.display_name from public.profiles p join auth.users u on u.id = p.id where u.email = '${carol.email}'`);
+  const crewName = psql(`select name from public.crews where id = '${ids.crew}'`);
+  const placeId = (name) => psql(`select id from public.activities where name = '${name}' and is_active order by created_at limit 1`);
+  const bowling = placeId("Strike District Bowling");
+  const cinema = placeId("Lichtspielhaus Nord");
+  const bobCrews = Number(psql(`select count(*) from public.crew_members m join auth.users u on u.id = m.user_id where u.email = '${bob.email}'`));
+  psql(`delete from public.crew_wishes where crew_id = '${ids.crew}'`);
+  const { page } = bob;
+  try {
+    // Leer: Hinweis mit Weg nach Discover (Bob, 390 px).
+    await page.goto(`${APP}/crews/${ids.crew}`);
+    const panel = page.getByTestId("crew-wishlist");
+    await panel.getByTestId("crew-wishlist-empty").waitFor();
+    check((await panel.getByRole("heading").first().textContent())?.trim() === "Wollen wir mal hin", "P22: Karte „Wollen wir mal hin“ auf der Crew-Seite");
+    check(await panel.getByRole("link", { name: "Orte entdecken" }).isVisible(), "P22: leere Liste führt nach Discover");
+    await noOverflow(bob, "Crew-Seite mit leerer Merkliste");
+    await a11y(bob, "crew-merkliste-leer");
+    await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(bob, "73-merkliste-leer");
+
+    // Ortsseite: „Für die Crew merken“ – danach führt der Knopf zur Liste.
+    await page.goto(`${APP}/activities/${bowling}`);
+    const add = page.getByTestId("wish-add");
+    await add.waitFor();
+    check((await add.innerText()).trim() === "Für die Crew merken", "P22: Knopf „Für die Crew merken“ auf der Ortsseite");
+    await add.click();
+    if (bobCrews > 1) await page.getByRole("button", { name: `Für „${crewName}“ merken` }).click();
+    await toast(bob, `Gemerkt für „${crewName}“`);
+    check(psql(`select count(*) from public.crew_wishes where crew_id = '${ids.crew}' and activity_id = '${bowling}'`) === "1", "P22: Ort steht auf der Liste der Crew");
+    if (bobCrews === 1) {
+      await page.getByTestId("wish-saved").waitFor();
+      check((await page.getByTestId("wish-saved").innerText()).trim() === "Auf eurer Merkliste", "P22: danach „Auf eurer Merkliste“");
+      await noOverflow(bob, "Ortsseite gemerkt");
+      await a11y(bob, "ort-gemerkt");
+      await page.getByTestId("wish-saved").evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "74-ort-gemerkt");
+    } else {
+      await page.keyboard.press("Escape");
+    }
+
+    // Carol merkt das Kino (über die API); doppelt merken ändert nichts. Ohne Anmeldung: nichts.
+    const carolAdd = await api(carol, "POST", "rpc/add_crew_wish", { p_crew_id: ids.crew, p_activity_id: cinema });
+    check(carolAdd.status < 300, `P22: Carol merkt „Lichtspielhaus Nord“ (${carolAdd.status})`);
+    await api(carol, "POST", "rpc/add_crew_wish", { p_crew_id: ids.crew, p_activity_id: cinema });
+    check(psql(`select count(*) from public.crew_wishes where crew_id = '${ids.crew}'`) === "2", "P22: doppelt gemerkt steht einmal da");
+    const anon = await api(null, "POST", "rpc/crew_wishes", { p_crew_id: ids.crew });
+    check(anon.status === 401 || anon.status === 403, `P22: ohne Anmeldung keine Merkliste (${anon.status})`);
+
+    // Crew-Seite: neueste zuerst, wer gemerkt hat, Entfernen nur beim eigenen Eintrag (Bob ist Mitglied).
+    await page.goto(`${APP}/crews/${ids.crew}#merkliste`);
+    const rows = panel.getByTestId("crew-wish");
+    await rows.nth(1).waitFor();
+    const first = await rows.nth(0).innerText();
+    const second = await rows.nth(1).innerText();
+    check(first.includes("Lichtspielhaus Nord") && second.includes("Strike District Bowling"), "P22: neueste zuerst");
+    check(first.includes(`gemerkt von ${carolName}`) && second.includes("von dir gemerkt"), "P22: wer gemerkt hat");
+    check((await rows.nth(0).getByTestId("crew-wish-remove").count()) === 0 && (await rows.nth(1).getByTestId("crew-wish-remove").count()) === 1,
+      "P22: Bob darf nur seinen eigenen Eintrag entfernen");
+    check((await panel.getByTestId("crew-wishlist-count").innerText()).trim() === "2 Orte", "P22: Stand „2 Orte“");
+    check((await panel.getByText("Demo").count()) >= 1, "P22: Demo-Orte sind als Demo gekennzeichnet");
+    await noOverflow(bob, "Crew-Seite mit Merkliste");
+    await a11y(bob, "crew-merkliste");
+    await panel.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(bob, "75-merkliste-crew");
+
+    // „Abstimmung daraus“: beide Orte im Formular, Crew vorausgewählt.
+    await panel.getByTestId("crew-wishlist-poll").click();
+    await page.waitForURL(new RegExp(`/polls/new\\?crew=${ids.crew}`));
+    const options = page.getByTestId("poll-form-option");
+    await options.nth(1).waitFor();
+    const optionText = (await options.allInnerTexts()).join(" | ");
+    check((await options.count()) === 2 && optionText.includes("Lichtspielhaus Nord") && optionText.includes("Strike District Bowling"),
+      `P22: Abstimmung mit beiden gemerkten Orten (${optionText.replace(/\s+/g, " ")})`);
+    await noOverflow(bob, "Abstimmung aus der Merkliste");
+    await shot(bob, "76-merkliste-abstimmung");
+
+    // Fremden Eintrag entfernen geht nicht (API), den eigenen schon (Oberfläche).
+    const foreign = await api(bob, "POST", "rpc/remove_crew_wish", { p_crew_id: ids.crew, p_activity_id: cinema });
+    check(foreign.status === 403, `P22: Bob kann Carols Eintrag nicht entfernen (${foreign.status})`);
+    await page.goto(`${APP}/crews/${ids.crew}#merkliste`);
+    await rows.nth(1).waitFor();
+    await rows.nth(1).getByTestId("crew-wish-remove").click();
+    await toast(bob, "„Strike District Bowling“ ist von der Liste.");
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="crew-wish"]').length === 1);
+    check(psql(`select count(*) from public.crew_wishes where crew_id = '${ids.crew}'`) === "1", "P22: eigener Eintrag entfernt, Carols bleibt");
+  } finally {
+    psql(`delete from public.crew_wishes where crew_id = '${ids.crew}'`);
+    await page.evaluate(() => sessionStorage.removeItem("afterhours.poll-draft")).catch(() => {});
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);

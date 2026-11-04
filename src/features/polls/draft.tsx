@@ -14,6 +14,8 @@ interface PollDraft {
   add: (item: DraftItem) => boolean;
   remove: (activityId: string) => void;
   clear: () => void;
+  /** P22: Auswahl ersetzen (z. B. durch die Merkliste der Crew), höchstens zehn. */
+  replace: (items: DraftItem[]) => void;
 }
 
 const KEY = "afterhours.poll-draft";
@@ -53,8 +55,9 @@ export function PollDraftProvider({ children }: { children: ReactNode }) {
   );
   const remove = useCallback((activityId: string) => setItems((current) => current.filter((i) => i.activityId !== activityId)), []);
   const clear = useCallback(() => setItems([]), []);
+  const replace = useCallback((next: DraftItem[]) => setItems(next.slice(0, MAX_POLL_OPTIONS)), []);
 
-  const value = useMemo(() => ({ items, has, add, remove, clear }), [items, has, add, remove, clear]);
+  const value = useMemo(() => ({ items, has, add, remove, clear, replace }), [items, has, add, remove, clear, replace]);
   return <DraftContext.Provider value={value}>{children}</DraftContext.Provider>;
 }
 

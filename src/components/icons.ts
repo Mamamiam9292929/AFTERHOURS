@@ -9,6 +9,8 @@ export {
   LuBan as IconBan,
   LuBell as IconBell,
   LuBellOff as IconBellOff,
+  LuBookmark as IconBookmark,
+  LuBookmarkCheck as IconBookmarkCheck,
   LuBot as IconBot,
   LuCake as IconCake,
   LuCalendar as IconCalendar,

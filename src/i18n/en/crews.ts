@@ -73,6 +73,23 @@ export const crews = {
       addOwn: "Add your birthday",
       addOwnBody: "Add day and month – then your crew sees when it's time to celebrate. No year, remove it any time.",
     },
+    /** P22: “Let's go there sometime” – the crew's saved places. */
+    wishlist: {
+      title: "Let's go there sometime",
+      lead: "Places your crew has saved – one tap turns them into a poll.",
+      count: (n: number) => (n === 1 ? "1 place" : `${n} places`),
+      emptyTitle: "Nothing saved yet",
+      emptyBody: "See something in Discover you'd like to do some time? Tap “Save for the crew” on the place's page – it lands here instead of getting lost in the chat.",
+      emptyAction: "Discover places",
+      byYou: "saved by you",
+      by: (name: string) => `saved by ${name}`,
+      remove: (place: string) => `Remove “${place}” from the list`,
+      removed: (place: string) => `“${place}” is off the list.`,
+      startPoll: "Make it a poll",
+      startPollAll: (n: number) => (n === 1 ? "The place goes into the poll – you can add more there." : `All ${n} go into the poll – you can drop some there.`),
+      startPollNewest: (n: number) => `The ${n} newest go into the poll – you can drop some there.`,
+      demoLeftOut: "Demo places stay out as long as real places are on the list.",
+    },
     /** P21 Etappe 2: who in the crew is away now or in the next 14 days. */
     away: {
       titleNow: "Away right now",

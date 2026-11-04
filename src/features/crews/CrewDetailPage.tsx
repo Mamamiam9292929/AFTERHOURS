@@ -31,6 +31,7 @@ import {
 import { CrewBalances } from "./CrewBalances";
 import { CrewAway } from "./CrewAway";
 import { CrewBirthdays } from "./CrewBirthdays";
+import { CrewWishlist } from "./CrewWishlist";
 import { CrewForm } from "./CrewForm";
 import { CrewRecap } from "./CrewRecap";
 import { InviteDialog } from "./InviteDialog";
@@ -108,6 +109,7 @@ function Overview({ crew, onInvite, canInvite }: { crew: CrewWithMembers; onInvi
       {/* P21 Etappe 2: wer gerade oder bald weg ist – vor den Geburtstagen, weil es die Terminsuche betrifft. */}
       <CrewAway crewId={crew.id} userId={user.id} memberIds={memberIds} />
       <CrewBirthdays crewId={crew.id} userId={user.id} />
+      <CrewWishlist crewId={crew.id} userId={user.id} />
       <CrewRecap crewId={crew.id} plans={crewPlans} />
       {past.length > 0 && (
         <Section title={t.crews.detail.pastPlans}>
