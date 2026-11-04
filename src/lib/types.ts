@@ -44,6 +44,7 @@ export type NotificationType =
   | "plan_created" | "plan_changed" | "plan_cancelled" | "plan_attendance"
   | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned"
   | "plan_expense" | "plan_settlement" | "plan_expense_reminder" | "plan_day_reminder" | "plan_photo_reported" | "plan_photo_nudge" | "plan_reminder"
+  | "birthday_reminder"
   | "spontaneous_ask" | "spontaneous_answer" | "spontaneous_match";
 
 export interface UserSettings {

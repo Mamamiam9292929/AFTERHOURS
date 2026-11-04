@@ -26,6 +26,8 @@ export function notificationTarget(n: NotificationRef): string | null {
   if (n.type === "plan_photo_reported" && n.related_entity_id) return `/plans/${n.related_entity_id}#fotos`;
   // P16: „Fotos von gestern?“ führt ebenfalls direkt zu „Fotos vom Abend“.
   if (n.type === "plan_photo_nudge" && n.related_entity_id) return `/plans/${n.related_entity_id}#fotos`;
+  // P20 Etappe 2: Die Geburtstags-Erinnerung führt zur Karte „Bald Geburtstag“ mit „Feier planen“.
+  if (n.type === "birthday_reminder" && n.crew_id) return `/crews/${n.crew_id}#geburtstage`;
   if (!n.related_entity_id) return n.crew_id ? `/crews/${n.crew_id}` : null;
   if (n.entity_type === "poll") return `/polls/${n.related_entity_id}`;
   if (n.entity_type === "plan") return `/plans/${n.related_entity_id}`;

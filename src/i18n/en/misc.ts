@@ -1,4 +1,4 @@
-import { formatDateTime, formatEuro, formatTime } from "./format";
+import { formatDateTime, formatEuro, formatPlainDateLong, formatTime } from "./format";
 import type { NotificationType } from "@/lib/types";
 import { localizedServerTitle } from "@/lib/servertitle";
 import type {
@@ -105,6 +105,10 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
   plan_reminder: (actor, p) => ({
     title: `${actor} asks: are you in?`,
     body: str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p),
+  }),
+  birthday_reminder: (actor, p) => ({
+    title: str(p, "date") ? `${actor}'s birthday is on ${formatPlainDateLong(str(p, "date"))}` : `${actor}'s birthday is coming up`,
+    body: str(p, "crew_name") ? `Plan a party with “${str(p, "crew_name")}”?` : "Plan a party?",
   }),
   plan_photo_nudge: (_actor, p) => ({
     title: p.yesterday ? "Photos from last night? Share them with the crew" : "Photos from the night? Share them with the crew",

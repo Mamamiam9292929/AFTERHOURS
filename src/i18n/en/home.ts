@@ -35,6 +35,11 @@ export const home = {
   startPoll: "Start a poll",
   createPlan: "Create plan",
   needsAnswer: "Waiting for your answer",
+  /** P20 Etappe 2: Geburtstage aus den eigenen Crews in den nächsten 7 Tagen. */
+  birthdays: {
+    title: "Birthdays soon",
+    lead: "From your crews in the next 7 days – one tap and you vote on when to celebrate.",
+  },
   nextUp: "Next up",
   runningPolls: "Open polls",
   quickVote: {

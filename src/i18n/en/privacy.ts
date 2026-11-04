@@ -15,7 +15,7 @@ export const privacy = {
         "Account: your email address and an encrypted password (with Supabase Auth).",
         "Signing in with Google or Apple (only if you use it): the email address, your account ID there and the details the provider sends along (with Supabase Auth). For your profile we only take the first name as a suggestion, no profile picture. Google or Apple learns that you sign in to AFTERHOURS.",
         "Profile: display name, optionally a profile picture, city and interests.",
-        "Birthday (only if you add it): day and month, no year. Members of your crews can see it; remove it and it's gone straight away.",
+        "Birthday (only if you add it): day and month, no year. Members of your crews can see it and get one reminder a week before; remove it and it's gone straight away.",
         "Activity: crews, messages in the crew chat, polls, votes, plans, replies, booking notes, rides, points and notifications.",
         "Settings: budget, distance, notifications and your choice on location sharing.",
         "Photos for a plan (only if you share some): the shrunk photo – without location, camera and time, which the app removes first – and who shared it when. Only the plan's crew can see it. You can delete your photos at any time. If you delete your account, or the plan or crew is deleted, the app deletes the files too; at the latest 12 months after the night out, the photos disappear by themselves. If you report a photo, we store the reason; the organiser and crew admins see it without your name.",

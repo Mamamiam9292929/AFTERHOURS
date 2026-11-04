@@ -5491,6 +5491,53 @@ await step("P20 – Geburtstage in der Crew: eintragen, „Bald Geburtstag“, F
   check((await own.getByText("Dein Geburtstag").count()) === 1 && (await own.getByRole("link", { name: /Feier/ }).count()) === 0 && (await own.getByTestId("crew-birthday-add").count()) === 0,
     "P20: Bob sieht „Dein Geburtstag“, ohne „Feier planen“ und ohne Hinweis");
 
+  // Etappe 2: Auf Home sieht Carol „Bald Geburtstag“ (nächste 7 Tage) mit Crew und „Feier planen“ – Bob nicht.
+  const crewName = psql(`select name from public.crews where id = '${ids.crew}'`);
+  await carol.page.goto(`${APP}/`);
+  const homeCard = carol.page.getByTestId("home-birthdays");
+  await homeCard.getByTestId("crew-birthday").first().waitFor();
+  const homeRow = homeCard.getByTestId("crew-birthday").filter({ hasText: bobName });
+  const homeText = (await homeRow.count()) === 1 ? await homeRow.innerText() : "";
+  check(homeText.includes("in 5 Tagen") && homeText.includes(longDate) && homeText.includes(crewName),
+    `P20 Etappe 2: Carol sieht auf Home Bobs Geburtstag „${longDate}“ mit „${crewName}“ in 5 Tagen`);
+  check(await homeRow.getByRole("link", { name: `Feier für ${bobName} planen` }).isVisible(), "P20 Etappe 2: „Feier planen“ auch auf Home");
+  await noOverflow(carol, "Home mit Geburtstag");
+  await a11y(carol, "home-geburtstage");
+  await homeCard.evaluate((el) => el.scrollIntoView({ block: "center" }));
+  await shot(carol, "66-geburtstag-home");
+  await page.goto(`${APP}/`);
+  await page.waitForLoadState("networkidle");
+  check((await page.getByTestId("home-birthdays").count()) === 0, "P20 Etappe 2: Bob sieht seinen eigenen Geburtstag nicht auf Home");
+
+  // Etappe 2: Erinnerung eine Woche vorher – an die Crew, nicht an Bob, genau einmal; führt zu „Bald Geburtstag“.
+  const reminders = (email) => psql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id
+    where u.email = '${email}' and n.type = 'birthday_reminder'`);
+  await carol.page.goto(`${APP}/notifications`);
+  const note = carol.page.getByRole("link", { name: new RegExp(`${bobName} hat am ${longDate} Geburtstag`) });
+  await note.waitFor();
+  check((await note.innerText()).includes(`Feier planen mit „${crewName}“?`), "P20 Etappe 2: Carol bekommt „… hat am … Geburtstag – Feier planen?“");
+  await noOverflow(carol, "Geburtstags-Erinnerung");
+  await shot(carol, "67-geburtstag-erinnerung");
+  check(reminders(carol.email) === "1", "P20 Etappe 2: genau eine Erinnerung für Carol");
+  check(reminders(bob.email) === "0", "P20 Etappe 2: das Geburtstagskind bekommt keine Erinnerung");
+  await carol.page.reload();
+  await note.waitFor();
+  check(reminders(carol.email) === "1" && (await note.count()) === 1, "P20 Etappe 2: Neuladen erinnert nicht noch einmal");
+  await note.click();
+  await carol.page.waitForURL(`**/crews/${ids.crew}#geburtstage`);
+  await carol.page.getByTestId("crew-birthdays").getByTestId("crew-birthday").first().waitFor();
+  check(true, "P20 Etappe 2: Erinnerung führt zur Karte „Bald Geburtstag“");
+  if (ANON) {
+    const res = await fetch(`${API}/rest/v1/rpc/send_birthday_reminders`, {
+      method: "POST",
+      headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+      body: "{}",
+    });
+    check(res.status === 401 || res.status === 403, `P20 Etappe 2: ohne Anmeldung kein Anstoßen (${res.status})`);
+  }
+  await carol.page.goto(`${APP}/crews/${ids.crew}`);
+  await carol.page.getByTestId("crew-birthday").first().waitFor();
+
   // „Feier planen“ → Termin-Abstimmung rund um den Geburtstag, Frage vorbelegt.
   await row.getByRole("link", { name: `Feier für ${bobName} planen` }).click();
   await carol.page.waitForURL(/\/polls\/new\?/);
@@ -5515,6 +5562,9 @@ await step("P20 – Geburtstage in der Crew: eintragen, „Bald Geburtstag“, F
   await carol.page.goto(`${APP}/crews/${ids.crew}`);
   await carol.page.getByTestId("crew-birthday-add").waitFor();
   check((await carol.page.getByTestId("crew-birthday").count()) === 0, "P20: danach sieht Carol nur noch den Hinweis");
+  await carol.page.goto(`${APP}/`);
+  await carol.page.waitForLoadState("networkidle");
+  check((await carol.page.getByTestId("home-birthdays").count()) === 0, "P20 Etappe 2: danach auch auf Home nichts mehr");
 });
 
 // P12: Google und Apple erscheinen nur, wenn das Supabase-Projekt sie einschaltet (lokal aus – die Probe schaltet sie

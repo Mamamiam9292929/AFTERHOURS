@@ -7,7 +7,7 @@ export const settings = {
   // P20: Geburtstag ohne Jahr, sichtbar für die eigenen Crews.
   birthday: {
     title: "Geburtstag",
-    lead: "Nur Tag und Monat, ohne Jahr. Sehen können ihn alle aus deinen Crews – auf der Crew-Seite, sobald er näher rückt. Freiwillig und jederzeit entfernbar.",
+    lead: "Nur Tag und Monat, ohne Jahr. Sehen können ihn alle aus deinen Crews – auf der Crew-Seite, sobald er näher rückt; eine Woche vorher erinnert die App sie einmal (dich nicht). Freiwillig und jederzeit entfernbar.",
     day: "Tag",
     month: "Monat",
     choose: "Bitte wählen",
@@ -59,6 +59,7 @@ export const settings = {
       costs: { title: "Kosten teilen", body: "Neue Ausgaben, an denen du beteiligt bist, und Rückzahlungen." },
       costReminders: { title: "Erinnerung an offene Beträge", body: "Einmal je Abend, wenn eine Woche danach bei dir noch Geld offen ist." },
       crew: { title: "Crew", body: "Neue Mitglieder und Änderungen deiner Rolle." },
+      birthdays: { title: "Geburtstage", body: "Eine Woche vorher einmal, wenn jemand aus deinen Crews Geburtstag hat." },
       spontaneous: { title: "Heute noch wer?", body: "Spontane Fragen deiner Crew, Zusagen auf deine Frage und wenn eine Runde zusammen ist." },
       rewards: { title: "Rewards", body: "Wenn du Punkte erhältst." },
     },

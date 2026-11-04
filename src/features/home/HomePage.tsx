@@ -13,6 +13,7 @@ import { isUpcoming, usePlans } from "@/features/plans/api";
 import { FeatureTicket, PlanTicket } from "@/features/plans/PlanTicket";
 import { PlanQuickAnswer } from "@/features/plans/QuickAnswer";
 import { useIdeas } from "./ideas";
+import { HomeBirthdays } from "./HomeBirthdays";
 import { InstallCard } from "./InstallCard";
 import { TonightIdeas, TonightStrip, useTonightHidden } from "./Tonight";
 import { SpontaneousCard, SpontaneousLauncher, useSpontaneousAsks } from "./Spontaneous";
@@ -288,6 +289,8 @@ export function HomePage() {
                   </div>
                 </Section>
               )}
+
+              {crews.data && <HomeBirthdays crews={crews.data} userId={user.id} today={zonedParts(now).date} lookup={people.lookup} />}
 
               <InstallCard className="mt-9 first:mt-0" />
 

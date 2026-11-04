@@ -9,7 +9,7 @@ export const settings = {
   // P20: Geburtstag ohne Jahr, sichtbar für die eigenen Crews.
   birthday: {
     title: "Birthday",
-    lead: "Day and month only, no year. Everyone in your crews can see it – on the crew page once it's coming up. Optional, remove it any time.",
+    lead: "Day and month only, no year. Everyone in your crews can see it – on the crew page once it's coming up; a week before, the app reminds them once (not you). Optional, remove it any time.",
     day: "Day",
     month: "Month",
     choose: "Please choose",
@@ -60,6 +60,7 @@ export const settings = {
       costs: { title: "Split costs", body: "New expenses you're part of, and repayments." },
       costReminders: { title: "Reminder about open balances", body: "Once per evening, if you still have money open a week later." },
       crew: { title: "Crew", body: "New members and changes to your role." },
+      birthdays: { title: "Birthdays", body: "Once, a week ahead, when someone in your crews has a birthday." },
       spontaneous: { title: "Anyone out tonight?", body: "Spontaneous asks from your crew, people up for your ask, and when there are enough of you." },
       rewards: { title: "Rewards", body: "When you earn points." },
     },

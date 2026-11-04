@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
-import type { Birthday } from "@/lib/birthdays";
+import type { Birthday, CrewBirthday } from "@/lib/birthdays";
 import { qk } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
 
 /**
  * P20 · Geburtstage in der Crew. Lesen und Schreiben nur über RPCs: `my_birthday` (eigener),
- * `set_my_birthday` (setzen bzw. mit `null, null` entfernen) und `crew_birthdays` (nur für Mitglieder).
+ * `set_my_birthday` (setzen bzw. mit `null, null` entfernen), `crew_birthdays` (nur für Mitglieder) und – für Home –
+ * `my_crew_birthdays` (alle eigenen Crews, ohne die eigene Person).
  */
 export interface MyBirthday {
   month: number;
@@ -47,6 +48,21 @@ export function useCrewBirthdays(crewId: string) {
       const { data, error } = await supabase.rpc("crew_birthdays", { p_crew_id: crewId });
       if (error) throw error;
       return (data ?? []) as Birthday[];
+    },
+  });
+}
+
+/** P20 Etappe 2: Geburtstage aller eigenen Crews für Home (eine Zeile je Person und Crew). */
+export function useMyCrewBirthdays(enabled = true) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: qk.myCrewBirthdays(user?.id ?? "anonymous"),
+    enabled: Boolean(user) && enabled,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<CrewBirthday[]> => {
+      const { data, error } = await supabase.rpc("my_crew_birthdays");
+      if (error) throw error;
+      return (data ?? []) as CrewBirthday[];
     },
   });
 }

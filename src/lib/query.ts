@@ -47,6 +47,7 @@ export const qk = {
   birthdaysAll: ["birthdays"] as const,
   myBirthday: (userId: string) => ["birthdays", "me", userId] as const,
   crewBirthdays: (crewId: string) => ["birthdays", "crew", crewId] as const,
+  myCrewBirthdays: (userId: string) => ["birthdays", "crews", userId] as const,
   invitationPreview: (token: string) => ["invitation", token] as const,
   activities: ["activities"] as const,
   activity: (id: string) => ["activities", id] as const,
