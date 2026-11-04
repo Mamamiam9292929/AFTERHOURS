@@ -1610,8 +1610,8 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
   check((await bob.page.locator("#gaeste").count()) === 0, "W10: einfache Mitglieder sehen „Freunde ohne Konto“ nicht");
   const bobToggle = await api(bob, "POST", "rpc/set_plan_guests", { p_plan_id: ids.plan, p_allowed: true });
   check(bobToggle.status >= 400, `W10: Bob kann Zusagen ohne Konto nicht einschalten (HTTP ${bobToggle.status})`);
-  const malloryToggle = await api(mallory, "POST", "rpc/set_plan_guests", { p_plan_id: ids.plan, p_allowed: true });
-  check(malloryToggle.status >= 400, `W10: Außenstehende auch nicht (HTTP ${malloryToggle.status})`);
+  const anonToggle = await api(null, "POST", "rpc/set_plan_guests", { p_plan_id: ids.plan, p_allowed: true });
+  check(anonToggle.status >= 400, `W10: ohne Konto auch nicht (HTTP ${anonToggle.status})`);
 
   // Alice organisiert: Schalter an, Leerzustand.
   const { page } = alice;
@@ -1624,7 +1624,7 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
   await toast(alice, "Freunde ohne Konto können jetzt über den Link zusagen.");
   await panel.getByText("Noch hat niemand über den Link geantwortet.").waitFor();
   check(await panel.getByTestId("plan-guests-count").filter({ hasText: "Noch keine" }).isVisible(), "W10: Leerzustand mit Pille „Noch keine“");
-  await shot(alice, "16e-plan-gaeste-an");
+  await shot(alice, "16w1-plan-gaeste-an");
 
   // Dana hat kein Konto: Zusagekarte mit Ort und Treffpunkt, ohne Namen der Crew.
   const guest = await newUser("Dana", "mobile");
@@ -1642,7 +1642,7 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await guest.page.getByText("Bitte gib deinen Namen ein (mindestens 2 Zeichen).").waitFor();
     check(true, "W10: ohne Namen kein Senden");
     await guest.page.getByLabel("Dein Name").fill("Dana");
-    await shot(guest, "16f-plan-gast-zusage");
+    await shot(guest, "16w2-plan-gast-zusage");
     // Fehlerzustand: Antwort des Servers wird verständlich angezeigt.
     await guest.page.route("**/rpc/guest_rsvp_shared_plan", (route) =>
       route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ code: "P0001", message: "plan_guests_started", details: null, hint: null }) }),
@@ -1661,7 +1661,7 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await changed;
     await guest.page.waitForFunction(() => document.querySelector('[data-testid="rsvp-card"]')?.getAttribute("data-answer") === "maybe");
     check(true, "W10: ein Tipp ändert die Antwort auf „Vielleicht“");
-    await shot(guest, "16g-plan-gast-eingetragen");
+    await shot(guest, "16w3-plan-gast-eingetragen");
 
     // Die Crew sieht Dana bei „Wer“, Alice bekommt Bescheid.
     await page.reload();
@@ -1670,7 +1670,7 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     check(await panel.getByTestId("plan-guest").filter({ hasText: "Dana (Gast)" }).isVisible(), "W10: Dana in der Gästeliste");
     const notes = await api(alice, "GET", "notifications?type=eq.plan_attendance&select=payload,actor_id");
     check(Array.isArray(notes.json) && notes.json.some((n) => n.payload?.guest === "Dana" && n.actor_id === null), "W10: Alice bekommt Bescheid über Danas Antwort");
-    await shot(alice, "16h-plan-gast-in-der-crew");
+    await shot(alice, "16w4-plan-gast-in-der-crew");
     const anonRead = await api(null, "GET", "plan_guests?select=display_name");
     check(!(Array.isArray(anonRead.json) && anonRead.json.length > 0), "W10: ohne Konto liest niemand die Gäste über die API");
     const bobAsGuest = await api(bob, "POST", "rpc/guest_rsvp_shared_plan", { p_token: token, p_secret: "b".repeat(64), p_name: "Bob", p_status: "going" });
