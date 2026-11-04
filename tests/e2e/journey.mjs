@@ -3021,6 +3021,22 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       check(psql(`select count(*) from public.notifications where related_entity_id = '${movePlan}' and user_id = '${carolId}' and type = 'plan_changed'`) === "1",
         "Neu fragen: Carol bekommt genau eine Benachrichtigung");
 
+      // P23 Etappe 2: Schon auf Home steht unter der schnellen Antwort die alte Antwort, ihre Pille gestrichelt.
+      await carol.page.goto(`${APP}/home`);
+      const quick = carol.page.getByRole("group", { name: "Deine Antwort zu „Tischtennis im Park“" });
+      await quick.waitFor();
+      const quickBox = quick.locator("xpath=..");
+      const quickHint = quickBox.getByTestId("plan-quick-asked-again");
+      await quickHint.waitFor();
+      check((await quickHint.innerText()).trim() === "Neue Zeit – passt es dir noch? Vorher: Bin dabei", "Neu fragen: Carol sieht die alte Antwort schon auf Home");
+      const previousPills = await quick.locator("button[data-previous]").allInnerTexts();
+      check(previousPills.length === 1 && previousPills[0].trim() === "Bin dabei", `Neu fragen: nur die alte Antwort ist auf Home markiert (${previousPills.join(", ")})`);
+      check((await quick.locator("button[data-previous]").evaluate((el) => getComputedStyle(el).borderTopStyle)) === "dashed", "Neu fragen: alte Antwort gestrichelt");
+      await quickBox.scrollIntoViewIfNeeded();
+      await noOverflow(carol, "Neu gefragt auf Home");
+      await a11y(carol, "home-neu-gefragt");
+      await shot(carol, "21k-home-neu-gefragt");
+
       await carol.page.goto(`${APP}/plans/${movePlan}`);
       const hint = carol.page.getByTestId("plan-asked-again");
       await hint.waitFor();
