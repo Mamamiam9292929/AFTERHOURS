@@ -1,18 +1,20 @@
 import { useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { IconBookmark, IconDiscover, IconTrash, IconVote } from "@/components/icons";
+import { IconBookmark, IconCheck, IconDiscover, IconTrash, IconVote } from "@/components/icons";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
 import { DemoBadge, ErrorState } from "@/components/ui/Feedback";
 import { PanelCard } from "@/components/ui/PanelCard";
 import { useToast } from "@/components/ui/Toast";
 import { CategoryArt } from "@/features/discover/CategoryArt";
+import { usePlans } from "@/features/plans/api";
 import { PANEL_ITEM, StatusPill } from "@/features/plans/PlanPanel";
 import { MAX_POLL_OPTIONS, usePollDraft } from "@/features/polls/draft";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { categoryWorld } from "@/lib/stage";
-import { wishPollItems, type CrewWish } from "@/lib/wishlist";
+import { formatDateWithYear, formatDayMonth } from "@/lib/time";
+import { wishPollItems, wishVisits, type CrewWish } from "@/lib/wishlist";
 import { useCrewWishes, useToggleCrewWish } from "./wishlistApi";
 
 const tx = t.crews.detail.wishlist;
@@ -21,12 +23,17 @@ const tx = t.crews.detail.wishlist;
  * P22 · „Wollen wir mal hin“ auf der Crew-Seite: Orte, die jemand aus der Crew in Discover gemerkt hat
  * (neueste zuerst), mit „Abstimmung daraus“ – die Orte kommen in den Sammelkorb der Abstimmung (höchstens
  * zehn), die Crew ist vorausgewählt. Entfernen dürfen, wer gemerkt hat, Owner und Admins (sagt der Server).
+ * Etappe 2: Hatte die Crew an einem Ort schon einen abgeschlossenen Abend, steht „Waren wir schon · <Datum>“
+ * mit Link zum Plan dabei.
  * Leer: Hinweis mit Weg nach Discover. Lädt: Platzhalter. Fehler: Fehlerzustand mit „Nochmal“.
  */
 export function CrewWishlist({ crewId, userId }: { crewId: string; userId: string }) {
   const wishes = useCrewWishes(crewId);
   const toggle = useToggleCrewWish();
   const people = usePeople();
+  // P22 Etappe 2: „Waren wir schon“ aus den Plänen, die die App ohnehin lädt (abgeschlossen, diese Crew, dieser Ort).
+  const plans = usePlans();
+  const visits = useMemo(() => wishVisits(plans.data ?? [], crewId), [plans.data, crewId]);
   const draft = usePollDraft();
   const navigate = useNavigate();
   const toast = useToast();
@@ -83,6 +90,7 @@ export function CrewWishlist({ crewId, userId }: { crewId: string; userId: strin
           <>
             <ul className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
               {list.map((wish) => {
+                const visit = visits.get(wish.activity_id);
                 const by = wish.added_by === userId ? tx.byYou : wish.added_by ? people.lookup(wish.added_by)?.display_name : null;
                 return (
                   <li key={wish.activity_id} data-testid="crew-wish" className={cn(PANEL_ITEM, "flex min-w-0 items-center gap-3 py-2 pl-2 pr-1.5")}>
@@ -99,6 +107,17 @@ export function CrewWishlist({ crewId, userId }: { crewId: string; userId: strin
                       <span className="block truncate text-[13px] text-muted">
                         {[t.enums.category[wish.category], wish.city, by && (wish.added_by === userId ? by : tx.by(by))].filter(Boolean).join(" · ")}
                       </span>
+                      {visit && (
+                        <Link
+                          to={`/plans/${visit.planId}`}
+                          aria-label={tx.visitedLink(wish.name, formatDateWithYear(visit.startsAt))}
+                          className="mt-0.5 flex w-fit max-w-full items-center gap-1 text-[12px] font-semibold text-lime underline-offset-2 hover:underline"
+                          data-testid="crew-wish-visited"
+                        >
+                          <IconCheck className="size-3.5 shrink-0" aria-hidden />
+                          <span className="truncate">{tx.visited(formatDayMonth(visit.startsAt))}</span>
+                        </Link>
+                      )}
                     </span>
                     {wish.can_remove && (
                       <IconButton label={tx.remove(wish.name)} onClick={() => remove(wish)} disabled={toggle.isPending} data-testid="crew-wish-remove">

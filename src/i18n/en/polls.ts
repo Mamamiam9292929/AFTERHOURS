@@ -84,6 +84,11 @@ export const polls = {
     optionsTitle: "Options",
     optionsHint: "1 to 10 options – places from Discover or your own ideas.",
     addPlace: "Add place",
+    /** P22 stage 2: places from the selected crew's saved list as tap-to-add pills. */
+    fromWishlist: "From your list",
+    fromWishlistHint: "Saved in “Let's go there sometime” – tap to add the place.",
+    addWish: (place: string) => `Add “${place}” as an option`,
+    wishVisited: "been there",
     addCustom: "Add your own option",
     customPlaceholder: "e.g. BBQ at Jonas's",
     customLabel: (n: number) => `Option ${n}`,

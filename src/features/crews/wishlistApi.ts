@@ -8,9 +8,10 @@ import type { CrewWish } from "@/lib/wishlist";
  * (Liste, nur für Mitglieder), `my_wish_crews` (auf welchen eigenen Listen ein Ort steht), `add_crew_wish`
  * und `remove_crew_wish` (wer gemerkt hat, Owner, Admins).
  */
-export function useCrewWishes(crewId: string) {
+export function useCrewWishes(crewId: string, enabled = true) {
   return useQuery({
     queryKey: qk.crewWishes(crewId),
+    enabled: Boolean(crewId) && enabled,
     queryFn: async (): Promise<CrewWish[]> => {
       const { data, error } = await supabase.rpc("crew_wishes", { p_crew_id: crewId });
       if (error) throw error;
