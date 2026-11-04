@@ -180,6 +180,9 @@ export const plans = {
       saved: "Antwort gespeichert.",
       locked: "Antworten lassen sich nicht mehr ändern.",
       groups: { going: "Dabei", maybe: "Vielleicht", invited: "Noch offen", declined: "Abgesagt" },
+      // W10: Zusage ohne Konto über den Teilen-Link.
+      guest: (name: string) => `${name} (Gast)`,
+      guestsTitle: "Freunde ohne Konto",
       // P19: Nachfragen bei allen ohne Antwort.
       remind: "Nachfragen",
       remindLabel: (n: number) => (n === 1 ? "Nachfragen – die Person ohne Antwort fragen, ob sie dabei ist" : `Nachfragen – alle ${n} ohne Antwort fragen, ob sie dabei sind`),

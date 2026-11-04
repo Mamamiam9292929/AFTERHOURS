@@ -6,15 +6,18 @@ import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
 import { dueSeries, type PlanSeries, type RepeatRule } from "@/lib/repeat";
 import type { PlanWeather } from "@/lib/weather";
-import type { AttendanceStatus, BookingRequest, BookingStatus, Plan, PlanExpense, PlanExpenseShare, PlanParticipant, PlanStatus, RideOffer, RideRequest } from "@/lib/types";
+import type { AttendanceStatus, BookingRequest, BookingStatus, Plan, PlanExpense, PlanExpenseShare, PlanGuest, PlanParticipant, PlanStatus, RideOffer, RideRequest } from "@/lib/types";
 
 export interface PlanWithParticipants extends Plan {
   participants: PlanParticipant[];
   /** P8: eingebettete Serie (nur bei wiederkehrenden Plänen). */
   series?: PlanSeries | null;
+  /** W10: Zusagen ohne Konto über den Teilen-Link (ohne Geheimnis – die Spalte ist nicht lesbar). */
+  guests?: PlanGuest[];
 }
 
-const PLAN_SELECT = "*, participants:plan_participants(*), series:plan_series(*)";
+const PLAN_SELECT =
+  "*, participants:plan_participants(*), series:plan_series(*), guests:plan_guests(id, plan_id, display_name, attendance_status, created_at, updated_at)";
 
 export const ACTIVE_PLAN_STATUSES: PlanStatus[] = ["proposed", "confirmed", "booking_pending", "booked"];
 
@@ -78,6 +81,7 @@ export function usePlan(planId: string | undefined) {
     [
       { table: "plans", filter: `id=eq.${planId}` },
       { table: "plan_participants", filter: `plan_id=eq.${planId}` },
+      { table: "plan_guests", filter: `plan_id=eq.${planId}` },
     ],
     () => void client.invalidateQueries({ queryKey: qk.plan(planId ?? "none") }),
   );
@@ -471,7 +475,7 @@ export function usePlanShareToken(planId: string | undefined, enabled = true) {
 export type SharedPlanPreview =
   | {
       status: "valid";
-      plan: { title: string; starts_at: string; ends_at: string | null; status: PlanStatus; going_count: number };
+      plan: { title: string; starts_at: string; ends_at: string | null; status: PlanStatus; going_count: number; /** W10: Zusagen ohne Konto gerade möglich. */ guests?: boolean };
       /** Nur für Mitglieder der Crew – sonst null. */
       plan_id: string | null;
     }

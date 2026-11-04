@@ -2,7 +2,7 @@ import { ShareButton } from "@/components/ui/ShareButton";
 import { planShare } from "@/lib/share";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { IconBack, IconBasket, IconBell, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconVote, IconWallet } from "@/components/icons";
+import { IconBack, IconBasket, IconBell, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
 import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -40,6 +40,8 @@ import { RidesPanel } from "./RidesPanel";
 
 // P10: Fotos erst ab Beginn des Plans – Upload-Code nur laden, wenn der Bereich erscheint.
 const PhotosPanel = lazy(() => import("./PhotosPanel").then((m) => ({ default: m.PhotosPanel })));
+// W10: Schalter und Gäste nur für Organisator:in, Owner und Admins – eigener Chunk.
+const PlanGuestsPanel = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestsPanel })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -291,7 +293,9 @@ export function PlanDetailPage() {
               <div className="mt-1 space-y-3">
                 {GROUPS.map((status) => {
                   const group = plan.participants.filter((p) => p.attendance_status === status);
-                  if (group.length === 0) return null;
+                  // W10: Zusagen ohne Konto stehen in derselben Gruppe, gekennzeichnet als Gast.
+                  const guests = (plan.guests ?? []).filter((g) => g.attendance_status === status);
+                  if (group.length + guests.length === 0) return null;
                   // P19: Wer organisiert (oder Owner/Admin ist), fragt alle ohne Antwort mit einem Tipp – nur vor Beginn.
                   const askable = status === "invited" && canManage && !locked && !started ? group.filter((p) => p.user_id !== user.id).length : 0;
                   return (
@@ -299,7 +303,7 @@ export function PlanDetailPage() {
                       <div className="flex min-h-9 items-center justify-between gap-3">
                         <p className="flex items-center gap-2 text-[13px] font-semibold text-muted">
                           <span aria-hidden className={cn("size-2 rounded-full", GROUP_DOT[status])} />
-                          {t.plans.detail.attendance.groups[status]} ({group.length})
+                          {t.plans.detail.attendance.groups[status]} ({group.length + guests.length})
                         </p>
                         {askable > 0 && (
                           <Button
@@ -325,6 +329,14 @@ export function PlanDetailPage() {
                             </li>
                           );
                         })}
+                        {guests.map((g) => (
+                          <li key={g.id} data-status={status} data-testid="who-guest" className={cn("who-chip inline-flex h-9 items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm", status === "going" ? "font-semibold text-fg" : status === "maybe" ? "text-fg" : "text-muted")}>
+                            <span aria-hidden className="grid size-6 place-items-center rounded-full border border-dashed border-white/30 text-[10px] font-bold uppercase text-muted">
+                              {g.display_name.slice(0, 1)}
+                            </span>
+                            {t.plans.detail.attendance.guest(g.display_name)}
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   );
@@ -332,6 +344,15 @@ export function PlanDetailPage() {
               </div>
             </Fact>
           </dl>
+
+          {/* W10: Freunde ohne Konto sagen über den Teilen-Link zu – Schalter und Gäste für die, die organisieren. */}
+          {canManage && !locked && (
+            <PlanPanel id="gaeste" title={t.plans.detail.attendance.guestsTitle} icon={<IconUserPlus className="size-5" />} tone="lime">
+              <Suspense fallback={<Skeleton className="h-16" />}>
+                <PlanGuestsPanel plan={plan} started={started} />
+              </Suspense>
+            </PlanPanel>
+          )}
 
           {/* P13: „Wo seid ihr?“ – Live-Standort nur rund um den Plan (ab 12 h vorher als Hinweis, ab 2 h vorher zum Teilen). */}
           {liveStage(plan, now) !== "hidden" && (

@@ -1,0 +1,243 @@
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { IconPin } from "@/components/icons";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
+import { FormMessage, TextField } from "@/components/ui/Field";
+import { AuthLayout } from "@/features/auth/AuthLayout";
+import { rememberedGuestName, rememberGuestName } from "@/features/polls/api";
+import { loadTexts, t } from "@/i18n";
+import { cn } from "@/lib/cn";
+import { errorMessage } from "@/lib/errors";
+import { type GuestAnswer, planGuestSecret, useGuestRsvp, useSharedPlanRsvp } from "./guestsApi";
+
+// F7: Texte der Zusagen ohne Konto liegen nicht im Start-Bundle.
+await loadTexts("planGuests");
+
+const ANSWERS: GuestAnswer[] = ["going", "maybe", "declined"];
+/** Antwortfarben wie auf den Abstimm-Karten (`.vote-card[data-answer]`, `.vote-pill[data-response]`). */
+const CARD_ANSWER: Record<GuestAnswer, "yes" | "maybe" | "no"> = { going: "yes", maybe: "maybe", declined: "no" };
+
+const linkClass = "font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime";
+const clean = (name: string) => name.trim().replace(/\s+/g, " ");
+
+/**
+ * W10 · Zusagen ohne Konto unter dem geteilten Plan (/s/<token>), wenn die Crew es erlaubt: wohin es geht, dann
+ * „Bin dabei / Vielleicht / Kann nicht“ mit Namen. Wer den Namen vom letzten Link mitbringt (S2) oder hier schon
+ * geantwortet hat, antwortet mit einem Tipp. Danach der Weg zum eigenen Konto.
+ */
+export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: string; hero: ReactNode; signedIn: boolean; fallback: ReactNode }) {
+  const secret = useMemo(() => planGuestSecret(token), [token]);
+  const rsvp = useSharedPlanRsvp(token, secret);
+  const answer = useGuestRsvp(token, secret);
+  const [deviceName, setDeviceName] = useState(() => rememberedGuestName());
+  const [name, setName] = useState(() => deviceName ?? "");
+  const [editingName, setEditingName] = useState(false);
+  const [chosen, setChosen] = useState<GuestAnswer | null>(null);
+  const [errors, setErrors] = useState<{ name?: string | null; answer?: string | null }>({});
+  const [saved, setSaved] = useState<"saved" | "withdrawn" | null>(null);
+  const loaded = rsvp.data?.status === "valid" ? rsvp.data : null;
+  const me = loaded?.me ?? null;
+  // Antworten nacheinander senden, damit schnelles Tippen nichts überholt.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+
+  const [initialized, setInitialized] = useState(false);
+  useEffect(() => {
+    if (initialized || !loaded) return;
+    setInitialized(true);
+    if (me) {
+      setChosen(me.status);
+      setName(me.name);
+    }
+  }, [initialized, loaded, me]);
+
+  if (rsvp.isPending) return <PageSpinner />;
+  if (rsvp.isError) {
+    return (
+      <AuthLayout hero={hero} title={t.planGuests.rsvp.title}>
+        <ErrorState error={rsvp.error} onRetry={() => void rsvp.refetch()} />
+      </AuthLayout>
+    );
+  }
+  // Inzwischen ausgeschaltet (oder der Link ist weg): wie ohne Freigabe.
+  if (!loaded) return <>{fallback}</>;
+
+  const knownName = me?.name ?? deviceName;
+  const oneTap = Boolean(knownName) && !editingName;
+  const open = loaded.plan.open;
+  const where = [loaded.plan.place, loaded.plan.address].filter(Boolean).join(" · ");
+
+  /** `revert`: bei einem Fehler die vorige Antwort wieder zeigen (Ein-Tipp); im Formular bleibt die Auswahl stehen. */
+  function send(status: GuestAnswer | null, guestName: string | null, revert?: { to: GuestAnswer | null }) {
+    setSaved(null);
+    queue.current = queue.current.then(() =>
+      answer
+        .mutateAsync({ name: guestName, status })
+        .then(() => {
+          setSaved(status ? "saved" : "withdrawn");
+          if (guestName) {
+            rememberGuestName(guestName);
+            setDeviceName(guestName);
+          }
+          setEditingName(false);
+        })
+        .catch(() => {
+          if (revert) setChosen(revert.to);
+        }),
+    );
+  }
+
+  function tap(next: GuestAnswer) {
+    setErrors({});
+    const previous = chosen;
+    setChosen(next);
+    if (oneTap && knownName) send(next, knownName, { to: previous });
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const next = {
+      name: clean(name).length < 2 ? t.planGuests.rsvp.nameMissing : null,
+      answer: chosen ? null : t.planGuests.rsvp.noAnswer,
+    };
+    setErrors(next);
+    if (next.name || next.answer || !chosen) return;
+    send(chosen, clean(name));
+  }
+
+  return (
+    <AuthLayout
+      hero={hero}
+      title={!open ? t.planGuests.rsvp.closedTitle : me ? t.planGuests.rsvp.changeTitle(me.name) : t.planGuests.rsvp.title}
+      intro={!open ? t.planGuests.rsvp.closedIntro : me ? t.planGuests.rsvp.changeIntro : t.planGuests.rsvp.intro}
+    >
+      {(where || loaded.plan.meeting_point) && (
+        <div className="vote-card mb-5 flex gap-3 p-4" data-testid="rsvp-where">
+          <IconPin className="mt-0.5 size-5 shrink-0 text-lime" aria-hidden />
+          <div className="min-w-0 text-[15px] leading-snug">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{t.planGuests.rsvp.where}</p>
+            {where && <p className="mt-1 break-words font-semibold text-fg">{where}</p>}
+            {loaded.plan.meeting_point && (
+              <p className="mt-1 break-words text-muted">
+                {t.planGuests.rsvp.meetingPoint}: <span className="text-fg">{loaded.plan.meeting_point}</span>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={submit} noValidate className="space-y-5">
+        <div className="vote-card p-4 sm:p-5" data-answer={chosen ? CARD_ANSWER[chosen] : undefined} data-testid="rsvp-card">
+          <p className="display text-[17px] uppercase text-fg">{t.planGuests.rsvp.question}</p>
+          <p className="mt-1 text-sm text-muted">{t.planGuests.rsvp.counts(loaded.counts.going, loaded.counts.maybe)}</p>
+          {open ? (
+            <div role="radiogroup" aria-label={t.planGuests.rsvp.question} aria-describedby={errors.answer ? "rsvp-answer-error" : undefined} className="mt-3 grid grid-cols-3 gap-2">
+              {ANSWERS.map((value) => (
+                <button key={value} type="button" role="radio" aria-checked={chosen === value} data-response={CARD_ANSWER[value]} disabled={answer.isPending && oneTap} onClick={() => tap(value)} className="vote-pill">
+                  {t.plans.detail.attendance[value]}
+                </button>
+              ))}
+            </div>
+          ) : (
+            me && (
+              <p className="mt-2 text-sm text-muted">
+                {t.planGuests.rsvp.yourAnswer}: <span className="font-semibold text-fg">{t.plans.detail.attendance[me.status]}</span>
+              </p>
+            )
+          )}
+          {errors.answer && (
+            <p id="rsvp-answer-error" role="alert" className="mt-2 text-sm text-danger">
+              {errors.answer}
+            </p>
+          )}
+        </div>
+
+        {open && oneTap && knownName && (
+          <div className="space-y-3" data-testid="rsvp-one-tap">
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-[28px] border border-white/15 bg-white/[0.06] py-1.5 pl-5 pr-3">
+              <p className="text-[15px] text-muted">
+                {t.planGuests.rsvp.answeringAs} <span className="font-bold text-fg">{knownName}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setName(knownName);
+                  setEditingName(true);
+                  setSaved(null);
+                }}
+                className="min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline"
+              >
+                {t.planGuests.rsvp.notMe(knownName)}
+              </button>
+            </div>
+            {!me && <p className="text-[13px] leading-snug text-faint">{t.planGuests.rsvp.tapHint}</p>}
+          </div>
+        )}
+
+        {open && !oneTap && (
+          <>
+            <TextField
+              label={t.planGuests.rsvp.name}
+              name="guest_name"
+              autoComplete="given-name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setSaved(null);
+                setErrors((prev) => ({ ...prev, name: null }));
+              }}
+              maxLength={40}
+              hint={t.planGuests.rsvp.nameHint}
+              error={errors.name}
+              required
+            />
+            <Button type="submit" size="lg" block loading={answer.isPending}>
+              {me ? t.planGuests.rsvp.update : t.planGuests.rsvp.submit}
+            </Button>
+          </>
+        )}
+
+        <div aria-live="polite" className="space-y-2">
+          {answer.isError && <FormMessage>{errorMessage(answer.error)}</FormMessage>}
+          {answer.isPending ? (
+            <p className="text-sm text-muted">{t.planGuests.rsvp.saving}</p>
+          ) : (
+            saved && <FormMessage tone="success">{saved === "saved" ? t.planGuests.rsvp.saved : t.planGuests.rsvp.withdrawn}</FormMessage>
+          )}
+        </div>
+
+        {open && me && (
+          <button
+            type="button"
+            data-testid="rsvp-withdraw"
+            onClick={() => {
+              const previous = chosen;
+              setChosen(null);
+              send(null, null, { to: previous });
+            }}
+            className={cn("min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline", answer.isPending && "pointer-events-none opacity-60")}
+          >
+            {t.planGuests.rsvp.withdraw}
+          </button>
+        )}
+        {open && <p className="text-[13px] leading-snug text-faint">{t.planGuests.rsvp.privacy}</p>}
+      </form>
+
+      {!signedIn && (me || !open) && (
+        <div className="vote-card mt-8 p-5 sm:p-6" data-testid="rsvp-cta">
+          <p className="text-[17px] font-bold text-fg">{t.planGuests.rsvp.ctaTitle}</p>
+          <p className="mt-1.5 text-[15px] leading-snug text-muted">{t.planGuests.rsvp.ctaBody}</p>
+          <ButtonLink to="/register" variant="secondary" block className="mt-4">
+            {t.plans.shared.register}
+          </ButtonLink>
+          <p className="mt-3 text-sm text-muted">
+            {t.plans.shared.hasAccount}{" "}
+            <Link to="/login" className={linkClass}>
+              {t.plans.shared.toLogin}
+            </Link>
+          </p>
+        </div>
+      )}
+    </AuthLayout>
+  );
+}

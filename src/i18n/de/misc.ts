@@ -55,10 +55,14 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
           body: str(p, "next_starts_at") ? `Nächster Termin: ${formatDateTime(str(p, "next_starts_at"))}` : "Der Stammtisch geht weiter.",
         }
       : { title: `${actor} hat einen Plan abgesagt`, body: str(p, "title") },
-  plan_attendance: (actor, p) => ({
-    title: p.status === "going" ? `${actor} ist dabei` : p.status === "maybe" ? `${actor} kommt vielleicht` : `${actor} hat abgesagt`,
-    body: str(p, "title"),
-  }),
+  plan_attendance: (actor, p) => {
+    // W10: Antwort über den Teilen-Link – ohne Konto, mit dem Namen des Gastes.
+    const who = p.guest ? `${str(p, "guest")} (Gast)` : actor;
+    return {
+      title: p.status === "going" ? `${who} ist dabei` : p.status === "maybe" ? `${who} kommt vielleicht` : `${who} hat abgesagt`,
+      body: str(p, "title"),
+    };
+  },
   booking_status: (_actor, p) => {
     const status: Record<string, string> = { confirmed: "Reservierung bestätigt", unavailable: "Reservierung nicht möglich: nichts frei", failed: "Reservierung fehlgeschlagen", cancelled_by_user: "Reservierung storniert" };
     return { title: status[str(p, "status")] ?? "Reservierungsstand geändert", body: str(p, "title") };
