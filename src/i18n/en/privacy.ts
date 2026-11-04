@@ -13,6 +13,7 @@ export const privacy = {
       title: "What is stored",
       items: [
         "Account: your email address and an encrypted password (with Supabase Auth).",
+        "Signing in with Google or Apple (only if you use it): the email address, your account ID there and the details the provider sends along (with Supabase Auth). For your profile we only take the first name as a suggestion, no profile picture. Google or Apple learns that you sign in to AFTERHOURS.",
         "Profile: display name, optionally a profile picture, city and interests.",
         "Birthday (only if you add it): day and month, no year. Members of your crews can see it; remove it and it's gone straight away.",
         "Activity: crews, messages in the crew chat, polls, votes, plans, replies, booking notes, rides, points and notifications.",

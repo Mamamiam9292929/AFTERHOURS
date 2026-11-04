@@ -11,6 +11,7 @@ export const privacy = {
       title: "Was gespeichert wird",
       items: [
         "Konto: deine E-Mail-Adresse und ein verschlüsseltes Passwort (bei Supabase Auth).",
+        "Anmeldung mit Google oder Apple (nur wenn du sie nutzt): die E-Mail-Adresse, die Kennung deines Kontos dort und die Angaben, die der Anbieter mitschickt (bei Supabase Auth). Für dein Profil übernehmen wir davon nur den Vornamen als Vorschlag, kein Profilbild. Google bzw. Apple erfährt, dass du dich bei AFTERHOURS anmeldest.",
         "Profil: Anzeigename, optional Profilbild, Stadt und Interessen.",
         "Geburtstag (nur wenn du ihn einträgst): Tag und Monat, ohne Jahr. Sehen können ihn die Mitglieder deiner Crews; entfernst du ihn, ist er sofort weg.",
         "Aktivität: Crews, Nachrichten im Crew-Chat, Abstimmungen, Stimmen, Pläne, Zusagen, Reservierungsvermerke, Mitfahrten, Punkte und Benachrichtigungen.",

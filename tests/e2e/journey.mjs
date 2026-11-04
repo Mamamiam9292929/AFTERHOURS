@@ -5517,6 +5517,94 @@ await step("P20 – Geburtstage in der Crew: eintragen, „Bald Geburtstag“, F
   check((await carol.page.getByTestId("crew-birthday").count()) === 0, "P20: danach sieht Carol nur noch den Hinweis");
 });
 
+// P12: Google und Apple erscheinen nur, wenn das Supabase-Projekt sie einschaltet (lokal aus – die Probe schaltet sie
+// in der Antwort von /auth/v1/settings ein). Der Anbieter selbst ist nicht erreichbar; geprüft wird, wohin der Knopf führt,
+// die Rückkehr mit Fehler und das Onboarding eines Kontos, das über Google entstanden ist (Altersbestätigung, Vorname).
+await step("P12 – Anmeldung mit Google und Apple: Knöpfe, Weiterleitung, Fehler, Onboarding (Fiona, 390 px)", async () => {
+  const fiona = await newUser("Fiona", "mobile");
+  const { page } = fiona;
+  try {
+    // Ohne eingeschaltete Anbieter: nur das E-Mail-Formular.
+    const settingsLoaded = page.waitForResponse((r) => r.url().includes("/auth/v1/settings"));
+    await page.goto(`${APP}/login`);
+    await settingsLoaded;
+    await page.getByRole("button", { name: "Anmelden", exact: true }).waitFor();
+    check((await page.getByTestId("social-sign-in").count()) === 0, "P12: ohne Anbieter im Projekt keine Google-/Apple-Knöpfe");
+
+    // Anbieter eingeschaltet (Antwort des Projekts verändert), Anbieter-Seite abgefangen.
+    await page.route("**/auth/v1/settings", async (route) => {
+      const response = await route.fetch();
+      const json = await response.json();
+      json.external = { ...(json.external ?? {}), google: true, apple: true };
+      await route.fulfill({ response, json });
+    });
+    let authorize = null;
+    await page.route("**/auth/v1/authorize**", async (route) => {
+      authorize = new URL(route.request().url());
+      await route.fulfill({ status: 200, contentType: "text/html", body: '<!doctype html><html lang="de"><title>Anbieter</title><main><h1>Anbieter</h1></main></html>' });
+    });
+    await page.goto(`${APP}/login`);
+    const group = page.getByRole("group", { name: "Mit einem bestehenden Konto weiter" });
+    await group.getByRole("button", { name: "Weiter mit Google" }).waitFor();
+    const labels = await group.getByRole("button").allInnerTexts();
+    check(labels.join("|") === "Weiter mit Google|Weiter mit Apple", `P12: Google und Apple über dem Formular (${labels.join(", ")})`);
+    check(await page.getByLabel("E-Mail-Adresse").isVisible(), "P12: E-Mail-Anmeldung bleibt daneben");
+    await shot(fiona, "p12-anmeldung-google-apple");
+
+    await page.goto(`${APP}/register`);
+    await page.getByRole("button", { name: "Weiter mit Apple" }).waitFor();
+    check(await page.getByLabel("Ich bin mindestens 16 Jahre alt.").isVisible(), "P12: Registrierung mit E-Mail behält die Altersbestätigung");
+    await page.getByRole("button", { name: "Weiter mit Google" }).click();
+    await page.waitForURL(/\/auth\/v1\/authorize/);
+    check(authorize?.searchParams.get("provider") === "google", `P12: Knopf führt zu Google (${authorize?.searchParams.get("provider")})`);
+    check((authorize?.searchParams.get("redirect_to") ?? "").endsWith("/auth/confirm?via=oauth"), `P12: zurück auf /auth/confirm (${authorize?.searchParams.get("redirect_to")})`);
+    await page.goto(`${APP}/login`);
+    await page.getByRole("button", { name: "Weiter mit Apple" }).click();
+    await page.waitForURL(/\/auth\/v1\/authorize/);
+    check(authorize?.searchParams.get("provider") === "apple", "P12: Knopf führt zu Apple");
+
+    // Zurück vom Anbieter mit Fehler (z. B. abgebrochen): eigene Meldung statt „Link abgelaufen“.
+    await page.goto(`${APP}/auth/confirm?via=oauth#error=access_denied&error_code=access_denied&error_description=Abgebrochen`);
+    await page.getByRole("heading", { name: "Die Anmeldung hat nicht geklappt" }).waitFor();
+    check(await page.getByRole("link", { name: "Zur Anmeldung" }).isVisible(), "P12: Fehler führt zurück zur Anmeldung");
+    await shot(fiona, "p12-anmeldung-fehlgeschlagen");
+
+    // Ein Konto, wie es über Google entsteht: Name nur aus den Angaben des Anbieters, Anbieter „google“.
+    if (!DB_URL || !ANON) {
+      console.log("   (ohne E2E_DB_URL/SUPABASE_ANON_KEY: Onboarding nach Google nicht geprüft)");
+      return;
+    }
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const signup = await fetch(`${API}/auth/v1/signup`, {
+      method: "POST",
+      headers: { apikey: ANON, "content-type": "application/json" },
+      body: JSON.stringify({ email: fiona.email, password: PASSWORD, data: { full_name: "Fiona Fuchs", name: "Fiona Fuchs", avatar_url: "https://example.invalid/fiona.png" } }),
+    });
+    check(signup.ok, `P12: Konto angelegt (${signup.status})`);
+    psql(`update auth.users set email_confirmed_at = now(), raw_app_meta_data = '{"provider": "google", "providers": ["google"]}' where email = '${fiona.email}'`);
+    check(psql(`select p.display_name || '|' || coalesce(p.avatar_url, '-') from public.profiles p join auth.users u on u.id = p.id where u.email = '${fiona.email}'`) === "Fiona|-", "P12: Vorname vom Anbieter, kein fremdes Profilbild");
+    await page.goto(`${APP}/login`);
+    await page.getByLabel("E-Mail-Adresse").fill(fiona.email);
+    await page.getByLabel("Passwort", { exact: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: "Anmelden", exact: true }).click();
+    await page.waitForURL(/\/onboarding/);
+    await page.getByRole("heading", { name: "Wie sollen dich deine Freunde sehen?" }).waitFor();
+    const age = page.getByLabel("Ich bin mindestens 16 Jahre alt.");
+    check(await age.isVisible(), "P12: Onboarding fragt Konten über Google nach dem Alter");
+    await page.getByRole("button", { name: "Weiter" }).click();
+    await page.getByText("AFTERHOURS kannst du ab 16 Jahren nutzen.").waitFor();
+    check(await page.getByRole("heading", { name: "Wie sollen dich deine Freunde sehen?" }).isVisible(), "P12: ohne Altersbestätigung geht es nicht weiter");
+    await age.check();
+    check((await page.getByText("AFTERHOURS kannst du ab 16 Jahren nutzen.").count()) === 0, "P12: Hinweis verschwindet mit dem Häkchen");
+    await shot(fiona, "p12-onboarding-alter");
+    await onboard(fiona);
+    check(!page.url().includes("/onboarding"), "P12: Onboarding abgeschlossen");
+  } finally {
+    await page.unroute("**/auth/v1/settings").catch(() => {});
+    await page.unroute("**/auth/v1/authorize**").catch(() => {});
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);

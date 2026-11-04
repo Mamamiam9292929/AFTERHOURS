@@ -16,6 +16,7 @@ import { useProfile, useSettings, useUpdateProfile, useUpdateSettings } from "@/
 import { AvatarPicker } from "@/features/profile/AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "@/features/profile/notificationGroups";
 import { loadTexts, t } from "@/i18n";
+import { needsAgeConfirmation } from "@/lib/authproviders";
 import { errorMessage } from "@/lib/errors";
 import { useDocumentTitle } from "@/lib/hooks";
 import type { ActivityCategory, Interest, UserSettings } from "@/lib/types";
@@ -59,6 +60,10 @@ export function OnboardingPage() {
   const [distance, setDistance] = useState<number | null>(null);
   const [notifications, setNotifications] = useState<UserSettings["notification_preferences"]>({});
   const [nameError, setNameError] = useState<string | null>(null);
+  // P12: Konten über Google/Apple haben das Registrierungsformular mit der Altersbestätigung nie gesehen.
+  const askAge = needsAgeConfirmation(user.app_metadata);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [ageError, setAgeError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   // Während und nach dem Speichern steuert diese Seite selbst, wohin es weitergeht (z. B. zur Einladung).
   const [finishing, setFinishing] = useState(false);
@@ -86,12 +91,17 @@ export function OnboardingPage() {
   const saving = finishing || updateProfile.isPending || updateSettings.isPending;
   const steps = invite ? 1 : STEPS;
 
+  /** Schritt 1: Name (und bei Google/Apple das Alter) – meldet Fehler am Feld, true = weiter. */
+  function profileStepValid(): boolean {
+    const nameInvalid = name.trim().length < 2;
+    const ageMissing = askAge && !ageConfirmed;
+    setNameError(nameInvalid ? t.validation.minLength(2) : null);
+    setAgeError(ageMissing ? t.auth.register.ageRequired : null);
+    return !nameInvalid && !ageMissing;
+  }
+
   function next() {
-    if (step === 1 && name.trim().length < 2) {
-      setNameError(t.validation.minLength(2));
-      return;
-    }
-    setNameError(null);
+    if (step === 1 && !profileStepValid()) return;
     setStep((s) => Math.min(steps, s + 1));
     window.scrollTo({ top: 0 });
   }
@@ -120,11 +130,7 @@ export function OnboardingPage() {
   /** Eingeladene: nur das Profil speichern, dann – wenn gewünscht – ausdrücklich beitreten. */
   async function finishInvited(join: boolean) {
     if (!invite || !inviteToken) return;
-    if (name.trim().length < 2) {
-      setNameError(t.validation.minLength(2));
-      return;
-    }
-    setNameError(null);
+    if (!profileStepValid()) return;
     setFormError(null);
     setFinishing(true);
     try {
@@ -197,6 +203,22 @@ export function OnboardingPage() {
                 ))}
               </datalist>
             </div>
+            {askAge && (
+              <div className="space-y-1.5">
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
+                  <input type="checkbox" name="age" checked={ageConfirmed} onChange={(e) => {
+                      setAgeConfirmed(e.target.checked);
+                      if (e.target.checked) setAgeError(null);
+                    }} className="size-5 shrink-0 accent-[var(--color-lime)]" aria-invalid={Boolean(ageError)} />
+                  {t.auth.register.ageConfirm}
+                </label>
+                {ageError && (
+                  <p role="alert" className="text-[13px] text-danger">
+                    {ageError}
+                  </p>
+                )}
+              </div>
+            )}
             {invite && (
               <>
                 <p className="text-[14px] leading-snug text-muted">{t.onboarding.invite.later}</p>

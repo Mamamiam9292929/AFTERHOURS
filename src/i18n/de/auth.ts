@@ -64,6 +64,16 @@ export const auth = {
     failedBody: "Bestätigungslinks sind nur begrenzt gültig und lassen sich einmal verwenden. Melde dich an – falls dein Konto noch nicht bestätigt ist, kannst du dort einen neuen Link anfordern.",
     toLogin: "Zur Anmeldung",
   },
+  // P12: Anmeldung mit Google und Apple (Knöpfe nur, wenn das Supabase-Projekt den Anbieter eingeschaltet hat).
+  social: {
+    google: "Weiter mit Google",
+    apple: "Weiter mit Apple",
+    label: "Mit einem bestehenden Konto weiter",
+    or: "oder mit E-Mail",
+    working: "Du wirst angemeldet …",
+    failedTitle: "Die Anmeldung hat nicht geklappt",
+    failedBody: "Google oder Apple hat die Anmeldung nicht bestätigt – vielleicht wurde sie abgebrochen. Versuch es noch einmal oder melde dich mit deiner E-Mail-Adresse an.",
+  },
   toStart: "AFTERHOURS – zur Startseite",
   signOut: "Abmelden",
   signedOut: "Du bist abgemeldet.",
