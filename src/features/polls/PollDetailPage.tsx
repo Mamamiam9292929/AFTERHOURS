@@ -12,12 +12,14 @@ import { Badge, EmptyState, ErrorState, PageSpinner } from "@/components/ui/Feed
 import { FormMessage, TextAreaField, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/features/auth/AuthProvider";
+import { useCrewAbsences } from "@/features/crews/absencesApi";
 import { canManageCrew, myRole, useCrews } from "@/features/crews/api";
 import { useActivity } from "@/features/discover/api";
 import { useCreatePlanFromPoll, usePlans } from "@/features/plans/api";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { DecidedMoment } from "./DecidedMoment";
+import { awayLine } from "./OptionAway";
 import { busyLine, myBusyPlans } from "./OptionBusy";
 import { SwipeDeck } from "./SwipeDeck";
 import { cn } from "@/lib/cn";
@@ -619,6 +621,9 @@ export function PollDetailPage() {
   const weatherFor = (option: PollOption) => Boolean(option.activity_id && option.proposed_date);
   const weatherWanted = Boolean(poll && poll.status === "open" && new Date(poll.ends_at) > now && poll.options.some(weatherFor));
   const weather = usePollWeather(poll, weatherWanted);
+  // P21: Wer an den Terminen weg ist – nur laden, solange über Termine abgestimmt wird.
+  const absencesWanted = Boolean(poll && poll.status === "open" && new Date(poll.ends_at) > now && poll.options.some((o) => o.proposed_date));
+  const absences = useCrewAbsences(poll?.crew_id ?? "", absencesWanted);
   // P5 Etappe 3: Name des festen Orts für den Kopf (nur bei Termin-Abstimmungen mit Ort).
   const place = useActivity(datePollPlaceId(poll));
   useDocumentTitle(poll?.title);
@@ -675,7 +680,13 @@ export function PollDetailPage() {
   // P18: Was du zu den Terminen der Vorschläge schon vorhast – aus deinen eigenen Plänen, nur solange
   // abgestimmt wird. Pläne aus dieser Abstimmung und den verknüpften (Stichwahl, Termin ↔ „Und wo?“) zählen nicht.
   const myPlans = summary.isOver ? [] : myBusyPlans(plans.data, user.id, poll, allPolls.data);
-  const busyOf = (option: PollOption, tone: "card" | "deck" = "card") => busyLine(option, myPlans, poll.crew_id, crews.data, tone);
+  const busyOf = (option: PollOption, tone: "card" | "deck" = "card") => (
+    <>
+      {busyLine(option, myPlans, poll.crew_id, crews.data, tone)}
+      {/* P21: „Nicht da: Bob“ unter Terminen, an denen jemand aus der Crew weg ist. */}
+      {!summary.isOver && awayLine(option.proposed_date, absences.data, memberIds, user.id, people.lookup, tone)}
+    </>
+  );
 
   function castVote(optionId: string, response: VoteResponse | null) {
     vote.mutate({ optionId, response }, { onError: (error) => toast.error(error) });

@@ -15,6 +15,7 @@ export const privacy = {
         "Account: your email address and an encrypted password (with Supabase Auth).",
         "Profile: display name, optionally a profile picture, city and interests.",
         "Birthday (only if you add it): day and month, no year. Members of your crews can see it and get one reminder a week before; remove it and it's gone straight away.",
+        "“Away” (only if you add something): the start and end of a period, no reason and no place. Members of your crews can see it until it's over; after that the app deletes it the next time you add one.",
         "Activity: crews, messages in the crew chat, polls, votes, plans, replies, booking notes, rides, points and notifications.",
         "Settings: budget, distance, notifications and your choice on location sharing.",
         "Photos for a plan (only if you share some): the shrunk photo – without location, camera and time, which the app removes first – and who shared it when. Only the plan's crew can see it. You can delete your photos at any time. If you delete your account, or the plan or crew is deleted, the app deletes the files too; at the latest 12 months after the night out, the photos disappear by themselves. If you report a photo, we store the reason; the organiser and crew admins see it without your name.",
