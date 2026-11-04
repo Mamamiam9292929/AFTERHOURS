@@ -73,6 +73,20 @@ export const crews = {
       addOwn: "Add your birthday",
       addOwnBody: "Add day and month – then your crew sees when it's time to celebrate. No year, remove it any time.",
     },
+    /** P21 Etappe 2: who in the crew is away now or in the next 14 days. */
+    away: {
+      titleNow: "Away right now",
+      titleSoon: "Away soon",
+      lead: "From “Away” in settings – best plan dates around it.",
+      you: "You",
+      untilToday: "until today",
+      untilTomorrow: "until tomorrow",
+      until: (date: string) => `until ${date}`,
+      fromTomorrow: "from tomorrow",
+      from: (date: string) => `from ${date}`,
+      range: (from: string, to: string) => (from === to ? from : `${from} – ${to}`),
+      addOwn: "Away soon yourself? Add it",
+    },
   },
   /** P9 · Crew-Rückblick: was die Crew gemeinsam erlebt hat (nur abgeschlossene Pläne, keine Rangliste von Personen). */
   recap: {

@@ -64,6 +64,8 @@ export const polls = {
         short: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
         chip: (weekday: string, date: string, time: string) => `${weekday} ${date} · ${time}`,
         listLabel: "Dates that suit you",
+        /** P21 Etappe 2: Vorschlag, an dem laut „Bin weg“ jemand aus der Crew weg ist (für Screenreader). */
+        someoneAway: "– someone is away",
       },
       place: {
         title: "Where? (optional)",
