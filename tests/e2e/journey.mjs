@@ -5676,11 +5676,11 @@ await step("P21 Etappe 2 – „Gerade weg“ auf der Crew-Seite, beim Anlegen v
     await page.goto(`${APP}/crews/${ids.crew}`);
     const card = page.getByTestId("crew-away");
     await card.waitFor();
-    check((await card.getByRole("heading").first().innerText()).trim() === "Gerade weg", "P21 Etappe 2: Karte „Gerade weg“ auf der Crew-Seite");
+    check((await card.getByRole("heading").first().textContent())?.trim() === "Gerade weg", "P21 Etappe 2: Karte „Gerade weg“ auf der Crew-Seite");
     const row = card.getByTestId("crew-away-row");
     check((await row.count()) === 1 && (await row.innerText()).includes(bobName), `P21 Etappe 2: ${bobName} steht drin`);
     const until = (await row.innerText()).replace(/\s+/g, " ");
-    check(until.includes(`bis ${short(d2)}`) || until.includes(`bis ${short(d2).replace(".", "")}`), `P21 Etappe 2: „bis ${short(d2)}“ (${until})`);
+    check(/\bbis \S/.test(until) && until.includes(short(d2)), `P21 Etappe 2: Pille „bis …“ mit dem letzten Tag ${short(d2)} (${until})`);
     check(await card.getByTestId("crew-away-add").isVisible(), "P21 Etappe 2: Carol (nicht weg) sieht „Selbst bald weg? Eintragen“");
     await noOverflow(carol, "Crew-Seite mit „Gerade weg“");
     await a11y(carol, "crew-gerade-weg");
