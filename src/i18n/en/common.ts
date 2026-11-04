@@ -218,6 +218,7 @@ export const errors = {
     plan_guests_started: "The plan has already started – this only works before it does.",
     plan_guest_member: "You're in this crew – answer directly in the app.",
     plan_guest_limit: "30 guests have already answered this plan – that's the maximum.",
+    plan_guest_not_found: "This guest answer no longer exists – maybe it has already been taken over or removed.",
     guest_not_found: "This guest vote no longer exists – maybe it has already been taken over or removed.",
     invalid_credentials: "Email address or password is incorrect.",
     email_not_confirmed: "Please confirm your email address first. The link is in the email we sent you.",

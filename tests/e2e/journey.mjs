@@ -1706,6 +1706,92 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
   }
 });
 
+await step("W10 Etappe 2 – Wer als Gast zugesagt hat und beitritt, übernimmt die Zusage", async () => {
+  if (!ANON) {
+    console.log("   (übersprungen: SUPABASE_ANON_KEY fehlt)");
+    return;
+  }
+  // Eigene kleine Crew, damit der Rest der Journey (Weekend Crew, Zusagen beim Bowling) unberührt bleibt.
+  const ida = await newUser("Ida", "desktop");
+  const jonas = await newUser("Jonas", "mobile");
+  try {
+    await register(ida);
+    await onboard(ida);
+    const crew = await api(ida, "POST", "rpc/create_crew", { p_name: "Tresen Crew", p_emoji: "🍺" });
+    check(crew.status === 200, `Ida gründet die Tresen Crew (${crew.status})`);
+    const inviteToken = (await api(ida, "POST", "rpc/create_crew_invitation", { p_crew_id: crew.json })).json?.[0]?.token;
+    const plan = await api(ida, "POST", "rpc/create_plan", {
+      p_crew_id: crew.json, p_title: "Quiz im Eck", p_starts_at: new Date(Date.now() + 3 * 24 * 3600_000).toISOString(), p_activity_id: null,
+      p_address: "Eckstraße 5, Berlin", p_meeting_point: null, p_notes: null, p_cost_per_person_cents: null, p_total_cost_cents: null, p_ends_at: null, p_confirmed: true,
+    });
+    check(plan.status < 300 && Boolean(inviteToken), `Plan und Einladungslink stehen (${plan.status})`);
+    await api(ida, "POST", "rpc/set_plan_guests", { p_plan_id: plan.json, p_allowed: true });
+    const token = (await api(ida, "POST", "rpc/plan_share_token", { p_plan_id: plan.json })).json;
+
+    // Jonas sagt ohne Konto zu …
+    await jonas.page.goto(`${APP}/s/${token}`);
+    await jonas.page.getByRole("heading", { level: 1, name: "Bist du dabei?" }).waitFor();
+    await jonas.page.getByLabel("Dein Name").fill("Jonas");
+    await jonas.page.getByRole("radio", { name: "Bin dabei" }).click();
+    await jonas.page.getByRole("button", { name: "Antwort senden" }).click();
+    await jonas.page.getByRole("heading", { level: 1, name: "Hallo Jonas" }).waitFor();
+
+    // … legt über den Einladungslink ein Konto an und tritt bei.
+    await jonas.page.goto(`${APP}/join/${inviteToken}`);
+    await jonas.page.waitForURL(/\/invite\/[0-9a-f]{64}$/);
+    await register(jonas, { here: true });
+    await jonas.page.getByRole("heading", { name: "Fast drin" }).waitFor();
+    await jonas.page.getByRole("button", { name: "Tresen Crew beitreten" }).click();
+    await jonas.page.waitForURL(new RegExp(`/crews/${crew.json}`));
+
+    // Auf der Planseite wartet die Übernahme.
+    await jonas.page.goto(`${APP}/plans/${plan.json}`);
+    await jonas.page.getByRole("heading", { level: 1, name: "Quiz im Eck" }).waitFor();
+    const card = jonas.page.getByRole("region", { name: "Du hast hier schon als Gast geantwortet" });
+    await card.waitFor();
+    check(await card.getByText("Als „Jonas“ hast du über den Link mit „Bin dabei“ geantwortet.", { exact: false }).isVisible(), "W10: Hinweis nennt Gastname und Antwort");
+    await jonas.page.getByTestId("who-guest").filter({ hasText: "Jonas (Gast)" }).waitFor();
+    check(true, "W10: vor der Übernahme steht Jonas noch als Gast bei „Wer“");
+    await shot(jonas, "16w5-plan-gast-zusage-uebernehmen");
+
+    // Ida (ohne Gast-Antwort auf dem Gerät) sieht den Hinweis nicht.
+    await ida.page.goto(`${APP}/plans/${plan.json}`);
+    await ida.page.getByRole("heading", { level: 1, name: "Quiz im Eck" }).waitFor();
+    await ida.page.getByTestId("who-guest").filter({ hasText: "Jonas (Gast)" }).waitFor();
+    check((await ida.page.getByRole("region", { name: "Du hast hier schon als Gast geantwortet" }).count()) === 0, "W10: ohne Gast-Antwort auf dem Gerät kein Hinweis");
+
+    // Fehlerzustand: Antwort des Servers wird verständlich angezeigt, die Karte bleibt.
+    await jonas.page.route("**/rpc/claim_plan_guest", (route) =>
+      route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ code: "P0001", message: "plan_guest_not_found", details: null, hint: null }) }),
+    );
+    await card.getByRole("button", { name: "Antwort übernehmen" }).click();
+    await toast(jonas, "Diese Gast-Antwort gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.");
+    check(await card.isVisible(), "W10: nach einem Fehler bleibt die Karte stehen");
+    await jonas.page.unroute("**/rpc/claim_plan_guest");
+
+    await card.getByRole("button", { name: "Antwort übernehmen" }).click();
+    await toast(jonas, "Antwort übernommen – du stehst jetzt als du selbst bei „Wer kommt mit?“.");
+    await card.waitFor({ state: "detached" });
+    await jonas.page.waitForFunction(() => document.querySelectorAll('[data-testid="who-guest"]').length === 0);
+    check(true, "W10: Jonas steht nicht mehr als Gast bei „Wer“");
+    check((await jonas.page.getByRole("radio", { name: "Bin dabei" }).getAttribute("aria-checked")) === "true", "W10: „Bin dabei“ ist jetzt Jonas’ eigene Antwort");
+    check(await jonas.page.evaluate((key) => localStorage.getItem(key) === null, `afterhours.planguest.${token}`), "W10: das Gast-Geheimnis ist vom Gerät gelöscht");
+    await shot(jonas, "16w6-plan-gast-zusage-uebernommen");
+
+    const guests = await api(ida, "GET", `plan_guests?select=id&plan_id=eq.${plan.json}`);
+    check(guests.status === 200 && guests.json.length === 0, "W10: in der Datenbank gibt es keinen Gast mehr");
+    const attack = await api(null, "POST", "rpc/claim_plan_guest", { p_plan_id: plan.json, p_secret: "a".repeat(64), p_keep: true });
+    check(attack.status >= 400, `W10: ohne Konto keine Übernahme (${attack.status})`);
+    const guess = await api(ida, "POST", "rpc/claim_plan_guest", { p_plan_id: plan.json, p_secret: "a".repeat(64), p_keep: true });
+    check(guess.status === 400 && guess.json?.message === "plan_guest_not_found", `W10: geratenes Geheimnis findet keinen Gast (${guess.status} ${guess.json?.message})`);
+  } finally {
+    for (const user of [ida, jonas]) {
+      users.splice(users.indexOf(user), 1);
+      await user.context.close();
+    }
+  }
+});
+
 await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahrgemeinschaft", async () => {
   const { page } = alice;
   check(await page.getByText("16 € pro Person").isVisible(), "Plan zeigt die Kostenschätzung pro Person (Richtwert des Ortes)");
