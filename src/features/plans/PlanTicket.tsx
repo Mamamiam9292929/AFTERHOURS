@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Feedback";
 import { LivePill } from "@/components/ui/Pill";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { spotsLeft, waitlistPosition } from "@/lib/capacity";
+import { spotsLeft, waitingGuests, waitlistPosition } from "@/lib/capacity";
 import { goingWithGuests, quorumLeft } from "@/lib/quorum";
 import { formatCountdown, liveCountdown } from "@/lib/quickvote";
 import { calendarDaysBetween, formatTime, ticketDate, zonedParts } from "@/lib/time";
@@ -106,7 +106,7 @@ function CapacityBadge({ plan, className }: { plan: PlanWithParticipants; classN
 /** P26 Etappe 2 · Eigene Antwort am Ticket – wer auf der Nachrückliste steht, sieht den Platz statt „vielleicht“. */
 function myStatusText(plan: PlanWithParticipants, userId: string, mine: AttendanceStatus): string {
   if (mine === "maybe") {
-    const position = waitlistPosition(plan.participants, userId);
+    const position = waitlistPosition(plan.participants, userId, waitingGuests(plan));
     if (position != null) return t.plans.ticket.capacity.you(position);
   }
   return MY_STATUS[mine];

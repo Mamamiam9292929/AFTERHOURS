@@ -10,14 +10,16 @@ import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { NoteEditor } from "./AnswerNote";
-import { type GuestAnswer, planGuestSecret, useGuestNote, useGuestRsvp, useSharedPlanRsvp } from "./guestsApi";
+import { type GuestAnswer, planGuestSecret, useGuestNote, useGuestRsvp, useGuestWaitlist, useSharedPlanRsvp } from "./guestsApi";
 
 // F7: Texte der Zusagen ohne Konto liegen nicht im Start-Bundle.
 await loadTexts("planGuests");
 
 const ANSWERS: GuestAnswer[] = ["going", "maybe", "declined"];
+/** P26 Etappe 3b: Bei voller Runde wird „Bin dabei“ zu „Nachrücken“ – wie auf der Planseite der Crew. */
+type Choice = GuestAnswer | "waitlist";
 /** Antwortfarben wie auf den Abstimm-Karten (`.vote-card[data-answer]`, `.vote-pill[data-response]`). */
-const CARD_ANSWER: Record<GuestAnswer, "yes" | "maybe" | "no"> = { going: "yes", maybe: "maybe", declined: "no" };
+const CARD_ANSWER: Record<Choice, "yes" | "maybe" | "no"> = { going: "yes", maybe: "maybe", declined: "no", waitlist: "maybe" };
 
 const linkClass = "font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime";
 const clean = (name: string) => name.trim().replace(/\s+/g, " ");
@@ -45,12 +47,13 @@ export function SharedPlanRsvp({
   const rsvp = useSharedPlanRsvp(token, secret);
   const answer = useGuestRsvp(token, secret);
   const note = useGuestNote(token, secret);
+  const waitlist = useGuestWaitlist(token, secret);
   const [deviceName, setDeviceName] = useState(() => rememberedGuestName());
   const [name, setName] = useState(() => deviceName ?? "");
   const [editingName, setEditingName] = useState(false);
-  const [chosen, setChosen] = useState<GuestAnswer | null>(null);
+  const [chosen, setChosen] = useState<Choice | null>(null);
   const [errors, setErrors] = useState<{ name?: string | null; answer?: string | null }>({});
-  const [saved, setSaved] = useState<"saved" | "withdrawn" | null>(null);
+  const [saved, setSaved] = useState<"saved" | "withdrawn" | "waitlist" | "left" | null>(null);
   const loaded = rsvp.data?.status === "valid" ? rsvp.data : null;
   const me = loaded?.me ?? null;
   // Antworten nacheinander senden, damit schnelles Tippen nichts überholt.
@@ -61,7 +64,7 @@ export function SharedPlanRsvp({
     if (initialized || !loaded) return;
     setInitialized(true);
     if (me) {
-      setChosen(me.status);
+      setChosen(me.waitlist ? "waitlist" : me.status);
       setName(me.name);
     }
   }, [initialized, loaded, me]);
@@ -84,15 +87,29 @@ export function SharedPlanRsvp({
   // P26 Etappe 2: Ist die Runde voll, bleibt „Bin dabei“ zu – wer schon zugesagt hat, behält den Platz.
   const goingClosed = full && me?.status !== "going";
   const fullError = answer.isError && (answer.error as { code?: string; message?: string }).message === "plan_full";
+  // P26 Etappe 3b: Fehler der letzten Aktion – Antwort oder Nachrückliste.
+  const failed = answer.isError ? answer.error : waitlist.isError ? waitlist.error : null;
+  const pending = answer.isPending || waitlist.isPending;
+  const position = me?.waitlist ?? null;
+
+  /** Antwort, „Nachrücken“ oder – wer auf der Liste steht und „Vielleicht“ tippt – von der Liste gehen. */
+  function request(choice: Choice | null, guestName: string | null): Promise<"saved" | "withdrawn" | "waitlist" | "left"> {
+    if (choice === "waitlist") return waitlist.mutateAsync({ name: guestName, join: true }).then(() => "waitlist" as const);
+    if (choice === "maybe" && position != null && (!guestName || guestName === me?.name)) {
+      return waitlist.mutateAsync({ name: null, join: false }).then(() => "left" as const);
+    }
+    return answer.mutateAsync({ name: guestName, status: choice }).then(() => (choice ? ("saved" as const) : ("withdrawn" as const)));
+  }
 
   /** `revert`: bei einem Fehler die vorige Antwort wieder zeigen (Ein-Tipp); im Formular bleibt die Auswahl stehen. */
-  function send(status: GuestAnswer | null, guestName: string | null, revert?: { to: GuestAnswer | null }) {
+  function send(status: Choice | null, guestName: string | null, revert?: { to: Choice | null }) {
     setSaved(null);
+    answer.reset();
+    waitlist.reset();
     queue.current = queue.current.then(() =>
-      answer
-        .mutateAsync({ name: guestName, status })
-        .then(() => {
-          setSaved(status ? "saved" : "withdrawn");
+      request(status, guestName)
+        .then((result) => {
+          setSaved(result);
           if (guestName) {
             rememberGuestName(guestName);
             setDeviceName(guestName);
@@ -105,7 +122,7 @@ export function SharedPlanRsvp({
     );
   }
 
-  function tap(next: GuestAnswer) {
+  function tap(next: Choice) {
     setErrors({});
     const previous = chosen;
     setChosen(next);
@@ -150,11 +167,26 @@ export function SharedPlanRsvp({
           <p className="mt-1 text-sm text-muted">{t.planGuests.rsvp.counts(loaded.counts.going, loaded.counts.maybe)}</p>
           {open ? (
             <div role="radiogroup" aria-label={t.planGuests.rsvp.question} aria-describedby={errors.answer ? "rsvp-answer-error" : undefined} className="mt-3 grid grid-cols-3 gap-2">
-              {ANSWERS.map((value) => (
-                <button key={value} type="button" role="radio" aria-checked={chosen === value} data-response={CARD_ANSWER[value]} disabled={(answer.isPending && oneTap) || (value === "going" && goingClosed)} onClick={() => tap(value)} className="vote-pill">
-                  {t.plans.detail.attendance[value]}
-                </button>
-              ))}
+              {ANSWERS.map((answerValue) => {
+                // P26 Etappe 3b: Runde voll – statt „Bin dabei“ in die Reihe (wer schon dabei ist, behält den Platz).
+                const value: Choice = answerValue === "going" && goingClosed ? "waitlist" : answerValue;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={chosen === value}
+                    aria-label={value === "waitlist" ? t.plans.detail.attendance.waitlistLabel : undefined}
+                    data-response={CARD_ANSWER[value]}
+                    data-testid={value === "waitlist" ? "rsvp-waitlist" : undefined}
+                    disabled={(pending && oneTap) || (value === "waitlist" && position != null)}
+                    onClick={() => tap(value)}
+                    className="vote-pill"
+                  >
+                    {value === "waitlist" ? t.plans.detail.attendance.waitlist : t.plans.detail.attendance[value]}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             me && (
@@ -163,7 +195,31 @@ export function SharedPlanRsvp({
               </p>
             )
           )}
-          {open && goingClosed && (
+          {/* P26 Etappe 3b: Platz auf der Nachrückliste bzw. nachgerückt. Ohne Konto gibt es keine Nachricht – das steht da. */}
+          {open && position != null && (
+            <div className="mt-3 rounded-[16px] border border-white/15 bg-black/25 p-3" data-testid="rsvp-waitlist-mine" aria-live="polite">
+              <p className="text-sm font-bold text-fg">{t.planGuests.rsvp.waitlist.position(position)}</p>
+              <p className="mt-0.5 text-[13px] leading-snug text-muted">{t.planGuests.rsvp.waitlist.body}</p>
+              <button
+                type="button"
+                data-testid="rsvp-waitlist-leave"
+                onClick={() => {
+                  const previous = chosen;
+                  setChosen("maybe");
+                  send("maybe", null, { to: previous });
+                }}
+                className={cn("mt-1 min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline", pending && "pointer-events-none opacity-60")}
+              >
+                {t.planGuests.rsvp.waitlist.leave}
+              </button>
+            </div>
+          )}
+          {open && me?.promoted && (
+            <p className="mt-3 rounded-[16px] border border-lime/40 bg-lime/10 p-3 text-sm font-semibold leading-snug text-fg" data-testid="rsvp-promoted">
+              {t.planGuests.rsvp.waitlist.promoted}
+            </p>
+          )}
+          {open && goingClosed && position == null && (
             <p className="mt-3 text-sm leading-snug text-muted" data-testid="rsvp-full">
               {t.planGuests.rsvp.full}
             </p>
@@ -174,7 +230,7 @@ export function SharedPlanRsvp({
             </p>
           )}
           {/* P24 Etappe 2: Zusatz zur gespeicherten Antwort („komme später“) – erst, wenn sie beim Server ist. */}
-          {open && me && chosen === me.status && !answer.isPending && (
+          {open && me && chosen === me.status && !pending && (
             <NoteEditor key={me.status} answer={me.status} note={me.note ?? null} pending={note.isPending} save={(value, callbacks) => note.mutate(value, callbacks)} />
           )}
         </div>
@@ -218,18 +274,22 @@ export function SharedPlanRsvp({
               error={errors.name}
               required
             />
-            <Button type="submit" size="lg" block loading={answer.isPending}>
+            <Button type="submit" size="lg" block loading={pending}>
               {me ? t.planGuests.rsvp.update : t.planGuests.rsvp.submit}
             </Button>
           </>
         )}
 
         <div aria-live="polite" className="space-y-2">
-          {answer.isError && <FormMessage>{fullError ? t.planGuests.rsvp.full : errorMessage(answer.error)}</FormMessage>}
-          {answer.isPending ? (
+          {failed && <FormMessage>{fullError ? t.planGuests.rsvp.full : errorMessage(failed)}</FormMessage>}
+          {pending ? (
             <p className="text-sm text-muted">{t.planGuests.rsvp.saving}</p>
           ) : (
-            saved && <FormMessage tone="success">{saved === "saved" ? t.planGuests.rsvp.saved : t.planGuests.rsvp.withdrawn}</FormMessage>
+            saved && (
+              <FormMessage tone="success">
+                {saved === "saved" ? t.planGuests.rsvp.saved : saved === "withdrawn" ? t.planGuests.rsvp.withdrawn : saved === "waitlist" ? t.planGuests.rsvp.waitlist.joined : t.planGuests.rsvp.waitlist.left}
+              </FormMessage>
+            )
           )}
         </div>
 
@@ -242,7 +302,7 @@ export function SharedPlanRsvp({
               setChosen(null);
               send(null, null, { to: previous });
             }}
-            className={cn("min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline", answer.isPending && "pointer-events-none opacity-60")}
+            className={cn("min-h-11 text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline", pending && "pointer-events-none opacity-60")}
           >
             {t.planGuests.rsvp.withdraw}
           </button>

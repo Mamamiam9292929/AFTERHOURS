@@ -3261,6 +3261,8 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     const capPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
       values ('${ids.crew}', '${bobId}', 'Bowling auf Bahn 3', date_trunc('day', now()) + interval '6 days 19 hours', 'confirmed')
       returning id`).split("\n")[0];
+    // P26 Etappe 3b: Der Gast-Browser bleibt bis zum Nachrücken offen (sein Geheimnis liegt dort im Speicher).
+    let capOutsider = null;
     psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
       select '${capPlan}', m.user_id,
         case when m.user_id in ('${bobId}', '${aliceId}') then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
@@ -3339,18 +3341,20 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await noOverflow(carol, "Höchstzahl am Ticket");
       await a11y(carol, "plaene-hoechstzahl");
       await shot(carol, "21u2-plaene-ticket-voll");
-      // … und wer den Link ohne Konto öffnet, sieht „Voll“; als Gast geht nur „Vielleicht“ oder „Kann nicht“.
+      // … und wer den Link ohne Konto öffnet, sieht „Voll“; statt „Bin dabei“ stellt sich der Gast in dieselbe Reihe
+      // (P26 Etappe 3b) – hinter Carol, mit Namen, ohne Konto.
       check((await api(bob, "POST", "rpc/set_plan_guests", { p_plan_id: capPlan, p_allowed: true })).status < 300, "Höchstzahl: Bob lässt Gäste zusagen");
       const capToken = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: capPlan })).json;
-      const capOutsider = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
-      try {
-        const visitor = { page: await capOutsider.newPage(), viewport: "mobile" };
+      capOutsider = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+      const visitor = { page: await capOutsider.newPage(), viewport: "mobile" };
+      {
         await visitor.page.goto(`${APP}/s/${capToken}`);
         const sharedCap = visitor.page.locator('[data-testid="shared-plan-capacity"][data-full="true"]');
         await sharedCap.waitFor();
         check((await sharedCap.innerText()).trim() === "Voll – wer absagt, macht Platz", "Höchstzahl: geteilte Karte zeigt „Voll“");
         await visitor.page.getByTestId("rsvp-full").waitFor();
-        check(await visitor.page.getByRole("radio", { name: "Bin dabei" }).isDisabled(), "Höchstzahl: Gast kann bei voller Runde nicht zusagen");
+        check((await visitor.page.getByRole("radio", { name: "Bin dabei" }).count()) === 0, "Höchstzahl: Gast kann bei voller Runde nicht zusagen");
+        check(!(await visitor.page.getByTestId("rsvp-waitlist").isDisabled()), "Höchstzahl: Gast bekommt „Nachrücken“");
         check(!(await visitor.page.getByRole("radio", { name: "Vielleicht" }).isDisabled()), "Höchstzahl: „Vielleicht“ bleibt für Gäste offen");
         check(!(await visitor.page.content()).includes("Carol"), "Höchstzahl: geteilte Karte verrät die Nachrückliste nicht");
         await noOverflow(visitor, "Höchstzahl auf der geteilten Karte");
@@ -3358,9 +3362,31 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
         await shot(visitor, "21u3-geteilt-voll");
         await visitor.page.getByTestId("rsvp-full").evaluate((el) => el.scrollIntoView({ block: "center" }));
         await shot(visitor, "21u4-geteilt-voll-gast");
-      } finally {
-        await capOutsider.close();
+        // P26 Etappe 3b: Dana (ohne Konto) tippt „Nachrücken“, gibt ihren Namen ein – Nr. 2 hinter Carol.
+        await visitor.page.getByTestId("rsvp-waitlist").click();
+        await visitor.page.getByLabel("Dein Name").fill("Dana");
+        await visitor.page.getByRole("button", { name: "Antwort senden" }).click();
+        const guestMine = visitor.page.getByTestId("rsvp-waitlist-mine");
+        await guestMine.waitFor();
+        check((await guestMine.innerText()).includes("Du bist Nr. 2 auf der Nachrückliste"), "Höchstzahl: Gast steht als Nr. 2 auf der Liste");
+        check((await guestMine.innerText()).includes("keine Nachricht"), "Höchstzahl: Gast erfährt, dass ohne Konto keine Nachricht kommt");
+        check(await visitor.page.getByTestId("rsvp-waitlist").isDisabled(), "Höchstzahl: „Nachrücken“ ist gewählt");
+        check(psql(`select count(*) from public.plan_guests where plan_id = '${capPlan}' and display_name = 'Dana' and waitlisted_at is not null and attendance_status = 'maybe'`) === "1",
+          "Höchstzahl: Dana steht mit „Vielleicht“ auf der Liste");
+        await guestMine.evaluate((el) => el.scrollIntoView({ block: "center" }));
+        await noOverflow(visitor, "Gast auf der Nachrückliste");
+        await a11y(visitor, "geteilt-nachrueckliste");
+        await shot(visitor, "21u5-geteilt-gast-nachrueckliste");
       }
+      // Die Crew sieht Dana in derselben Reihe – hinter Carol.
+      await carol.page.goto(`${APP}/plans/${capPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Bowling auf Bahn 3" }).waitFor();
+      const guestEntry = carol.page.locator('[data-testid="plan-waitlist-entry"][data-kind="guest"]');
+      await guestEntry.waitFor();
+      check((await guestEntry.innerText()).includes("2") && (await guestEntry.innerText()).includes("Dana (Gast)"), "Höchstzahl: Crew sieht „Dana (Gast)“ als Nr. 2");
+      check((await carol.page.getByTestId("who-guest").filter({ hasText: "Dana" }).count()) === 0, "Höchstzahl: Gast auf der Liste steht nicht zusätzlich bei „Vielleicht“");
+      await carol.page.getByTestId("plan-waitlist").evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(carol, "21u6-nachrueckliste-mit-gast");
       await carol.page.goto(`${APP}/plans/${capPlan}`);
       await carol.page.getByRole("heading", { level: 1, name: "Bowling auf Bahn 3" }).waitFor();
 
@@ -3382,6 +3408,26 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await carol.page.waitForURL(`**/plans/${capPlan}`);
       check(true, "Höchstzahl: Nachricht führt zum Plan");
 
+      // P26 Etappe 3b: Carol sagt doch ab – Dana (Gast) rückt nach und liest es auf der Karte.
+      check((await api(carol, "POST", "rpc/set_attendance", { p_plan_id: capPlan, p_status: "declined" })).status < 300, "Höchstzahl: Carol sagt ab");
+      check(psql(`select attendance_status from public.plan_guests where plan_id = '${capPlan}' and display_name = 'Dana'`) === "going", "Höchstzahl: Gast Dana ist nachgerückt");
+      check(psql(`select count(*) from public.notifications where type = 'plan_attendance' and related_entity_id = '${capPlan}' and user_id = '${bobId}' and payload ->> 'guest' = 'Dana'`) === "1",
+        "Höchstzahl: Bob (organisiert) erfährt, dass Dana dabei ist");
+      {
+        const visitor = { page: capOutsider.pages()[0], viewport: "mobile" };
+        await visitor.page.reload();
+        const promoted = visitor.page.getByTestId("rsvp-promoted");
+        await promoted.waitFor();
+        check((await promoted.innerText()).includes("Du bist nachgerückt"), "Höchstzahl: Gast liest „Du bist nachgerückt“");
+        check((await visitor.page.getByTestId("rsvp-waitlist-mine").count()) === 0, "Höchstzahl: kein Listen-Hinweis mehr beim Gast");
+        await visitor.page.locator('[role="radio"][aria-checked="true"]', { hasText: "Bin dabei" }).waitFor();
+        await promoted.evaluate((el) => el.scrollIntoView({ block: "center" }));
+        await noOverflow(visitor, "Gast nachgerückt");
+        await shot(visitor, "21v2-geteilt-gast-nachgerueckt");
+      }
+      await capOutsider.close();
+      capOutsider = null;
+
       // Bob öffnet die Runde wieder.
       await bob.page.reload();
       await bob.page.getByTestId("plan-capacity-card").getByRole("radio", { name: "Keine Höchstzahl" }).click();
@@ -3397,6 +3443,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
         check(res.status === 401 || res.status === 403, `ohne Anmeldung keine Höchstzahl (${res.status})`);
       }
     } finally {
+      if (capOutsider) await capOutsider.close().catch(() => {});
       psql(`delete from public.notifications where related_entity_id = '${capPlan}'; delete from public.plans where id = '${capPlan}'`);
     }
   }

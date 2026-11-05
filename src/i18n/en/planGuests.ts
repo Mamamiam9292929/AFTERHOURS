@@ -3,7 +3,15 @@ import type { planGuests as dePlanGuests } from "../de/planGuests";
 export const planGuests = {
   rsvp: {
     /** P26 Etappe 2: Runde voll – „Bin dabei“ geht erst wieder, wenn jemand absagt. */
-    full: "This plan is full right now. If someone drops out, a spot opens up here – “Maybe” always works.",
+    full: "This plan is full right now. Tap “Waitlist” – if someone drops out, you’re in automatically. “Maybe” always works.",
+    waitlist: {
+      position: (n: number) => (n === 1 ? "You're next" : `You're #${n} on the waitlist`),
+      body: "If someone drops out, you’re in automatically. Without an account we can’t message you – check back via this link.",
+      leave: "Leave the waitlist",
+      joined: "You’re on the waitlist.",
+      left: "You’re off the waitlist – “Maybe” stays.",
+      promoted: "You moved up – a spot opened and you’re in.",
+    },
     title: "Are you in?",
     intro: "Answer with your name – no app, no account. The crew sees your name and your answer.",
     changeTitle: (name: string) => `Hi ${name}`,

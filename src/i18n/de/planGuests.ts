@@ -1,8 +1,17 @@
 /** W10 · Zusagen ohne Konto beim geteilten Plan – Seitentexte, geladen erst mit Zusagekarte bzw. Gästeliste (F7). */
 export const planGuests = {
   rsvp: {
-    /** P26 Etappe 2: Runde voll – „Bin dabei“ geht erst wieder, wenn jemand absagt. */
-    full: "Die Runde ist gerade voll. Sagt jemand ab, wird hier wieder ein Platz frei – „Vielleicht“ geht jederzeit.",
+    /** P26 Etappe 2/3b: Runde voll – statt „Bin dabei“ auf die Nachrückliste. */
+    full: "Die Runde ist gerade voll. Tipp auf „Nachrücken“ – sagt jemand ab, bist du automatisch dabei. „Vielleicht“ geht jederzeit.",
+    /** P26 Etappe 3b: eigener Platz auf der Nachrückliste; ohne Konto gibt es keine Nachricht. */
+    waitlist: {
+      position: (n: number) => (n === 1 ? "Du bist als Nächstes dran" : `Du bist Nr. ${n} auf der Nachrückliste`),
+      body: "Sagt jemand ab, bist du automatisch dabei. Ohne Konto können wir dir keine Nachricht schicken – schau über diesen Link wieder rein.",
+      leave: "Von der Nachrückliste gehen",
+      joined: "Du stehst auf der Nachrückliste.",
+      left: "Du stehst nicht mehr auf der Nachrückliste – „Vielleicht“ bleibt.",
+      promoted: "Du bist nachgerückt – ein Platz ist frei geworden, du bist dabei.",
+    },
     title: "Bist du dabei?",
     intro: "Sag mit deinem Namen zu – ohne App und ohne Konto. Die Crew sieht deinen Namen und deine Antwort.",
     changeTitle: (name: string) => `Hallo ${name}`,

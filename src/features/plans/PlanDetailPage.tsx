@@ -373,8 +373,9 @@ export function PlanDetailPage() {
                 {GROUPS.map((status) => {
                   // P26: Wer auf der Nachrückliste steht, erscheint dort (in Reihenfolge), nicht bei „Vielleicht“.
                   const group = plan.participants.filter((p) => p.attendance_status === status && !(status === "maybe" && p.waitlisted_at));
-                  // W10: Zusagen ohne Konto stehen in derselben Gruppe, gekennzeichnet als Gast.
-                  const guests = (plan.guests ?? []).filter((g) => g.attendance_status === status);
+                  // W10: Zusagen ohne Konto stehen in derselben Gruppe, gekennzeichnet als Gast. P26 Etappe 3b: Gäste auf
+                  // der Nachrückliste stehen dort (solange Zusagen über den Link an sind), nicht bei „Vielleicht“.
+                  const guests = (plan.guests ?? []).filter((g) => g.attendance_status === status && !(status === "maybe" && g.waitlisted_at && plan.guests_allowed));
                   if (group.length + guests.length === 0) return null;
                   // P19: Wer organisiert (oder Owner/Admin ist), fragt alle ohne Antwort mit einem Tipp – nur vor Beginn.
                   const askable = status === "invited" && canManage && !locked && !started ? group.filter((p) => p.user_id !== user.id).length : 0;

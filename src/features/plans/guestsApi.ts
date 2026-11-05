@@ -43,8 +43,11 @@ export type SharedPlanRsvp =
         meeting_point: string | null;
       };
       counts: { going: number; maybe: number };
-      /** P24 Etappe 2: `note` fehlt, solange es keinen Zusatz gibt. */
-      me: { name: string; status: GuestAnswer; note?: string } | null;
+      /**
+       * P24 Etappe 2: `note` fehlt, solange es keinen Zusatz gibt. P26 Etappe 3b: `waitlist` = eigener Platz auf der
+       * Nachrückliste (1 = als Nächstes), `promoted` = über die Liste nachgerückt; beide fehlen sonst.
+       */
+      me: { name: string; status: GuestAnswer; note?: string; waitlist?: number; promoted?: true } | null;
     }
   | { status: "not_found" | "expired" | "guests_off" };
 
@@ -72,6 +75,25 @@ export function useGuestRsvp(token: string, secret: string) {
     mutationFn: async (input: { name: string | null; status: GuestAnswer | null }) => {
       const { error } = await supabase.rpc("guest_rsvp_shared_plan", { p_token: token, p_secret: secret, p_name: input.name, p_status: input.status });
       if (error) throw error;
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: rsvpKey(token) });
+      void client.invalidateQueries({ queryKey: ["plan-share-preview", token] });
+    },
+  });
+}
+
+/**
+ * P26 Etappe 3b · Bei voller Runde auf die Nachrückliste (`join: true`) oder herunter. Liefert den Platz (1 = als
+ * Nächstes) bzw. null. Wer noch nicht geantwortet hat, braucht einen Namen und steht danach mit „Vielleicht“ da.
+ */
+export function useGuestWaitlist(token: string, secret: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { name: string | null; join: boolean }): Promise<number | null> => {
+      const { data, error } = await supabase.rpc("guest_waitlist_shared_plan", { p_token: token, p_secret: secret, p_name: input.name, p_join: input.join });
+      if (error) throw error;
+      return (data as number | null) ?? null;
     },
     onSettled: () => {
       void client.invalidateQueries({ queryKey: rsvpKey(token) });

@@ -253,6 +253,8 @@ export interface PlanGuest {
   attendance_status: Exclude<AttendanceStatus, "invited">;
   /** P24 Etappe 2: Zusatz zur Gast-Antwort. */
   note?: string | null;
+  /** P26 Etappe 3b: seit wann auf der Nachrückliste (gemeinsam mit der Crew), sonst null. */
+  waitlisted_at?: string | null;
   created_at: string;
   updated_at: string;
 }
