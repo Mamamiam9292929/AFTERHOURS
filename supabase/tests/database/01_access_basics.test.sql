@@ -28,8 +28,9 @@ select is(
                        'public.shared_plan_rsvp(text, text)'::regprocedure,
                        'public.guest_rsvp_shared_plan(text, text, text, text)'::regprocedure,
                        'public.guest_note_shared_plan(text, text, text)'::regprocedure,
+                       'public.guest_waitlist_shared_plan(text, text, text, boolean)'::regprocedure,
                        'public.calendar_feed_events(text)'::regprocedure)),
-  0, 'anon darf keine Funktion ausführen – Ausnahmen: Einladungsvorschau (W1), Plan- und Abstimmungs-Vorschau (W2), Stimmzettel, Abstimmen und Beitrittslink als Gast (W3), Zusagen als Gast beim Plan (W10) mit Zusatz (P24), Kalender-Abo (P2)');
+  0, 'anon darf keine Funktion ausführen – Ausnahmen: Einladungsvorschau (W1), Plan- und Abstimmungs-Vorschau (W2), Stimmzettel, Abstimmen und Beitrittslink als Gast (W3), Zusagen als Gast beim Plan (W10) mit Zusatz (P24) und Nachrückliste (P26), Kalender-Abo (P2)');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace

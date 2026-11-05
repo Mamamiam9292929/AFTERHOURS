@@ -26,22 +26,47 @@ export function joinsWaitlist(plan: CapacityPlan, mine: string | null | undefine
 }
 
 type Waiting = { user_id: string; waitlisted_at?: string | null };
+type WaitingGuest = { id: string; waitlisted_at?: string | null };
 
-/** Nachrückliste in der Reihenfolge des Servers: wer sich zuerst eingetragen hat, rückt zuerst nach. */
+/** Nachrückliste der Crew in der Reihenfolge des Servers: wer sich zuerst eingetragen hat, rückt zuerst nach. */
 export function waitlist<T extends Waiting>(participants: T[]): T[] {
-  return participants
-    .filter((p) => p.waitlisted_at)
-    .sort((a, b) => {
-      const ta = new Date(a.waitlisted_at as string).getTime();
-      const tb = new Date(b.waitlisted_at as string).getTime();
-      return ta - tb || (a.user_id < b.user_id ? -1 : a.user_id > b.user_id ? 1 : 0);
-    });
+  return planWaitlist(participants).flatMap((e) => (e.kind === "member" ? [e.entry] : []));
 }
 
-/** Eigener Platz auf der Nachrückliste (1 = als Nächstes), sonst `null`. */
-export function waitlistPosition(participants: Waiting[], userId: string): number | null {
-  const index = waitlist(participants).findIndex((p) => p.user_id === userId);
+/** P26 Etappe 3b · Ein Platz auf der gemeinsamen Liste: Mitglied oder Gast ohne Konto. */
+export type WaitlistEntry<P extends Waiting = Waiting, G extends WaitingGuest = WaitingGuest> =
+  | { kind: "member"; key: string; entry: P }
+  | { kind: "guest"; key: string; entry: G };
+
+const time = (at: string | null | undefined) => new Date(at as string).getTime();
+
+/**
+ * P26 Etappe 3b · Gemeinsame Nachrückliste von Crew und Gästen – Reihenfolge wie `app_private.plan_waitlist_queue`:
+ * nach Zeitpunkt, bei Gleichstand erst Mitglieder, dann nach Kennung. Gäste nur übergeben, wenn Zusagen über den
+ * Link an sind (sonst rücken sie nicht nach und zählen auch nicht).
+ */
+export function planWaitlist<P extends Waiting, G extends WaitingGuest>(participants: P[], guests: G[] = []): WaitlistEntry<P, G>[] {
+  const entries: WaitlistEntry<P, G>[] = [
+    ...participants.filter((p) => p.waitlisted_at).map((p) => ({ kind: "member" as const, key: p.user_id, entry: p })),
+    ...guests.filter((g) => g.waitlisted_at).map((g) => ({ kind: "guest" as const, key: g.id, entry: g })),
+  ];
+  return entries.sort(
+    (a, b) =>
+      time(a.entry.waitlisted_at) - time(b.entry.waitlisted_at) ||
+      (a.kind === b.kind ? 0 : a.kind === "member" ? -1 : 1) ||
+      (a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
+  );
+}
+
+/** Eigener Platz auf der Nachrückliste (1 = als Nächstes), sonst `null`. Gäste davor zählen mit (Etappe 3b). */
+export function waitlistPosition(participants: Waiting[], userId: string, guests: WaitingGuest[] = []): number | null {
+  const index = planWaitlist(participants, guests).findIndex((e) => e.kind === "member" && e.key === userId);
   return index < 0 ? null : index + 1;
+}
+
+/** Gäste, die auf der gemeinsamen Liste mitzählen – nur solange Zusagen über den Link an sind. */
+export function waitingGuests<G extends WaitingGuest>(plan: { guests_allowed?: boolean; guests?: G[] }): G[] {
+  return plan.guests_allowed ? (plan.guests ?? []) : [];
 }
 
 /** Zur Wahl stehende Höchstzahlen: nie unter den Zusagen, nie unter der Mindestzahl; eine gespeicherte bleibt wählbar. */

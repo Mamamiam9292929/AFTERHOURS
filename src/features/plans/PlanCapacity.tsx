@@ -4,7 +4,7 @@ import { Avatar, type Person } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
-import { capacityOptions, spotsLeft, waitlist, waitlistPosition } from "@/lib/capacity";
+import { capacityOptions, planWaitlist, spotsLeft, waitingGuests, waitlistPosition } from "@/lib/capacity";
 import { cn } from "@/lib/cn";
 import { qk } from "@/lib/query";
 import { goingWithGuests } from "@/lib/quorum";
@@ -55,7 +55,8 @@ export function CapacityMeter({ plan, userId, lookup, now }: { plan: PlanWithPar
   const going = goingWithGuests(plan);
   const left = spotsLeft(plan, going, now);
   if (max == null || left == null) return null;
-  const queue = waitlist(plan.participants);
+  // Etappe 3b: Gäste ohne Konto stehen in derselben Reihe.
+  const queue = planWaitlist(plan.participants, waitingGuests(plan));
   const texts = t.planCapacity.meter;
   const full = left === 0;
   return (
@@ -84,15 +85,29 @@ export function CapacityMeter({ plan, userId, lookup, now }: { plan: PlanWithPar
             {texts.waitlistTitle(queue.length)}
           </p>
           <ol className="mt-2 flex flex-wrap gap-2">
-            {queue.map((p, index) => {
-              const person = lookup(p.user_id);
+            {queue.map((item, index) => {
+              const number = (
+                <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-full bg-amber/20 text-[11px] font-bold text-amber">
+                  {index + 1}
+                </span>
+              );
+              if (item.kind === "guest") {
+                return (
+                  <li key={`g-${item.key}`} data-testid="plan-waitlist-entry" data-kind="guest" className="who-chip inline-flex h-9 max-w-full items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm text-fg">
+                    {number}
+                    <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed border-white/30 text-[10px] font-bold uppercase text-muted">
+                      {item.entry.display_name.slice(0, 1)}
+                    </span>
+                    <span className="min-w-0 truncate">{t.plans.detail.attendance.guest(item.entry.display_name)}</span>
+                  </li>
+                );
+              }
+              const person = lookup(item.key);
               return (
-                <li key={p.user_id} data-testid="plan-waitlist-entry" className="who-chip inline-flex h-9 max-w-full items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm text-fg">
-                  <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-full bg-amber/20 text-[11px] font-bold text-amber">
-                    {index + 1}
-                  </span>
+                <li key={item.key} data-testid="plan-waitlist-entry" data-kind="member" className="who-chip inline-flex h-9 max-w-full items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm text-fg">
+                  {number}
                   <Avatar person={person} size="xs" decorative />
-                  <span className="min-w-0 truncate">{p.user_id === userId ? t.states.you : (person?.display_name ?? t.states.formerMember)}</span>
+                  <span className="min-w-0 truncate">{item.key === userId ? t.states.you : (person?.display_name ?? t.states.formerMember)}</span>
                 </li>
               );
             })}
@@ -112,7 +127,7 @@ export function WaitlistNote({ plan, userId }: { plan: PlanWithParticipants; use
   const toast = useToast();
   const leave = useLeavePlanWaitlist(plan.id);
   const texts = t.planCapacity.mine;
-  const position = waitlistPosition(plan.participants, userId);
+  const position = waitlistPosition(plan.participants, userId, waitingGuests(plan));
   return (
     <div className="mt-3 rounded-[16px] border border-white/15 bg-black/25 p-3" data-testid="plan-waitlist-mine" aria-live="polite">
       {position != null ? (

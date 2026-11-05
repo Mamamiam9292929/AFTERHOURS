@@ -1,7 +1,7 @@
 // P26 · „Nur 6 Plätze“ – Höchstzahl mit Nachrückliste (src/lib/capacity.ts).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { capacityOptions, joinsWaitlist, spotsLeft, waitlist, waitlistPosition } from "../../src/lib/capacity.ts";
+import { capacityOptions, joinsWaitlist, planWaitlist, spotsLeft, waitingGuests, waitlist, waitlistPosition } from "../../src/lib/capacity.ts";
 
 const now = new Date("2026-11-05T12:00:00Z");
 const plan = (extra) => ({ max_going: 6, status: "confirmed", starts_at: "2026-11-07T19:00:00Z", ...extra });
@@ -37,6 +37,33 @@ test("Nachrückliste in Reihenfolge, Gleichstand nach Kennung", () => {
   assert.equal(waitlistPosition(participants, "a"), null, "nicht auf der Liste");
   assert.equal(waitlistPosition([], "a"), null);
   assert.equal(participants[0].user_id, "c", "die Eingabe bleibt unverändert");
+});
+
+test("Etappe 3b: gemeinsame Liste mit Gästen – Reihenfolge wie auf dem Server", () => {
+  const participants = [
+    { user_id: "m2", waitlisted_at: "2026-11-05T10:03:00Z" },
+    { user_id: "m1", waitlisted_at: "2026-11-05T10:01:00Z" },
+    { user_id: "x", waitlisted_at: null },
+  ];
+  const guests = [
+    { id: "g2", display_name: "Fritz", waitlisted_at: "2026-11-05T10:03:00Z" },
+    { id: "g1", display_name: "Dana", waitlisted_at: "2026-11-05T10:02:00Z" },
+    { id: "g0", display_name: "Emil", waitlisted_at: null },
+  ];
+  const queue = planWaitlist(participants, guests);
+  assert.deepEqual(queue.map((e) => `${e.kind}:${e.key}`), ["member:m1", "guest:g1", "member:m2", "guest:g2"], "Zeit, bei Gleichstand Mitglied zuerst");
+  assert.equal(queue[1].entry.display_name, "Dana", "Eintrag bleibt erhalten");
+  assert.equal(waitlistPosition(participants, "m2", guests), 3, "der Gast davor zählt mit");
+  assert.equal(waitlistPosition(participants, "m2"), 2, "ohne Gäste wie bisher");
+  assert.equal(waitlistPosition(participants, "g1", guests), null, "Gäste sind keine Mitglieder");
+  assert.deepEqual(waitlist(participants).map((p) => p.user_id), ["m1", "m2"], "nur die Crew");
+});
+
+test("Etappe 3b: Gäste zählen nur, solange Zusagen über den Link an sind", () => {
+  const guests = [{ id: "g1", waitlisted_at: "2026-11-05T10:02:00Z" }];
+  assert.deepEqual(waitingGuests({ guests_allowed: true, guests }), guests);
+  assert.deepEqual(waitingGuests({ guests_allowed: false, guests }), []);
+  assert.deepEqual(waitingGuests({ guests_allowed: true }), [], "ohne geladene Gäste");
 });
 
 test("Wahl der Höchstzahl: nie unter Zusagen oder Mindestzahl", () => {
