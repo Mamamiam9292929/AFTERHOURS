@@ -9,4 +9,5 @@ export const germanPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]> 
   assistant: () => import("./assistant").then((m) => m.assistant),
   settings: () => import("./settings").then((m) => m.settings),
   planGuests: () => import("./planGuests").then((m) => m.planGuests),
+  planQuorum: () => import("./planQuorum").then((m) => m.planQuorum),
 };

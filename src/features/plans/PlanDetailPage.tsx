@@ -45,6 +45,9 @@ const PhotosPanel = lazy(() => import("./PhotosPanel").then((m) => ({ default: m
 // W10: Schalter und Gäste nur für Organisator:in, Owner und Admins – eigener Chunk.
 const PlanGuestsPanel = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestsPanel })));
 // W10 Etappe 2: nur geladen, wenn auf diesem Gerät ein Gast-Geheimnis zum Teilen-Link liegt.
+// P25: „Findet statt ab 4“ – Texte und Bedienung laden erst, wenn ein Plan eine Mindestzahl hat bzw. jemand sie einstellt.
+const QuorumMeter = lazy(() => import("./PlanQuorum").then((m) => ({ default: m.QuorumMeter })));
+const QuorumCard = lazy(() => import("./PlanQuorum").then((m) => ({ default: m.QuorumCard })));
 const PlanGuestClaimCard = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestClaimCard })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
@@ -315,6 +318,14 @@ export function PlanDetailPage() {
               )}
             </Fact>
             <Fact icon={<IconCrews aria-hidden />} label={t.plans.detail.who}>
+              {/* P25: Mindestzahl – wie viele noch fehlen, bis der Abend stattfindet. */}
+              {!locked && plan.min_going != null && (
+                <Suspense fallback={null}>
+                  <div className="mt-2">
+                    <QuorumMeter plan={plan} />
+                  </div>
+                </Suspense>
+              )}
               <div className="mt-1 space-y-3">
                 {GROUPS.map((status) => {
                   const group = plan.participants.filter((p) => p.attendance_status === status);
@@ -493,6 +504,12 @@ export function PlanDetailPage() {
               <IconInfo className="size-4 shrink-0" aria-hidden />
               {t.plans.detail.manage.editBody}
             </p>
+            {/* P25: Ab wie vielen Zusagen findet der Abend statt? Nur vor Beginn. */}
+            {!started && (
+              <Suspense fallback={null}>
+                <QuorumCard plan={plan} />
+              </Suspense>
+            )}
             {/* P8: Stammtisch – der Plan wiederholt sich von selbst. */}
             <RepeatCard key={plan.id} plan={plan} plans={allPlans.data ?? [plan]} />
           </aside>

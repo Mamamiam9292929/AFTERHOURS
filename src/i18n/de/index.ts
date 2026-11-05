@@ -3,6 +3,7 @@ import { assistant } from "./assistant";
 import { deCore } from "./core";
 import { landing } from "./landing";
 import { planGuests } from "./planGuests";
+import { planQuorum } from "./planQuorum";
 import { privacy } from "./privacy";
 import { rewards } from "./rewards";
 import { settings } from "./settings";
@@ -21,6 +22,7 @@ export const de = {
   assistant,
   settings,
   planGuests,
+  planQuorum,
 };
 
 /** F7 · Bereiche, die nicht im Start-Bundle liegen, sondern mit ihrer Seite nachgeladen werden. */

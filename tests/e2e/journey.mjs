@@ -3120,6 +3120,101 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P25 – „Findet statt ab 3“: Bob organisiert (390 px), Alice und er sind dabei. Ein Tipp auf „3“ setzt die
+  // Mindestzahl; Carol sieht „Noch 1 fehlt“, sagt zu – „Findet statt“, und alle ohne Absage bekommen genau einmal
+  // „Es findet statt: …“. Carol (einfaches Mitglied) kann die Zahl nicht einstellen, ohne Anmeldung niemand.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const quorumPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${bobId}', 'Kicker in der Eckkneipe', date_trunc('day', now()) + interval '5 days 20 hours', 'confirmed')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
+      select '${quorumPlan}', m.user_id,
+        case when m.user_id in ('${bobId}', '${aliceId}') then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
+        case when m.user_id in ('${bobId}', '${aliceId}') then now() end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    try {
+      await bob.page.goto(`${APP}/plans/${quorumPlan}`);
+      await bob.page.getByRole("heading", { level: 1, name: "Kicker in der Eckkneipe" }).waitFor();
+      const card = bob.page.getByTestId("plan-quorum-card");
+      await card.waitFor();
+      check((await bob.page.getByTestId("plan-quorum").count()) === 0, "Mindestzahl: ohne Einstellung keine Anzeige bei „Wer kommt mit?“");
+      check((await card.getByRole("radio", { name: "Keine Mindestzahl" }).getAttribute("aria-checked")) === "true", "Mindestzahl: anfangs keine");
+      await card.getByRole("radio", { name: "Ab 3 Zusagen" }).click();
+      await toast(bob, "Findet statt ab 3 – alle sehen, wie viele noch fehlen.");
+      check(psql(`select min_going from public.plans where id = '${quorumPlan}'`) === "3", "Mindestzahl: mit einem Tipp gespeichert");
+      const meter = bob.page.getByTestId("plan-quorum");
+      await meter.waitFor();
+      check((await bob.page.getByTestId("plan-quorum-status").innerText()).trim() === "Noch 1 fehlt", "Mindestzahl: Bob sieht „Noch 1 fehlt“");
+      check((await meter.getByRole("progressbar").getAttribute("aria-valuenow")) === "2", "Mindestzahl: Balken steht auf 2 von 3");
+      await noOverflow(bob, "Mindestzahl einstellen");
+      await a11y(bob, "plan-mindestzahl");
+      await card.scrollIntoViewIfNeeded();
+      await shot(bob, "21o-plan-mindestzahl-einstellen");
+      await meter.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21p-plan-mindestzahl-fehlt");
+
+      // Carol: sieht, was fehlt, kann die Zahl aber nicht einstellen – und sagt zu.
+      await carol.page.goto(`${APP}/plans/${quorumPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Kicker in der Eckkneipe" }).waitFor();
+      await carol.page.getByTestId("plan-quorum").waitFor();
+      check((await carol.page.getByTestId("plan-quorum-status").innerText()).trim() === "Noch 1 fehlt", "Mindestzahl: Carol sieht „Noch 1 fehlt“");
+      check((await carol.page.getByTestId("plan-quorum-card").count()) === 0, "Mindestzahl: einfache Mitglieder stellen nichts ein");
+      await carol.page.getByRole("radio", { name: "Bin dabei" }).click();
+      await toast(carol, "Antwort gespeichert.");
+      const reached = carol.page.locator('[data-testid="plan-quorum"][data-reached="true"]');
+      await reached.waitFor();
+      check((await carol.page.getByTestId("plan-quorum-status").innerText()).trim() === "Findet statt", "Mindestzahl: nach Carols Zusage „Findet statt“");
+      // Das Bild zeigt „Wer kommt mit?“ mit der Anzeige, nicht den Kopf der Seite (und keinen Toast darüber).
+      await carol.page.getByText("Antwort gespeichert.").first().waitFor({ state: "hidden" });
+      await reached.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(carol, "Mindestzahl erreicht");
+      await a11y(carol, "plan-mindestzahl-erreicht");
+      await shot(carol, "21q-plan-findet-statt");
+      check(psql(`select count(*) from public.notifications where type = 'plan_quorum' and related_entity_id = '${quorumPlan}'`) ===
+        psql(`select count(*) from public.crew_members m left join public.user_settings s on s.user_id = m.user_id
+          where m.crew_id = '${ids.crew}' and coalesce(s.notification_preferences ->> 'plan_quorum', 'true') <> 'false'`),
+        "Mindestzahl: alle ohne Absage bekommen genau eine Nachricht");
+
+      // Noch einmal ab- und zusagen: keine zweite Nachricht.
+      await carol.page.getByRole("radio", { name: "Vielleicht" }).click();
+      await toast(carol, "Antwort gespeichert.");
+      await carol.page.locator('[data-testid="plan-quorum"][data-reached="false"]').waitFor();
+      await carol.page.getByRole("radio", { name: "Bin dabei" }).click();
+      await carol.page.locator('[data-testid="plan-quorum"][data-reached="true"]').waitFor();
+      check(psql(`select count(*) from public.notifications where type = 'plan_quorum' and related_entity_id = '${quorumPlan}' and user_id = (select id from auth.users where email = '${carol.email}')`) === "1",
+        "Mindestzahl: Carol bekommt die Nachricht genau einmal");
+
+      await carol.page.goto(`${APP}/notifications`);
+      const news = carol.page.getByRole("link", { name: /Es findet statt: Kicker in der Eckkneipe/ });
+      await news.first().waitFor();
+      check(true, "Mindestzahl: „Es findet statt: …“ in den Benachrichtigungen");
+      await shot(carol, "21r-findet-statt-benachrichtigung");
+      await news.first().click();
+      await carol.page.waitForURL(`**/plans/${quorumPlan}`);
+      check(true, "Mindestzahl: Nachricht führt zum Plan");
+
+      // Bob entfernt die Mindestzahl wieder.
+      await bob.page.reload();
+      await bob.page.getByTestId("plan-quorum-card").getByRole("radio", { name: "Keine Mindestzahl" }).click();
+      await toast(bob, "Keine Mindestzahl mehr.");
+      await bob.page.getByTestId("plan-quorum").waitFor({ state: "detached" });
+      check(true, "Mindestzahl: entfernt, Anzeige verschwindet");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/set_plan_min_going`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: quorumPlan, p_min: 2 }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung keine Mindestzahl (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${quorumPlan}'; delete from public.plans where id = '${quorumPlan}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });

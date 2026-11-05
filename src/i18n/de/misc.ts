@@ -120,6 +120,13 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: `${actor} fragt: Bist du dabei?`,
     body: str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title"),
   }),
+  // P25: Mindestzahl erreicht – einmal, ohne auslösende Person; wer noch nicht geantwortet hat, wird gefragt.
+  plan_quorum: (_actor, p) => ({
+    title: `Es findet statt: ${str(p, "title")}`,
+    body: [typeof p.going === "number" ? `${p.going} sind dabei` : "", str(p, "starts_at") ? formatDateTime(str(p, "starts_at")) : "", p.answered === false ? "Bist du auch dabei?" : ""]
+      .filter(Boolean)
+      .join(" · "),
+  }),
   // P20 Etappe 2: eine Woche vorher, Person = Geburtstagskind, Datum ohne Jahr als YYYY-MM-DD.
   birthday_reminder: (actor, p) => ({
     title: str(p, "date") ? `${actor} hat am ${formatPlainDate(str(p, "date"), "long")} Geburtstag` : `${actor} hat bald Geburtstag`,

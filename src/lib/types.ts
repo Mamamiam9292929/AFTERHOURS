@@ -43,7 +43,7 @@ export type NotificationType =
   | "poll_created" | "poll_reminder" | "poll_vote" | "poll_result"
   | "plan_created" | "plan_changed" | "plan_cancelled" | "plan_attendance"
   | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned"
-  | "plan_expense" | "plan_settlement" | "plan_expense_reminder" | "plan_day_reminder" | "plan_photo_reported" | "plan_photo_nudge" | "plan_reminder"
+  | "plan_expense" | "plan_settlement" | "plan_expense_reminder" | "plan_day_reminder" | "plan_photo_reported" | "plan_photo_nudge" | "plan_reminder" | "plan_quorum"
   | "birthday_reminder"
   | "spontaneous_ask" | "spontaneous_answer" | "spontaneous_match";
 
@@ -235,6 +235,10 @@ export interface Plan {
   skipped_at?: string | null;
   /** W10: Freunde ohne Konto dürfen über den Teilen-Link zusagen. */
   guests_allowed?: boolean;
+  /** P25: findet ab so vielen Zusagen statt (Mitglieder + Gäste), sonst null. */
+  min_going?: number | null;
+  /** P25: wann die Mindestzahl erreicht wurde (Nachricht verschickt bzw. beim Setzen schon erreicht). */
+  min_going_reached_at?: string | null;
   created_at: string;
   updated_at: string;
 }

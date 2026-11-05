@@ -73,7 +73,7 @@ export const settings = {
       planReminders: { title: "Nachfragen zu Plänen", body: "Wenn jemand fragt, ob du bei einem Plan dabei bist, und deine Antwort noch fehlt." },
       answers: { title: "Neue Antworten", body: "Wenn jemand auf deine Abstimmung oder deinen Plan antwortet." },
       results: { title: "Ergebnisse", body: "Wenn eine Abstimmung endet." },
-      plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten und Absagen." },
+      plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten, „Es findet statt“ und Absagen." },
       dayReminders: { title: "Am Tag des Plans", body: "Morgens einmal „Heute 20:00 Uhr: Bowling“ – außer du hast abgesagt." },
       photoNudges: { title: "Fotos vom Abend", body: "Am Morgen danach einmal, wenn du dabei warst und noch kaum Fotos geteilt sind." },
       bookings: { title: "Reservierungen", body: "Wenn sich der Stand einer Reservierung ändert." },

@@ -62,6 +62,7 @@ function NotificationIcon({ type, closing, className }: { type: NotificationType
     case "plan_changed":
     case "plan_attendance":
     case "plan_reminder":
+    case "plan_quorum":
       return <IconCalendar {...props} />;
     default:
       return <IconCrews {...props} />;
