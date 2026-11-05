@@ -4887,6 +4887,20 @@ await step("W5 – Erster Plan in 60 Sekunden: Crew, Einladung, Abstimmung (Dana
     await bringError.locator("..").getByRole("button", { name: "Erneut versuchen" }).click();
     await bring.getByText("Du bringst: Ball, Getränke").waitFor();
     check(true, "P14: „Erneut versuchen“ lädt die Mitbring-Liste in der Leiste");
+    // P24 Etappe 3: Zusatz zur Antwort in der Leiste („Dazu geschrieben“) und unter dem großen Ticket.
+    check((await strip.getByTestId("tonight-notes").count()) === 0, "P24: ohne Zusatz keine Kachel in der Leiste");
+    check((await api(dana, "POST", "rpc/set_attendance", { p_plan_id: kicker, p_status: "going" })).status < 300, "P24: Dana ist dabei");
+    const noted = await api(dana, "POST", "rpc/set_plan_answer_note", { p_plan_id: kicker, p_note: "Komme mit dem Rad" });
+    check(noted.status < 300 && noted.json === "Komme mit dem Rad", `P24: Dana schreibt einen Zusatz (${noted.status})`);
+    await page.reload();
+    const tonightNotes = strip.getByTestId("tonight-notes");
+    await tonightNotes.waitFor();
+    check((await tonightNotes.locator("li").allInnerTexts()).map((x) => x.trim()).join("|") === "Du: „Komme mit dem Rad“", "P24: Leiste zeigt den eigenen Zusatz");
+    check((await page.locator(".ticket-feature-wrap").first().getByTestId("ticket-note").innerText()).trim() === "Dein Zusatz: „Komme mit dem Rad“", "P24: Zusatz unter dem großen Ticket");
+    await tonightNotes.scrollIntoViewIfNeeded();
+    await noOverflow(dana, "Home – Zusatz in der Leiste");
+    await a11y(dana, "home-heute-abend-zusatz");
+    await shot(dana, "41a-home-zusatz");
     // Ihre eigene Abstimmung wartet noch auf ihre Antwort – auf Home direkt darunter.
     // (Freitagabend nach 20 Uhr kann ihre Frist schon vorbei sein – dann gibt es nichts mehr zu beantworten.)
     const danaPoll = (await api(dana, "GET", "polls?select=ends_at,status")).json?.[0];

@@ -138,7 +138,10 @@ interface PlanTicketProps {
 export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: PlanTicketProps) {
   const date = ticketDate(plan.starts_at);
   const going = plan.participants.filter((p) => p.attendance_status === "going");
-  const mine = plan.participants.find((p) => p.user_id === userId)?.attendance_status;
+  const myRow = plan.participants.find((p) => p.user_id === userId);
+  const mine = myRow?.attendance_status;
+  // P24 Etappe 3: eigener Zusatz zur Antwort („komme später“) – nur mit Antwort.
+  const myNote = mine && mine !== "invited" ? (myRow?.note ?? null) : null;
   const active = plan.status !== "completed" && plan.status !== "cancelled";
   const answer = ticketAnswer(plan, userId);
 
@@ -180,7 +183,15 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
             {t.plans.ticket.going(going.length)}
           </span>
           {active && mine && (
-            <span className={cn("text-[13px] font-semibold", ANSWER_TEXT[mine])}>{MY_STATUS[mine]}</span>
+            <span className={cn("min-w-0 text-[13px] font-semibold", ANSWER_TEXT[mine])}>
+              {MY_STATUS[mine]}
+              {myNote && (
+                <span className="font-normal text-muted" data-testid="ticket-note">
+                  {" · "}
+                  {t.plans.detail.attendance.note.quoted(myNote)}
+                </span>
+              )}
+            </span>
           )}
         </div>
       </div>
@@ -229,7 +240,10 @@ interface FeatureTicketProps extends Omit<PlanTicketProps, "cutout" | "className
 export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now, live = false }: FeatureTicketProps) {
   const date = ticketDate(plan.starts_at);
   const going = plan.participants.filter((p) => p.attendance_status === "going");
-  const mine = plan.participants.find((p) => p.user_id === userId)?.attendance_status;
+  const myRow = plan.participants.find((p) => p.user_id === userId);
+  const mine = myRow?.attendance_status;
+  // P24 Etappe 3: eigener Zusatz zur Antwort („komme später“) – nur mit Antwort.
+  const myNote = mine && mine !== "invited" ? (myRow?.note ?? null) : null;
   const active = plan.status !== "completed" && plan.status !== "cancelled";
   const place = plan.address ?? plan.meeting_point;
   const countdown = hero && now ? planCountdown(plan, now) : null;
@@ -299,6 +313,12 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now, l
           </span>
         </div>
         {active && mine && <span className={cn("text-[13px] font-semibold", mine === "going" ? "sr-only" : ANSWER_TEXT[mine])}>{MY_STATUS[mine]}</span>}
+        {/* P24 Etappe 3: Auf Home steht der eigene Zusatz unter dem großen Ticket; auf der Planseite (hero) steht er in der Antwortkarte. */}
+        {active && !hero && myNote && (
+          <span className="break-words text-[13px] text-muted" data-testid="ticket-note">
+            {t.plans.detail.attendance.note.mine(myNote)}
+          </span>
+        )}
       </div>
     </>
   );

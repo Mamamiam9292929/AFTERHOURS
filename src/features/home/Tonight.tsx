@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { IconBasket, IconCheck, IconPin, IconPlus, IconWarning, IconWeatherUnknown } from "@/components/icons";
+import { IconBasket, IconChat, IconCheck, IconPin, IconPlus, IconWarning, IconWeatherUnknown } from "@/components/icons";
 import { useToast } from "@/components/ui/Toast";
 import { OpenNowPlaces } from "./OpenNow";
 import { usePlanWeather, type PlanWithParticipants } from "@/features/plans/api";
@@ -9,6 +9,8 @@ import { WEATHER_ICONS } from "@/features/plans/weatherIcons";
 import { t } from "@/i18n";
 import { bringSummary } from "@/lib/bring";
 import { cn } from "@/lib/cn";
+import { answerNotes } from "@/lib/notes";
+import type { Person } from "@/components/ui/Avatar";
 import { tonightStrip } from "@/lib/quickvote";
 import { calendarDaysBetween, formatTime, zonedParts } from "@/lib/time";
 import { formatTemperature, outdoorHint, weatherKind } from "@/lib/weather";
@@ -19,7 +21,7 @@ import { formatTemperature, outdoorHint, weatherKind } from "@/lib/weather";
  * ein Blick, und man weiß, was heute läuft. Gleiche Wetterabfrage wie auf der Planseite (geteilter
  * Speicher), nichts wird geschätzt: ohne Ort aus Discover kein Wetter, ohne Treffpunkt „noch offen“.
  */
-export function TonightStrip({ plan, now, userId }: { plan: PlanWithParticipants; now: Date; userId: string }) {
+export function TonightStrip({ plan, now, userId, lookup }: { plan: PlanWithParticipants; now: Date; userId: string; lookup: (id: string | null | undefined) => Person | null }) {
   const strip = tonightStrip(plan, now, calendarDaysBetween(now, plan.starts_at), zonedParts(plan.starts_at).hour);
   const weather = usePlanWeather(plan, Boolean(strip?.weather));
   if (!strip) return null;
@@ -118,8 +120,51 @@ export function TonightStrip({ plan, now, userId }: { plan: PlanWithParticipants
           )}
         </Tile>
         <BringTile planId={plan.id} userId={userId} wide={Boolean(weatherTile)} />
+        <NotesTile plan={plan} userId={userId} lookup={lookup} wide={Boolean(weatherTile)} />
       </div>
     </section>
+  );
+}
+
+/** Wie viele Zusätze die Leiste zeigt; der Rest steht bei „Wer kommt mit?“ auf der Planseite. */
+const NOTES_SHOWN = 3;
+
+/**
+ * P24 Etappe 3 · „Dazu geschrieben“: die Zusätze zur Antwort („komme erst um 22 Uhr“) aus der Crew und von
+ * Gästen – die eigene zuerst. Ohne Zusatz keine Kachel. Daten kommen mit dem Plan, keine eigene Abfrage.
+ */
+function NotesTile({ plan, userId, lookup, wide }: { plan: PlanWithParticipants; userId: string; lookup: (id: string | null | undefined) => Person | null; wide: boolean }) {
+  const lines = answerNotes(plan, userId);
+  if (lines.length === 0) return null;
+  const shown = lines.slice(0, NOTES_SHOWN);
+  const rest = lines.length - shown.length;
+  return (
+    <div className={wide ? "sm:col-span-2" : undefined} data-testid="tonight-notes">
+      <Tile icon={<IconChat aria-hidden />} label={t.home.tonight.notes.label}>
+        <ul className="space-y-0.5">
+          {shown.map((line) => {
+            const who = line.mine
+              ? t.home.tonight.notes.you
+              : line.guestName
+                ? t.plans.detail.attendance.guest(line.guestName)
+                : (lookup(line.userId)?.display_name ?? t.states.formerMember);
+            return (
+              <li key={line.key} className={cn("break-words text-sm leading-snug", line.mine ? "font-semibold text-fg" : "text-muted")}>
+                {t.home.tonight.notes.line(who, line.note)}
+              </li>
+            );
+          })}
+        </ul>
+        {rest > 0 && (
+          <Link
+            to={`/plans/${plan.id}`}
+            className="mt-1 inline-flex min-h-11 items-center text-[13px] font-semibold text-muted underline decoration-line-strong underline-offset-4 hover:text-fg hover:decoration-lime"
+          >
+            {t.home.tonight.notes.more(rest)}
+          </Link>
+        )}
+      </Tile>
+    </div>
   );
 }
 
