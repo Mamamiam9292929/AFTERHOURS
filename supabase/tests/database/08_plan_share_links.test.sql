@@ -61,7 +61,7 @@ select is((tests.var('preview')::jsonb #>> '{plan,going_count}')::int, 1, 'nur Z
 select is(tests.var('preview')::jsonb #>> '{plan,status}', 'confirmed', 'Status sichtbar');
 select is(
   (select array_agg(k order by k) from jsonb_object_keys(tests.var('preview')::jsonb -> 'plan') k),
-  array['ends_at', 'going_count', 'guests', 'starts_at', 'status', 'title'], 'vom Plan nur Titel, Zeit, Status, Zahl der Zusagen und ob Gäste zusagen dürfen (W10)');
+  array['ends_at', 'going_count', 'guests', 'min_going', 'starts_at', 'status', 'title'], 'vom Plan nur Titel, Zeit, Status, Zahl der Zusagen, ob Gäste zusagen dürfen (W10) und die Mindestzahl (P25)');
 select is(tests.var('preview')::jsonb #>> '{plan,guests}', 'false', 'Zusagen ohne Konto sind standardmäßig aus (W10)');
 select ok(tests.var('preview')::jsonb -> 'plan_id' = 'null'::jsonb, 'ohne Konto keine Plan-ID');
 select ok(tests.var('preview') !~ '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', 'die Vorschau enthält keine einzige ID');

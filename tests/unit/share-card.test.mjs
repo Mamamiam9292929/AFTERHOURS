@@ -26,6 +26,17 @@ test("Texte je nach Stand des Plans", () => {
   }
 });
 
+test("P25 Etappe 2: Mindestzahl in der Vorschau", () => {
+  assert.equal(describeSharedPlan(valid({ going_count: 3, min_going: 4 })).description, "Freitag, 16. Oktober · 20:00 Uhr · 3 sind dabei · noch 1 fehlt. Bist du dabei?");
+  assert.match(describeSharedPlan(valid({ going_count: 1, min_going: 4 })).description, /· 1 ist dabei · noch 3 fehlen\./);
+  assert.match(describeSharedPlan(valid({ going_count: 5, min_going: 4 })).description, /· 5 sind dabei · findet statt\./);
+  assert.match(describeSharedPlan(valid({ going_count: 0, min_going: 2 })).description, /· Noch keine Zusage · noch 2 fehlen\./);
+  assert.match(describeSharedPlan(valid({ min_going: null })).description, /· 3 sind dabei\. Bist/, "ohne Mindestzahl wie bisher");
+  assert.match(describeSharedPlan(valid({ status: "cancelled", min_going: 4 })).description, /^Abgesagt/, "abgesagt: keine Mindestzahl");
+  assert.match(describeSharedPlan(valid({ going_count: 3, min_going: 4 }), "en").description, /· 3 are in · 1 more needed\. Are you in\?$/);
+  assert.match(describeSharedPlan(valid({ going_count: 4, min_going: 4 }), "en").description, /· 4 are in · it's on\./);
+});
+
 test("Escaping: ein Titel kann kein HTML einschleusen", () => {
   assert.equal(escapeHtml(`"><script>alert('x')</script>&`), "&quot;&gt;&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;&amp;");
   const tags = shareMetaTags({ title: `Bar "Zur Post" <b>`, description: "x", url: "https://a.test/s/1", image: "https://a.test/og/plan.png" });

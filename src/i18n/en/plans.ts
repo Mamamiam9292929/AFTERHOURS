@@ -35,6 +35,8 @@ export const plans = {
     stamp: { going: "In", maybe: "Maybe", declined: "Out" },
     /** P8 Etappe 3: Kennzeichen für Termine eines Stammtischs. */
     series: "Regular",
+    /** P25 Etappe 2: Mindestzahl am Ticket (Home, Pläne, Crew). */
+    quorum: { missing: (n: number) => (n === 1 ? "1 more needed" : `${n} more needed`), reached: "It's on" },
     countdown: {
       today: "Today",
       tonight: "Tonight",
@@ -554,6 +556,8 @@ export const plans = {
     kicker: "An evening with AFTERHOURS",
     going: (n: number, over: boolean): string =>
       over ? (n === 0 ? "Nobody went" : n === 1 ? "was there" : "were there") : n === 0 ? "Nobody in yet" : n === 1 ? "is in" : "are in",
+    /** P25 Etappe 2: Mindestzahl auf der geteilten Karte. */
+    quorumAsk: (n: number) => (n === 1 ? "1 more needed – are you in?" : `${n} more needed – are you in?`),
     guestTitle: "Are you in?",
     guestIntro: "Your friends are planning this evening with AFTERHOURS. You can say you're in once you're in their crew – ask for the invite link in the group chat.",
     register: "Create account",

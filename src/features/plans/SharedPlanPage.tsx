@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import { IconCheck } from "@/components/icons";
 import { ButtonLink } from "@/components/ui/Button";
 import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
 import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
@@ -9,6 +10,7 @@ import { clearNext, rememberNext } from "@/features/auth/next";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
+import { quorumLeft } from "@/lib/quorum";
 import { formatTime, ticketDate } from "@/lib/time";
 import { type SharedPlanPreview, useSharedPlanPreview } from "./api";
 import { planCountdown } from "./PlanTicket";
@@ -113,6 +115,8 @@ function SharedPlanTicket({ data }: { data: Valid }) {
   const date = ticketDate(plan.starts_at);
   const over = plan.status === "completed" || plan.status === "cancelled" || new Date(plan.ends_at ?? plan.starts_at).getTime() < now.getTime();
   const countdown = over ? null : planCountdown(plan, now);
+  // P25 Etappe 2: „Noch 1 fehlt – bist du dabei?“ bzw. „Findet statt“, solange der Abend offen ist.
+  const left = over ? null : quorumLeft(plan, plan.going_count, now);
   return (
     <section aria-labelledby="shared-plan-title" className={cn("ticket-feature-wrap", over && "ticket-feature-past")} data-testid="shared-plan-card">
       <div className={cn("vote-card overflow-hidden rounded-[32px] p-5 sm:p-7", over && "opacity-80")}>
@@ -140,6 +144,16 @@ function SharedPlanTicket({ data }: { data: Valid }) {
               {plan.going_count > 0 && <span className="font-display text-[17px] font-extrabold leading-none text-lime">{plan.going_count}</span>}
               {t.plans.shared.going(plan.going_count, over)}
             </p>
+            {left != null && (
+              <p
+                className={cn(GLASS_PILL, left === 0 ? "border-lime/50 bg-lime/10 text-lime" : "border-amber/45 bg-amber/10 text-fg")}
+                data-testid="shared-plan-quorum"
+                data-reached={left === 0 ? "true" : "false"}
+              >
+                {left === 0 && <IconCheck className="size-4" aria-hidden />}
+                {left === 0 ? t.plans.ticket.quorum.reached : t.plans.shared.quorumAsk(left)}
+              </p>
+            )}
           </div>
         </div>
       </div>

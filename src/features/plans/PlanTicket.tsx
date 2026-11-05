@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Feedback";
 import { LivePill } from "@/components/ui/Pill";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { goingWithGuests, quorumLeft } from "@/lib/quorum";
 import { formatCountdown, liveCountdown } from "@/lib/quickvote";
 import { calendarDaysBetween, formatTime, ticketDate, zonedParts } from "@/lib/time";
 import type { AttendanceStatus, Crew, PlanStatus } from "@/lib/types";
@@ -61,6 +62,26 @@ function SeriesMark({ plan, className }: { plan: PlanWithParticipants; className
       <IconRepeat className="size-3.5 shrink-0" aria-hidden />
       {t.plans.ticket.series}
       {rule && <span className="sr-only">: {rule}</span>}
+    </span>
+  );
+}
+
+/**
+ * P25 Etappe 2 · Mindestzahl am Ticket: „Noch 1 fehlt“ (umrandet) bzw. „Findet statt“ (Lime). Die Farben kommen
+ * aus den Token der Karte – auf grünen, gelben und roten Tickets stellen sie sich selbst um.
+ */
+function QuorumBadge({ plan, className }: { plan: PlanWithParticipants; className?: string }) {
+  const left = quorumLeft(plan, goingWithGuests(plan));
+  if (left == null) return null;
+  return (
+    <span data-testid="ticket-quorum" data-reached={left === 0 ? "true" : "false"} className={cn("inline-flex", className)}>
+      {left === 0 ? (
+        <Badge tone="lime">{t.plans.ticket.quorum.reached}</Badge>
+      ) : (
+        <Badge tone="outline" className="text-fg">
+          {t.plans.ticket.quorum.missing(left)}
+        </Badge>
+      )}
     </span>
   );
 }
@@ -178,9 +199,10 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <span className="flex items-center gap-2 text-sm font-semibold text-fg">
+          <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-fg">
             <AvatarStack people={going.map((p) => lookup(p.user_id))} max={5} />
             {t.plans.ticket.going(going.length)}
+            <QuorumBadge plan={plan} />
           </span>
           {active && mine && (
             <span className={cn("min-w-0 text-[13px] font-semibold", ANSWER_TEXT[mine])}>
@@ -287,6 +309,8 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now, l
               {planStatusBadge(plan.status, Boolean(plan.skipped_at))}
             </span>
             <SeriesMark plan={plan} className="text-[13px]" />
+            {/* P25 Etappe 2: Auf der Planseite (hero) steht die Anzeige ausführlich bei „Wer kommt mit?“. */}
+            {!hero && <QuorumBadge plan={plan} />}
             {countdown && <span className="font-display text-[14px] font-extrabold uppercase leading-none tracking-wide text-lime">{countdown}</span>}
             {running && (
               <LivePill testId="ticket-live" className="h-7 px-3">
