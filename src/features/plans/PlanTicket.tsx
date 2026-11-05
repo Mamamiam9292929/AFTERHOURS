@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Feedback";
 import { LivePill } from "@/components/ui/Pill";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { spotsLeft, waitlistPosition } from "@/lib/capacity";
 import { goingWithGuests, quorumLeft } from "@/lib/quorum";
 import { formatCountdown, liveCountdown } from "@/lib/quickvote";
 import { calendarDaysBetween, formatTime, ticketDate, zonedParts } from "@/lib/time";
@@ -84,6 +85,31 @@ function QuorumBadge({ plan, className }: { plan: PlanWithParticipants; classNam
       )}
     </span>
   );
+}
+
+/**
+ * P26 Etappe 2 · Höchstzahl am Ticket: „Noch 2 Plätze“ bzw. „Voll – Nachrückliste“ (beide umrandet, Farben aus den
+ * Token der Karte). Die Zahl zählt wie bei „Wer kommt mit?“ Mitglieder und Gäste mit „Bin dabei“.
+ */
+function CapacityBadge({ plan, className }: { plan: PlanWithParticipants; className?: string }) {
+  const left = spotsLeft(plan, goingWithGuests(plan));
+  if (left == null) return null;
+  return (
+    <span data-testid="ticket-capacity" data-full={left === 0 ? "true" : "false"} className={cn("inline-flex", className)}>
+      <Badge tone="outline" className={cn("text-fg", left === 0 && "border-fg/60")}>
+        {left === 0 ? t.plans.ticket.capacity.full : t.plans.ticket.capacity.left(left)}
+      </Badge>
+    </span>
+  );
+}
+
+/** P26 Etappe 2 · Eigene Antwort am Ticket – wer auf der Nachrückliste steht, sieht den Platz statt „vielleicht“. */
+function myStatusText(plan: PlanWithParticipants, userId: string, mine: AttendanceStatus): string {
+  if (mine === "maybe") {
+    const position = waitlistPosition(plan.participants, userId);
+    if (position != null) return t.plans.ticket.capacity.you(position);
+  }
+  return MY_STATUS[mine];
 }
 
 const STAMP: Partial<Record<TicketAnswer, string>> = {
@@ -203,10 +229,11 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
             <AvatarStack people={going.map((p) => lookup(p.user_id))} max={5} />
             {t.plans.ticket.going(going.length)}
             <QuorumBadge plan={plan} />
+            <CapacityBadge plan={plan} />
           </span>
           {active && mine && (
             <span className={cn("min-w-0 text-[13px] font-semibold", ANSWER_TEXT[mine])}>
-              {MY_STATUS[mine]}
+              {myStatusText(plan, userId, mine)}
               {myNote && (
                 <span className="font-normal text-muted" data-testid="ticket-note">
                   {" · "}
@@ -311,6 +338,7 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now, l
             <SeriesMark plan={plan} className="text-[13px]" />
             {/* P25 Etappe 2: Auf der Planseite (hero) steht die Anzeige ausführlich bei „Wer kommt mit?“. */}
             {!hero && <QuorumBadge plan={plan} />}
+            {!hero && <CapacityBadge plan={plan} />}
             {countdown && <span className="font-display text-[14px] font-extrabold uppercase leading-none tracking-wide text-lime">{countdown}</span>}
             {running && (
               <LivePill testId="ticket-live" className="h-7 px-3">
@@ -336,7 +364,7 @@ export function FeatureTicket({ plan, crew, userId, lookup, hero = false, now, l
             {t.plans.ticket.goingOf(plan.participants.length)}
           </span>
         </div>
-        {active && mine && <span className={cn("text-[13px] font-semibold", mine === "going" ? "sr-only" : ANSWER_TEXT[mine])}>{MY_STATUS[mine]}</span>}
+        {active && mine && <span className={cn("text-[13px] font-semibold", mine === "going" ? "sr-only" : ANSWER_TEXT[mine])} data-testid="ticket-mine">{myStatusText(plan, userId, mine)}</span>}
         {/* P24 Etappe 3: Auf Home steht der eigene Zusatz unter dem großen Ticket; auf der Planseite (hero) steht er in der Antwortkarte. */}
         {active && !hero && myNote && (
           <span className="break-words text-[13px] text-muted" data-testid="ticket-note">

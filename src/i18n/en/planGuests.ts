@@ -2,6 +2,8 @@ import type { planGuests as dePlanGuests } from "../de/planGuests";
 
 export const planGuests = {
   rsvp: {
+    /** P26 Etappe 2: Runde voll – „Bin dabei“ geht erst wieder, wenn jemand absagt. */
+    full: "This plan is full right now. If someone drops out, a spot opens up here – “Maybe” always works.",
     title: "Are you in?",
     intro: "Answer with your name – no app, no account. The crew sees your name and your answer.",
     changeTitle: (name: string) => `Hi ${name}`,

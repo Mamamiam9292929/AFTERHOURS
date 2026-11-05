@@ -37,6 +37,17 @@ test("P25 Etappe 2: Mindestzahl in der Vorschau", () => {
   assert.match(describeSharedPlan(valid({ going_count: 4, min_going: 4 }), "en").description, /· 4 are in · it's on\./);
 });
 
+test("P26 Etappe 2: Höchstzahl in der Vorschau", () => {
+  assert.match(describeSharedPlan(valid({ going_count: 4, max_going: 6 })).description, /· 4 sind dabei · noch 2 Plätze frei\. Bist du dabei\?$/);
+  assert.match(describeSharedPlan(valid({ going_count: 5, max_going: 6 })).description, /· 5 sind dabei · noch 1 Platz frei\./);
+  assert.match(describeSharedPlan(valid({ going_count: 6, max_going: 6 })).description, /· 6 sind dabei · voll, Nachrückliste offen\./);
+  assert.match(describeSharedPlan(valid({ going_count: 3, min_going: 4, max_going: 6 })).description, /· 3 sind dabei · noch 1 fehlt · noch 3 Plätze frei\./, "Mindest- und Höchstzahl");
+  assert.match(describeSharedPlan(valid({ max_going: null })).description, /· 3 sind dabei\. Bist/, "ohne Höchstzahl wie bisher");
+  assert.match(describeSharedPlan(valid({ status: "cancelled", max_going: 6 })).description, /^Abgesagt/, "abgesagt: keine Höchstzahl");
+  assert.match(describeSharedPlan(valid({ going_count: 6, max_going: 6 }), "en").description, /· 6 are in · full, waitlist open\. Are you in\?$/);
+  assert.match(describeSharedPlan(valid({ going_count: 5, max_going: 8 }), "en").description, /· 5 are in · 3 spots left\./);
+});
+
 test("Escaping: ein Titel kann kein HTML einschleusen", () => {
   assert.equal(escapeHtml(`"><script>alert('x')</script>&`), "&quot;&gt;&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;&amp;");
   const tags = shareMetaTags({ title: `Bar "Zur Post" <b>`, description: "x", url: "https://a.test/s/1", image: "https://a.test/og/plan.png" });

@@ -35,6 +35,12 @@ export const plans = {
     series: "Stammtisch",
     /** P25 Etappe 2: Mindestzahl am Ticket (Home, Pläne, Crew). */
     quorum: { missing: (n: number) => (n === 1 ? "Noch 1 fehlt" : `Noch ${n} fehlen`), reached: "Findet statt" },
+    /** P26 Etappe 2: Höchstzahl am Ticket (Home, Pläne, Crew); eigener Platz auf der Nachrückliste. */
+    capacity: {
+      left: (n: number) => (n === 1 ? "Noch 1 Platz" : `Noch ${n} Plätze`),
+      full: "Voll – Nachrückliste",
+      you: (n: number) => (n === 1 ? "Du rückst als Nächstes nach" : `Du: Nr. ${n} auf der Nachrückliste`),
+    },
     countdown: {
       today: "Heute",
       tonight: "Heute Abend",
@@ -568,6 +574,9 @@ export const plans = {
       over ? (n === 0 ? "Keine Zusage" : n === 1 ? "war dabei" : "waren dabei") : n === 0 ? "Noch keine Zusage" : n === 1 ? "ist dabei" : "sind dabei",
     /** P25 Etappe 2: Mindestzahl auf der geteilten Karte. */
     quorumAsk: (n: number) => (n === 1 ? "Noch 1 fehlt – bist du dabei?" : `Noch ${n} fehlen – bist du dabei?`),
+    /** P26 Etappe 2: Höchstzahl auf der geteilten Karte. */
+    capacityLeft: (n: number) => (n === 1 ? "Noch 1 Platz frei" : `Noch ${n} Plätze frei`),
+    capacityFull: "Voll – wer absagt, macht Platz",
     guestTitle: "Bist du dabei?",
     guestIntro: "Deine Freunde planen diesen Abend mit AFTERHOURS. Zusagen kannst du, sobald du in ihrer Crew bist – frag im Gruppenchat nach dem Einladungslink.",
     register: "Konto erstellen",

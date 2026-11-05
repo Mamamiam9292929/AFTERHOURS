@@ -3310,6 +3310,42 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await carol.page.getByTestId("plan-waitlist").evaluate((el) => el.scrollIntoView({ block: "center" }));
       await shot(carol, "21u-plan-wer-kommt-nachrueckliste");
 
+      // P26 Etappe 2: In der Planliste trägt das Ticket „Voll – Nachrückliste“, Carol liest dort ihren Platz statt „vielleicht“.
+      await carol.page.goto(`${APP}/plans`);
+      const listTicket = carol.page.locator(`a[href="/plans/${capPlan}"]`).first();
+      const listFull = listTicket.locator('[data-testid="ticket-capacity"][data-full="true"]');
+      await listFull.waitFor();
+      check((await listFull.innerText()).trim() === "Voll – Nachrückliste", "Höchstzahl: „Voll – Nachrückliste“ am Ticket in der Planliste");
+      check((await listTicket.innerText()).includes("Du rückst als Nächstes nach"), "Höchstzahl: Ticket nennt Carols Platz auf der Nachrückliste");
+      await listTicket.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(carol, "Höchstzahl am Ticket");
+      await a11y(carol, "plaene-hoechstzahl");
+      await shot(carol, "21u2-plaene-ticket-voll");
+      // … und wer den Link ohne Konto öffnet, sieht „Voll“; als Gast geht nur „Vielleicht“ oder „Kann nicht“.
+      check((await api(bob, "POST", "rpc/set_plan_guests", { p_plan_id: capPlan, p_allowed: true })).status < 300, "Höchstzahl: Bob lässt Gäste zusagen");
+      const capToken = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: capPlan })).json;
+      const capOutsider = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+      try {
+        const visitor = { page: await capOutsider.newPage(), viewport: "mobile" };
+        await visitor.page.goto(`${APP}/s/${capToken}`);
+        const sharedCap = visitor.page.locator('[data-testid="shared-plan-capacity"][data-full="true"]');
+        await sharedCap.waitFor();
+        check((await sharedCap.innerText()).trim() === "Voll – wer absagt, macht Platz", "Höchstzahl: geteilte Karte zeigt „Voll“");
+        await visitor.page.getByTestId("rsvp-full").waitFor();
+        check(await visitor.page.getByRole("radio", { name: "Bin dabei" }).isDisabled(), "Höchstzahl: Gast kann bei voller Runde nicht zusagen");
+        check(!(await visitor.page.getByRole("radio", { name: "Vielleicht" }).isDisabled()), "Höchstzahl: „Vielleicht“ bleibt für Gäste offen");
+        check(!(await visitor.page.content()).includes("Carol"), "Höchstzahl: geteilte Karte verrät die Nachrückliste nicht");
+        await noOverflow(visitor, "Höchstzahl auf der geteilten Karte");
+        await a11y(visitor, "geteilt-hoechstzahl");
+        await shot(visitor, "21u3-geteilt-voll");
+        await visitor.page.getByTestId("rsvp-full").evaluate((el) => el.scrollIntoView({ block: "center" }));
+        await shot(visitor, "21u4-geteilt-voll-gast");
+      } finally {
+        await capOutsider.close();
+      }
+      await carol.page.goto(`${APP}/plans/${capPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Bowling auf Bahn 3" }).waitFor();
+
       // Alice sagt ab – Carol rückt nach.
       check((await api(alice, "POST", "rpc/set_attendance", { p_plan_id: capPlan, p_status: "declined" })).status < 300, "Höchstzahl: Alice sagt ab");
       check(psql(`select attendance_status from public.plan_participants where plan_id = '${capPlan}' and user_id = '${carolId}'`) === "going", "Höchstzahl: Carol ist nachgerückt");

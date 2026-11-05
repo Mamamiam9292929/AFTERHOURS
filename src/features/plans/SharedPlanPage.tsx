@@ -9,6 +9,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { clearNext, rememberNext } from "@/features/auth/next";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { spotsLeft } from "@/lib/capacity";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { quorumLeft } from "@/lib/quorum";
 import { formatTime, ticketDate } from "@/lib/time";
@@ -73,7 +74,11 @@ export function SharedPlanPage() {
   ) : null;
   // W10: Die Crew erlaubt Zusagen ohne Konto – dann steht hier die Zusagekarte.
   if (token && result.plan.guests) {
-    return <SharedPlanRsvp token={token} hero={<SharedPlanTicket data={result} />} signedIn={Boolean(user)} fallback={fallback ?? <GuestInvite data={result} />} />;
+    // P26 Etappe 2: Runde voll – Gäste können dann nur „Vielleicht“ oder „Kann nicht“ sagen.
+    const full = spotsLeft(result.plan, result.plan.going_count) === 0;
+    return (
+      <SharedPlanRsvp token={token} hero={<SharedPlanTicket data={result} />} signedIn={Boolean(user)} fallback={fallback ?? <GuestInvite data={result} />} full={full} />
+    );
   }
   if (fallback) return fallback;
   return <GuestInvite data={result} />;
@@ -117,6 +122,8 @@ function SharedPlanTicket({ data }: { data: Valid }) {
   const countdown = over ? null : planCountdown(plan, now);
   // P25 Etappe 2: „Noch 1 fehlt – bist du dabei?“ bzw. „Findet statt“, solange der Abend offen ist.
   const left = over ? null : quorumLeft(plan, plan.going_count, now);
+  // P26 Etappe 2: „Noch 2 Plätze frei“ bzw. „Voll“, solange der Abend offen ist.
+  const spots = over ? null : spotsLeft(plan, plan.going_count, now);
   return (
     <section aria-labelledby="shared-plan-title" className={cn("ticket-feature-wrap", over && "ticket-feature-past")} data-testid="shared-plan-card">
       <div className={cn("vote-card overflow-hidden rounded-[32px] p-5 sm:p-7", over && "opacity-80")}>
@@ -152,6 +159,15 @@ function SharedPlanTicket({ data }: { data: Valid }) {
               >
                 {left === 0 && <IconCheck className="size-4" aria-hidden />}
                 {left === 0 ? t.plans.ticket.quorum.reached : t.plans.shared.quorumAsk(left)}
+              </p>
+            )}
+            {spots != null && (
+              <p
+                className={cn(GLASS_PILL, spots === 0 ? "border-white/30 text-fg" : "border-lime/40 text-fg")}
+                data-testid="shared-plan-capacity"
+                data-full={spots === 0 ? "true" : "false"}
+              >
+                {spots === 0 ? t.plans.shared.capacityFull : t.plans.shared.capacityLeft(spots)}
               </p>
             )}
           </div>

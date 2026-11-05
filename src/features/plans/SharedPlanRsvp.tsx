@@ -27,7 +27,20 @@ const clean = (name: string) => name.trim().replace(/\s+/g, " ");
  * „Bin dabei / Vielleicht / Kann nicht“ mit Namen. Wer den Namen vom letzten Link mitbringt (S2) oder hier schon
  * geantwortet hat, antwortet mit einem Tipp. Danach der Weg zum eigenen Konto.
  */
-export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: string; hero: ReactNode; signedIn: boolean; fallback: ReactNode }) {
+export function SharedPlanRsvp({
+  token,
+  hero,
+  signedIn,
+  fallback,
+  full = false,
+}: {
+  token: string;
+  hero: ReactNode;
+  signedIn: boolean;
+  fallback: ReactNode;
+  /** P26 Etappe 2: Höchstzahl erreicht (laut Vorschau) – „Bin dabei“ ist dann zu, außer für die, die schon dabei sind. */
+  full?: boolean;
+}) {
   const secret = useMemo(() => planGuestSecret(token), [token]);
   const rsvp = useSharedPlanRsvp(token, secret);
   const answer = useGuestRsvp(token, secret);
@@ -68,6 +81,9 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
   const oneTap = Boolean(knownName) && !editingName;
   const open = loaded.plan.open;
   const where = [loaded.plan.place, loaded.plan.address].filter(Boolean).join(" · ");
+  // P26 Etappe 2: Ist die Runde voll, bleibt „Bin dabei“ zu – wer schon zugesagt hat, behält den Platz.
+  const goingClosed = full && me?.status !== "going";
+  const fullError = answer.isError && (answer.error as { code?: string; message?: string }).message === "plan_full";
 
   /** `revert`: bei einem Fehler die vorige Antwort wieder zeigen (Ein-Tipp); im Formular bleibt die Auswahl stehen. */
   function send(status: GuestAnswer | null, guestName: string | null, revert?: { to: GuestAnswer | null }) {
@@ -135,7 +151,7 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
           {open ? (
             <div role="radiogroup" aria-label={t.planGuests.rsvp.question} aria-describedby={errors.answer ? "rsvp-answer-error" : undefined} className="mt-3 grid grid-cols-3 gap-2">
               {ANSWERS.map((value) => (
-                <button key={value} type="button" role="radio" aria-checked={chosen === value} data-response={CARD_ANSWER[value]} disabled={answer.isPending && oneTap} onClick={() => tap(value)} className="vote-pill">
+                <button key={value} type="button" role="radio" aria-checked={chosen === value} data-response={CARD_ANSWER[value]} disabled={(answer.isPending && oneTap) || (value === "going" && goingClosed)} onClick={() => tap(value)} className="vote-pill">
                   {t.plans.detail.attendance[value]}
                 </button>
               ))}
@@ -146,6 +162,11 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
                 {t.planGuests.rsvp.yourAnswer}: <span className="font-semibold text-fg">{t.plans.detail.attendance[me.status]}</span>
               </p>
             )
+          )}
+          {open && goingClosed && (
+            <p className="mt-3 text-sm leading-snug text-muted" data-testid="rsvp-full">
+              {t.planGuests.rsvp.full}
+            </p>
           )}
           {errors.answer && (
             <p id="rsvp-answer-error" role="alert" className="mt-2 text-sm text-danger">
@@ -204,7 +225,7 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
         )}
 
         <div aria-live="polite" className="space-y-2">
-          {answer.isError && <FormMessage>{errorMessage(answer.error)}</FormMessage>}
+          {answer.isError && <FormMessage>{fullError ? t.planGuests.rsvp.full : errorMessage(answer.error)}</FormMessage>}
           {answer.isPending ? (
             <p className="text-sm text-muted">{t.planGuests.rsvp.saving}</p>
           ) : (
