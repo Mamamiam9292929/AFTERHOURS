@@ -16,7 +16,7 @@ import { useActivity, useActivitySearch } from "@/features/discover/api";
 import { SpotMap } from "@/features/discover/SpotMap";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
-import { spotsLeft } from "@/lib/capacity";
+import { joinsWaitlist } from "@/lib/capacity";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
@@ -144,7 +144,7 @@ export function PlanDetailPage() {
   // P23: Der Plan wurde verschoben und alle neu gefragt – die alte Antwort steht als Hinweis da.
   const previous = mine === "invited" && !locked ? (myRow?.previous_status ?? null) : null;
   // P26: Runde voll – wer nicht dabei ist, stellt sich statt „Bin dabei“ auf die Nachrückliste.
-  const full = mine !== "going" && spotsLeft(plan, goingWithGuests(plan), now) === 0;
+  const full = joinsWaitlist(plan, mine, goingWithGuests(plan), now);
   const waitlisted = Boolean(myRow?.waitlisted_at) && mine !== "going";
   const othersAnswered = plan.participants.filter((p) => p.user_id !== user.id && p.attendance_status !== "invited").length;
   const costs = estimateCosts(plan);

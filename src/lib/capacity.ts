@@ -17,6 +17,14 @@ export function spotsLeft(plan: CapacityPlan, going: number, now: Date = new Dat
   return Math.max(max - Math.max(going, 0), 0);
 }
 
+/**
+ * P26 · Wird „Bin dabei“ zu „Nachrücken“? Ja, wenn die Runde voll ist und man selbst nicht schon dabei ist –
+ * gleiche Regel auf der Planseite und bei der schnellen Antwort auf Home (Etappe 3a).
+ */
+export function joinsWaitlist(plan: CapacityPlan, mine: string | null | undefined, going: number, now: Date = new Date()): boolean {
+  return mine !== "going" && spotsLeft(plan, going, now) === 0;
+}
+
 type Waiting = { user_id: string; waitlisted_at?: string | null };
 
 /** Nachrückliste in der Reihenfolge des Servers: wer sich zuerst eingetragen hat, rückt zuerst nach. */
