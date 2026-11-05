@@ -43,7 +43,7 @@ export type NotificationType =
   | "poll_created" | "poll_reminder" | "poll_vote" | "poll_result"
   | "plan_created" | "plan_changed" | "plan_cancelled" | "plan_attendance"
   | "booking_status" | "ride_request" | "ride_confirmed" | "reward_earned"
-  | "plan_expense" | "plan_settlement" | "plan_expense_reminder" | "plan_day_reminder" | "plan_photo_reported" | "plan_photo_nudge" | "plan_reminder" | "plan_quorum"
+  | "plan_expense" | "plan_settlement" | "plan_expense_reminder" | "plan_day_reminder" | "plan_photo_reported" | "plan_photo_nudge" | "plan_reminder" | "plan_quorum" | "plan_waitlist_promoted"
   | "birthday_reminder"
   | "spontaneous_ask" | "spontaneous_answer" | "spontaneous_match";
 
@@ -239,6 +239,8 @@ export interface Plan {
   min_going?: number | null;
   /** P25: wann die Mindestzahl erreicht wurde (Nachricht verschickt bzw. beim Setzen schon erreicht). */
   min_going_reached_at?: string | null;
+  /** P26: höchstens so viele Zusagen (Mitglieder + Gäste), sonst null – darüber geht es auf die Nachrückliste. */
+  max_going?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -265,6 +267,8 @@ export interface PlanParticipant {
   previous_status?: Exclude<AttendanceStatus, "invited"> | null;
   /** P24: kurzer Zusatz zur eigenen Antwort („komme später“), verfällt mit jeder Änderung der Antwort. */
   note?: string | null;
+  /** P26: seit wann auf der Nachrückliste (Reihenfolge), sonst null. */
+  waitlisted_at?: string | null;
 }
 
 export interface BookingRequest {

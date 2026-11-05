@@ -194,6 +194,9 @@ export const plans = {
       remindLabel: (n: number) => (n === 1 ? "Ask – check whether the person without an answer is in" : `Ask – check whether all ${n} without an answer are in`),
       reminded: (n: number) => (n === 0 ? "Everyone has answered – nobody was asked." : n === 1 ? "Asked 1 person." : `Asked ${n} people.`),
       askedAgain: (previous: string) => `New time – does it still work for you? Before: ${previous}`,
+      waitlist: "Waitlist",
+      waitlistLabel: "Join the waiting list – if someone drops out, you're in automatically",
+      waitlistJoined: (n: number) => (n === 1 ? "You're next in line." : `You're number ${n} on the waiting list.`),
       note: {
         add: "Add a note for the crew",
         label: "Note on your answer",

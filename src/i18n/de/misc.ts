@@ -127,6 +127,11 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       .filter(Boolean)
       .join(" · "),
   }),
+  // P26: Ein Platz wurde frei und die Person stand vorn auf der Nachrückliste – sie ist jetzt dabei.
+  plan_waitlist_promoted: (_actor, p) => ({
+    title: `Du bist nachgerückt: ${str(p, "title")}`,
+    body: [str(p, "starts_at") ? formatDateTime(str(p, "starts_at")) : "", "Ein Platz ist frei geworden – du bist jetzt dabei."].filter(Boolean).join(" · "),
+  }),
   // P20 Etappe 2: eine Woche vorher, Person = Geburtstagskind, Datum ohne Jahr als YYYY-MM-DD.
   birthday_reminder: (actor, p) => ({
     title: str(p, "date") ? `${actor} hat am ${formatPlainDate(str(p, "date"), "long")} Geburtstag` : `${actor} hat bald Geburtstag`,
