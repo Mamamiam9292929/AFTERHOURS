@@ -26,6 +26,7 @@ import { mapProvider } from "@/lib/maps";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
 import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useRemindPlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
+import { AnswerNote } from "./AnswerNote";
 import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
@@ -222,6 +223,9 @@ export function PlanDetailPage() {
                 {t.plans.detail.attendance.askedAgain(ANSWERS.find((a) => a.value === previous)?.label ?? previous)}
               </p>
             )}
+            {/* P24: Zusatz zur eigenen Antwort („komme später“) – die Crew sieht ihn bei „Wer kommt mit?“. */}
+            {!locked && mine !== "invited" && <AnswerNote key={mine} planId={plan.id} answer={mine} note={myRow?.note ?? null} />}
+            {locked && myRow?.note && mine !== "invited" && <p className="mt-2.5 text-sm font-semibold text-fg">{t.plans.detail.attendance.note.quoted(myRow.note)}</p>}
             {locked && <p className="mt-2.5 text-[13px] text-faint">{t.plans.detail.attendance.locked}</p>}
           </section>
 
@@ -344,9 +348,26 @@ export function PlanDetailPage() {
                         {group.map((p) => {
                           const person = people.lookup(p.user_id);
                           return (
-                            <li key={p.user_id} data-status={status} className={cn("who-chip inline-flex h-9 items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm", status === "going" ? "font-semibold text-fg" : status === "maybe" ? "text-fg" : "text-muted")}>
+                            <li
+                              key={p.user_id}
+                              data-status={status}
+                              className={cn(
+                                "who-chip inline-flex max-w-full items-center gap-2 py-0.5 pl-1 pr-3 text-sm",
+                                // P24: Mit Zusatz darf die Pille zweizeilig werden (60 Zeichen passen bei 390 px nicht in eine Zeile).
+                                p.note && status !== "invited" ? "min-h-9 rounded-[18px] py-1" : "h-9 rounded-full",
+                                status === "going" ? "font-semibold text-fg" : status === "maybe" ? "text-fg" : "text-muted",
+                              )}
+                            >
                               <Avatar person={person} size="xs" decorative />
-                              {p.user_id === user.id ? t.states.you : (person?.display_name ?? t.states.formerMember)}
+                              <span className="min-w-0 break-words">
+                                {p.user_id === user.id ? t.states.you : (person?.display_name ?? t.states.formerMember)}
+                                {p.note && status !== "invited" && (
+                                  <span className="font-normal text-muted" data-testid="who-note">
+                                    {" · "}
+                                    {t.plans.detail.attendance.note.quoted(p.note)}
+                                  </span>
+                                )}
+                              </span>
                             </li>
                           );
                         })}
