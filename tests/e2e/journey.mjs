@@ -3249,6 +3249,104 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P26 – „Nur 2 Plätze“: Bob organisiert (390 px), Alice und er sind dabei. Ein Tipp auf „2“ setzt die Höchstzahl –
+  // die Runde ist voll. Carol bekommt statt „Bin dabei“ „Nachrücken“, steht als Nächste auf der Liste; sagt Alice ab,
+  // rückt Carol von selbst nach und bekommt genau einmal „Du bist nachgerückt: …“. Einfache Mitglieder stellen
+  // nichts ein, ohne Anmeldung niemand; eine Zusage über die Grenze weist der Server ab.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const carolId = psql(`select id from auth.users where email = '${carol.email}'`);
+    const capPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${bobId}', 'Bowling auf Bahn 3', date_trunc('day', now()) + interval '6 days 19 hours', 'confirmed')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
+      select '${capPlan}', m.user_id,
+        case when m.user_id in ('${bobId}', '${aliceId}') then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
+        case when m.user_id in ('${bobId}', '${aliceId}') then now() end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    try {
+      await bob.page.goto(`${APP}/plans/${capPlan}`);
+      await bob.page.getByRole("heading", { level: 1, name: "Bowling auf Bahn 3" }).waitFor();
+      const card = bob.page.getByTestId("plan-capacity-card");
+      await card.waitFor();
+      check((await bob.page.getByTestId("plan-capacity").count()) === 0, "Höchstzahl: ohne Einstellung keine Anzeige bei „Wer kommt mit?“");
+      check((await card.getByRole("radio", { name: "Keine Höchstzahl" }).getAttribute("aria-checked")) === "true", "Höchstzahl: anfangs offen");
+      await card.getByRole("radio", { name: "Höchstens 2 Zusagen" }).click();
+      await toast(bob, "Höchstens 2 – ist es voll, geht es auf die Nachrückliste.");
+      check(psql(`select max_going from public.plans where id = '${capPlan}'`) === "2", "Höchstzahl: mit einem Tipp gespeichert");
+      const meter = bob.page.locator('[data-testid="plan-capacity"][data-full="true"]');
+      await meter.waitFor();
+      check((await bob.page.getByTestId("plan-capacity-status").innerText()).trim() === "Voll", "Höchstzahl: Bob sieht „Voll“");
+      await noOverflow(bob, "Höchstzahl einstellen");
+      await a11y(bob, "plan-hoechstzahl");
+      await card.scrollIntoViewIfNeeded();
+      await shot(bob, "21s-plan-hoechstzahl-einstellen");
+
+      // Carol: „Bin dabei“ ist jetzt „Nachrücken“; der Server weist eine Zusage über die Grenze ab.
+      check((await api(carol, "POST", "rpc/set_attendance", { p_plan_id: capPlan, p_status: "going" })).status >= 400, "Höchstzahl: Zusage über die Grenze wird abgewiesen");
+      await carol.page.goto(`${APP}/plans/${capPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Bowling auf Bahn 3" }).waitFor();
+      check((await carol.page.getByTestId("plan-capacity-card").count()) === 0, "Höchstzahl: einfache Mitglieder stellen nichts ein");
+      const join = carol.page.getByTestId("plan-waitlist-join");
+      await join.waitFor();
+      check((await join.innerText()).trim() === "Nachrücken", "Höchstzahl: Carol sieht „Nachrücken“ statt „Bin dabei“");
+      await carol.page.getByTestId("plan-waitlist-mine").waitFor();
+      await join.click();
+      await toast(carol, "Du bist als Nächstes dran.");
+      const mine = carol.page.getByTestId("plan-waitlist-mine");
+      await mine.getByText("Du bist als Nächstes dran").waitFor();
+      check(await join.isDisabled(), "Höchstzahl: auf der Liste ist „Nachrücken“ gesperrt");
+      check((await carol.page.getByRole("radio", { name: "Vielleicht" }).getAttribute("aria-checked")) === "true", "Höchstzahl: auf der Liste gilt „Vielleicht“");
+      const entries = carol.page.getByTestId("plan-waitlist-entry");
+      await entries.first().waitFor();
+      check((await entries.count()) === 1 && (await entries.first().innerText()).includes("Du"), "Höchstzahl: Carol steht als Erste auf der Nachrückliste");
+      await carol.page.getByText("Du bist als Nächstes dran.").first().waitFor({ state: "hidden" });
+      await mine.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(carol, "Nachrückliste");
+      await a11y(carol, "plan-nachrueckliste");
+      await shot(carol, "21t-plan-nachrueckliste");
+      await carol.page.getByTestId("plan-waitlist").evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(carol, "21u-plan-wer-kommt-nachrueckliste");
+
+      // Alice sagt ab – Carol rückt nach.
+      check((await api(alice, "POST", "rpc/set_attendance", { p_plan_id: capPlan, p_status: "declined" })).status < 300, "Höchstzahl: Alice sagt ab");
+      check(psql(`select attendance_status from public.plan_participants where plan_id = '${capPlan}' and user_id = '${carolId}'`) === "going", "Höchstzahl: Carol ist nachgerückt");
+      check(psql(`select count(*) from public.notifications where type = 'plan_waitlist_promoted' and related_entity_id = '${capPlan}' and user_id = '${carolId}'`) === "1",
+        "Höchstzahl: Carol bekommt genau eine Nachricht");
+      await carol.page.reload();
+      await carol.page.getByRole("heading", { level: 1, name: "Bowling auf Bahn 3" }).waitFor();
+      await carol.page.locator('[role="radio"][aria-checked="true"]', { hasText: "Bin dabei" }).waitFor();
+      check((await carol.page.getByTestId("plan-waitlist-mine").count()) === 0, "Höchstzahl: nach dem Nachrücken kein Listen-Hinweis mehr");
+      await carol.page.goto(`${APP}/notifications`);
+      const news = carol.page.getByRole("link", { name: /Du bist nachgerückt: Bowling auf Bahn 3/ });
+      await news.first().waitFor();
+      check(true, "Höchstzahl: „Du bist nachgerückt: …“ in den Benachrichtigungen");
+      await shot(carol, "21v-nachgerueckt-benachrichtigung");
+      await news.first().click();
+      await carol.page.waitForURL(`**/plans/${capPlan}`);
+      check(true, "Höchstzahl: Nachricht führt zum Plan");
+
+      // Bob öffnet die Runde wieder.
+      await bob.page.reload();
+      await bob.page.getByTestId("plan-capacity-card").getByRole("radio", { name: "Keine Höchstzahl" }).click();
+      await toast(bob, "Keine Höchstzahl mehr – alle auf der Liste sind jetzt dabei.");
+      await bob.page.getByTestId("plan-capacity").waitFor({ state: "detached" });
+      check(true, "Höchstzahl: entfernt, Anzeige verschwindet");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/set_plan_max_going`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: capPlan, p_max: 2 }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung keine Höchstzahl (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${capPlan}'; delete from public.plans where id = '${capPlan}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });

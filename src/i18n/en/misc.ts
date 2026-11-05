@@ -118,6 +118,10 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
       .filter(Boolean)
       .join(" · "),
   }),
+  plan_waitlist_promoted: (_actor, p) => ({
+    title: `You're in: ${serverTitle(p)}`,
+    body: [str(p, "starts_at") ? formatDateTime(str(p, "starts_at")) : "", "A spot opened up – you moved up from the waiting list."].filter(Boolean).join(" · "),
+  }),
   birthday_reminder: (actor, p) => ({
     title: str(p, "date") ? `${actor}'s birthday is on ${formatPlainDateLong(str(p, "date"))}` : `${actor}'s birthday is coming up`,
     body: str(p, "crew_name") ? `Plan a party with “${str(p, "crew_name")}”?` : "Plan a party?",

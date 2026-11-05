@@ -16,6 +16,7 @@ import { useActivity, useActivitySearch } from "@/features/discover/api";
 import { SpotMap } from "@/features/discover/SpotMap";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
+import { spotsLeft } from "@/lib/capacity";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
@@ -23,9 +24,10 @@ import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { downloadPlanIcs } from "@/lib/ics";
 import { liveStage } from "@/lib/live";
 import { mapProvider } from "@/lib/maps";
+import { goingWithGuests } from "@/lib/quorum";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
-import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useRemindPlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
+import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { AnswerNote } from "./AnswerNote";
 import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
@@ -48,6 +50,10 @@ const PlanGuestsPanel = lazy(() => import("./PlanGuests").then((m) => ({ default
 // P25: „Findet statt ab 4“ – Texte und Bedienung laden erst, wenn ein Plan eine Mindestzahl hat bzw. jemand sie einstellt.
 const QuorumMeter = lazy(() => import("./PlanQuorum").then((m) => ({ default: m.QuorumMeter })));
 const QuorumCard = lazy(() => import("./PlanQuorum").then((m) => ({ default: m.QuorumCard })));
+// P26: „Nur 6 Plätze“ – Anzeige, Nachrückliste und Einstellung laden erst, wenn ein Plan eine Höchstzahl hat bzw. jemand sie einstellt.
+const CapacityMeter = lazy(() => import("./PlanCapacity").then((m) => ({ default: m.CapacityMeter })));
+const CapacityCard = lazy(() => import("./PlanCapacity").then((m) => ({ default: m.CapacityCard })));
+const WaitlistNote = lazy(() => import("./PlanCapacity").then((m) => ({ default: m.WaitlistNote })));
 const PlanGuestClaimCard = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestClaimCard })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
@@ -102,6 +108,7 @@ export function PlanDetailPage() {
   const plan = planQuery.data;
   const activity = useActivity(plan?.activity_id);
   const setAttendance = useSetAttendance(planId ?? "");
+  const joinWaitlist = useJoinPlanWaitlist(planId ?? "");
   const setStatus = useSetPlanStatus(planId ?? "");
   const remind = useRemindPlan(planId ?? "");
   const update = useUpdatePlan(planId ?? "");
@@ -136,6 +143,9 @@ export function PlanDetailPage() {
   const mine = myRow?.attendance_status ?? "invited";
   // P23: Der Plan wurde verschoben und alle neu gefragt – die alte Antwort steht als Hinweis da.
   const previous = mine === "invited" && !locked ? (myRow?.previous_status ?? null) : null;
+  // P26: Runde voll – wer nicht dabei ist, stellt sich statt „Bin dabei“ auf die Nachrückliste.
+  const full = mine !== "going" && spotsLeft(plan, goingWithGuests(plan), now) === 0;
+  const waitlisted = Boolean(myRow?.waitlisted_at) && mine !== "going";
   const othersAnswered = plan.participants.filter((p) => p.user_id !== user.id && p.attendance_status !== "invited").length;
   const costs = estimateCosts(plan);
   const place = activity.data ?? null;
@@ -204,6 +214,25 @@ export function PlanDetailPage() {
             <div role="radiogroup" aria-labelledby="attendance-heading" className="mt-4 grid grid-cols-3 gap-2">
               {ANSWERS.map(({ value, label }) => {
                 const selected = mine === value;
+                // P26: Voll – „Bin dabei“ wird zu „Nachrücken“ (auf der Liste: gesperrt, die Karte darunter sagt den Platz).
+                if (value === "going" && (full || waitlisted) && !locked) {
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={false}
+                      aria-label={t.plans.detail.attendance.waitlistLabel}
+                      data-response={CARD_ANSWER[value]}
+                      data-testid="plan-waitlist-join"
+                      disabled={waitlisted || joinWaitlist.isPending}
+                      onClick={() => joinWaitlist.mutate(undefined, { onSuccess: (n) => toast.success(t.plans.detail.attendance.waitlistJoined(n)), onError: (error) => toast.error(error) })}
+                      className="vote-pill"
+                    >
+                      {t.plans.detail.attendance.waitlist}
+                    </button>
+                  );
+                }
                 return (
                   <button
                     key={value}
@@ -220,6 +249,12 @@ export function PlanDetailPage() {
                 );
               })}
             </div>
+            {/* P26: Wo du auf der Nachrückliste stehst – oder wie du draufkommst. */}
+            {!locked && !started && (full || waitlisted) && (
+              <Suspense fallback={null}>
+                <WaitlistNote plan={plan} userId={user.id} />
+              </Suspense>
+            )}
             {previous && (
               <p className="mt-2.5 flex items-center gap-2 text-[13px] leading-snug text-muted" data-testid="plan-asked-again">
                 <IconInfo className="size-4 shrink-0" aria-hidden />
@@ -326,9 +361,18 @@ export function PlanDetailPage() {
                   </div>
                 </Suspense>
               )}
+              {/* P26: Höchstzahl – freie Plätze und Nachrückliste. */}
+              {!locked && plan.max_going != null && (
+                <Suspense fallback={null}>
+                  <div className="mt-2">
+                    <CapacityMeter plan={plan} userId={user.id} lookup={people.lookup} now={now} />
+                  </div>
+                </Suspense>
+              )}
               <div className="mt-1 space-y-3">
                 {GROUPS.map((status) => {
-                  const group = plan.participants.filter((p) => p.attendance_status === status);
+                  // P26: Wer auf der Nachrückliste steht, erscheint dort (in Reihenfolge), nicht bei „Vielleicht“.
+                  const group = plan.participants.filter((p) => p.attendance_status === status && !(status === "maybe" && p.waitlisted_at));
                   // W10: Zusagen ohne Konto stehen in derselben Gruppe, gekennzeichnet als Gast.
                   const guests = (plan.guests ?? []).filter((g) => g.attendance_status === status);
                   if (group.length + guests.length === 0) return null;
@@ -508,6 +552,12 @@ export function PlanDetailPage() {
             {!started && (
               <Suspense fallback={null}>
                 <QuorumCard plan={plan} />
+              </Suspense>
+            )}
+            {/* P26: Wie viele passen rein? Nur vor Beginn. */}
+            {!started && (
+              <Suspense fallback={null}>
+                <CapacityCard plan={plan} />
               </Suspense>
             )}
             {/* P8: Stammtisch – der Plan wiederholt sich von selbst. */}

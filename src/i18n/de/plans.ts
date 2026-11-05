@@ -191,6 +191,10 @@ export const plans = {
       reminded: (n: number) => (n === 0 ? "Alle haben schon geantwortet – niemand wurde gefragt." : n === 1 ? "1 Person gefragt." : `${n} Personen gefragt.`),
       // P23: Der Plan wurde verschoben, die alte Antwort gilt nicht mehr.
       askedAgain: (previous: string) => `Neue Zeit – passt es dir noch? Vorher: ${previous}`,
+      // P26: Runde voll – statt „Bin dabei“ auf die Nachrückliste.
+      waitlist: "Nachrücken",
+      waitlistLabel: "Auf die Nachrückliste – sagt jemand ab, bist du automatisch dabei",
+      waitlistJoined: (n: number) => (n === 1 ? "Du bist als Nächstes dran." : `Du bist Nr. ${n} auf der Nachrückliste.`),
       // P24: Zusatz zur eigenen Antwort.
       note: {
         add: "Zusatz für die Crew",

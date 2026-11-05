@@ -245,6 +245,22 @@ export function useSetAttendance(planId: string) {
   });
 }
 
+/** P26: Runde voll – auf die Nachrückliste. Liefert den eigenen Platz (1 = als Nächstes). */
+export function useJoinPlanWaitlist(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc("join_plan_waitlist", { p_plan_id: planId });
+      if (error) throw error;
+      return data as number;
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: qk.plan(planId) });
+      void client.invalidateQueries({ queryKey: qk.plans });
+    },
+  });
+}
+
 /** P24: Zusatz zur eigenen Antwort setzen (leer = entfernen). Liefert den gespeicherten Zusatz. */
 export function useSetPlanAnswerNote(planId: string) {
   const client = useQueryClient();
