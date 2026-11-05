@@ -80,6 +80,7 @@ const TEXTS = {
     planCompleted: (when) => `Vorbei – das war ${when}.`,
     planOpen: (when, going) => `${when} · ${going}. Bist du dabei?`,
     quorum: (left) => (left <= 0 ? "findet statt" : left === 1 ? "noch 1 fehlt" : `noch ${left} fehlen`),
+    spots: (left) => (left <= 0 ? "voll, Nachrückliste offen" : left === 1 ? "noch 1 Platz frei" : `noch ${left} Plätze frei`),
     options: (n) => (n === 1 ? "1 Vorschlag" : `${n} Vorschläge`),
     dates: (n) => (n === 1 ? "1 Termin" : `${n} Termine`),
     datesListed: (head, listed, rest) => `${head} zur Wahl: ${listed}${rest > 0 ? ` und ${rest} ${rest === 1 ? "weiterer" : "weitere"}` : ""}`,
@@ -98,6 +99,7 @@ const TEXTS = {
     planCompleted: (when) => `Over – that was ${when}.`,
     planOpen: (when, going) => `${when} · ${going}. Are you in?`,
     quorum: (left) => (left <= 0 ? "it's on" : `${left} more needed`),
+    spots: (left) => (left <= 0 ? "full, waitlist open" : left === 1 ? "1 spot left" : `${left} spots left`),
     options: (n) => (n === 1 ? "1 option" : `${n} options`),
     dates: (n) => (n === 1 ? "1 date" : `${n} dates`),
     datesListed: (head, listed, rest) => `${head} to choose from: ${listed}${rest > 0 ? ` and ${rest} more` : ""}`,
@@ -131,7 +133,12 @@ export function describeSharedPlan(preview, locale = "de") {
   const going = Number(plan.going_count) || 0;
   // P25 Etappe 2: Mindestzahl – die Datenbank liefert sie nur, solange der Abend offen ist.
   const min = Number(plan.min_going) || 0;
-  const count = min >= 2 ? `${text.going(going)} · ${text.quorum(min - going)}` : text.going(going);
+  // P26 Etappe 2: Höchstzahl – ebenfalls nur, solange der Abend offen ist.
+  const max = Number(plan.max_going) || 0;
+  const parts = [text.going(going)];
+  if (min >= 2) parts.push(text.quorum(min - going));
+  if (max >= 2) parts.push(text.spots(max - going));
+  const count = parts.join(" · ");
   return { title, description: text.planOpen(when, count) };
 }
 

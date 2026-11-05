@@ -46,7 +46,7 @@ select tests.login('mallory');
 select is((public.preview_shared_plan(tests.var('token')) -> 'plan' ->> 'min_going')::int, 3, 'Außenstehende: Mindestzahl');
 select is(public.preview_shared_plan(tests.var('token')) ->> 'plan_id', null, 'Außenstehende: keine Plan-ID');
 select is((select array_agg(k order by k) from jsonb_object_keys(public.preview_shared_plan(tests.var('token')) -> 'plan') k),
-  array['ends_at', 'going_count', 'guests', 'min_going', 'starts_at', 'status', 'title'], 'nur Titel, Zeit, Status und Zahlen');
+  array['ends_at', 'going_count', 'guests', 'max_going', 'min_going', 'starts_at', 'status', 'title'], 'nur Titel, Zeit, Status und Zahlen');
 select throws_ok($$ select public.set_plan_min_going(tests.var('plan')::uuid, 2) $$, '42501', null, 'Außenstehende ändern nichts');
 
 -- Mitglieder: mit Plan-ID.
