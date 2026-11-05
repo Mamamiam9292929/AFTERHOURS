@@ -3343,6 +3343,8 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       } finally {
         await capOutsider.close();
       }
+      await carol.page.goto(`${APP}/plans/${capPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Bowling auf Bahn 3" }).waitFor();
 
       // Alice sagt ab – Carol rückt nach.
       check((await api(alice, "POST", "rpc/set_attendance", { p_plan_id: capPlan, p_status: "declined" })).status < 300, "Höchstzahl: Alice sagt ab");
