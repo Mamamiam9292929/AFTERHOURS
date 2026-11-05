@@ -3153,7 +3153,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await a11y(bob, "plan-mindestzahl");
       await card.scrollIntoViewIfNeeded();
       await shot(bob, "21o-plan-mindestzahl-einstellen");
-      await meter.scrollIntoViewIfNeeded();
+      await meter.evaluate((el) => el.scrollIntoView({ block: "center" }));
       await shot(bob, "21p-plan-mindestzahl-fehlt");
 
       // Carol: sieht, was fehlt, kann die Zahl aber nicht einstellen – und sagt zu.
@@ -3167,7 +3167,9 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       const reached = carol.page.locator('[data-testid="plan-quorum"][data-reached="true"]');
       await reached.waitFor();
       check((await carol.page.getByTestId("plan-quorum-status").innerText()).trim() === "Findet statt", "Mindestzahl: nach Carols Zusage „Findet statt“");
-      await reached.scrollIntoViewIfNeeded();
+      // Das Bild zeigt „Wer kommt mit?“ mit der Anzeige, nicht den Kopf der Seite (und keinen Toast darüber).
+      await carol.page.getByText("Antwort gespeichert.").first().waitFor({ state: "hidden" });
+      await reached.evaluate((el) => el.scrollIntoView({ block: "center" }));
       await noOverflow(carol, "Mindestzahl erreicht");
       await a11y(carol, "plan-mindestzahl-erreicht");
       await shot(carol, "21q-plan-findet-statt");
