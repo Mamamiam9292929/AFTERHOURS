@@ -3156,6 +3156,32 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await meter.evaluate((el) => el.scrollIntoView({ block: "center" }));
       await shot(bob, "21p-plan-mindestzahl-fehlt");
 
+      // P25 Etappe 2: Carol (noch ohne Antwort) sieht „Noch 1 fehlt“ am Ticket auf Home …
+      await carol.page.goto(`${APP}/`);
+      const homeQuorum = carol.page.locator(`a[href="/plans/${quorumPlan}"]`).first().getByTestId("ticket-quorum");
+      await homeQuorum.waitFor();
+      check((await homeQuorum.innerText()).trim() === "Noch 1 fehlt", "Mindestzahl: „Noch 1 fehlt“ am Ticket auf Home");
+      await homeQuorum.evaluate((el) => el.closest("a")?.scrollIntoView({ block: "center" }));
+      await noOverflow(carol, "Mindestzahl am Ticket");
+      await a11y(carol, "home-mindestzahl");
+      await shot(carol, "21p2-home-mindestzahl-ticket");
+      // … und wer den Link aus dem Gruppenchat ohne Konto öffnet, liest „Noch 1 fehlt – bist du dabei?“.
+      const quorumToken = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: quorumPlan })).json;
+      const outsider = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+      try {
+        const visitor = { page: await outsider.newPage(), viewport: "mobile" };
+        await visitor.page.goto(`${APP}/s/${quorumToken}`);
+        const sharedQuorum = visitor.page.getByTestId("shared-plan-quorum");
+        await sharedQuorum.waitFor();
+        check((await sharedQuorum.innerText()).trim() === "Noch 1 fehlt – bist du dabei?", "Mindestzahl: geteilte Karte fragt „Noch 1 fehlt – bist du dabei?“");
+        check((await visitor.page.getByTestId("shared-plan-going").innerText()).includes("2"), "Mindestzahl: geteilte Karte zeigt 2 Zusagen");
+        await noOverflow(visitor, "Mindestzahl auf der geteilten Karte");
+        await a11y(visitor, "geteilt-mindestzahl");
+        await shot(visitor, "21p3-geteilt-mindestzahl");
+      } finally {
+        await outsider.close();
+      }
+
       // Carol: sieht, was fehlt, kann die Zahl aber nicht einstellen – und sagt zu.
       await carol.page.goto(`${APP}/plans/${quorumPlan}`);
       await carol.page.getByRole("heading", { level: 1, name: "Kicker in der Eckkneipe" }).waitFor();
@@ -3173,6 +3199,14 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await noOverflow(carol, "Mindestzahl erreicht");
       await a11y(carol, "plan-mindestzahl-erreicht");
       await shot(carol, "21q-plan-findet-statt");
+      // In der Planliste trägt das (jetzt grüne) Ticket „Findet statt“ – Home zeigt nach der Zusage nur die nächsten Pläne.
+      await carol.page.goto(`${APP}/plans`);
+      const listReached = carol.page.locator(`a[href="/plans/${quorumPlan}"]`).first().locator('[data-testid="ticket-quorum"][data-reached="true"]');
+      await listReached.waitFor();
+      check((await listReached.innerText()).trim() === "Findet statt", "Mindestzahl: „Findet statt“ am Ticket in der Planliste");
+      await a11y(carol, "plaene-mindestzahl-erreicht");
+      await carol.page.goto(`${APP}/plans/${quorumPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Kicker in der Eckkneipe" }).waitFor();
       check(psql(`select count(*) from public.notifications where type = 'plan_quorum' and related_entity_id = '${quorumPlan}'`) ===
         psql(`select count(*) from public.crew_members m left join public.user_settings s on s.user_id = m.user_id
           where m.crew_id = '${ids.crew}' and coalesce(s.notification_preferences ->> 'plan_quorum', 'true') <> 'false'`),

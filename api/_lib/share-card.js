@@ -79,6 +79,7 @@ const TEXTS = {
     planCancelled: (when) => `Abgesagt – war geplant für ${when}.`,
     planCompleted: (when) => `Vorbei – das war ${when}.`,
     planOpen: (when, going) => `${when} · ${going}. Bist du dabei?`,
+    quorum: (left) => (left <= 0 ? "findet statt" : left === 1 ? "noch 1 fehlt" : `noch ${left} fehlen`),
     options: (n) => (n === 1 ? "1 Vorschlag" : `${n} Vorschläge`),
     dates: (n) => (n === 1 ? "1 Termin" : `${n} Termine`),
     datesListed: (head, listed, rest) => `${head} zur Wahl: ${listed}${rest > 0 ? ` und ${rest} ${rest === 1 ? "weiterer" : "weitere"}` : ""}`,
@@ -96,6 +97,7 @@ const TEXTS = {
     planCancelled: (when) => `Cancelled – was planned for ${when}.`,
     planCompleted: (when) => `Over – that was ${when}.`,
     planOpen: (when, going) => `${when} · ${going}. Are you in?`,
+    quorum: (left) => (left <= 0 ? "it's on" : `${left} more needed`),
     options: (n) => (n === 1 ? "1 option" : `${n} options`),
     dates: (n) => (n === 1 ? "1 date" : `${n} dates`),
     datesListed: (head, listed, rest) => `${head} to choose from: ${listed}${rest > 0 ? ` and ${rest} more` : ""}`,
@@ -126,7 +128,11 @@ export function describeSharedPlan(preview, locale = "de") {
   const title = `${plan.title} · AFTERHOURS`;
   if (plan.status === "cancelled") return { title, description: text.planCancelled(when) };
   if (plan.status === "completed") return { title, description: text.planCompleted(when) };
-  return { title, description: text.planOpen(when, text.going(Number(plan.going_count) || 0)) };
+  const going = Number(plan.going_count) || 0;
+  // P25 Etappe 2: Mindestzahl – die Datenbank liefert sie nur, solange der Abend offen ist.
+  const min = Number(plan.min_going) || 0;
+  const count = min >= 2 ? `${text.going(going)} · ${text.quorum(min - going)}` : text.going(going);
+  return { title, description: text.planOpen(when, count) };
 }
 
 /**

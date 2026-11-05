@@ -503,7 +503,7 @@ export function usePlanShareToken(planId: string | undefined, enabled = true) {
 export type SharedPlanPreview =
   | {
       status: "valid";
-      plan: { title: string; starts_at: string; ends_at: string | null; status: PlanStatus; going_count: number; /** W10: Zusagen ohne Konto gerade möglich. */ guests?: boolean };
+      plan: { title: string; starts_at: string; ends_at: string | null; status: PlanStatus; going_count: number; /** W10: Zusagen ohne Konto gerade möglich. */ guests?: boolean; /** P25 Etappe 2: Mindestzahl, nur solange offen. */ min_going?: number | null };
       /** Nur für Mitglieder der Crew – sonst null. */
       plan_id: string | null;
     }
