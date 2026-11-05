@@ -118,7 +118,7 @@ export function AnswerNote({ planId, answer, note }: { planId: string; answer: E
         setEditing(true);
       }}
       data-testid="answer-note-add"
-      className="mt-3 flex min-h-10 w-fit items-center gap-1.5 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-fg"
+      className="mt-3 flex min-h-10 w-fit items-center gap-1.5 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"
     >
       <IconPlus className="size-4" aria-hidden />
       {texts.add}
