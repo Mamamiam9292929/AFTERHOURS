@@ -69,6 +69,13 @@ export const home = {
     meeting: "Treffpunkt",
     meetingOpen: "Noch kein Treffpunkt eingetragen.",
     toPlan: "Zum Plan",
+    /** P24 Etappe 3 · Zusätze zur Antwort („komme später“) der Crew und der Gäste. */
+    notes: {
+      label: "Dazu geschrieben",
+      you: "Du",
+      line: (who: string, note: string) => `${who}: „${note}“`,
+      more: (n: number) => (n === 1 ? "1 weiterer auf der Planseite" : `${n} weitere auf der Planseite`),
+    },
     /** P14 Etappe 2 · Mitbring-Liste in der Leiste: was du mitbringst, was noch fehlt. */
     bring: {
       label: "Mitbringen",

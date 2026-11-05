@@ -66,6 +66,12 @@ export const home = {
     meeting: "Meeting point",
     meetingOpen: "No meeting point yet.",
     toPlan: "Go to plan",
+    notes: {
+      label: "Notes",
+      you: "You",
+      line: (who: string, note: string) => `${who}: “${note}”`,
+      more: (n: number) => (n === 1 ? "1 more on the plan page" : `${n} more on the plan page`),
+    },
     /** P14 Etappe 2 · Mitbring-Liste in der Leiste. */
     bring: {
       label: "Bring along",
