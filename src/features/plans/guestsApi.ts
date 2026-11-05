@@ -43,7 +43,8 @@ export type SharedPlanRsvp =
         meeting_point: string | null;
       };
       counts: { going: number; maybe: number };
-      me: { name: string; status: GuestAnswer } | null;
+      /** P24 Etappe 2: `note` fehlt, solange es keinen Zusatz gibt. */
+      me: { name: string; status: GuestAnswer; note?: string } | null;
     }
   | { status: "not_found" | "expired" | "guests_off" };
 
@@ -76,6 +77,23 @@ export function useGuestRsvp(token: string, secret: string) {
       void client.invalidateQueries({ queryKey: rsvpKey(token) });
       void client.invalidateQueries({ queryKey: ["plan-share-preview", token] });
     },
+  });
+}
+
+/** P24 Etappe 2: Zusatz zur eigenen Gast-Antwort setzen (null = entfernen). Liefert den gespeicherten Zusatz. */
+export function useGuestNote(token: string, secret: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (note: string | null): Promise<string | null> => {
+      const { data, error } = await supabase.rpc("guest_note_shared_plan", { p_token: token, p_secret: secret, p_note: note ?? "" });
+      if (error) throw error;
+      return (data as string | null) ?? null;
+    },
+    onSuccess: (saved) =>
+      client.setQueryData<SharedPlanRsvp>(rsvpKey(token), (old) =>
+        old?.status === "valid" && old.me ? { ...old, me: saved ? { ...old.me, note: saved } : { name: old.me.name, status: old.me.status } } : old,
+      ),
+    onSettled: () => void client.invalidateQueries({ queryKey: rsvpKey(token) }),
   });
 }
 

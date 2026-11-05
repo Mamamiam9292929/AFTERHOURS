@@ -17,7 +17,7 @@ export interface PlanWithParticipants extends Plan {
 }
 
 const PLAN_SELECT =
-  "*, participants:plan_participants(*), series:plan_series(*), guests:plan_guests(id, plan_id, display_name, attendance_status, created_at, updated_at)";
+  "*, participants:plan_participants(*), series:plan_series(*), guests:plan_guests(id, plan_id, display_name, attendance_status, note, created_at, updated_at)";
 
 export const ACTIVE_PLAN_STATUSES: PlanStatus[] = ["proposed", "confirmed", "booking_pending", "booked"];
 

@@ -372,11 +372,29 @@ export function PlanDetailPage() {
                           );
                         })}
                         {guests.map((g) => (
-                          <li key={g.id} data-status={status} data-testid="who-guest" className={cn("who-chip inline-flex h-9 items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm", status === "going" ? "font-semibold text-fg" : status === "maybe" ? "text-fg" : "text-muted")}>
-                            <span aria-hidden className="grid size-6 place-items-center rounded-full border border-dashed border-white/30 text-[10px] font-bold uppercase text-muted">
+                          <li
+                            key={g.id}
+                            data-status={status}
+                            data-testid="who-guest"
+                            className={cn(
+                              "who-chip inline-flex max-w-full items-center gap-2 py-0.5 pl-1 pr-3 text-sm",
+                              g.note ? "min-h-9 rounded-[18px] py-1" : "h-9 rounded-full",
+                              status === "going" ? "font-semibold text-fg" : status === "maybe" ? "text-fg" : "text-muted",
+                            )}
+                          >
+                            <span aria-hidden className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed border-white/30 text-[10px] font-bold uppercase text-muted">
                               {g.display_name.slice(0, 1)}
                             </span>
-                            {t.plans.detail.attendance.guest(g.display_name)}
+                            <span className="min-w-0 break-words">
+                              {t.plans.detail.attendance.guest(g.display_name)}
+                              {/* P24 Etappe 2: Zusatz des Gasts wie bei Mitgliedern. */}
+                              {g.note && (
+                                <span className="font-normal text-muted" data-testid="who-note">
+                                  {" · "}
+                                  {t.plans.detail.attendance.note.quoted(g.note)}
+                                </span>
+                              )}
+                            </span>
                           </li>
                         ))}
                       </ul>
