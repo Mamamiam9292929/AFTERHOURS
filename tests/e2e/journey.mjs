@@ -1671,6 +1671,46 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await a11y(guest, "plan-gast-zusatz");
     await shot(guest, "16w3b-plan-gast-zusatz");
 
+    // P27: Dana holt sich den Abend in den Kalender – Datei aus dem Browser, nur was die Karte zeigt.
+    const calendar = guest.page.getByTestId("rsvp-calendar");
+    await calendar.waitFor();
+    check((await calendar.innerText()).includes("Ohne Konto"), "P27: Gast sieht „Im Kalender“ mit Hinweis, dass ohne Konto keine Nachricht kommt");
+    const [guestDownload] = await Promise.all([guest.page.waitForEvent("download"), calendar.getByRole("button", { name: "In meinen Kalender" }).click()]);
+    check(guestDownload.suggestedFilename() === "strike-district-bowling.ics", `P27: Kalenderdatei heißt nach dem Plan (${guestDownload.suggestedFilename()})`);
+    const guestIcs = fs.readFileSync(await guestDownload.path(), "utf8");
+    const guestIcsFlat = guestIcs.replace(/\r\n /g, "");
+    check(guestIcs.startsWith("BEGIN:VCALENDAR\r\n") && guestIcs.endsWith("END:VCALENDAR\r\n"), "P27: gültiges iCalendar mit CRLF");
+    check(guestIcsFlat.includes("\r\nSUMMARY:Strike District Bowling\r\n"), "P27: Titel des Plans");
+    check(guestIcsFlat.includes("Demochaussee 220") && guestIcsFlat.includes("Treffpunkt: U-Bahn Ausgang Nord"), "P27: Ort und Treffpunkt in der Datei");
+    check(guestIcsFlat.includes("\r\nSTATUS:TENTATIVE\r\n"), "P27: „Vielleicht“ steht als vorläufig im Kalender");
+    check(guestIcsFlat.includes(`\r\nURL:${new URL(ids.shareUrl).origin}/s/${token}\r\n`), "P27: Link zurück zur Karte");
+    check(!/Alice|Bob|Carol|ATTENDEE|ORGANIZER/.test(guestIcsFlat), "P27: keine Namen der Crew in der Datei");
+    if (DB_URL) {
+      const guestStart = execFileSync("psql", [DB_URL, "-tAc", `select to_char(starts_at at time zone 'UTC', 'YYYYMMDD"T"HH24MISS"Z"') from public.plans where id = '${ids.plan}'`], { encoding: "utf8" }).trim();
+      check(guestIcsFlat.includes(`\r\nDTSTART:${guestStart}\r\n`), `P27: Beginn wie in der Datenbank (${guestStart})`);
+    }
+    await toast(guest, "Kalenderdatei geladen – öffne sie, um den Termin einzutragen.");
+    await guest.page.getByTestId("rsvp-calendar-saved").waitFor();
+    check(true, "P27: danach steht da, mit welchem Stand der Termin geladen wurde");
+    // Änderungshinweis: Das Gerät hat einen älteren Stand gemerkt (wie nach einem Verschieben durch die Crew).
+    await guest.page.evaluate((key) => {
+      const saved = JSON.parse(localStorage.getItem(key));
+      saved.starts_at = new Date(Date.parse(saved.starts_at) - 3_600_000).toISOString();
+      localStorage.setItem(key, JSON.stringify(saved));
+    }, `afterhours.planguest.ics.${token}`);
+    await guest.page.reload();
+    const calendarChanged = guest.page.getByTestId("rsvp-calendar-changed");
+    await calendarChanged.waitFor();
+    check((await calendarChanged.innerText()).includes("Uhrzeit"), "P27: Karte sagt, dass sich die Uhrzeit seit dem Kalendereintrag geändert hat");
+    await calendarChanged.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await noOverflow(guest, "Gast-Kalender geändert");
+    await a11y(guest, "plan-gast-kalender");
+    await shot(guest, "16w3c-plan-gast-kalender-geaendert");
+    const [guestUpdate] = await Promise.all([guest.page.waitForEvent("download"), guest.page.getByRole("button", { name: "Kalender aktualisieren" }).click()]);
+    check(fs.readFileSync(await guestUpdate.path(), "utf8").includes("UID:guest-"), "P27: neue Datei mit derselben UID ersetzt den alten Termin");
+    await guest.page.getByTestId("rsvp-calendar-saved").waitFor();
+    check((await calendarChanged.count()) === 0, "P27: nach dem neuen Download kein Änderungshinweis mehr");
+
     // Die Crew sieht Dana bei „Wer“, Alice bekommt Bescheid.
     await page.reload();
     await page.getByTestId("who-guest").filter({ hasText: "Dana (Gast)" }).waitFor();
@@ -1697,6 +1737,7 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await declined;
     await guest.page.getByRole("heading", { level: 1, name: "Hallo Dana" }).waitFor();
     check(true, "W10: zurückziehen und mit gemerktem Namen per Tipp absagen");
+    check((await guest.page.getByTestId("rsvp-calendar").count()) === 0, "P27: nach „Kann nicht“ kein Kalender-Angebot");
 
     // Alice entfernt Dana und schaltet aus – der Link zeigt wieder nur die Karte.
     await page.reload();
