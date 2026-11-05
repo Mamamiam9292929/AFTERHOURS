@@ -245,6 +245,8 @@ export interface PlanGuest {
   plan_id: string;
   display_name: string;
   attendance_status: Exclude<AttendanceStatus, "invited">;
+  /** P24 Etappe 2: Zusatz zur Gast-Antwort. */
+  note?: string | null;
   created_at: string;
   updated_at: string;
 }

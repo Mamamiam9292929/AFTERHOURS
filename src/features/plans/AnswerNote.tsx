@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { IconChat, IconClose, IconEdit, IconPlus } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
@@ -6,6 +6,10 @@ import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
 import type { AttendanceStatus } from "@/lib/types";
 import { useSetPlanAnswerNote } from "./api";
+
+type Answer = Exclude<AttendanceStatus, "invited">;
+/** Speichert den Zusatz (null = entfernen) und liefert den gespeicherten Stand. */
+type SaveNote = (note: string | null, callbacks: { onSuccess: (saved: string | null) => void; onError: (error: unknown) => void }) => void;
 
 const MAX = 60;
 
@@ -15,15 +19,23 @@ const MAX = 60;
  * einem Tipp; eigener Text bis 60 Zeichen. Die Crew sieht den Zusatz bei „Wer kommt mit?“.
  * Ändert sich die Antwort, löscht der Server den Zusatz (Trigger) – hier reicht es, den Stand anzuzeigen.
  */
-export function AnswerNote({ planId, answer, note }: { planId: string; answer: Exclude<AttendanceStatus, "invited">; note: string | null }) {
-  const toast = useToast();
+export function AnswerNote({ planId, answer, note }: { planId: string; answer: Answer; note: string | null }) {
   const save = useSetPlanAnswerNote(planId);
+  return <NoteEditor answer={answer} note={note} pending={save.isPending} save={(value, callbacks) => save.mutate(value, callbacks)} />;
+}
+
+/**
+ * P24 Etappe 2: dieselbe Bedienung für Gäste ohne Konto unter dem Teilen-Link (W10) – dort speichert
+ * `guest_note_shared_plan` mit dem Geheimnis des Geräts.
+ */
+export function NoteEditor({ answer, note, pending, save }: { answer: Answer; note: string | null; pending: boolean; save: SaveNote }) {
+  const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const texts = t.plans.detail.attendance.note;
 
   function store(value: string | null) {
-    save.mutate(value, {
+    save(value, {
       onSuccess: (saved) => {
         setEditing(false);
         toast.success(saved ? texts.saved : texts.removed);
@@ -32,20 +44,20 @@ export function AnswerNote({ planId, answer, note }: { planId: string; answer: E
     });
   }
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
+  function submit() {
     store(draft.trim() || null);
   }
 
   if (editing) {
     return (
-      <form onSubmit={submit} className="mt-4 space-y-3 border-t border-line pt-4" data-testid="answer-note-form">
+      // Kein eigenes <form>: Unter dem Teilen-Link sitzt der Zusatz in der Antwortkarte, die schon ein Formular ist.
+      <div className="mt-4 space-y-3 border-t border-line pt-4" data-testid="answer-note-form">
         <div className="flex flex-wrap gap-2" role="group" aria-label={texts.label}>
           {texts.presets[answer].map((preset) => (
             <button
               key={preset}
               type="button"
-              disabled={save.isPending}
+              disabled={pending}
               onClick={() => store(preset)}
               className="inline-flex min-h-9 items-center rounded-full border border-line-strong px-3.5 text-[13px] font-semibold text-fg transition-colors hover:bg-surface disabled:opacity-50"
             >
@@ -62,17 +74,23 @@ export function AnswerNote({ planId, answer, note }: { planId: string; answer: E
           autoComplete="off"
           enterKeyHint="done"
           onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              if (draft.trim() || note) submit();
+            }
+          }}
           data-testid="answer-note-input"
         />
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" size="sm" loading={save.isPending} disabled={!draft.trim() && !note}>
+          <Button size="sm" loading={pending} onClick={submit} disabled={!draft.trim() && !note}>
             {texts.save}
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
             {texts.cancel}
           </Button>
         </div>
-      </form>
+      </div>
     );
   }
 
@@ -100,7 +118,7 @@ export function AnswerNote({ planId, answer, note }: { planId: string; answer: E
           type="button"
           aria-label={texts.remove}
           title={texts.remove}
-          disabled={save.isPending}
+          disabled={pending}
           onClick={() => store(null)}
           className="grid size-10 shrink-0 place-items-center rounded-full text-fg hover:bg-surface disabled:opacity-50"
         >

@@ -1662,11 +1662,20 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await guest.page.waitForFunction(() => document.querySelector('[data-testid="rsvp-card"]')?.getAttribute("data-answer") === "maybe");
     check(true, "W10: ein Tipp ändert die Antwort auf „Vielleicht“");
     await shot(guest, "16w3-plan-gast-eingetragen");
+    // P24 Etappe 2: Dana hängt einen Zusatz an – mit einem Tipp auf einen Vorschlag zu „Vielleicht“.
+    await guest.page.getByTestId("answer-note-add").click();
+    await guest.page.getByTestId("answer-note-form").getByRole("button", { name: "Hängt vom Wetter ab" }).click();
+    await guest.page.getByTestId("answer-note").filter({ hasText: "Hängt vom Wetter ab" }).waitFor();
+    check(true, "P24: Gast speichert einen Zusatz mit einem Tipp");
+    await noOverflow(guest, "Gast-Zusatz");
+    await a11y(guest, "plan-gast-zusatz");
+    await shot(guest, "16w3b-plan-gast-zusatz");
 
     // Die Crew sieht Dana bei „Wer“, Alice bekommt Bescheid.
     await page.reload();
     await page.getByTestId("who-guest").filter({ hasText: "Dana (Gast)" }).waitFor();
     check((await page.getByTestId("who-guest").getAttribute("data-status")) === "maybe", "W10: Dana steht bei „Vielleicht“, gekennzeichnet als Gast");
+    check((await page.getByTestId("who-guest").innerText()).includes("„Hängt vom Wetter ab“"), "P24: die Crew sieht den Zusatz des Gasts");
     // Die Gästeliste ist ein eigener Chunk und lädt ihre Texte nach – erst warten, dann prüfen.
     await panel.getByTestId("plan-guest").filter({ hasText: "Dana (Gast)" }).waitFor();
     check(true, "W10: Dana in der Gästeliste");

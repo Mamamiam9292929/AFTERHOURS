@@ -9,7 +9,8 @@ import { rememberedGuestName, rememberGuestName } from "@/features/polls/api";
 import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
-import { type GuestAnswer, planGuestSecret, useGuestRsvp, useSharedPlanRsvp } from "./guestsApi";
+import { NoteEditor } from "./AnswerNote";
+import { type GuestAnswer, planGuestSecret, useGuestNote, useGuestRsvp, useSharedPlanRsvp } from "./guestsApi";
 
 // F7: Texte der Zusagen ohne Konto liegen nicht im Start-Bundle.
 await loadTexts("planGuests");
@@ -30,6 +31,7 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
   const secret = useMemo(() => planGuestSecret(token), [token]);
   const rsvp = useSharedPlanRsvp(token, secret);
   const answer = useGuestRsvp(token, secret);
+  const note = useGuestNote(token, secret);
   const [deviceName, setDeviceName] = useState(() => rememberedGuestName());
   const [name, setName] = useState(() => deviceName ?? "");
   const [editingName, setEditingName] = useState(false);
@@ -149,6 +151,10 @@ export function SharedPlanRsvp({ token, hero, signedIn, fallback }: { token: str
             <p id="rsvp-answer-error" role="alert" className="mt-2 text-sm text-danger">
               {errors.answer}
             </p>
+          )}
+          {/* P24 Etappe 2: Zusatz zur gespeicherten Antwort („komme später“) – erst, wenn sie beim Server ist. */}
+          {open && me && chosen === me.status && !answer.isPending && (
+            <NoteEditor key={me.status} answer={me.status} note={me.note ?? null} pending={note.isPending} save={(value, callbacks) => note.mutate(value, callbacks)} />
           )}
         </div>
 
