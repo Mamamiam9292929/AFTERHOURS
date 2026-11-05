@@ -73,7 +73,7 @@ export const settings = {
       planReminders: { title: "Plan check-ins", body: "When someone asks whether you're in on a plan you haven't answered yet." },
       answers: { title: "New replies", body: "When someone replies to your poll or your plan." },
       results: { title: "Results", body: "When a poll ends." },
-      plans: { title: "Plans", body: "New plans, changes to time, place or cost, and cancellations." },
+      plans: { title: "Plans", body: "New plans, changes to time, place or cost, \"it's on\" and cancellations." },
       dayReminders: { title: "On the day of the plan", body: "Once in the morning, e.g. “Today 20:00: Bowling” – unless you can't make it." },
       photoNudges: { title: "Photos from the night", body: "Once the morning after, if you went and hardly any photos have been shared yet." },
       bookings: { title: "Bookings", body: "When the status of a booking changes." },

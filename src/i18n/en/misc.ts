@@ -112,6 +112,12 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: `${actor} asks: are you in?`,
     body: str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p),
   }),
+  plan_quorum: (_actor, p) => ({
+    title: `It's on: ${serverTitle(p)}`,
+    body: [typeof p.going === "number" ? `${p.going} are in` : "", str(p, "starts_at") ? formatDateTime(str(p, "starts_at")) : "", p.answered === false ? "Are you in too?" : ""]
+      .filter(Boolean)
+      .join(" · "),
+  }),
   birthday_reminder: (actor, p) => ({
     title: str(p, "date") ? `${actor}'s birthday is on ${formatPlainDateLong(str(p, "date"))}` : `${actor}'s birthday is coming up`,
     body: str(p, "crew_name") ? `Plan a party with “${str(p, "crew_name")}”?` : "Plan a party?",

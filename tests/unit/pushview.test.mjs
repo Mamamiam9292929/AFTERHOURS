@@ -25,6 +25,7 @@ test("Ziel: immer ein Pfad der App", () => {
   assert.equal(notificationTarget({ type: "plan_day_reminder", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN }), `/plans/${PLAN}`);
   assert.equal(notificationTarget({ type: "plan_photo_reported", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN }), `/plans/${PLAN}#fotos`);
   assert.equal(notificationTarget({ type: "plan_reminder", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN }), `/plans/${PLAN}`, "P19: Nachfrage öffnet den Plan mit der Antwortkarte");
+  assert.equal(notificationTarget({ type: "plan_quorum", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN }), `/plans/${PLAN}`, "P25: „Es findet statt“ öffnet den Plan");
   assert.equal(notificationTarget({ type: "plan_photo_nudge", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN }), `/plans/${PLAN}#fotos`);
   assert.equal(notificationTarget({ type: "birthday_reminder", crew_id: CREW, entity_type: "crew", related_entity_id: CREW }), `/crews/${CREW}#geburtstage`, "P20: zur Karte „Bald Geburtstag“");
   assert.equal(notificationTarget({ type: "spontaneous_ask", crew_id: CREW, entity_type: "crew", related_entity_id: CREW }), "/");

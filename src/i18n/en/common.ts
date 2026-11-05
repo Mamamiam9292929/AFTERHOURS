@@ -217,6 +217,7 @@ export const errors = {
     plan_guests_off: "You can't answer this plan via the link right now.",
     plan_guests_started: "The plan has already started – this only works before it does.",
     plan_note_no_answer: "Answer first – the note belongs to your answer.",
+    plan_min_going_started: "The plan has already started – the minimum can only be changed before.",
     plan_guest_member: "You're in this crew – answer directly in the app.",
     plan_guest_limit: "30 guests have already answered this plan – that's the maximum.",
     plan_guest_not_found: "This guest answer no longer exists – maybe it has already been taken over or removed.",
