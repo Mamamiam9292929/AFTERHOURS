@@ -283,7 +283,7 @@ export function HomePage() {
                       // D6: direkt unter dem Ticket antworten – ohne erst die Planseite zu öffnen.
                       <div key={plan.id}>
                         <PlanTicket plan={plan} crew={crewById.get(plan.crew_id)} userId={user.id} lookup={people.lookup} />
-                        <PlanQuickAnswer plan={plan} previous={plan.participants.find((pp) => pp.user_id === user.id)?.previous_status ?? null} className="mt-2.5" />
+                        <PlanQuickAnswer plan={plan} previous={plan.participants.find((pp) => pp.user_id === user.id)?.previous_status ?? null} now={now} className="mt-2.5" />
                       </div>
                     ))}
                   </div>

@@ -3293,8 +3293,26 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await join.waitFor();
       check((await join.innerText()).trim() === "Nachrücken", "Höchstzahl: Carol sieht „Nachrücken“ statt „Bin dabei“");
       await carol.page.getByTestId("plan-waitlist-mine").waitFor();
-      await join.click();
+      // P26 Etappe 3a: Auf Home steht der Plan unter „Deine Antwort fehlt“ – dort wird „Bin dabei“ ebenfalls zu
+      // „Nachrücken“, ein Tipp stellt Carol in die Reihe, danach rutscht der Plan aus der Liste.
+      await carol.page.goto(`${APP}/`);
+      const quick = carol.page.getByRole("group", { name: "Deine Antwort zu „Bowling auf Bahn 3“" });
+      await quick.waitFor();
+      const quickJoin = quick.getByTestId("plan-quick-waitlist");
+      check((await quickJoin.innerText()).trim() === "Nachrücken", "Höchstzahl: auf Home „Nachrücken“ statt „Bin dabei“");
+      check((await quick.getByRole("button", { name: "Vielleicht" }).count()) === 1 && (await quick.getByRole("button", { name: "Kann nicht" }).count()) === 1,
+        "Höchstzahl: auf Home bleiben „Vielleicht“ und „Kann nicht“");
+      await quick.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(carol, "Nachrücken auf Home");
+      await a11y(carol, "home-nachruecken");
+      await shot(carol, "21s2-home-nachruecken");
+      await quickJoin.click();
       await toast(carol, "Du bist als Nächstes dran.");
+      await quick.waitFor({ state: "detached" });
+      check(psql(`select attendance_status || '/' || (waitlisted_at is not null) from public.plan_participants where plan_id = '${capPlan}' and user_id = '${carolId}'`) === "maybe/true",
+        "Höchstzahl: Tipp auf Home stellt Carol auf die Nachrückliste");
+      await carol.page.goto(`${APP}/plans/${capPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Bowling auf Bahn 3" }).waitFor();
       const mine = carol.page.getByTestId("plan-waitlist-mine");
       await mine.getByText("Du bist als Nächstes dran").waitFor();
       check(await join.isDisabled(), "Höchstzahl: auf der Liste ist „Nachrücken“ gesperrt");

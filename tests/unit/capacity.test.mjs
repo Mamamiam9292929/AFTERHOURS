@@ -1,7 +1,7 @@
 // P26 · „Nur 6 Plätze“ – Höchstzahl mit Nachrückliste (src/lib/capacity.ts).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { capacityOptions, spotsLeft, waitlist, waitlistPosition } from "../../src/lib/capacity.ts";
+import { capacityOptions, joinsWaitlist, spotsLeft, waitlist, waitlistPosition } from "../../src/lib/capacity.ts";
 
 const now = new Date("2026-11-05T12:00:00Z");
 const plan = (extra) => ({ max_going: 6, status: "confirmed", starts_at: "2026-11-07T19:00:00Z", ...extra });
@@ -46,4 +46,15 @@ test("Wahl der Höchstzahl: nie unter Zusagen oder Mindestzahl", () => {
   assert.deepEqual(capacityOptions(3, null, 30), [3, 4, 5, 6, 8, 10, 12, 16, 20, 30], "gespeicherte Zahl bleibt wählbar");
   assert.deepEqual(capacityOptions(25, null, null), [25], "viele Zusagen: nur die eigene Zahl");
   assert.deepEqual(capacityOptions(60, null, null), [], "über 50 geht nicht");
+});
+
+test("Etappe 3a: „Bin dabei“ wird zu „Nachrücken“ – nur voll und nicht schon dabei", () => {
+  assert.equal(joinsWaitlist(plan(), "invited", 6, now), true, "voll, Antwort offen");
+  assert.equal(joinsWaitlist(plan(), null, 7, now), true, "über voll, ohne Zeile");
+  assert.equal(joinsWaitlist(plan(), "maybe", 6, now), true, "vielleicht (oder schon auf der Liste)");
+  assert.equal(joinsWaitlist(plan(), "going", 6, now), false, "wer dabei ist, behält „Bin dabei“");
+  assert.equal(joinsWaitlist(plan(), "invited", 5, now), false, "noch ein Platz frei");
+  assert.equal(joinsWaitlist(plan({ max_going: null }), "invited", 9, now), false, "ohne Höchstzahl");
+  assert.equal(joinsWaitlist(plan({ starts_at: "2026-11-05T11:00:00Z" }), "invited", 6, now), false, "nach Beginn keine Liste");
+  assert.equal(joinsWaitlist(plan({ status: "cancelled" }), "invited", 6, now), false, "abgesagt");
 });
