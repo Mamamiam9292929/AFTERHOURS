@@ -3048,6 +3048,53 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await toast(carol, "Antwort gespeichert.");
       await hint.waitFor({ state: "detached" });
       check(true, "Neu fragen: nach der neuen Antwort verschwindet der Hinweis");
+
+      // P24 – Zusatz zur Antwort: Carol hängt an „Vielleicht“ einen Vorschlag mit einem Tipp, Bob sieht ihn bei
+      // „Wer kommt mit?“. Neue Antwort → Zusatz weg; eigener Text über das Feld.
+      await carol.page.getByTestId("answer-note-add").click();
+      const noteForm = carol.page.getByTestId("answer-note-form");
+      await noteForm.waitFor();
+      check((await noteForm.getByRole("button", { name: "Sag bis mittags Bescheid" }).count()) === 1, "Zusatz: Vorschläge passen zu „Vielleicht“");
+      await noOverflow(carol, "Zusatz-Formular");
+      await a11y(carol, "plan-zusatz-formular");
+      await noteForm.scrollIntoViewIfNeeded();
+      await shot(carol, "21l-plan-zusatz-formular");
+      await noteForm.getByRole("button", { name: "Sag bis mittags Bescheid" }).click();
+      await toast(carol, "Zusatz gespeichert.");
+      const myNote = carol.page.getByTestId("answer-note");
+      await myNote.waitFor();
+      check((await myNote.innerText()).includes("„Sag bis mittags Bescheid“"), "Zusatz: steht in Carols Antwortkarte");
+      check(psql(`select note from public.plan_participants where plan_id = '${movePlan}' and user_id = '${carolId}'`) === "Sag bis mittags Bescheid",
+        "Zusatz: gespeichert mit einem Tipp");
+      await bob.page.goto(`${APP}/plans/${movePlan}`);
+      const whoNote = bob.page.getByTestId("who-note");
+      await whoNote.waitFor();
+      check((await whoNote.innerText()).includes("„Sag bis mittags Bescheid“"), "Zusatz: Bob sieht ihn bei „Wer kommt mit?“");
+      check((await whoNote.locator("xpath=ancestor::li[1]").getAttribute("data-status")) === "maybe", "Zusatz: steht bei Carol unter „Vielleicht“");
+      await whoNote.scrollIntoViewIfNeeded();
+      await noOverflow(bob, "Zusatz bei Wer");
+      await a11y(bob, "plan-zusatz-wer");
+      await shot(bob, "21m-plan-zusatz-wer");
+      await carol.page.getByRole("radio", { name: "Bin dabei" }).click();
+      await toast(carol, "Antwort gespeichert.");
+      await carol.page.getByTestId("answer-note-add").waitFor();
+      check(psql(`select coalesce(note, '-') from public.plan_participants where plan_id = '${movePlan}' and user_id = '${carolId}'`) === "-",
+        "Zusatz: neue Antwort, Zusatz weg");
+      await carol.page.getByTestId("answer-note-add").click();
+      await carol.page.getByTestId("answer-note-input").fill("komme erst um 22 Uhr");
+      await carol.page.getByTestId("answer-note-form").getByRole("button", { name: "Speichern" }).click();
+      await toast(carol, "Zusatz gespeichert.");
+      await carol.page.getByTestId("answer-note").filter({ hasText: "komme erst um 22 Uhr" }).waitFor();
+      check(true, "Zusatz: eigener Text gespeichert");
+      await shot(carol, "21n-plan-zusatz");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/set_plan_answer_note`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: movePlan, p_note: "gehackt" }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Zusatz (${res.status})`);
+      }
       await carol.page.goto(`${APP}/notifications`);
       await carol.page.getByText("Neue Zeit: Tischtennis im Park – bist du noch dabei?").first().waitFor();
       check(true, "Neu fragen: Benachrichtigung „Neue Zeit: … – bist du noch dabei?“");

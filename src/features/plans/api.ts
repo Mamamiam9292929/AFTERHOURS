@@ -232,7 +232,7 @@ export function useSetAttendance(planId: string) {
       if (previous && user) {
         client.setQueryData<PlanWithParticipants | null>(qk.plan(planId), (old) =>
           old
-            ? { ...old, participants: old.participants.map((p) => (p.user_id === user.id ? { ...p, attendance_status: status, responded_at: new Date().toISOString() } : p)) }
+            ? { ...old, participants: old.participants.map((p) => (p.user_id === user.id ? { ...p, attendance_status: status, responded_at: new Date().toISOString(), note: p.attendance_status === status ? p.note : null } : p)) }
             : old,
         );
       }
@@ -242,6 +242,27 @@ export function useSetAttendance(planId: string) {
       if (context?.previous !== undefined) client.setQueryData(qk.plan(planId), context.previous);
     },
     onSettled: () => void client.invalidateQueries({ queryKey: qk.plans }),
+  });
+}
+
+/** P24: Zusatz zur eigenen Antwort setzen (leer = entfernen). Liefert den gespeicherten Zusatz. */
+export function useSetPlanAnswerNote(planId: string) {
+  const client = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (note: string | null): Promise<string | null> => {
+      const { data, error } = await supabase.rpc("set_plan_answer_note", { p_plan_id: planId, p_note: note ?? "" });
+      if (error) throw error;
+      return (data as string | null) ?? null;
+    },
+    onSuccess: (note) => {
+      if (user) {
+        client.setQueryData<PlanWithParticipants | null>(qk.plan(planId), (old) =>
+          old ? { ...old, participants: old.participants.map((p) => (p.user_id === user.id ? { ...p, note } : p)) } : old,
+        );
+      }
+      void client.invalidateQueries({ queryKey: qk.plans });
+    },
   });
 }
 

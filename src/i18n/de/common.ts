@@ -218,6 +218,7 @@ export const errors = {
     already_member: "Du bist in dieser Crew – stimm direkt in der App ab.",
     plan_guests_off: "Bei diesem Plan kann man gerade nicht über den Link zusagen.",
     plan_guests_started: "Der Plan hat schon angefangen – über den Link geht das nur vorher.",
+    plan_note_no_answer: "Erst antworten – der Zusatz gehört zu deiner Antwort.",
     plan_guest_member: "Du bist in dieser Crew – sag direkt in der App zu.",
     plan_guest_limit: "Bei diesem Plan haben schon 30 Gäste geantwortet – mehr gehen nicht.",
     plan_guest_not_found: "Diese Gast-Antwort gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.",

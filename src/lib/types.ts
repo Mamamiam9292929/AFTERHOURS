@@ -257,6 +257,8 @@ export interface PlanParticipant {
   joined_at: string;
   /** P23: Antwort vor dem letzten „Alle neu fragen“ – nur Hinweis, zählt nirgends mit. */
   previous_status?: Exclude<AttendanceStatus, "invited"> | null;
+  /** P24: kurzer Zusatz zur eigenen Antwort („komme später“), verfällt mit jeder Änderung der Antwort. */
+  note?: string | null;
 }
 
 export interface BookingRequest {

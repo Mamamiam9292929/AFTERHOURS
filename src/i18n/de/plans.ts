@@ -189,6 +189,26 @@ export const plans = {
       reminded: (n: number) => (n === 0 ? "Alle haben schon geantwortet – niemand wurde gefragt." : n === 1 ? "1 Person gefragt." : `${n} Personen gefragt.`),
       // P23: Der Plan wurde verschoben, die alte Antwort gilt nicht mehr.
       askedAgain: (previous: string) => `Neue Zeit – passt es dir noch? Vorher: ${previous}`,
+      // P24: Zusatz zur eigenen Antwort.
+      note: {
+        add: "Zusatz für die Crew",
+        label: "Zusatz zu deiner Antwort",
+        placeholder: "z. B. komme erst um 21 Uhr",
+        hint: "Sieht nur die Crew. Ändert sich deine Antwort, ist der Zusatz weg.",
+        save: "Speichern",
+        cancel: "Abbrechen",
+        edit: "Zusatz ändern",
+        remove: "Zusatz entfernen",
+        saved: "Zusatz gespeichert.",
+        removed: "Zusatz entfernt.",
+        presets: {
+          going: ["Komme später", "Muss früher los", "Nur auf einen Drink"],
+          maybe: ["Sag bis mittags Bescheid", "Hängt vom Wetter ab", "Komme evtl. später"],
+          declined: ["Nächstes Mal!", "Schade, viel Spaß!"],
+        },
+        mine: (note: string) => `Dein Zusatz: „${note}“`,
+        quoted: (note: string) => `„${note}“`,
+      },
     },
     manage: {
       title: "Organisieren",
