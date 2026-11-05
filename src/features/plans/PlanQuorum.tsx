@@ -77,7 +77,10 @@ export function QuorumCard({ plan }: { plan: PlanWithParticipants }) {
   const setMin = useSetPlanMinGoing(plan.id);
   const texts = t.planQuorum.card;
   const current = plan.min_going ?? null;
-  const options = current != null && !OPTIONS.includes(current) ? [...OPTIONS, current].sort((a, b) => a - b) : OPTIONS;
+  // P26: Mit Höchstzahl stehen nur Mindestzahlen bis dahin zur Wahl (der Server weist mehr ab).
+  const max = plan.max_going ?? null;
+  const allowed = OPTIONS.filter((n) => max == null || n <= max);
+  const options = current != null && !allowed.includes(current) ? [...allowed, current].sort((a, b) => a - b) : allowed;
   const going = goingCount(plan);
 
   function choose(min: number | null) {
