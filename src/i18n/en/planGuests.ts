@@ -41,6 +41,26 @@ export const planGuests = {
     ctaTitle: "Want to plan too?",
     ctaBody: "With an account you see all of the crew's plans, vote along and get notified when something changes.",
   },
+  /** P27 · Kalenderdatei für Gäste ohne Konto. */
+  calendar: {
+    title: "In your calendar",
+    body: "Without an account we can’t send you a message. With the plan in your calendar you won’t forget the night – and the link in it brings you back here.",
+    add: "Add to my calendar",
+    update: "Update calendar",
+    done: "Calendar file downloaded – open it to add the event.",
+    saved: (when: string) => `Downloaded for ${when}. If anything changes, you’ll see it here.`,
+    changed: (what: string) => `Changed since you added it to your calendar: ${what}. Download it again – it replaces the old one.`,
+    changes: { time: "time", where: "place", title: "title" },
+    and: "and",
+    cancelled: "This plan was cancelled – remove it from your calendar.",
+    file: {
+      meetingPoint: (value: string) => `Meeting point: ${value}`,
+      going: "Your answer: I'm in",
+      maybe: "Your answer: Maybe",
+      link: (url: string) => `Back to the card: ${url}`,
+      noUpdates: "This event doesn't update by itself – use the link to check for changes.",
+    },
+  },
   claim: {
     title: "You already answered here as a guest",
     body: (name: string, answer: string) => `As “${name}” you answered “${answer}” via the link. Take it over and you'll appear only once under “Who's coming?” – as yourself.`,

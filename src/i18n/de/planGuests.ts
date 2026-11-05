@@ -41,6 +41,26 @@ export const planGuests = {
     ctaTitle: "Selbst mitplanen?",
     ctaBody: "Mit einem Konto siehst du alle Pläne der Crew, stimmst mit ab und bekommst Bescheid, wenn sich etwas ändert.",
   },
+  /** P27 · Kalenderdatei für Gäste ohne Konto – entsteht im Browser aus dem, was die Karte zeigt. */
+  calendar: {
+    title: "Im Kalender",
+    body: "Ohne Konto bekommen wir dir keine Nachricht geschickt. Mit dem Termin im Kalender vergisst du den Abend nicht – und der Link darin bringt dich hierher zurück.",
+    add: "In meinen Kalender",
+    update: "Kalender aktualisieren",
+    done: "Kalenderdatei geladen – öffne sie, um den Termin einzutragen.",
+    saved: (when: string) => `Geladen mit dem Stand ${when}. Ändert sich etwas, steht es hier.`,
+    changed: (what: string) => `Seit deinem Kalendereintrag geändert: ${what}. Lade den Termin neu – er ersetzt den alten.`,
+    changes: { time: "Uhrzeit", where: "Ort", title: "Titel" },
+    and: "und",
+    cancelled: "Der Plan ist abgesagt – nimm den Termin aus deinem Kalender.",
+    file: {
+      meetingPoint: (value: string) => `Treffpunkt: ${value}`,
+      going: "Deine Antwort: Bin dabei",
+      maybe: "Deine Antwort: Vielleicht",
+      link: (url: string) => `Zur Karte: ${url}`,
+      noUpdates: "Dieser Termin ändert sich nicht von selbst – ob sich etwas geändert hat, siehst du über den Link.",
+    },
+  },
   claim: {
     title: "Du hast hier schon als Gast geantwortet",
     body: (name: string, answer: string) => `Als „${name}“ hast du über den Link mit „${answer}“ geantwortet. Übernimm die Antwort, dann stehst du bei „Wer kommt mit?“ nur einmal – als du selbst.`,

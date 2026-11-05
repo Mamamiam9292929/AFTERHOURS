@@ -10,6 +10,7 @@ import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { NoteEditor } from "./AnswerNote";
+import { GuestCalendar } from "./GuestCalendar";
 import { type GuestAnswer, planGuestSecret, useGuestNote, useGuestRsvp, useGuestWaitlist, useSharedPlanRsvp } from "./guestsApi";
 
 // F7: Texte der Zusagen ohne Konto liegen nicht im Start-Bundle.
@@ -292,6 +293,9 @@ export function SharedPlanRsvp({
             )
           )}
         </div>
+
+        {/* P27: Termin in den eigenen Kalender – erst mit gespeicherter Zusage oder „Vielleicht“ (auch auf der Nachrückliste). */}
+        {me && !pending && <GuestCalendar token={token} plan={loaded.plan} answer={me.status} open={open} />}
 
         {open && me && (
           <button
