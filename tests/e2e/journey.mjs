@@ -2200,6 +2200,83 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
   check((await crewPicker.count()) === 0 || (await crewPicker.getByRole("radio", { checked: true }).count()) === 1, "P17: Crew ist vorgewählt (oder die einzige)");
   await page.goBack();
   await again.waitFor();
+
+  // P29: „Wie war’s?“ – wer dabei war, urteilt mit einem Tipp; die Crew sieht nur Zahlen, nie wer was gesagt hat.
+  const sql = (q) => execFileSync("psql", [DB_URL, "-Atqc", q]).toString().trim();
+  const uidOf = (user) => sql(`select id from auth.users where email = '${user.email}'`);
+  check(sql(`select attendance_status from public.plan_participants where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`) === "going" &&
+        sql(`select attendance_status from public.plan_participants where plan_id = '${ids.plan}' and user_id = '${uidOf(carol)}'`) === "declined",
+        "P29: Ausgangslage – Bob war dabei, Carol hat abgesagt");
+  const feedback = page.getByTestId("plan-feedback");
+  await feedback.waitFor();
+  check((await feedback.getByRole("heading", { name: "Wie war’s?" }).count()) === 1, "P29: abgeschlossener Plan fragt „Wie war’s?“");
+  const verdicts = feedback.getByRole("radiogroup", { name: "Wie war der Abend?" }).getByRole("radio");
+  check((await verdicts.count()) === 3 && (await feedback.getAttribute("data-answer")) === null, "P29: drei Antworten, Karte noch ohne Farbe");
+  check((await page.getByTestId("plan-feedback-tally").innerText()).includes("Noch hat niemand geantwortet."), "P29: Leerzustand ohne Antworten");
+  const feedbackBox = await feedback.boundingBox();
+  const againBox = await again.boundingBox();
+  check(Boolean(feedbackBox && againBox && feedbackBox.y < againBox.y), "P29: „Wie war’s?“ steht vor „Nochmal?“");
+  await feedback.getByRole("radio", { name: "Nochmal!" }).click();
+  await toast(alice, "Notiert – das klingt nach Nochmal.");
+  await page.locator('[data-testid=plan-feedback][data-answer="yes"]').waitFor();
+  check((await feedback.getByRole("radio", { name: "Nochmal!" }).getAttribute("aria-checked")) === "true", "P29: „Nochmal!“ gewählt, Karte grün");
+  await page.getByTestId("plan-feedback-tally").getByText("1 × Nochmal").waitFor();
+  check(sql(`select verdict from public.plan_feedback where plan_id = '${ids.plan}' and user_id = '${uidOf(alice)}'`) === "again", "P29: Urteil gespeichert");
+  await feedback.scrollIntoViewIfNeeded();
+  await shot(alice, "19b-wie-wars");
+
+  // Bob (390 px) sagt erst „Eher nicht“, entscheidet sich um und zieht zurück – die Zahlen folgen sofort.
+  {
+    const bp = bob.page;
+    await bp.goto(`${APP}/plans/${ids.plan}`);
+    const card = bp.getByTestId("plan-feedback");
+    await card.waitFor();
+    check((await card.innerText()).includes("1 × Nochmal") && !(await card.innerText()).includes("Alice"), "P29: Bob sieht Alices Urteil nur als Zahl");
+    await card.getByRole("radio", { name: "Eher nicht" }).click();
+    await bp.locator('[data-testid=plan-feedback][data-answer="no"]').waitFor();
+    await card.getByText("1 × eher nicht").waitFor();
+    await card.getByRole("radio", { name: "War okay" }).click();
+    await bp.locator('[data-testid=plan-feedback][data-answer="maybe"]').waitFor();
+    await card.getByText("1 × okay").waitFor();
+    check((await card.getByText("1 × eher nicht").count()) === 0, "P29: umentschieden – „eher nicht“ zählt nicht mehr");
+    await card.scrollIntoViewIfNeeded();
+    await shot(bob, "19b-wie-wars");
+    await card.getByTestId("plan-feedback-undo").click();
+    await toast(bob, "Antwort zurückgezogen.");
+    await bp.waitForFunction(() => !document.querySelector("[data-testid=plan-feedback]")?.hasAttribute("data-answer"));
+    check(sql(`select count(*) from public.plan_feedback where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`) === "0", "P29: zurückgezogen – Bobs Urteil ist weg");
+    await card.getByRole("radio", { name: "War okay" }).click();
+    await bp.locator('[data-testid=plan-feedback][data-answer="maybe"]').waitFor();
+  }
+
+  // Carol hat abgesagt: Sie sieht die Zahlen, aber keine Knöpfe; über die API scheitert sie wie Außenstehende.
+  {
+    const cp = carol.page;
+    await cp.goto(`${APP}/plans/${ids.plan}`);
+    const card = cp.getByTestId("plan-feedback");
+    await card.waitFor();
+    check((await card.getByRole("radio").count()) === 0, "P29: Carol (abgesagt) bekommt keine Knöpfe");
+    check((await card.innerText()).includes("1 × Nochmal") && (await card.innerText()).includes("1 × okay"), "P29: Carol sieht die Zahlen der Crew");
+    await shot(carol, "19b-wie-wars");
+    if (ANON) {
+      const carolSet = await api(carol, "POST", "rpc/set_plan_feedback", { p_plan_id: ids.plan, p_verdict: "meh" });
+      check(carolSet.status === 400 && /plan_feedback_not_going/.test(JSON.stringify(carolSet.json)), `API: Carol urteilt nicht (${carolSet.status})`);
+      const direct = await api(carol, "GET", `plan_feedback?plan_id=eq.${ids.plan}&select=user_id,verdict`);
+      check(direct.status >= 400, `API: Urteile nicht direkt lesbar (${direct.status})`);
+      const anon = await api(null, "POST", "rpc/plan_feedback_summary", { p_plan_id: ids.plan });
+      check(anon.status >= 400, `API: ohne Anmeldung keine Zahlen (${anon.status})`);
+    }
+    // Fehlerzustand: Ist der Server nicht erreichbar, steht das dort – mit „Nochmal versuchen“.
+    await cp.route("**/rest/v1/rpc/plan_feedback_summary", (route) => route.abort());
+    await cp.reload();
+    await cp.getByTestId("plan-feedback-error").waitFor({ timeout: 20_000 });
+    check(true, "P29: Fehlerzustand statt leerer Karte");
+    await cp.unroute("**/rest/v1/rpc/plan_feedback_summary");
+    await cp.getByTestId("plan-feedback-error").getByRole("button", { name: "Nochmal versuchen" }).click();
+    await card.waitFor();
+    check(true, "P29: „Nochmal versuchen“ lädt die Karte");
+  }
+
   await page.goto(`${APP}/rewards`);
   await page.getByText("Plan organisiert").first().waitFor();
   check((await page.locator("section[aria-labelledby=balance-label]").innerText()).includes("40"), "Organisatorin erhält 30 + 10 Punkte");
