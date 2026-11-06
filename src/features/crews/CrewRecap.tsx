@@ -1,8 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { IconShare } from "@/components/icons";
 import { Section } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Feedback";
 import { LivePill } from "@/components/ui/Pill";
 import { useToast } from "@/components/ui/Toast";
 import type { PlanWithParticipants } from "@/features/plans/api";
@@ -13,6 +14,9 @@ import { recapCardFileName, recapCardModel, type RecapCardFact } from "@/lib/rec
 import { APP_LOCALE, formatMonthYear } from "@/lib/time";
 import { RECAP_IMAGE_BAR_MAX, renderRecapImage } from "./recapImage";
 import { RecapPhotos } from "./RecapPhotos";
+
+// P29 Etappe 2: eigener Chunk mit den Texten von „Wie war’s?“ – kommt erst, wenn der Rückblick erscheint.
+const RecapFavorites = lazy(() => import("./RecapFavorites").then((m) => ({ default: m.RecapFavorites })));
 
 const tx = t.crews.recap;
 const narrowMonth = new Intl.DateTimeFormat(APP_LOCALE, { month: "narrow", timeZone: "UTC" });
@@ -31,6 +35,7 @@ type View = "all" | "year";
  * „Insgesamt“ und dem Jahr (Januar bis Dezember). Im Dezember – und bis zum 15. Januar für das
  * alte Jahr – öffnet der Rückblick gleich als „Euer Jahr“.
  * P10 Etappe 2c: darunter „Eure Fotos“ – die letzten Abende mit Fotos als kleine Stapel (`RecapPhotos`).
+ * P29 Etappe 2: vor den Stammorten „Eure Lieblingsabende“ – die Abende mit den meisten „Nochmal!“ (`RecapFavorites`).
  */
 export function CrewRecap({ crewId, plans }: { crewId: string; plans: readonly PlanWithParticipants[] }) {
   const choice = useMemo(() => recapYearChoice(plans), [plans]);
@@ -125,6 +130,16 @@ export function CrewRecap({ crewId, plans }: { crewId: string; plans: readonly P
                 );
               })}
             </ol>
+
+            <Suspense
+              fallback={
+                <div data-testid="recap-favorites" data-state="loading">
+                  <Skeleton className="mt-6 h-11 rounded-[16px]" />
+                </div>
+              }
+            >
+              <RecapFavorites crewId={crewId} year={year} />
+            </Suspense>
 
             {recap.places.length > 0 && (
               <>
