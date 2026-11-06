@@ -134,8 +134,7 @@ export function CrewRecap({ crewId, plans }: { crewId: string; plans: readonly P
             <Suspense
               fallback={
                 <div data-testid="recap-favorites" data-state="loading">
-                  <Skeleton className="mt-6 h-4 w-40 rounded-full" />
-                  <Skeleton className="mt-2 h-[52px] rounded-[16px]" />
+                  <Skeleton className="mt-6 h-11 rounded-[16px]" />
                 </div>
               }
             >

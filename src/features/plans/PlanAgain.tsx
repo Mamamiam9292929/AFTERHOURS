@@ -30,7 +30,7 @@ export function AgainCard({ plan, placeName, verdict }: { plan: PlanWithParticip
       title={t.plans.detail.again.title}
       status={
         went > 0 || verdict ? (
-          <span className="flex flex-wrap items-center justify-end gap-1.5">
+          <span className="flex flex-wrap items-center gap-1.5">
             {verdict}
             {went > 0 && (
               <span className={GLASS_PILL} data-testid="plan-again-went">

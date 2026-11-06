@@ -44,7 +44,7 @@ export function RecapFavorites({ crewId, year }: { crewId: string; year: number 
       {query.isPending ? (
         <div className="mt-2 grid gap-1.5" role="status" aria-label={tx.loading}>
           {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-[52px] rounded-[16px]" />
+            <Skeleton key={i} className="h-11 rounded-[16px]" />
           ))}
         </div>
       ) : query.isError ? (
@@ -66,7 +66,7 @@ export function RecapFavorites({ crewId, year }: { crewId: string; year: number 
                   to={`/plans/${evening.plan_id}#nochmal`}
                   aria-label={tx.open(evening.title, date, evening.again)}
                   data-testid="recap-favorite"
-                  className="group flex min-h-[52px] items-center gap-3 rounded-[16px] border border-white/[0.1] bg-white/[0.04] px-3.5 py-2.5 transition-colors hover:border-lime/40 hover:bg-white/[0.07] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+                  className="group flex min-h-11 items-center gap-3 rounded-[16px] border border-white/[0.1] bg-white/[0.04] px-3.5 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
                 >
                   <span aria-hidden className="display w-5 text-[14px] text-faint">
                     {index + 1}
@@ -77,7 +77,7 @@ export function RecapFavorites({ crewId, year }: { crewId: string; year: number 
                   </span>
                   <span
                     aria-hidden
-                    className="inline-flex h-7 shrink-0 items-center rounded-full bg-lime px-2.5 text-[12px] font-bold whitespace-nowrap text-lime-ink shadow-[0_0_14px_color-mix(in_srgb,var(--color-lime)_40%,transparent)]"
+                    className="inline-flex h-7 shrink-0 items-center rounded-full bg-lime px-2.5 text-[12px] font-bold whitespace-nowrap text-lime-ink shadow-[0_0_14px_color-mix(in_srgb,var(--color-lime)_45%,transparent)]"
                   >
                     {tx.count(evening.again)}
                   </span>

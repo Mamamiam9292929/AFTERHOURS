@@ -93,7 +93,7 @@ select is(public.crew_favorite_evenings(tests.var('other')::uuid), '[]'::jsonb, 
 select tests.login('dave');
 select is((select jsonb_agg(x ->> 'title') from jsonb_array_elements(public.crew_favorite_evenings(tests.var('crew')::uuid)) x),
   '["Bowling", "Quiz", "Kino"]'::jsonb, 'meiste „Nochmal!“ zuerst, bei Gleichstand der jüngste; Karaoke und Billard fehlen');
-select is(public.crew_favorite_evenings(tests.var('crew')::uuid) -> 0 - 'starts_at',
+select is((public.crew_favorite_evenings(tests.var('crew')::uuid) -> 0) - 'starts_at',
   jsonb_build_object('plan_id', tests.var('bowling'), 'title', 'Bowling', 'again', 3, 'total', 4), 'Zahlen je Abend');
 select ok(not (public.crew_favorite_evenings(tests.var('crew')::uuid)::text ~* (tests.uid('carol')::text || '|' || tests.uid('alice')::text || '|carol|alice')),
   'die Liste verrät nicht, wer was gesagt hat');

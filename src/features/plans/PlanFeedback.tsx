@@ -188,7 +188,7 @@ export function PlanFeedbackAgainPill({ planId }: { planId: string }) {
   return (
     <span
       data-testid="plan-again-favorite"
-      className="inline-flex h-8 items-center rounded-full bg-lime px-3 text-[13px] font-bold whitespace-nowrap text-lime-ink shadow-[0_0_14px_color-mix(in_srgb,var(--color-lime)_40%,transparent)]"
+      className="inline-flex h-8 items-center rounded-full bg-lime px-3 text-[13px] font-bold whitespace-nowrap text-lime-ink shadow-[0_0_14px_color-mix(in_srgb,var(--color-lime)_45%,transparent)]"
     >
       {t.planFeedback.againPill(summary.data.again)}
     </span>
