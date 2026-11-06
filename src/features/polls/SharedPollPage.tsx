@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { IconVote } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -68,10 +68,19 @@ export function SharedPollPage() {
   }
 
   if (result.poll_id) return <Navigate to={`/polls/${result.poll_id}`} replace />;
-  // key: Der Link zur Stichwahl (P28) öffnet dieselbe Seite mit neuem Token – Stimmzettel frisch aufbauen.
-  if (token && result.poll.guests) return <GuestBallot key={token} token={token} data={result} signedIn={Boolean(user)} />;
+  const fallback = <OutsiderView data={result} signedIn={Boolean(user)} />;
+  // P28: Nach dem Ende fragt die Seite den Stimmzettel trotzdem – durften Gäste mitstimmen, steht dort das Ergebnis;
+  // sonst (guests_off) bleibt es bei der Karte für Außenstehende.
+  // key: Der Link zur Stichwahl öffnet dieselbe Seite mit neuem Token – Stimmzettel frisch aufbauen.
+  if (token && (result.poll.guests || result.poll.status !== "open")) {
+    return <GuestBallot key={token} token={token} data={result} signedIn={Boolean(user)} fallback={result.poll.guests ? undefined : fallback} />;
+  }
+  return fallback;
+}
 
-  if (user) {
+/** Karte für alle ohne Stimmzettel: angemeldete Außenstehende bzw. Freunde ohne Konto. */
+function OutsiderView({ data: result, signedIn }: { data: Valid; signedIn: boolean }) {
+  if (signedIn) {
     return (
       <AuthLayout hero={<SharedPollTicket data={result} />} title={t.polls.shared.outsiderTitle} intro={t.polls.shared.outsiderIntro}>
         <ButtonLink to="/home" size="lg" block variant="secondary">
@@ -183,7 +192,7 @@ function optionWhen(option: BallotOption, isDate: boolean): string {
  * Vielleicht / Bin nicht dabei“, dazu der Name. Wer schon abgestimmt hat (Geheimnis auf diesem Gerät),
  * sieht seine Antworten und kann sie ändern. Danach der Weg zum eigenen Konto.
  */
-function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; signedIn: boolean }) {
+function GuestBallot({ token, data, signedIn, fallback }: { token: string; data: Valid; signedIn: boolean; fallback?: ReactNode }) {
   const secret = useMemo(() => guestSecret(token), [token]);
   const ballot = useSharedPollBallot(token, secret);
   const vote = useGuestVote(token, secret);
@@ -217,6 +226,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
 
   if (ballot.isPending) return <PageSpinner />;
   if (ballot.isError) {
+    if (fallback) return fallback;
     return (
       <AuthLayout hero={<SharedPollTicket data={data} />} title={t.polls.shared.ballot.title}>
         <ErrorState error={ballot.error} onRetry={() => void ballot.refetch()} />
@@ -224,6 +234,8 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
     );
   }
   if (!loaded) {
+    // P28: Beendete Abstimmung ohne Gäste – die Karte für Außenstehende wie bisher.
+    if (fallback) return fallback;
     // Gäste wurden inzwischen ausgeschaltet (oder der Link ist weg): wie ohne Freigabe.
     return (
       <AuthLayout hero={<SharedPollTicket data={data} />} title={t.polls.shared.guestTitle} intro={t.polls.shared.guestIntro}>
