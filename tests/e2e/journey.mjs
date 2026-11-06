@@ -4063,11 +4063,13 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
     await shot(mallory, "16e-geteilter-plan-aussen");
   }
   if (ids.pollShareUrl) {
-    // W2 Etappe 2: dasselbe für die geteilte Abstimmung – inzwischen entschieden.
+    // W2 Etappe 2: dasselbe für die geteilte Abstimmung – inzwischen entschieden. Durften Gäste mitstimmen (W3), zeigt
+    // der Link nach dem Ende das Ergebnis wie allen mit dem Link (P28) – aber ohne Weg zum Plan, Mallory hat nicht mitgestimmt.
     await page.goto(ids.pollShareUrl);
-    await page.getByRole("heading", { level: 1, name: "Noch nicht in der Crew" }).waitFor();
+    await page.getByRole("heading", { level: 1, name: /^(Noch nicht in der Crew|Schon entschieden)$/ }).waitFor();
     check(!page.url().includes(ids.poll), "Abstimmungs-Link: Außenstehende bleiben auf der Karte");
-    check(/Entschieden/.test(await page.getByRole("region").innerText()), "beendete Abstimmung: als entschieden markiert");
+    check(/Entschieden/.test(await page.getByTestId("shared-poll-card").innerText()), "beendete Abstimmung: als entschieden markiert");
+    check((await page.getByTestId("poll-outcome-link").count()) === 0, "P28: Außenstehende ohne Gast-Stimme bekommen keinen Link zum Plan");
     await shot(mallory, "16f-geteilte-abstimmung-aussen");
   }
 
@@ -6601,6 +6603,104 @@ await step("P22 – „Wollen wir mal hin“: Orte für die Crew merken, Liste, 
     psql(`delete from public.crew_wishes where crew_id = '${ids.crew}'`);
     if (visitPlan) psql(`delete from public.plans where id = '${visitPlan}'`);
     await page.evaluate(() => sessionStorage.removeItem("afterhours.poll-draft")).catch(() => {});
+  }
+});
+
+// P28: Gäste, die über den Link mitgestimmt haben, sehen nach dem Ende, was draus wurde – Gewinner, Plan, Link zum Plan.
+await step("P28 – „Was draus wurde“: Ergebnis und Plan auf dem Abstimm-Link für Gäste (Bob, Gast Mira, 390 px)", async () => {
+  const pollTitle = "Minigolf oder Billard?";
+  const poll = await api(bob, "POST", "rpc/create_poll", {
+    p_crew_id: ids.crew,
+    p_title: pollTitle,
+    p_ends_at: new Date(Date.now() + 2 * 3600_000).toISOString(),
+    p_options: [{ title: "Minigolf am Hafen" }, { title: "Billard Eck" }],
+  });
+  check(poll.status === 200, `P28: Bob startet eine Abstimmung (${poll.status})`);
+  await api(bob, "POST", "rpc/set_poll_guests", { p_poll_id: poll.json, p_allowed: true });
+  const pollToken = (await api(bob, "POST", "rpc/poll_share_token", { p_poll_id: poll.json })).json;
+  const options = (await api(bob, "GET", `poll_options?poll_id=eq.${poll.json}&select=id,position&order=position`)).json ?? [];
+  let planId = null;
+  const mira = await newUser("Mira", "mobile");
+  try {
+    // Mira stimmt ohne Konto ab – solange es läuft, kein Ergebnis.
+    await mira.page.goto(`${APP}/v/${pollToken}`);
+    await mira.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
+    await answer(mira, "Minigolf am Hafen", "Bin dabei").click();
+    await mira.page.getByLabel("Dein Name").fill("Mira");
+    await mira.page.getByRole("button", { name: "Abstimmen" }).click();
+    await mira.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Mira" }).waitFor();
+    check((await mira.page.getByTestId("poll-outcome").count()) === 0, "P28: solange die Abstimmung läuft, kein Ergebnis");
+
+    // Bob beendet: Gewinner steht fest, noch kein Plan.
+    await api(bob, "POST", "rpc/cast_vote", { p_option_id: options[0].id, p_response: "yes" });
+    check((await api(bob, "POST", "rpc/close_poll", { p_poll_id: poll.json })).status < 300, "P28: Bob beendet die Abstimmung");
+    await mira.page.reload();
+    await mira.page.getByRole("heading", { level: 1, name: "Schon entschieden" }).waitFor();
+    const outcome = mira.page.getByRole("region", { name: "Minigolf am Hafen" });
+    await outcome.waitFor();
+    check((await outcome.innerText()).includes("Noch kein Plan"), "P28: Gewinner ohne Plan – ehrlich „Noch kein Plan“");
+    check((await mira.page.locator('[data-testid="ballot-option"][data-winner="true"]').innerText()).includes("MINIGOLF"), "P28: der Gewinner ist in der Liste hervorgehoben");
+    await shot(mira, "75a-abstimmung-ergebnis-gast");
+
+    // Bob macht einen Plan daraus – geteilt ist er noch nicht: Mira erfährt Titel und Zeit, den Link gibt es im Chat.
+    const plan = await api(bob, "POST", "rpc/create_plan_from_poll", {
+      p_poll_id: poll.json,
+      p_option_id: options[0].id,
+      p_starts_at: new Date(Date.now() + 3 * 86400_000).toISOString(),
+      p_address: "Hafenstraße 9",
+    });
+    check(plan.status === 200, `P28: Plan aus der Abstimmung (${plan.status})`);
+    planId = plan.json;
+    await mira.page.reload();
+    const planCard = mira.page.getByTestId("poll-outcome");
+    await planCard.getByText("Daraus wurde ein Plan").waitFor();
+    check((await planCard.getAttribute("data-answer")) === "yes", "P28: Plan-Karte ganz in Lime");
+    check((await planCard.getByTestId("poll-outcome-link").count()) === 0 && (await planCard.getByText("Den Link zum Plan bekommst du im Gruppenchat.").isVisible()), "P28: ohne geteilten Plan kein Link, ehrlicher Hinweis");
+    check(!/Hafenstraße|Bob|example\.test/.test(await mira.page.locator("body").innerText()), "P28: keine Adresse, keine Namen der Crew");
+
+    // Bob teilt den Plan – Mira kommt mit einem Tipp zur Plan-Karte.
+    const planToken = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: planId })).json;
+    await mira.page.reload();
+    const link = mira.page.getByTestId("poll-outcome-link");
+    await link.waitFor();
+    check((await link.getAttribute("href")) === `/s/${planToken}`, "P28: Link führt zur geteilten Plan-Karte");
+    await noOverflow(mira, "Abstimm-Link mit Ergebnis");
+    await a11y(mira, "abstimmung-ergebnis-gast");
+    await shot(mira, "75b-abstimmung-plan-gast");
+    for (const viewport of ["tablet", "desktop"]) {
+      await mira.page.setViewportSize(VIEWPORTS[viewport]);
+      await shot({ ...mira, viewport }, "75b-abstimmung-plan-gast");
+    }
+    await mira.page.setViewportSize(VIEWPORTS.mobile);
+    await link.click();
+    await mira.page.waitForURL(new RegExp(`/s/${planToken}$`));
+    check(true, "P28: Gast landet auf der Plan-Karte");
+
+    // Ohne die eigene Stimme auf dem Gerät (anderer Browser): Ergebnis ja, Link nein.
+    const stranger = await newUser("Fremd", "mobile");
+    try {
+      await stranger.page.goto(`${APP}/v/${pollToken}`);
+      await stranger.page.getByTestId("poll-outcome").getByText("Daraus wurde ein Plan").waitFor();
+      check((await stranger.page.getByTestId("poll-outcome-link").count()) === 0, "P28: wer nicht mitgestimmt hat, bekommt keinen Link");
+    } finally {
+      users.splice(users.indexOf(stranger), 1);
+      await stranger.context.close();
+    }
+
+    // Abgesagt: Hinweis statt Link, Karte wieder dunkel.
+    await api(bob, "POST", "rpc/set_plan_status", { p_plan_id: planId, p_status: "cancelled" });
+    await mira.page.goto(`${APP}/v/${pollToken}`);
+    const cancelled = mira.page.getByTestId("poll-outcome");
+    await cancelled.getByText("Der Plan ist abgesagt.").waitFor();
+    check((await cancelled.getAttribute("data-answer")) === null && (await cancelled.getByTestId("poll-outcome-link").count()) === 0, "P28: abgesagt – dunkle Karte, kein Link");
+  } finally {
+    users.splice(users.indexOf(mira), 1);
+    await mira.context.close();
+    if (DB_URL) {
+      const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+      if (planId) psql(`delete from public.plans where id = '${planId}'`);
+      psql(`delete from public.polls where id = '${poll.json}'`);
+    }
   }
 });
 

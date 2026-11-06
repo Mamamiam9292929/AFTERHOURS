@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { IconVote } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -17,6 +17,9 @@ import type { VoteResponse } from "@/lib/types";
 import { type BallotOption, guestSecret, rememberedGuestName, rememberGuestName, type SharedPollPreview, useGuestJoin, useGuestVote, useSharedPollBallot, useSharedPollPreview } from "./api";
 
 type Valid = Extract<SharedPollPreview, { status: "valid" }>;
+
+// P28: Ergebnis-Karte samt Texten erst laden, wenn die Abstimmung vorbei ist.
+const PollOutcomeCard = lazy(() => import("./PollOutcome").then((m) => ({ default: m.PollOutcomeCard })));
 
 const linkClass = "font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime";
 
@@ -65,9 +68,19 @@ export function SharedPollPage() {
   }
 
   if (result.poll_id) return <Navigate to={`/polls/${result.poll_id}`} replace />;
-  if (token && result.poll.guests) return <GuestBallot token={token} data={result} signedIn={Boolean(user)} />;
+  const fallback = <OutsiderView data={result} signedIn={Boolean(user)} />;
+  // P28: Nach dem Ende fragt die Seite den Stimmzettel trotzdem – durften Gäste mitstimmen, steht dort das Ergebnis;
+  // sonst (guests_off) bleibt es bei der Karte für Außenstehende.
+  // key: Der Link zur Stichwahl öffnet dieselbe Seite mit neuem Token – Stimmzettel frisch aufbauen.
+  if (token && (result.poll.guests || result.poll.status !== "open")) {
+    return <GuestBallot key={token} token={token} data={result} signedIn={Boolean(user)} fallback={result.poll.guests ? undefined : fallback} />;
+  }
+  return fallback;
+}
 
-  if (user) {
+/** Karte für alle ohne Stimmzettel: angemeldete Außenstehende bzw. Freunde ohne Konto. */
+function OutsiderView({ data: result, signedIn }: { data: Valid; signedIn: boolean }) {
+  if (signedIn) {
     return (
       <AuthLayout hero={<SharedPollTicket data={result} />} title={t.polls.shared.outsiderTitle} intro={t.polls.shared.outsiderIntro}>
         <ButtonLink to="/home" size="lg" block variant="secondary">
@@ -179,7 +192,7 @@ function optionWhen(option: BallotOption, isDate: boolean): string {
  * Vielleicht / Bin nicht dabei“, dazu der Name. Wer schon abgestimmt hat (Geheimnis auf diesem Gerät),
  * sieht seine Antworten und kann sie ändern. Danach der Weg zum eigenen Konto.
  */
-function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; signedIn: boolean }) {
+function GuestBallot({ token, data, signedIn, fallback }: { token: string; data: Valid; signedIn: boolean; fallback?: ReactNode }) {
   const secret = useMemo(() => guestSecret(token), [token]);
   const ballot = useSharedPollBallot(token, secret);
   const vote = useGuestVote(token, secret);
@@ -213,6 +226,7 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
 
   if (ballot.isPending) return <PageSpinner />;
   if (ballot.isError) {
+    if (fallback) return fallback;
     return (
       <AuthLayout hero={<SharedPollTicket data={data} />} title={t.polls.shared.ballot.title}>
         <ErrorState error={ballot.error} onRetry={() => void ballot.refetch()} />
@@ -220,6 +234,8 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
     );
   }
   if (!loaded) {
+    // P28: Beendete Abstimmung ohne Gäste – die Karte für Außenstehende wie bisher.
+    if (fallback) return fallback;
     // Gäste wurden inzwischen ausgeschaltet (oder der Link ist weg): wie ohne Freigabe.
     return (
       <AuthLayout hero={<SharedPollTicket data={data} />} title={t.polls.shared.guestTitle} intro={t.polls.shared.guestIntro}>
@@ -284,15 +300,27 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
       title={!open ? t.polls.shared.ballot.closedTitle : me ? t.polls.shared.ballot.changeTitle(me.name) : t.polls.shared.ballot.title}
       intro={!open ? t.polls.shared.ballot.closedIntro : me ? t.polls.shared.ballot.changeIntro : isDate ? t.polls.shared.ballot.dates.intro : t.polls.shared.ballot.intro}
     >
+      {!open && loaded.outcome && (
+        <Suspense fallback={null}>
+          <PollOutcomeCard outcome={loaded.outcome} options={loaded.options} voted={Boolean(me)} />
+        </Suspense>
+      )}
       <form onSubmit={submit} noValidate className="space-y-5">
         <fieldset className="space-y-3" aria-describedby={errors.answers ? "ballot-answers-error" : undefined}>
           <legend className="mb-3 text-[15px] font-bold text-fg">{isDate ? t.polls.shared.ballot.dates.options : t.polls.shared.ballot.options}</legend>
           {loaded.options.map((option) => {
             const key = String(option.key);
             const mine = answers[key] ?? null;
+            const won = !open && loaded.outcome?.winner === option.key;
             return (
               // V2 Etappe 3b: Der Vorschlag trägt die eigene Antwort – grün, gelb oder rot (wie in der Crew).
-              <div key={key} className="vote-card p-4 sm:p-5" data-answer={open && mine ? mine : undefined} data-testid="ballot-option">
+              <div
+                key={key}
+                className={cn("vote-card p-4 sm:p-5", won && "vote-card-win")}
+                data-answer={open && mine ? mine : undefined}
+                data-winner={won || undefined}
+                data-testid="ballot-option"
+              >
                 <p className="display break-words text-[17px] uppercase text-fg">{option.title}</p>
                 <p className="mt-1 text-sm text-muted">
                   {optionWhen(option, isDate)} · {t.polls.shared.ballot.counts(option.yes, option.maybe)}

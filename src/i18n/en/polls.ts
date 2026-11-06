@@ -344,7 +344,7 @@ export const polls = {
       changeTitle: (name: string) => `Your vote is in, ${name}`,
       changeIntro: "You can change your answers until the poll ends.",
       closedTitle: "Already decided",
-      closedIntro: "The poll is over. What comes of it, the crew sees in the app.",
+      closedIntro: "The poll is over – here's what came of it.",
       options: "What's up for the vote?",
       answerFor: (title: string) => `Your answer for ${title}`,
       counts: (yes: number, maybe: number) => [`${yes} in`, maybe > 0 ? `${maybe} maybe` : null].filter(Boolean).join(" · "),
