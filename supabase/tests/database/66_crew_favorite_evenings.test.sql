@@ -109,7 +109,7 @@ select public.set_plan_feedback(tests.var('karaoke')::uuid, 'meh');
 
 -- Ein Jahr: nur Abende dieses Kalenderjahrs in Berliner Zeit.
 select tests.logout();
-update public.plans set starts_at = '2025-12-31 22:30:00+00' where id = tests.var('bowling')::uuid; -- in Berlin schon 2026
+update public.plans set starts_at = '2025-12-31 23:30:00+00' where id = tests.var('bowling')::uuid; -- in Berlin Neujahr 0:30 Uhr
 update public.plans set starts_at = '2025-12-31 21:30:00+00' where id = tests.var('kino')::uuid;    -- in Berlin noch 2025
 select tests.login('alice');
 select is((select jsonb_agg(x ->> 'title') from jsonb_array_elements(public.crew_favorite_evenings(tests.var('crew')::uuid, 2025)) x),
