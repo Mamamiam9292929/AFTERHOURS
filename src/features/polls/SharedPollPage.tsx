@@ -141,7 +141,11 @@ function SharedPollTicket({ data }: { data: Valid }) {
             {poll.title}
           </p>
           <p className="mt-3 text-[15px] font-semibold text-fg">
-            {open ? t.polls.shared.until(formatDateTime(poll.ends_at)) : t.polls.shared.closedOn(formatDateTime(poll.ends_at))}
+            {open
+              ? t.polls.shared.until(formatDateTime(poll.ends_at))
+              : new Date(poll.ends_at) > now
+                ? t.polls.shared.closedEarly
+                : t.polls.shared.closedOn(formatDateTime(poll.ends_at))}
           </p>
           {poll.kind === "date" && poll.dates && poll.dates.length > 0 && <SlotList dates={poll.dates} />}
           <div className="mt-5 flex flex-wrap gap-2">

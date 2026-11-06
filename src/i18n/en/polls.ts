@@ -317,6 +317,7 @@ export const polls = {
     closed: "Decided",
     until: (when: string) => `Vote until ${when}`,
     closedOn: (when: string) => `Deadline was ${when}`,
+    closedEarly: "Decided before the deadline",
     options: (n: number, kind: "place" | "date" = "place"): string => (kind === "date" ? (n === 1 ? "date" : "dates") : n === 1 ? "option" : "options"),
     datesLabel: "Up for the vote",
     voters: (n: number, open: boolean): string =>

@@ -6639,6 +6639,7 @@ await step("P28 – „Was draus wurde“: Ergebnis und Plan auf dem Abstimm-Lin
     const outcome = mira.page.getByRole("region", { name: "Minigolf am Hafen" });
     await outcome.waitFor();
     check((await outcome.innerText()).includes("Noch kein Plan"), "P28: Gewinner ohne Plan – ehrlich „Noch kein Plan“");
+    check((await mira.page.getByTestId("shared-poll-card").innerText()).includes("Vor Ablauf der Frist entschieden"), "vorzeitig beendet: keine „Frist war“ mit einer Zeit in der Zukunft");
     check((await mira.page.locator('[data-testid="ballot-option"][data-winner="true"]').innerText()).includes("MINIGOLF"), "P28: der Gewinner ist in der Liste hervorgehoben");
     await shot(mira, "75a-abstimmung-ergebnis-gast");
 

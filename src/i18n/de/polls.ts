@@ -331,6 +331,8 @@ export const polls = {
     closed: "Entschieden",
     until: (when: string) => `Abstimmen bis ${when}`,
     closedOn: (when: string) => `Frist war ${when}`,
+    /** Vor Ablauf der Frist beendet – „Frist war“ mit einer Zeit in der Zukunft wäre falsch. */
+    closedEarly: "Vor Ablauf der Frist entschieden",
     options: (n: number, kind: "place" | "date" = "place"): string => (kind === "date" ? (n === 1 ? "Termin" : "Termine") : n === 1 ? "Vorschlag" : "Vorschläge"),
     /** P1 Etappe 2: Termine einer geteilten Termin-Abstimmung auf der Karte. */
     datesLabel: "Zur Wahl",
