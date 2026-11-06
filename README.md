@@ -15,23 +15,23 @@ _Stand: 06.11.2026 · gezählt mit `node scripts/zahlen.mjs` (Zeilen ohne Leerze
 
 | Bereich | Zeilen | Dateien |
 |---|---:|---:|
-| App (Oberfläche) | 35.703 | 241 |
-| Datenbank (Migrationen) | 10.819 | 65 |
+| App (Oberfläche) | 35.936 | 244 |
+| Datenbank (Migrationen) | 10.978 | 66 |
 | Edge Functions | 1.987 | 13 |
 | Server für Vorschaukarten | 508 | 4 |
 | Werkzeuge | 378 | 6 |
-| Tests Datenbank (pgTAP) | 8.061 | 66 |
-| Tests App und Funktionen | 11.662 | 54 |
-| **Code gesamt (ohne Tests)** | **49.395** | |
-| **Tests gesamt** | **19.723** | |
+| Tests Datenbank (pgTAP) | 8.195 | 67 |
+| Tests App und Funktionen | 11.735 | 54 |
+| **Code gesamt (ohne Tests)** | **49.787** | |
+| **Tests gesamt** | **19.930** | |
 
 | Was | Anzahl |
 |---|---:|
-| Migrationen | 65 |
-| Tabellen | 51 |
-| Datenbank-Funktionen (RPC, `public`) | 140 |
+| Migrationen | 66 |
+| Tabellen | 52 |
+| Datenbank-Funktionen (RPC, `public`) | 142 |
 | Edge Functions | 5 |
-| pgTAP-Testdateien | 66 |
+| pgTAP-Testdateien | 67 |
 | Unit-Testdateien | 42 |
 <!-- zahlen:end -->
 
