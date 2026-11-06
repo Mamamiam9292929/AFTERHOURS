@@ -167,7 +167,7 @@ export function PlanFeedbackCard({ planId }: { planId: string }) {
           {copy.undo}
         </button>
       )}
-      {!data.open && <p className="mt-2.5 text-[13px] text-faint">{copy.closedNote}</p>}
+      {!data.open && <p className="mt-2.5 text-[13px] text-muted">{copy.closedNote}</p>}
     </section>
   );
 }

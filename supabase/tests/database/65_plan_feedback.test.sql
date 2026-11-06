@@ -143,7 +143,8 @@ select tests.login('carol');
 select lives_ok($$ select public.delete_my_account('DELETE') $$, 'Carol löscht ihr Konto');
 select tests.logout();
 select is((select count(*)::int from public.plan_feedback where user_id = tests.uid('carol')), 0, 'Kontolöschung löscht die eigenen Urteile');
-select is((select count(*)::int from public.plan_feedback where plan_id = tests.var('plan')::uuid), 1, 'Alices Urteil bleibt');
+select is((select count(*)::int from public.plan_feedback where plan_id = tests.var('plan')::uuid), 2,
+  'die Urteile von Alice und Bob (ausgetreten) zählen weiter');
 
 select * from finish();
 rollback;

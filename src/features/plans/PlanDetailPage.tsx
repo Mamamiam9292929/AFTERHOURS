@@ -266,7 +266,7 @@ export function PlanDetailPage() {
             {/* P24: Zusatz zur eigenen Antwort („komme später“) – die Crew sieht ihn bei „Wer kommt mit?“. */}
             {!locked && mine !== "invited" && <AnswerNote key={mine} planId={plan.id} answer={mine} note={myRow?.note ?? null} />}
             {locked && myRow?.note && mine !== "invited" && <p className="mt-2.5 text-sm font-semibold text-fg">{t.plans.detail.attendance.note.quoted(myRow.note)}</p>}
-            {locked && <p className="mt-2.5 text-[13px] text-faint">{t.plans.detail.attendance.locked}</p>}
+            {locked && <p className="mt-2.5 text-[13px] text-muted">{t.plans.detail.attendance.locked}</p>}
           </section>
 
           {/* W10 Etappe 2: Hier schon als Gast über den Link geantwortet? Dann mit einem Tipp übernehmen. */}
