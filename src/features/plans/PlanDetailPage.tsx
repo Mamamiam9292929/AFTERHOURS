@@ -57,6 +57,7 @@ const WaitlistNote = lazy(() => import("./PlanCapacity").then((m) => ({ default:
 const PlanGuestClaimCard = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestClaimCard })));
 // P29: „Wie war’s?“ – Karte und Texte erst auf abgeschlossenen Plänen.
 const PlanFeedbackCard = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanFeedbackCard })));
+const PlanFeedbackAgainPill = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanFeedbackAgainPill })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -283,7 +284,17 @@ export function PlanDetailPage() {
             </Suspense>
           )}
           {/* P17: Direkt danach – der beste Moment für die nächste Runde. */}
-          {plan.status === "completed" && <AgainCard plan={plan} placeName={place?.name ?? null} />}
+          {plan.status === "completed" && (
+            <AgainCard
+              plan={plan}
+              placeName={place?.name ?? null}
+              verdict={
+                <Suspense fallback={null}>
+                  <PlanFeedbackAgainPill planId={plan.id} />
+                </Suspense>
+              }
+            />
+          )}
 
           <dl className="plan-facts mt-4 divide-y divide-line rounded-card border border-white/[0.08] px-4 sm:px-5">
             <Fact icon={<IconPlans aria-hidden />} label={t.plans.detail.what}>

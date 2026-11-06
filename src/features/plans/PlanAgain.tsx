@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { IconCalendar, IconRepeat } from "@/components/icons";
 import { ButtonLink } from "@/components/ui/Button";
 import { PanelCard } from "@/components/ui/PanelCard";
@@ -16,7 +17,8 @@ export function againLink(plan: Pick<PlanWithParticipants, "crew_id" | "activity
   return `/polls/new?${params.toString()}`;
 }
 
-export function AgainCard({ plan, placeName }: { plan: PlanWithParticipants; placeName: string | null }) {
+/** `verdict`: P29 Etappe 2 – Hinweis „3 wollen nochmal“ aus „Wie war’s?“ (eigener Chunk), steht neben „N waren dabei“. */
+export function AgainCard({ plan, placeName, verdict }: { plan: PlanWithParticipants; placeName: string | null; verdict?: ReactNode }) {
   const went = plan.participants.filter((p) => p.attendance_status === "going").length;
   const withPlace = Boolean(plan.activity_id);
   return (
@@ -27,9 +29,14 @@ export function AgainCard({ plan, placeName }: { plan: PlanWithParticipants; pla
       icon={<IconRepeat />}
       title={t.plans.detail.again.title}
       status={
-        went > 0 ? (
-          <span className={GLASS_PILL} data-testid="plan-again-went">
-            {t.plans.detail.again.went(went)}
+        went > 0 || verdict ? (
+          <span className="flex flex-wrap items-center justify-end gap-1.5">
+            {verdict}
+            {went > 0 && (
+              <span className={GLASS_PILL} data-testid="plan-again-went">
+                {t.plans.detail.again.went(went)}
+              </span>
+            )}
           </span>
         ) : null
       }

@@ -26,4 +26,15 @@ export const planFeedback = {
   closedNote: "Antworten ging bis 30 Tage nach dem Abend.",
   error: "„Wie war’s?“ ließ sich gerade nicht laden.",
   retry: "Nochmal versuchen",
+  /** P29 Etappe 2 · auf „Nochmal?“, wenn der Abend ein Lieblingsabend ist (mind. 2 „Nochmal!“, mehr als die Hälfte). */
+  againPill: (n: number) => `${n} wollen nochmal`,
+  /** P29 Etappe 2 · „Eure Lieblingsabende“ im Crew-Rückblick. */
+  favorites: {
+    title: "Eure Lieblingsabende",
+    count: (n: number) => `${n} × Nochmal`,
+    open: (title: string, date: string, n: number) => `${title}, ${date} – ${n} × Nochmal. Zum Abend`,
+    empty: "Sagen nach einem Abend die meisten „Nochmal!“, steht er hier.",
+    loading: "Lieblingsabende werden geladen",
+    failed: "Die Lieblingsabende ließen sich gerade nicht laden.",
+  },
 };

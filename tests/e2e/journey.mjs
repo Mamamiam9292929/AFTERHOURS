@@ -2277,6 +2277,29 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
     check(true, "P29: „Nochmal versuchen“ lädt die Karte");
   }
 
+  // P29 Etappe 2: Mit nur einem „Nochmal!“ (Alice; Bob „War okay“) ist der Abend noch kein Lieblingsabend.
+  {
+    const cp = carol.page;
+    await cp.goto(`${APP}/crews/${ids.crew}`);
+    const favorites = cp.getByTestId("crew-recap").getByTestId("recap-favorites");
+    await cp.locator('[data-testid=crew-recap] [data-testid=recap-favorites][data-state="empty"]').waitFor({ timeout: 20_000 });
+    check(await favorites.getByText("Sagen nach einem Abend die meisten „Nochmal!“, steht er hier.").isVisible(), "P29 Etappe 2: Leerzustand der Lieblingsabende");
+    check((await page.getByTestId("plan-again-favorite").count()) === 0, "P29 Etappe 2: 1 × Nochmal – noch kein Hinweis bei „Nochmal?“");
+  }
+  // Bob entscheidet sich um: 2 von 2 sagen „Nochmal!“ – jetzt ist es ein Lieblingsabend, „Nochmal?“ zeigt es sofort.
+  {
+    const bp = bob.page;
+    await bp.getByTestId("plan-feedback").getByRole("radio", { name: "Nochmal!" }).click();
+    await bp.locator('[data-testid=plan-feedback][data-answer="yes"]').waitFor();
+    const pill = bp.getByTestId("plan-again").getByTestId("plan-again-favorite");
+    await pill.waitFor();
+    check((await pill.innerText()).trim() === "2 wollen nochmal", "P29 Etappe 2: „2 wollen nochmal“ auf „Nochmal?“");
+    check(sql(`select count(*) from public.plan_feedback where plan_id = '${ids.plan}' and verdict = 'again'`) === "2", "P29 Etappe 2: zwei „Nochmal!“ gespeichert");
+    await bp.getByTestId("plan-again").scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Nochmal? mit Lieblingsabend");
+    await shot(bob, "19c-nochmal-lieblingsabend");
+  }
+
   await page.goto(`${APP}/rewards`);
   await page.getByText("Plan organisiert").first().waitFor();
   check((await page.locator("section[aria-labelledby=balance-label]").innerText()).includes("40"), "Organisatorin erhält 30 + 10 Punkte");
@@ -2718,6 +2741,13 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     check((await recap.getByRole("listitem").filter({ hasText: /: 1 Abend(?!e)/ }).count()) === 1, "Rückblick: ein Monat mit einem Abend in den letzten 12 Monaten");
     check((await recap.getByText("Eure Stammorte").count()) === 0, "Rückblick: ein einzelner Abend ist noch kein Stammort");
     check((await recap.getByText("Lieblingstag").count()) === 0, "Rückblick: kein Lieblingstag bei nur einem Abend");
+    // P29 Etappe 2 – „Eure Lieblingsabende“: Alice und Bob haben „Nochmal!“ gesagt (2 von 2).
+    const favorite = recap.getByTestId("recap-favorite");
+    await favorite.first().waitFor();
+    check((await favorite.count()) === 1, "Rückblick: ein Lieblingsabend");
+    const favoriteLabel = (await favorite.getAttribute("aria-label")) ?? "";
+    check(/^.+, .+ – 2 × Nochmal\. Zum Abend$/.test(favoriteLabel), `Rückblick: Lieblingsabend mit Titel, Datum und Zahl („${favoriteLabel}“)`);
+    check((await favorite.getAttribute("href"))?.endsWith(`/plans/${ids.plan}#nochmal`), "Rückblick: Lieblingsabend führt zu „Nochmal?“");
     check(!/Alice|Bob|Carol/.test(await recap.innerText()), "Rückblick: keine Rangliste von Personen");
     await bob.page.getByRole("tab", { name: "Übersicht" }).click();
     const bobRecap = bob.page.getByTestId("crew-recap");
@@ -2790,6 +2820,8 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     // Jahresansicht: der Abend liegt im Jahr, also bleibt der Stapel.
     await recapView.getByRole("button", { name: String(recapYear) }).click();
     check((await recapPhotos.getByTestId("recap-photo-stack").count()) === 1, "Euer Jahr: Stapel des Abends im Jahr");
+    await bobRecap.locator('[data-testid=recap-favorites][data-state="ready"]').waitFor();
+    check((await bobRecap.getByTestId("recap-favorite").count()) === 1, "Euer Jahr: der Lieblingsabend liegt im Jahr");
     await recapView.getByRole("button", { name: "Insgesamt" }).click();
 
     // Carol hat Bobs Foto gemeldet (P10 Etappe 2a) – im Rückblick fehlt es für sie auch nach „Wieder zeigen“.
@@ -2798,6 +2830,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     await c.route("**/rest/v1/rpc/crew_photo_stacks", (route) =>
       route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ code: "42501", message: "forbidden" }) }),
     );
+    await c.route("**/rest/v1/rpc/crew_favorite_evenings", (route) => route.abort());
     await c.goto(`${APP}/crews/${ids.crew}`);
     const carolPhotos = c.getByTestId("crew-recap").getByTestId("recap-photos");
     await carolPhotos.getByText("Die Fotos lassen sich gerade nicht laden.").waitFor();
@@ -2809,6 +2842,22 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     await carolPhotos.scrollIntoViewIfNeeded();
     await noOverflow(carol, "Rückblick ohne Fotos");
     await shot(carol, "21h-rueckblick-fotos-leer");
+
+    // P29 Etappe 2: Lieblingsabende – Fehlerzustand, „Erneut versuchen“, dann der Abend; ein Tipp führt zu „Nochmal?“.
+    const carolFavorites = c.getByTestId("crew-recap").getByTestId("recap-favorites");
+    await carolFavorites.getByText("Die Lieblingsabende ließen sich gerade nicht laden.").waitFor({ timeout: 20_000 });
+    check((await carolFavorites.getAttribute("data-state")) === "error", "Lieblingsabende: Fehlerzustand mit „Erneut versuchen“");
+    await c.unroute("**/rest/v1/rpc/crew_favorite_evenings");
+    await carolFavorites.getByRole("button", { name: "Erneut versuchen" }).click();
+    await carolFavorites.getByTestId("recap-favorite").waitFor();
+    check(!/Alice|Bob/.test(await carolFavorites.innerText()), "Lieblingsabende: nur Zahlen, keine Namen");
+    await carolFavorites.scrollIntoViewIfNeeded();
+    await a11y(carol, "rueckblick-lieblingsabende");
+    await shot(carol, "21i-rueckblick-lieblingsabende");
+    await carolFavorites.getByTestId("recap-favorite").click();
+    await c.waitForURL(`**/plans/${ids.plan}#nochmal`);
+    await c.getByTestId("plan-again").getByTestId("plan-again-favorite").waitFor();
+    check(true, "Tipp auf den Lieblingsabend führt zu „Nochmal?“ mit „2 wollen nochmal“");
 
     // Tipp auf den Stapel führt zu „Fotos vom Abend“ des Plans.
     await recapStack.click();

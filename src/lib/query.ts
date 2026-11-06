@@ -43,6 +43,8 @@ export const qk = {
   crewBalances: (crewId: string) => ["crew-balances", crewId] as const,
   /** P10 Etappe 2c: Fotostapel im Crew-Rückblick */
   crewPhotoStacks: (crewId: string) => ["crew-photo-stacks", crewId] as const,
+  /** P29 Etappe 2 · „Eure Lieblingsabende“ (Präfix `["crew-favorite-evenings"]` nach einem Urteil neu laden). */
+  crewFavoriteEvenings: (crewId: string, year: number | null) => ["crew-favorite-evenings", crewId, year] as const,
   /** P20: Geburtstage; Präfix `birthdaysAll` invalidiert eigene und alle Crews. */
   birthdaysAll: ["birthdays"] as const,
   myBirthday: (userId: string) => ["birthdays", "me", userId] as const,

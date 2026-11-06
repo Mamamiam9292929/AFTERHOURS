@@ -28,4 +28,13 @@ export const planFeedback = {
   closedNote: "Answers were open for 30 days after the night.",
   error: "Couldn't load “How was it?” just now.",
   retry: "Try again",
+  againPill: (n: number) => `${n} want a repeat`,
+  favorites: {
+    title: "Your favourite nights",
+    count: (n: number) => `${n} × again`,
+    open: (title: string, date: string, n: number) => `${title}, ${date} – ${n} × again. Open the night`,
+    empty: "When most people say “Again!” after a night, it shows up here.",
+    loading: "Loading favourite nights",
+    failed: "Couldn't load your favourite nights just now.",
+  },
 } satisfies typeof dePlanFeedback;

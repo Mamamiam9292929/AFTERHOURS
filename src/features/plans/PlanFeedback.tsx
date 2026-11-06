@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
+import { isFavoriteEvening } from "@/lib/favorites";
 import { supabase } from "@/lib/supabase";
 
 // F7: Texte von „Wie war’s?“ liegen nicht im Start-Bundle – sie laden erst mit der Karte auf einem abgeschlossenen Plan.
@@ -50,7 +51,11 @@ function useSetPlanFeedback(planId: string) {
     onMutate: (verdict) => {
       client.setQueryData<PlanFeedbackSummary>(feedbackKey(planId), (old) => (old ? applyVerdict(old, verdict) : old));
     },
-    onSettled: () => void client.invalidateQueries({ queryKey: feedbackKey(planId) }),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: feedbackKey(planId) });
+      // P29 Etappe 2: Das Urteil kann einen Abend zum Lieblingsabend machen (oder nicht mehr).
+      void client.invalidateQueries({ queryKey: ["crew-favorite-evenings"] });
+    },
   });
 }
 
@@ -169,5 +174,23 @@ export function PlanFeedbackCard({ planId }: { planId: string }) {
       )}
       {!data.open && <p className="mt-2.5 text-[13px] text-muted">{copy.closedNote}</p>}
     </section>
+  );
+}
+
+/**
+ * P29 Etappe 2 · Auf „Nochmal?“ (P17): Ist der Abend ein Lieblingsabend (mind. zwei und mehr als die Hälfte „Nochmal!“),
+ * steht dort „3 wollen nochmal“ als Lime-Pille – der Anstoß für die nächste Runde. Gleiche Abfrage wie die Karte darüber
+ * (wird nur einmal geladen); sonst, beim Laden oder bei einem Fehler nichts.
+ */
+export function PlanFeedbackAgainPill({ planId }: { planId: string }) {
+  const summary = usePlanFeedback(planId);
+  if (!summary.data || !isFavoriteEvening(summary.data)) return null;
+  return (
+    <span
+      data-testid="plan-again-favorite"
+      className="inline-flex h-8 items-center rounded-full bg-lime px-3 text-[13px] font-bold whitespace-nowrap text-lime-ink shadow-[0_0_14px_color-mix(in_srgb,var(--color-lime)_40%,transparent)]"
+    >
+      {t.planFeedback.againPill(summary.data.again)}
+    </span>
   );
 }
