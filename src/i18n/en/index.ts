@@ -50,6 +50,7 @@ export const englishPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]>
   planQuorum: () => import("./planQuorum").then((m) => m.planQuorum),
   planCapacity: () => import("./planCapacity").then((m) => m.planCapacity),
   pollOutcome: () => import("./pollOutcome").then((m) => m.pollOutcome),
+  planFeedback: () => import("./planFeedback").then((m) => m.planFeedback),
 };
 
 /** Ganzes englisches Wörterbuch (Kern und alle Seitentexte) – für die Unit-Tests. */

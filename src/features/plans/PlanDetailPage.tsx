@@ -55,6 +55,8 @@ const CapacityMeter = lazy(() => import("./PlanCapacity").then((m) => ({ default
 const CapacityCard = lazy(() => import("./PlanCapacity").then((m) => ({ default: m.CapacityCard })));
 const WaitlistNote = lazy(() => import("./PlanCapacity").then((m) => ({ default: m.WaitlistNote })));
 const PlanGuestClaimCard = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestClaimCard })));
+// P29: „Wie war’s?“ – Karte und Texte erst auf abgeschlossenen Plänen.
+const PlanFeedbackCard = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanFeedbackCard })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -274,7 +276,13 @@ export function PlanDetailPage() {
             </Suspense>
           )}
 
-          {/* P17: Direkt unter der (gesperrten) Antwort – der beste Moment für die nächste Runde. */}
+          {/* P29: Wie war's? – direkt unter der (gesperrten) Antwort, vor „Nochmal?“. */}
+          {plan.status === "completed" && (
+            <Suspense fallback={null}>
+              <PlanFeedbackCard planId={plan.id} />
+            </Suspense>
+          )}
+          {/* P17: Direkt danach – der beste Moment für die nächste Runde. */}
           {plan.status === "completed" && <AgainCard plan={plan} placeName={place?.name ?? null} />}
 
           <dl className="plan-facts mt-4 divide-y divide-line rounded-card border border-white/[0.08] px-4 sm:px-5">
