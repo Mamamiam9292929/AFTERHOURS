@@ -31,6 +31,15 @@ export function planShare(plan: { id: string; title: string; starts_at: string }
   };
 }
 
+/**
+ * P28 Etappe 2: Ist eine Abstimmung entschieden und ein Plan daraus geworden, geht das Ergebnis mit demselben Link
+ * wie beim Plan zurück in den Gruppenchat – „Entschieden: …“ statt nur Titel und Zeit. Gäste, die über den
+ * Abstimm-Link mitgestimmt haben, finden den Plan danach auch dort (P28).
+ */
+export function decidedShare(plan: { id: string; title: string; starts_at: string }, shareToken?: string | null): ShareContent {
+  return { ...planShare(plan, shareToken), text: t.share.decidedText(plan.title, `${formatDateLong(plan.starts_at)}, ${formatTime(plan.starts_at)}`) };
+}
+
 /** W2 Etappe 2: wie beim Plan – mit Token auf /v/<token> (Vorschau), sonst direkt zur Abstimmung. */
 export function pollShare(poll: { id: string; title: string; ends_at: string }, shareToken?: string | null): ShareContent {
   return {

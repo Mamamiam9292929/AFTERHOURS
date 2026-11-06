@@ -6639,6 +6639,7 @@ await step("P28 – „Was draus wurde“: Ergebnis und Plan auf dem Abstimm-Lin
     const outcome = mira.page.getByRole("region", { name: "Minigolf am Hafen" });
     await outcome.waitFor();
     check((await outcome.innerText()).includes("Noch kein Plan"), "P28: Gewinner ohne Plan – ehrlich „Noch kein Plan“");
+    check((await mira.page.getByTestId("shared-poll-card").innerText()).includes("Vor Ablauf der Frist entschieden"), "vorzeitig beendet: keine „Frist war“ mit einer Zeit in der Zukunft");
     check((await mira.page.locator('[data-testid="ballot-option"][data-winner="true"]').innerText()).includes("MINIGOLF"), "P28: der Gewinner ist in der Liste hervorgehoben");
     await shot(mira, "75a-abstimmung-ergebnis-gast");
 
@@ -6658,8 +6659,24 @@ await step("P28 – „Was draus wurde“: Ergebnis und Plan auf dem Abstimm-Lin
     check((await planCard.getByTestId("poll-outcome-link").count()) === 0 && (await planCard.getByText("Den Link zum Plan bekommst du im Gruppenchat.").isVisible()), "P28: ohne geteilten Plan kein Link, ehrlicher Hinweis");
     check(!/Hafenstraße|Bob|example\.test/.test(await mira.page.locator("body").innerText()), "P28: keine Adresse, keine Namen der Crew");
 
-    // Bob teilt den Plan – Mira kommt mit einem Tipp zur Plan-Karte.
-    const planToken = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: planId })).json;
+    // P28 Etappe 2: Bob teilt das Ergebnis von der Abstimmung aus in den Gruppenchat – mit dem Link des Plans.
+    await bob.page.goto(`${APP}/polls/${poll.json}`);
+    const share = bob.page.getByRole("button", { name: "Ergebnis teilen" });
+    await share.waitFor();
+    await stubShare(bob.page);
+    await share.click();
+    await bob.page.waitForFunction(() => (window.__shared ?? []).length > 0);
+    const [shared] = await sharedData(bob.page);
+    check(/^Entschieden: Minigolf am Hafen – .+\. Bist du dabei\?$/.test(shared?.text ?? ""), `P28 Etappe 2: Text „Entschieden: …“ (${shared?.text})`);
+    const planToken = /\/s\/([0-9a-f]{32})/.exec(shared?.url ?? "")?.[1];
+    check(Boolean(planToken), `P28 Etappe 2: geteilt wird der Plan-Link /s/<token> (${shared?.url})`);
+    check(!/Hafenstraße|Mira/.test(`${shared?.text} ${shared?.url}`), "P28 Etappe 2: keine Adresse, keine Namen im geteilten Text");
+    await unstubShare(bob.page);
+    await noOverflow(bob, "Abstimmung entschieden mit „Ergebnis teilen“");
+    await a11y(bob, "abstimmung-ergebnis-teilen");
+    await bob.page.getByTestId("poll-plan-note").evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(bob, "75c-abstimmung-ergebnis-teilen");
+    // Mira kommt mit einem Tipp zur Plan-Karte.
     await mira.page.reload();
     const link = mira.page.getByTestId("poll-outcome-link");
     await link.waitFor();

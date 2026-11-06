@@ -7,6 +7,9 @@ export const common = {
     poll: "Abstimmung teilen",
     planText: (title: string, when: string) => `${title} – ${when}. Bist du dabei?`,
     pollText: (title: string, until: string) => `${title} – stimm mit ab, bis ${until}.`,
+    /** P28 Etappe 2: Ergebnis einer Abstimmung samt Plan zurück in den Gruppenchat. */
+    decided: "Ergebnis teilen",
+    decidedText: (title: string, when: string) => `Entschieden: ${title} – ${when}. Bist du dabei?`,
     copied: "Text und Link kopiert – füg ihn im Gruppenchat ein.",
     failed: "Teilen hat nicht geklappt. Kopiere den Link aus der Adresszeile.",
     // W9 Etappe 2: denselben Link als QR-Code zeigen – für Freunde am selben Tisch.
