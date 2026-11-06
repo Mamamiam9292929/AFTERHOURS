@@ -463,8 +463,18 @@ export type SharedPollBallot =
       poll: { title: string; ends_at: string; open: boolean; can_join?: boolean; kind?: PollKind };
       options: BallotOption[];
       me: { name: string; votes: Record<string, VoteResponse> } | null;
+      /** P28: nach dem Ende – was draus wurde (bei älteren Ständen fehlt es). Links nur für Gäste mit Stimme. */
+      outcome?: SharedPollOutcome | null;
     }
   | { status: "not_found" | "expired" | "guests_off" };
+
+/** P28 · Ergebnis auf dem Abstimm-Link: Gewinner als Position, Plan und Stichwahl ohne IDs. */
+export interface SharedPollOutcome {
+  winner: number | null;
+  tie: boolean;
+  runoff: { open: boolean; ends_at: string; token: string | null } | null;
+  plan: { title: string; starts_at: string; cancelled: boolean; token: string | null } | null;
+}
 
 export function useSharedPollBallot(token: string | undefined, secret: string | null, enabled = true) {
   return useQuery({
@@ -479,7 +489,12 @@ export function useSharedPollBallot(token: string | undefined, secret: string | 
       const ballot = data as SharedPollBallot;
       // P11 Etappe 2c: Termine auf dem Stimmzettel in der Sprache des Gastes.
       return ballot.status === "valid"
-        ? { ...ballot, poll: { ...ballot.poll, title: localizedServerTitle(ballot.poll.title, locale) }, options: localizeDateOptions(ballot.poll.kind, ballot.options, locale) }
+        ? {
+            ...ballot,
+            poll: { ...ballot.poll, title: localizedServerTitle(ballot.poll.title, locale) },
+            options: localizeDateOptions(ballot.poll.kind, ballot.options, locale),
+            outcome: ballot.outcome?.plan ? { ...ballot.outcome, plan: { ...ballot.outcome.plan, title: localizedServerTitle(ballot.outcome.plan.title, locale) } } : ballot.outcome,
+          }
         : ballot;
     },
   });

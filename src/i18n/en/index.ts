@@ -49,6 +49,7 @@ export const englishPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]>
   planGuests: () => import("./planGuests").then((m) => m.planGuests),
   planQuorum: () => import("./planQuorum").then((m) => m.planQuorum),
   planCapacity: () => import("./planCapacity").then((m) => m.planCapacity),
+  pollOutcome: () => import("./pollOutcome").then((m) => m.pollOutcome),
 };
 
 /** Ganzes englisches Wörterbuch (Kern und alle Seitentexte) – für die Unit-Tests. */

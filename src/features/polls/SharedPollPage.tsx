@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { IconVote } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -17,6 +17,9 @@ import type { VoteResponse } from "@/lib/types";
 import { type BallotOption, guestSecret, rememberedGuestName, rememberGuestName, type SharedPollPreview, useGuestJoin, useGuestVote, useSharedPollBallot, useSharedPollPreview } from "./api";
 
 type Valid = Extract<SharedPollPreview, { status: "valid" }>;
+
+// P28: Ergebnis-Karte samt Texten erst laden, wenn die Abstimmung vorbei ist.
+const PollOutcomeCard = lazy(() => import("./PollOutcome").then((m) => ({ default: m.PollOutcomeCard })));
 
 const linkClass = "font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime";
 
@@ -65,7 +68,8 @@ export function SharedPollPage() {
   }
 
   if (result.poll_id) return <Navigate to={`/polls/${result.poll_id}`} replace />;
-  if (token && result.poll.guests) return <GuestBallot token={token} data={result} signedIn={Boolean(user)} />;
+  // key: Der Link zur Stichwahl (P28) öffnet dieselbe Seite mit neuem Token – Stimmzettel frisch aufbauen.
+  if (token && result.poll.guests) return <GuestBallot key={token} token={token} data={result} signedIn={Boolean(user)} />;
 
   if (user) {
     return (
@@ -284,15 +288,27 @@ function GuestBallot({ token, data, signedIn }: { token: string; data: Valid; si
       title={!open ? t.polls.shared.ballot.closedTitle : me ? t.polls.shared.ballot.changeTitle(me.name) : t.polls.shared.ballot.title}
       intro={!open ? t.polls.shared.ballot.closedIntro : me ? t.polls.shared.ballot.changeIntro : isDate ? t.polls.shared.ballot.dates.intro : t.polls.shared.ballot.intro}
     >
+      {!open && loaded.outcome && (
+        <Suspense fallback={null}>
+          <PollOutcomeCard outcome={loaded.outcome} options={loaded.options} voted={Boolean(me)} />
+        </Suspense>
+      )}
       <form onSubmit={submit} noValidate className="space-y-5">
         <fieldset className="space-y-3" aria-describedby={errors.answers ? "ballot-answers-error" : undefined}>
           <legend className="mb-3 text-[15px] font-bold text-fg">{isDate ? t.polls.shared.ballot.dates.options : t.polls.shared.ballot.options}</legend>
           {loaded.options.map((option) => {
             const key = String(option.key);
             const mine = answers[key] ?? null;
+            const won = !open && loaded.outcome?.winner === option.key;
             return (
               // V2 Etappe 3b: Der Vorschlag trägt die eigene Antwort – grün, gelb oder rot (wie in der Crew).
-              <div key={key} className="vote-card p-4 sm:p-5" data-answer={open && mine ? mine : undefined} data-testid="ballot-option">
+              <div
+                key={key}
+                className={cn("vote-card p-4 sm:p-5", won && "vote-card-win")}
+                data-answer={open && mine ? mine : undefined}
+                data-winner={won || undefined}
+                data-testid="ballot-option"
+              >
                 <p className="display break-words text-[17px] uppercase text-fg">{option.title}</p>
                 <p className="mt-1 text-sm text-muted">
                   {optionWhen(option, isDate)} · {t.polls.shared.ballot.counts(option.yes, option.maybe)}

@@ -361,7 +361,7 @@ export const polls = {
       changeTitle: (name: string) => `Deine Stimme ist drin, ${name}`,
       changeIntro: "Du kannst deine Antworten bis zum Ende der Abstimmung ändern.",
       closedTitle: "Schon entschieden",
-      closedIntro: "Die Abstimmung ist vorbei. Was daraus wird, sieht die Crew in der App.",
+      closedIntro: "Die Abstimmung ist vorbei – hier siehst du, was draus wurde.",
       options: "Was steht zur Wahl?",
       answerFor: (title: string) => `Deine Antwort für ${title}`,
       counts: (yes: number, maybe: number) => [yes === 1 ? "1 dabei" : `${yes} dabei`, maybe > 0 ? `${maybe} vielleicht` : null].filter(Boolean).join(" · "),

@@ -5,6 +5,7 @@ import { landing } from "./landing";
 import { planGuests } from "./planGuests";
 import { planCapacity } from "./planCapacity";
 import { planQuorum } from "./planQuorum";
+import { pollOutcome } from "./pollOutcome";
 import { privacy } from "./privacy";
 import { rewards } from "./rewards";
 import { settings } from "./settings";
@@ -25,6 +26,7 @@ export const de = {
   planGuests,
   planQuorum,
   planCapacity,
+  pollOutcome,
 };
 
 /** F7 · Bereiche, die nicht im Start-Bundle liegen, sondern mit ihrer Seite nachgeladen werden. */
