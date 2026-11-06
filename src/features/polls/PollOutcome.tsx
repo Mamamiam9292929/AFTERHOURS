@@ -1,7 +1,8 @@
 import { IconCalendarCheck, IconVote } from "@/components/icons";
 import { ButtonLink } from "@/components/ui/Button";
-import { loadTexts, t } from "@/i18n";
+import { loadTexts, locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { localizedServerTitle } from "@/lib/servertitle";
 import { formatDateTime } from "@/lib/time";
 import type { BallotOption, SharedPollOutcome } from "./api";
 
@@ -29,7 +30,7 @@ export function PollOutcomeCard({ outcome, options, voted }: { outcome: SharedPo
 
   if (plan) {
     kicker = copy.planKicker;
-    heading = plan.title;
+    heading = localizedServerTitle(plan.title, locale);
     body = plan.cancelled ? copy.planCancelled : formatDateTime(plan.starts_at);
     if (live && plan.token) link = { to: `/s/${plan.token}`, label: copy.toPlan, icon: "plan" };
     else if (live && voted) hint = copy.planNoLink;

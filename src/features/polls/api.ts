@@ -489,12 +489,7 @@ export function useSharedPollBallot(token: string | undefined, secret: string | 
       const ballot = data as SharedPollBallot;
       // P11 Etappe 2c: Termine auf dem Stimmzettel in der Sprache des Gastes.
       return ballot.status === "valid"
-        ? {
-            ...ballot,
-            poll: { ...ballot.poll, title: localizedServerTitle(ballot.poll.title, locale) },
-            options: localizeDateOptions(ballot.poll.kind, ballot.options, locale),
-            outcome: ballot.outcome?.plan ? { ...ballot.outcome, plan: { ...ballot.outcome.plan, title: localizedServerTitle(ballot.outcome.plan.title, locale) } } : ballot.outcome,
-          }
+        ? { ...ballot, poll: { ...ballot.poll, title: localizedServerTitle(ballot.poll.title, locale) }, options: localizeDateOptions(ballot.poll.kind, ballot.options, locale) }
         : ballot;
     },
   });

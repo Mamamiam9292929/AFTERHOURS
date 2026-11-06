@@ -48,10 +48,12 @@ select ok(tests.var('b')::jsonb #> '{outcome,runoff}' = 'null'::jsonb, 'keine St
 select tests.login('alice');
 select tests.set_var('plan', public.create_plan_from_poll(tests.var('poll')::uuid, tests.var('opt1')::uuid,
   p_address => 'Bowlingstraße 1', p_notes => 'Schuhe mitbringen')::text);
+select tests.set_var('plantitle', (select title from public.plans where id = tests.var('plan')::uuid));
+select tests.set_var('planstart', (select starts_at::text from public.plans where id = tests.var('plan')::uuid));
 select tests.login_anon();
 select tests.set_var('b', public.shared_poll_ballot(tests.var('token'), tests.var('carla'))::text);
-select is(tests.var('b')::jsonb #>> '{outcome,plan,title}', (select title from public.plans where id = tests.var('plan')::uuid), 'Titel des Plans');
-select is((tests.var('b')::jsonb #>> '{outcome,plan,starts_at}')::timestamptz, (select starts_at from public.plans where id = tests.var('plan')::uuid), 'Beginn des Plans');
+select is(tests.var('b')::jsonb #>> '{outcome,plan,title}', tests.var('plantitle'), 'Titel des Plans');
+select is((tests.var('b')::jsonb #>> '{outcome,plan,starts_at}')::timestamptz, tests.var('planstart')::timestamptz, 'Beginn des Plans');
 select is(tests.var('b')::jsonb #>> '{outcome,plan,cancelled}', 'false', 'nicht abgesagt');
 select ok(tests.var('b')::jsonb #> '{outcome,plan,token}' = 'null'::jsonb, 'ohne geteilten Plan kein Link – die Abstimmung erzeugt keinen');
 select ok(tests.var('b') !~ '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', 'das Ergebnis enthält keine einzige ID');
@@ -66,7 +68,7 @@ select is(public.shared_poll_ballot(tests.var('token'), tests.var('carla')) #>> 
 select ok(public.shared_poll_ballot(tests.var('token')) #> '{outcome,plan,token}' = 'null'::jsonb, 'ohne Geheimnis kein Link');
 select ok(public.shared_poll_ballot(tests.var('token'), tests.var('nobody')) #> '{outcome,plan,token}' = 'null'::jsonb, 'fremdes Geheimnis (nicht abgestimmt): kein Link');
 select ok(public.shared_poll_ballot(tests.var('token'), 'kurz') #> '{outcome,plan,token}' = 'null'::jsonb, 'kaputtes Geheimnis: kein Link');
-select is(public.shared_poll_ballot(tests.var('token')) #>> '{outcome,plan,title}', (select title from public.plans where id = tests.var('plan')::uuid),
+select is(public.shared_poll_ballot(tests.var('token')) #>> '{outcome,plan,title}', tests.var('plantitle'),
   'Titel und Zeit sieht jede:r mit dem Link – wie die Vorschläge');
 
 -- Außenstehende mit Konto: wie anon.
@@ -123,9 +125,10 @@ select public.cast_vote((select id from public.poll_options where poll_id = test
 select public.close_poll(tests.var('runoff')::uuid);
 select tests.set_var('runoffplan', public.create_plan_from_poll(tests.var('runoff')::uuid,
   (select winning_option_id from public.polls where id = tests.var('runoff')::uuid), p_starts_at => now() + interval '5 days')::text);
+select tests.set_var('runofftitle', (select title from public.plans where id = tests.var('runoffplan')::uuid));
 select tests.login_anon();
 select is(public.shared_poll_ballot(tests.var('tietoken'), tests.var('carla')) #>> '{outcome,plan,title}',
-  (select title from public.plans where id = tests.var('runoffplan')::uuid), 'Plan aus der Stichwahl auf dem ursprünglichen Link');
+  tests.var('runofftitle'), 'Plan aus der Stichwahl auf dem ursprünglichen Link');
 select is(public.shared_poll_ballot(tests.var('tietoken'), tests.var('carla')) #>> '{outcome,runoff,open}', 'false', 'Stichwahl beendet');
 
 -- ---- Rahmen bleibt: ohne Freigabe nichts, Rechte unverändert ------------------------------------------------
