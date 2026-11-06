@@ -4063,11 +4063,13 @@ await step("Sicherheit – Außenstehende sehen und ändern nichts (Mallory)", a
     await shot(mallory, "16e-geteilter-plan-aussen");
   }
   if (ids.pollShareUrl) {
-    // W2 Etappe 2: dasselbe für die geteilte Abstimmung – inzwischen entschieden.
+    // W2 Etappe 2: dasselbe für die geteilte Abstimmung – inzwischen entschieden. Durften Gäste mitstimmen (W3), zeigt
+    // der Link nach dem Ende das Ergebnis wie allen mit dem Link (P28) – aber ohne Weg zum Plan, Mallory hat nicht mitgestimmt.
     await page.goto(ids.pollShareUrl);
-    await page.getByRole("heading", { level: 1, name: "Noch nicht in der Crew" }).waitFor();
+    await page.getByRole("heading", { level: 1, name: /^(Noch nicht in der Crew|Schon entschieden)$/ }).waitFor();
     check(!page.url().includes(ids.poll), "Abstimmungs-Link: Außenstehende bleiben auf der Karte");
-    check(/Entschieden/.test(await page.getByRole("region").innerText()), "beendete Abstimmung: als entschieden markiert");
+    check(/Entschieden/.test(await page.getByTestId("shared-poll-card").innerText()), "beendete Abstimmung: als entschieden markiert");
+    check((await page.getByTestId("poll-outcome-link").count()) === 0, "P28: Außenstehende ohne Gast-Stimme bekommen keinen Link zum Plan");
     await shot(mallory, "16f-geteilte-abstimmung-aussen");
   }
 
