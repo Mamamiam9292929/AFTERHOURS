@@ -1,5 +1,5 @@
 import { ShareButton } from "@/components/ui/ShareButton";
-import { pollShare } from "@/lib/share";
+import { decidedShare, pollShare } from "@/lib/share";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconRepeat, IconVote } from "@/components/icons";
@@ -15,7 +15,7 @@ import { useUser } from "@/features/auth/AuthProvider";
 import { useCrewAbsences } from "@/features/crews/absencesApi";
 import { canManageCrew, myRole, useCrews } from "@/features/crews/api";
 import { useActivity } from "@/features/discover/api";
-import { useCreatePlanFromPoll, usePlans } from "@/features/plans/api";
+import { useCreatePlanFromPoll, usePlans, usePlanShareToken } from "@/features/plans/api";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { DecidedMoment } from "./DecidedMoment";
@@ -598,6 +598,15 @@ function WhereLinked({ winner, wherePoll, hasPlan }: { winner: PollOption; where
   );
 }
 
+/**
+ * P28 Etappe 2 · „Ergebnis teilen“: Entschieden und Plan steht – das Ergebnis geht mit dem Teilen-Link des Plans
+ * zurück in den Gruppenchat. Der Link wird beim Anzeigen geholt, damit das Teilen-Menü ohne Wartezeit aufgeht.
+ */
+function ResultShareButton({ plan }: { plan: { id: string; title: string; starts_at: string } }) {
+  const token = usePlanShareToken(plan.id);
+  return <ShareButton label={t.share.decided} content={() => decidedShare(plan, token.data)} qr={Boolean(token.data)} />;
+}
+
 export function PollDetailPage() {
   const { pollId } = useParams();
   const user = useUser();
@@ -777,6 +786,7 @@ export function PollDetailPage() {
                 {shownPlan ? (
                   <>
                     <ButtonLink to={`/plans/${shownPlan.id}`}>{t.polls.detail.result.toPlan}</ButtonLink>
+                    {shownPlan.status !== "cancelled" && <ResultShareButton plan={shownPlan} />}
                     <span className="text-sm text-muted" data-testid="poll-plan-note">
                       {plan && poll.auto_decide && poll.closed_by == null ? t.polls.detail.auto.planBody : t.polls.detail.result.planExists}
                     </span>

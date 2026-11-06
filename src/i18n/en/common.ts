@@ -8,6 +8,8 @@ export const common = {
     poll: "Share poll",
     planText: (title: string, when: string) => `${title} – ${when}. Are you in?`,
     pollText: (title: string, until: string) => `${title} – vote by ${until}.`,
+    decided: "Share the result",
+    decidedText: (title: string, when: string) => `Decided: ${title} – ${when}. Are you in?`,
     copied: "Text and link copied – paste it into your group chat.",
     failed: "Sharing didn't work. Copy the link from the address bar.",
     qr: {
