@@ -13,4 +13,14 @@ export const pollOutcome = {
   runoffClosed: "Die Stichwahl ist vorbei.",
   toRunoff: "In der Stichwahl abstimmen",
   runoffNoLink: "Den Link zur Stichwahl bekommst du im Gruppenchat.",
+  /** P28 Etappe 3: Zusage mit einem Tipp für Gäste, die beim Gewinner „Bin dabei“ gesagt haben. */
+  quick: {
+    prompt: (winner: string) => `Du warst für „${winner}“. Bist du auch beim Plan dabei?`,
+    button: (name: string) => `Bin dabei – als ${name}`,
+    privacy: "Die Crew sieht deinen Namen und deine Zusage. Ändern kannst du sie auf der Plan-Karte.",
+    going: (name: string) => `Du bist dabei, ${name}.`,
+    maybe: (name: string) => `Du hast mit „Vielleicht“ geantwortet, ${name}.`,
+    declined: (name: string) => `Du hast abgesagt, ${name}.`,
+    full: "Die Runde ist gerade voll. Auf der Plan-Karte kannst du dich zum Nachrücken eintragen.",
+  },
 };

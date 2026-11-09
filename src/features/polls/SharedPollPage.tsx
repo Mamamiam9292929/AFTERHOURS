@@ -306,7 +306,7 @@ function GuestBallot({ token, data, signedIn, fallback }: { token: string; data:
     >
       {!open && loaded.outcome && (
         <Suspense fallback={null}>
-          <PollOutcomeCard outcome={loaded.outcome} options={loaded.options} voted={Boolean(me)} />
+          <PollOutcomeCard outcome={loaded.outcome} options={loaded.options} me={me} />
         </Suspense>
       )}
       <form onSubmit={submit} noValidate className="space-y-5">
