@@ -75,7 +75,7 @@ export const settings = {
       results: { title: "Results", body: "When a poll ends." },
       plans: { title: "Plans", body: "New plans, changes to time, place or cost, \"it's on\", \"you're in from the waiting list\" and cancellations." },
       dayReminders: { title: "On the day of the plan", body: "Once in the morning, e.g. “Today 20:00: Bowling” – unless you can't make it." },
-      photoNudges: { title: "Photos from the night", body: "Once the morning after, if you went and hardly any photos have been shared yet." },
+      photoNudges: { title: "The morning after", body: "Once after the night, if you went: “How was it?” and photos, while hardly any have been shared yet." },
       bookings: { title: "Bookings", body: "When the status of a booking changes." },
       rides: { title: "Rides", body: "Requests and confirmations for carpools." },
       costs: { title: "Split costs", body: "New expenses you're part of, and repayments." },
