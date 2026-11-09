@@ -12,6 +12,7 @@ const TEXTS = { fallbackTitle: "AFTERHOURS", fallbackBody: "Neues in deiner Crew
 const TEXT = {
   poll_created: (actor, p) => ({ title: `${actor} hat eine Abstimmung gestartet`, body: p.title ?? "" }),
   reward_earned: () => ({ title: "+10 Punkte" }),
+  plan_photo_nudge: (_actor, p) => ({ title: p.feedback === true ? "Wie war’s gestern? Ein Tipp genügt" : "Fotos von gestern? Teilt sie mit der Crew", body: p.title ?? "" }),
   plan_changed: () => {
     throw new Error("kaputt");
   },
@@ -28,6 +29,11 @@ test("Ziel: immer ein Pfad der App", () => {
   assert.equal(notificationTarget({ type: "plan_quorum", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN }), `/plans/${PLAN}`, "P25: „Es findet statt“ öffnet den Plan");
   assert.equal(notificationTarget({ type: "plan_waitlist_promoted", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN }), `/plans/${PLAN}`, "P26: „Du bist nachgerückt“ öffnet den Plan");
   assert.equal(notificationTarget({ type: "plan_photo_nudge", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN }), `/plans/${PLAN}#fotos`);
+  // P29 Etappe 3: Fragt der Morgen danach „Wie war’s?“, geht es zur Karte „Wie war’s?“; sonst (auch alte Nachrichten) zu den Fotos.
+  assert.equal(notificationTarget({ type: "plan_photo_nudge", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN, payload: { feedback: true, photos: true } }), `/plans/${PLAN}#wie-wars`);
+  assert.equal(notificationTarget({ type: "plan_photo_nudge", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN, payload: { feedback: false, photos: true, close: true } }), `/plans/${PLAN}#fotos`);
+  assert.equal(notificationTarget({ type: "plan_photo_nudge", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN, payload: { feedback: "true" } }), `/plans/${PLAN}#fotos`, "nur echtes true zählt");
+  assert.equal(notificationTarget({ type: "plan_photo_nudge", crew_id: CREW, entity_type: "plan", related_entity_id: null, payload: { feedback: true } }), `/crews/${CREW}`);
   assert.equal(notificationTarget({ type: "birthday_reminder", crew_id: CREW, entity_type: "crew", related_entity_id: CREW }), `/crews/${CREW}#geburtstage`, "P20: zur Karte „Bald Geburtstag“");
   assert.equal(notificationTarget({ type: "spontaneous_ask", crew_id: CREW, entity_type: "crew", related_entity_id: CREW }), "/");
   assert.equal(notificationTarget({ type: "reward_earned", crew_id: null, entity_type: "reward", related_entity_id: PLAN }), "/rewards");
@@ -49,6 +55,16 @@ test("Push mit bekannter Art: Text wie in der App, Ziel, Zähler, Zeit", () => {
     badge: 3,
     timestamp: Date.parse("2026-10-28T19:00:00Z"),
   });
+});
+
+test("P29 Etappe 3: Push am Morgen danach führt je nach Inhalt zu „Wie war’s?“ oder zu den Fotos", () => {
+  const base = { v: 1, id: NOTE, type: "plan_photo_nudge", actor: null, crew_id: CREW, entity_type: "plan", entity_id: PLAN, at: "2026-11-07T09:00:00Z" };
+  const feedback = pushView({ ...base, payload: { title: "Bowling", feedback: true, photos: false } }, textFor, TEXTS);
+  assert.equal(feedback.title, "Wie war’s gestern? Ein Tipp genügt");
+  assert.equal(feedback.url, `/plans/${PLAN}#wie-wars`);
+  const photos = pushView({ ...base, payload: { title: "Bowling", photos: true } }, textFor, TEXTS);
+  assert.equal(photos.title, "Fotos von gestern? Teilt sie mit der Crew");
+  assert.equal(photos.url, `/plans/${PLAN}#fotos`);
 });
 
 test("ohne Namen „Jemand“, ohne Text darunter leer", () => {

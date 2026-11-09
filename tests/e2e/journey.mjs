@@ -3095,6 +3095,45 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P29 Etappe 3 – „Wie war’s?“ am Morgen danach: Der Abend war gestern und ist schon abgeschlossen, Bob hat noch nicht
+  // geurteilt. Die eine Nachricht vom Morgen danach fragt jetzt „Wie war’s?“ und führt direkt zur Karte; ein Tipp genügt.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const evening = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, completed_at, created_at)
+      values ('${ids.crew}', '${aliceId}', 'Darts im Hinterhof',
+        ((now() at time zone 'Europe/Berlin')::date - case when (now() at time zone 'Europe/Berlin')::time >= time '10:00' then 1 else 2 end + time '20:00') at time zone 'Europe/Berlin',
+        'completed', now() - interval '1 hour', now() - interval '5 days')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status)
+      select '${evening}', m.user_id, 'going' from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    try {
+      await bob.page.goto(`${APP}/notifications`);
+      const ask = bob.page.getByRole("link", { name: /Wie war’s( gestern)?\? Ein Tipp genügt/ }).filter({ hasText: "Darts im Hinterhof" });
+      await ask.waitFor();
+      check((await ask.innerText()).includes("Und teilt eure Fotos mit der Crew"), "Morgen danach: „Wie war’s?“ und Fotos in einer Nachricht");
+      check(psql(`select count(*) from public.notifications where type = 'plan_photo_nudge' and related_entity_id = '${evening}' and user_id = (select id from auth.users where email = '${bob.email}')`) === "1",
+        "genau eine Nachricht für Bob");
+      await noOverflow(bob, "Morgen danach");
+      await shot(bob, "21g-wie-wars-am-morgen");
+      await ask.click();
+      await bob.page.waitForURL(`**/plans/${evening}#wie-wars`);
+      const card = bob.page.getByTestId("plan-feedback");
+      await card.getByRole("heading", { name: "Wie war’s?" }).waitFor();
+      await bob.page.waitForFunction(() => {
+        const box = document.getElementById("wie-wars")?.getBoundingClientRect();
+        return Boolean(box && box.top < window.innerHeight && box.bottom > 0);
+      });
+      check(true, "Antippen springt zur Karte „Wie war’s?“");
+      await card.getByRole("radio", { name: "Nochmal!" }).click();
+      await bob.page.locator('[data-testid=plan-feedback][data-answer="yes"]').waitFor();
+      check(true, "ein Tipp – Bob sagt „Nochmal!“");
+      await shot(bob, "21g-wie-wars-angetippt");
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${evening}'; delete from public.plans where id = '${evening}'`);
+    }
+  }
+
   // P19 – Nachfragen beim Plan: Bob organisiert (390 px), alle anderen haben noch nicht geantwortet. Ein Tipp auf
   // „Nachfragen“ fragt alle ohne Antwort; Carol (einfaches Mitglied) bekommt „Bob fragt: Bist du dabei?“, sieht selbst
   // aber keinen Knopf. Ein zweiter Tipp innerhalb von 6 Stunden wird abgewiesen.

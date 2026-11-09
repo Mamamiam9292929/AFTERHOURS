@@ -137,10 +137,18 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: str(p, "date") ? `${actor} hat am ${formatPlainDate(str(p, "date"), "long")} Geburtstag` : `${actor} hat bald Geburtstag`,
     body: str(p, "crew_name") ? `Feier planen mit „${str(p, "crew_name")}“?` : "Feier planen?",
   }),
-  plan_photo_nudge: (_actor, p) => ({
-    title: p.yesterday ? "Fotos von gestern? Teilt sie mit der Crew" : "Fotos vom Abend? Teilt sie mit der Crew",
-    body: str(p, "title"),
-  }),
+  // P16 + P29 Etappe 3: eine Nachricht am Morgen danach – „Wie war’s?“, wenn das eigene Urteil fehlt, sonst
+  // „Fotos von gestern?“ (ältere Nachrichten ohne `feedback` ebenso); wer abschließen darf, liest, warum es sich lohnt.
+  plan_photo_nudge: (_actor, p) =>
+    p.feedback === true
+      ? {
+          title: p.yesterday ? "Wie war’s gestern? Ein Tipp genügt" : "Wie war’s? Ein Tipp genügt",
+          body: [str(p, "title"), p.photos === true ? "Und teilt eure Fotos mit der Crew" : ""].filter(Boolean).join(" · "),
+        }
+      : {
+          title: p.yesterday ? "Fotos von gestern? Teilt sie mit der Crew" : "Fotos vom Abend? Teilt sie mit der Crew",
+          body: [str(p, "title"), p.close === true ? "Als abgeschlossen markieren – dann sagt die Crew, wie’s war" : ""].filter(Boolean).join(" · "),
+        },
   // P4 Etappe 2: Am Tag des Plans einmal, ohne auslösende Person; die Frage nur, solange die Zusage fehlt.
   plan_day_reminder: (_actor, p) => ({
     title: str(p, "starts_at") ? `Heute ${formatTime(str(p, "starts_at"))}: ${str(p, "title")}` : `Heute: ${str(p, "title")}`,

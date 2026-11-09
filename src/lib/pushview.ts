@@ -13,6 +13,8 @@ export interface NotificationRef {
   crew_id: string | null;
   entity_type: string | null;
   related_entity_id: string | null;
+  /** Inhalt der Benachrichtigung – nur für Ziele, die davon abhängen (P29 Etappe 3). */
+  payload?: Record<string, unknown> | null;
 }
 
 /** Wohin eine Benachrichtigung führt – immer ein Pfad dieser App, nie eine fremde Adresse. */
@@ -24,8 +26,9 @@ export function notificationTarget(n: NotificationRef): string | null {
   if (n.type === "plan_expense_reminder" && n.related_entity_id) return `/plans/${n.related_entity_id}#kosten`;
   // P10: Ein gemeldetes Foto führt direkt zu „Fotos vom Abend“.
   if (n.type === "plan_photo_reported" && n.related_entity_id) return `/plans/${n.related_entity_id}#fotos`;
-  // P16: „Fotos von gestern?“ führt ebenfalls direkt zu „Fotos vom Abend“.
-  if (n.type === "plan_photo_nudge" && n.related_entity_id) return `/plans/${n.related_entity_id}#fotos`;
+  // P16: „Fotos von gestern?“ führt ebenfalls direkt zu „Fotos vom Abend“ – P29 Etappe 3: fragt sie „Wie war’s?“,
+  // dann zur Karte „Wie war’s?“.
+  if (n.type === "plan_photo_nudge" && n.related_entity_id) return `/plans/${n.related_entity_id}${n.payload?.feedback === true ? "#wie-wars" : "#fotos"}`;
   // P20 Etappe 2: Die Geburtstags-Erinnerung führt zur Karte „Bald Geburtstag“ mit „Feier planen“.
   if (n.type === "birthday_reminder" && n.crew_id) return `/crews/${n.crew_id}#geburtstage`;
   if (!n.related_entity_id) return n.crew_id ? `/crews/${n.crew_id}` : null;
@@ -109,6 +112,7 @@ export function pushView(raw: unknown, textFor: TextFor, texts: PushTexts): Push
     crew_id: uuidOrNull(message.crew_id),
     entity_type: typeof message.entity_type === "string" ? message.entity_type : null,
     related_entity_id: uuidOrNull(message.entity_id),
+    payload,
   });
   return {
     title: text.title || texts.fallbackTitle,

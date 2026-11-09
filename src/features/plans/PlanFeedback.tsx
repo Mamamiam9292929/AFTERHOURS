@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { PosterTitle } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Feedback";
@@ -78,6 +79,12 @@ export function PlanFeedbackCard({ planId }: { planId: string }) {
   const summary = usePlanFeedback(planId);
   const setVerdict = useSetPlanFeedback(planId);
   const copy = t.planFeedback;
+
+  // P29 Etappe 3: Die Benachrichtigung am Morgen danach führt mit #wie-wars hierher – nach dem Laden dorthin.
+  const loaded = summary.isSuccess;
+  useEffect(() => {
+    if (loaded && window.location.hash === "#wie-wars") document.getElementById("wie-wars")?.scrollIntoView({ block: "start" });
+  }, [loaded]);
 
   if (summary.isPending) {
     return (

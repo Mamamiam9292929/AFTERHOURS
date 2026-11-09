@@ -75,7 +75,7 @@ export const settings = {
       results: { title: "Ergebnisse", body: "Wenn eine Abstimmung endet." },
       plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten, „Es findet statt“, „Du bist nachgerückt“ und Absagen." },
       dayReminders: { title: "Am Tag des Plans", body: "Morgens einmal „Heute 20:00 Uhr: Bowling“ – außer du hast abgesagt." },
-      photoNudges: { title: "Fotos vom Abend", body: "Am Morgen danach einmal, wenn du dabei warst und noch kaum Fotos geteilt sind." },
+      photoNudges: { title: "Am Morgen danach", body: "Einmal nach einem Abend, bei dem du dabei warst: „Wie war’s?“ und Fotos teilen, solange noch kaum welche da sind." },
       bookings: { title: "Reservierungen", body: "Wenn sich der Stand einer Reservierung ändert." },
       rides: { title: "Mitfahrten", body: "Anfragen und Zusagen für Fahrgemeinschaften." },
       costs: { title: "Kosten teilen", body: "Neue Ausgaben, an denen du beteiligt bist, und Rückzahlungen." },
