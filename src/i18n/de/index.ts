@@ -2,6 +2,7 @@ import { admin } from "./admin";
 import { assistant } from "./assistant";
 import { deCore } from "./core";
 import { landing } from "./landing";
+import { notificationText } from "./notificationText";
 import { planFeedback } from "./planFeedback";
 import { planGuests } from "./planGuests";
 import { planCapacity } from "./planCapacity";
@@ -29,6 +30,7 @@ export const de = {
   planCapacity,
   pollOutcome,
   planFeedback,
+  notificationText,
 };
 
 /** F7 · Bereiche, die nicht im Start-Bundle liegen, sondern mit ihrer Seite nachgeladen werden. */

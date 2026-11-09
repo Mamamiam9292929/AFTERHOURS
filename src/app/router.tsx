@@ -67,7 +67,7 @@ const PlanDetailPage = page(() => import("@/features/plans/PlanDetailPage"), "Pl
 const SharedPlanPage = page(() => import("@/features/plans/SharedPlanPage"), "SharedPlanPage");
 const SharedPollPage = page(() => import("@/features/polls/SharedPollPage"), "SharedPollPage");
 const RewardsPage = page(() => import("@/features/rewards/RewardsPage"), "RewardsPage", ["rewards"]);
-const NotificationsPage = page(() => import("@/features/notifications/NotificationsPage"), "NotificationsPage");
+const NotificationsPage = page(() => import("@/features/notifications/NotificationsPage"), "NotificationsPage", ["notificationText"]);
 const ProfilePage = page(() => import("@/features/profile/ProfilePage"), "ProfilePage");
 const SettingsPage = page(() => import("@/features/profile/SettingsPage"), "SettingsPage", ["settings"]);
 const PrivacyPage = page(() => import("@/features/profile/PrivacyPage"), "PrivacyPage", ["privacy"]);

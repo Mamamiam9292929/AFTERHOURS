@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, ListSkeleton } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { StatusPill } from "@/features/plans/PlanPanel";
 import { usePeople } from "@/features/profile/api";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { groupInbox, inboxArea, inboxTone } from "@/lib/inbox";
 import { notificationTarget } from "@/lib/pushview";
@@ -15,6 +15,9 @@ import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { formatAgo } from "@/lib/time";
 import type { NotificationType } from "@/lib/types";
 import { useDeleteNotification, useMarkNotificationsRead, useNotifications } from "./api";
+
+// F9: Die Texte je Art liegen nicht im Start-Bundle – sie laden mit dieser Seite.
+await loadTexts("notificationText");
 
 /** Symbol je Art – zeigt auf einen Blick, worum es geht (Bereichsfarbe kommt aus `inboxTone`). */
 function NotificationIcon({ type, closing, feedbackOnly, className }: { type: NotificationType; closing?: boolean; feedbackOnly?: boolean; className?: string }) {
@@ -135,7 +138,7 @@ export function NotificationsPage() {
                   <ul className="space-y-2.5">
                     {group.items.map((n) => {
                       const actor = people.lookup(n.actor_id);
-                      const text = t.notifications.text[n.type](actor?.display_name ?? t.notifications.someone, n.payload);
+                      const text = t.notificationText[n.type](actor?.display_name ?? t.notifications.someone, n.payload);
                       const to = notificationTarget(n);
                       const isUnread = !n.read_at;
                       const area = inboxArea(n.type);

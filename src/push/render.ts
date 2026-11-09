@@ -6,7 +6,9 @@
  * Text, den die App in der Liste zeigt – aus denselben Wörterbüchern (`src/i18n`), ohne zweite Quelle.
  */
 import { notifications as deNotifications } from "@/i18n/de/misc";
+import { notificationText as deText } from "@/i18n/de/notificationText";
 import { notifications as enNotifications } from "@/i18n/en/misc";
+import { notificationText as enText } from "@/i18n/en/notificationText";
 import { readLocale } from "@/i18n/locale";
 import { pushLocale, pushView } from "@/lib/pushview";
 
@@ -15,12 +17,14 @@ import { pushLocale, pushView } from "@/lib/pushview";
 // Top-Level-Await im IIFE-Build).
 export const lang = readLocale();
 const DICTIONARIES = { de: deNotifications, en: enNotifications } as const;
+// F9: Die Texte je Art liegen in eigenen Dateien (in der App nicht im Start-Bundle, hier fest im Skript).
+const TEXTS = { de: deText, en: enText } as const;
 type Texts = Record<string, (actor: string, payload: Record<string, unknown>) => { title: string; body?: string }>;
 
 export function render(message: unknown) {
   const locale = pushLocale(message, lang);
   const n = DICTIONARIES[locale];
-  const texts = n.text as Texts;
+  const texts = TEXTS[locale] as Texts;
   const view = pushView(message, (type) => (Object.prototype.hasOwnProperty.call(texts, type) ? texts[type] : undefined), {
     fallbackTitle: n.push.fallbackTitle,
     fallbackBody: n.push.fallbackBody,

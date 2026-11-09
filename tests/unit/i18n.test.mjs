@@ -79,7 +79,7 @@ test("Englische Funktionen liefern Text ohne „Uhr“ und ohne deutsche Pluralf
   assert.equal(en.people(3), "3 people");
   assert.equal(en.members(1), "1 member");
   assert.equal(en.settings.account.deleteConfirmWord, "DELETE");
-  for (const [type, render] of Object.entries(en.notifications.text)) {
+  for (const [type, render] of Object.entries(en.notificationText)) {
     const view = render("Ana", { title: "Bowling", crew_name: "Weekend", starts_at: "2026-10-23T18:00:00Z", amount_cents: 1400, winner_title: "Bowling" });
     assert.equal(typeof view.title, "string", type);
     assert.doesNotMatch(`${view.title} ${view.body ?? ""}`, /\bUhr\b|\bhat\b|\bdeine?\b/, type);
@@ -105,11 +105,11 @@ test("Sprache im Profil: speichern, übernehmen oder nichts tun", () => {
 });
 
 test("P11 Etappe 2e: Benachrichtigungen zeigen „Stichwahl: …“ auf Englisch als „Runoff: …“", async () => {
-  const created = en.notifications.text.poll_created("Ana", { title: "Stichwahl: Bowling", runoff: true, auto: true });
+  const created = en.notificationText.poll_created("Ana", { title: "Stichwahl: Bowling", runoff: true, auto: true });
   assert.equal(created.body, "Runoff: Bowling");
-  assert.equal(en.notifications.text.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Runoff: Bowling");
-  assert.equal(en.notifications.text.poll_vote("Ana", { title: "Bowling" }).body, "Bowling");
-  assert.equal(de.notifications.text.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Stichwahl: Bowling");
+  assert.equal(en.notificationText.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Runoff: Bowling");
+  assert.equal(en.notificationText.poll_vote("Ana", { title: "Bowling" }).body, "Bowling");
+  assert.equal(de.notificationText.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Stichwahl: Bowling");
 });
 
 test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deutsch und Englisch", async () => {
@@ -118,7 +118,7 @@ test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deu
   const { loadEnglish, englishPageTexts } = await import("../../src/i18n/en/index.ts");
   const pageKeys = Object.keys(de).filter((key) => !(key in deCore)).sort();
   // Diese Bereiche liegen nicht im Start-Bundle – jeder neue gehört bewusst hierher (und in den Router).
-  assert.deepEqual(pageKeys, ["admin", "assistant", "landing", "planCapacity", "planFeedback", "planGuests", "planQuorum", "pollOutcome", "privacy", "rewards", "settings"]);
+  assert.deepEqual(pageKeys, ["admin", "assistant", "landing", "notificationText", "planCapacity", "planFeedback", "planGuests", "planQuorum", "pollOutcome", "privacy", "rewards", "settings"]);
   assert.deepEqual(Object.keys(germanPageTexts).sort(), pageKeys);
   assert.deepEqual(Object.keys(englishPageTexts).sort(), pageKeys);
   // Kern + nachgeladene Bereiche ergeben genau das ganze Wörterbuch.
@@ -161,4 +161,43 @@ test("F8: Einstellungs-Texte nur dort, wo sie vorher geladen werden", async () =
     assert.ok(source.includes(allowed.get(name)), `${name}: ${allowed.get(name)} fehlt`);
   }
   assert.deepEqual(users.sort(), [...allowed.keys()].sort());
+});
+
+test("F9: Texte der Benachrichtigungen nur dort, wo sie vorher geladen werden – und fest im Push-Skript", async () => {
+  const { readdir, readFile } = await import("node:fs/promises");
+  const { join, relative } = await import("node:path");
+  const root = new URL("../../", import.meta.url).pathname;
+  const { deCore } = await import("../../src/i18n/de/core.ts");
+  assert.equal("text" in deCore.notifications, false, "Kern ohne Texte je Art");
+  assert.equal("notificationText" in deCore, false);
+  const files = [];
+  async function walk(dir) {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (/\.(ts|tsx)$/.test(entry.name)) files.push(path);
+    }
+  }
+  await walk(join(root, "src"));
+  const users = [];
+  for (const file of files) {
+    const name = relative(root, file);
+    if (name.startsWith("src/i18n/")) continue;
+    const source = await readFile(file, "utf8");
+    if (/\bt\.notifications\.text\b/.test(source)) assert.fail(`${name} liest noch t.notifications.text`);
+    if (!/\bt\.notificationText\b/.test(source)) continue;
+    users.push(name);
+    assert.ok(source.includes('await loadTexts("notificationText")'), `${name} liest t.notificationText ohne loadTexts`);
+  }
+  assert.deepEqual(users, ["src/features/notifications/NotificationsPage.tsx"]);
+  const router = await readFile(join(root, "src/app/router.tsx"), "utf8");
+  assert.match(router, /NotificationsPage", \["notificationText"\]\)/, "Router lädt die Texte parallel zur Seite");
+  const push = await readFile(join(root, "src/push/render.ts"), "utf8");
+  assert.match(push, /from "@\/i18n\/de\/notificationText"/);
+  assert.match(push, /from "@\/i18n\/en\/notificationText"/);
+  // Deutsch und Englisch kennen dieselben Arten.
+  const { notificationText: deText } = await import("../../src/i18n/de/notificationText.ts");
+  const { notificationText: enText } = await import("../../src/i18n/en/notificationText.ts");
+  assert.deepEqual(Object.keys(enText).sort(), Object.keys(deText).sort());
+  assert.ok(Object.keys(deText).length >= 28, "alle Arten in einer Datei");
 });

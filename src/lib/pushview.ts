@@ -3,7 +3,7 @@
  *
  * Läuft an zwei Stellen: in der App (Liste der Benachrichtigungen) und im Service Worker, wenn ein Push
  * ankommt (gebaut als `push-texts.js`, siehe `src/push/render.ts`). Die Texte selbst kommen von außen
- * (`t.notifications.text`), damit es nur eine Quelle gibt.
+ * (F9: Text-Bereich `notificationText`), damit es nur eine Quelle gibt.
  *
  * Bewusst ohne Importe: Die Datei läuft unverändert im Unit-Test (`node --test`, Typen werden entfernt).
  */
