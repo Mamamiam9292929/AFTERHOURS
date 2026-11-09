@@ -7026,6 +7026,8 @@ await step("P30 – „Fand der Abend statt?“: Abend mit einem Tipp abschließ
     const width = await bp.evaluate(() => document.documentElement.scrollWidth);
     check(Boolean(box && box.x >= 0 && box.x + box.width <= width + 1) && width <= (bp.viewportSize()?.width ?? 390), "P30 2: Karte passt auf 390 px");
   }
+  await homeClose.scrollIntoViewIfNeeded();
+  await bp.evaluate(() => document.getElementById("fands-statt")?.scrollIntoView({ block: "start" }));
   await shot(bob, "19c-home-fands-statt");
 
   // „Heute ausblenden“ hält bis morgen (nur dieses Gerät).
