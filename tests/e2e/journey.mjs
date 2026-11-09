@@ -1618,9 +1618,9 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
   await page.goto(`${APP}/plans/${ids.plan}`);
   await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
   const panel = page.locator("#gaeste");
-  await panel.getByRole("switch").waitFor();
-  check((await panel.getByRole("switch").getAttribute("aria-checked")) === "false", "W10: Zusagen ohne Konto sind standardmäßig aus");
-  await panel.getByRole("switch").click();
+  await panel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).waitFor();
+  check((await panel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).getAttribute("aria-checked")) === "false", "W10: Zusagen ohne Konto sind standardmäßig aus");
+  await panel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).click();
   await toast(alice, "Freunde ohne Konto können jetzt über den Link zusagen.");
   await panel.getByText("Noch hat niemand über den Link geantwortet.").waitFor();
   check(await panel.getByTestId("plan-guests-count").filter({ hasText: "Noch keine" }).isVisible(), "W10: Leerzustand mit Pille „Noch keine“");
@@ -1744,7 +1744,7 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await panel.getByRole("button", { name: "Dana entfernen" }).click();
     await dialog(alice).getByRole("button", { name: "Entfernen" }).click();
     await toast(alice, "Gast entfernt.");
-    await panel.getByRole("switch").click();
+    await panel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).click();
     await toast(alice, "Zusagen über den Link sind aus.");
     check((await page.getByTestId("who-guest").count()) === 0, "W10: entfernte Gäste stehen nicht mehr bei „Wer“");
     await guest.page.reload();
