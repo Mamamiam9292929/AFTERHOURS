@@ -225,6 +225,8 @@ export const errors = {
     invalid_plan_feedback: "Das ist keine Antwort auf „Wie war’s?“.",
     plan_feedback_closed: "„Wie war’s?“ geht nach dem Abend – bis 30 Tage danach.",
     plan_feedback_not_going: "Nur wer dabei war, sagt, wie es war.",
+    plan_home_closed: "„Gut heimgekommen?“ geht ab Beginn des Abends bis zum nächsten Vormittag.",
+    plan_home_not_going: "Melden kann sich, wer beim Plan „Bin dabei“ oder „Vielleicht“ gesagt hat.",
     plan_min_going_started: "Der Plan hat schon angefangen – die Mindestzahl lässt sich nur vorher ändern.",
     plan_full: "Die Runde ist voll – stell dich auf der Planseite auf die Nachrückliste.",
     plan_not_full: "Es ist noch Platz – sag einfach zu.",

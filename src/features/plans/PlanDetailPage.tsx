@@ -21,6 +21,7 @@ import { closePromptDue } from "@/lib/closing";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
+import { homeCheckOpen } from "@/lib/homecheck";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { downloadPlanIcs } from "@/lib/ics";
 import { liveStage } from "@/lib/live";
@@ -61,6 +62,8 @@ const PlanFeedbackCard = lazy(() => import("./PlanFeedback").then((m) => ({ defa
 const PlanFeedbackAgainPill = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanFeedbackAgainPill })));
 // P30: „Fand der Abend statt?“ – gleicher Chunk und Text-Bereich wie „Wie war’s?“, erst wenn der Abend vorbei ist.
 const PlanCloseCard = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanCloseCard })));
+// P31: „Gut heimgekommen?“ – Karte und Texte nur rund um den Abend (ab Beginn bis 12 h nach dem Ende).
+const PlanHomeCard = lazy(() => import("./PlanHome").then((m) => ({ default: m.PlanHomeCard })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -286,6 +289,13 @@ export function PlanDetailPage() {
           {!locked && shareToken.data && guestSecret && (
             <Suspense fallback={null}>
               <PlanGuestClaimCard planId={plan.id} token={shareToken.data} secret={guestSecret} />
+            </Suspense>
+          )}
+
+          {/* P31: Gut heimgekommen? – ab Beginn bis zum nächsten Vormittag, direkt unter der eigenen Antwort. */}
+          {homeCheckOpen(plan, now) && (
+            <Suspense fallback={null}>
+              <PlanHomeCard planId={plan.id} userId={user.id} lookup={people.lookup} />
             </Suspense>
           )}
 

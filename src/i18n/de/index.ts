@@ -4,6 +4,7 @@ import { deCore } from "./core";
 import { landing } from "./landing";
 import { notificationText } from "./notificationText";
 import { planFeedback } from "./planFeedback";
+import { planHome } from "./planHome";
 import { planGuests } from "./planGuests";
 import { planCapacity } from "./planCapacity";
 import { planQuorum } from "./planQuorum";
@@ -30,6 +31,7 @@ export const de = {
   planCapacity,
   pollOutcome,
   planFeedback,
+  planHome,
   notificationText,
 };
 

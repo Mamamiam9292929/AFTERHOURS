@@ -222,6 +222,8 @@ export const errors = {
     invalid_plan_feedback: "That's not an answer to “How was it?”.",
     plan_feedback_closed: "“How was it?” opens after the night – for up to 30 days.",
     plan_feedback_not_going: "Only people who were there can say how it was.",
+    plan_home_closed: "“Home safe?” is open from the start of the night until the next morning.",
+    plan_home_not_going: "Only people who said “I'm in” or “Maybe” can check in.",
     plan_min_going_started: "The plan has already started – the minimum can only be changed before.",
     plan_full: "This one is full – join the waiting list on the plan page.",
     plan_not_full: "There's still room – just say you're in.",
