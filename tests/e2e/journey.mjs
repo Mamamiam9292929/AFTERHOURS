@@ -7037,8 +7037,12 @@ await step("P30 – „Fand der Abend statt?“: Abend mit einem Tipp abschließ
   check(sql(`select status from public.plans where id = '${pizza}'`) === "completed", "P30: Plan ist abgeschlossen");
   check(sql(`select count(*) from public.notifications where user_id = '${aliceId}' and related_entity_id = '${pizza}' and type = 'plan_photo_nudge' and payload ->> 'feedback' = 'true'`) === "1",
         "P30: Alice wird genau einmal gefragt, wie’s war");
-  check(sql(`select count(*) from public.notifications where user_id = '${bobId}' and related_entity_id = '${pizza}' and type = 'plan_photo_nudge'`) === "0",
-        "P30: Bob hat selbst abgeschlossen und bekommt keine Frage");
+  // Bob kann vorher schon „Fand der Abend statt?“ bekommen haben (öffnet jemand aus der Crew die App, gehen die
+  // Erinnerungen raus) – nach „Wie war’s?“ wird er aber nicht gefragt, er hat ja gerade selbst abgeschlossen.
+  check(sql(`select count(*) from public.notifications where user_id = '${bobId}' and related_entity_id = '${pizza}' and type = 'plan_photo_nudge' and payload ->> 'feedback' = 'true'`) === "0",
+        "P30: Bob hat selbst abgeschlossen und wird nicht nach „Wie war’s?“ gefragt");
+  check(sql(`select count(*) from public.notifications where user_id = '${bobId}' and related_entity_id = '${pizza}' and type = 'plan_photo_nudge' and coalesce(payload ->> 'close', 'false') <> 'true'`) === "0",
+        "P30: an Bob höchstens „Fand der Abend statt?“");
   await shot(bob, "19e-abgeschlossen");
 
   // Alice öffnet die Benachrichtigung – sie führt zu „Wie war’s?“.
