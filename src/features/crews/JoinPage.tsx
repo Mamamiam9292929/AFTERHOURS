@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/Toast";
 import { t } from "@/i18n";
 import { errorMessage } from "@/lib/errors";
 import { useDocumentTitle } from "@/lib/hooks";
-import { useAcceptInvitation, useInvitationPreview } from "./api";
+import { joinTarget, useAcceptInvitation, useInvitationPreview } from "./api";
 
 type FailureStatus = keyof typeof t.crews.join.status;
 
@@ -51,7 +51,7 @@ export function JoinPage() {
       onSuccess: (result) => {
         if (result.status === "joined" || result.status === "already_member") {
           toast.success(t.crews.join.joined(crewName));
-          navigate(`/crews/${result.crew_id}`, { replace: true });
+          navigate(joinTarget(result), { replace: true });
         }
       },
     });

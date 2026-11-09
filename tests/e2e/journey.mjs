@@ -1218,12 +1218,9 @@ await step("W3 Etappe 3 – Gäste treten vom Stimmzettel aus der Crew bei", asy
     await register(hanna, { here: true });
     await hanna.page.getByRole("heading", { name: "Fast drin" }).waitFor();
     await hanna.page.getByRole("button", { name: "Hof Crew beitreten" }).click();
-    await hanna.page.waitForURL(new RegExp(`/crews/${crew.json}`));
-    check(true, "Hanna ist mit dem Link aus dem Stimmzettel in der Crew");
-
-    // Danach wartet auf der Abstimmung die Übernahme der Gast-Stimme (Etappe 2).
-    await hanna.page.goto(`${APP}/v/${pollToken}`);
-    await hanna.page.waitForURL(new RegExp(`/polls/${poll.json}`));
+    // W11 Etappe 2: Nach dem Beitritt geht es direkt zur Abstimmung, dort wartet die Übernahme der Gast-Stimme.
+    await hanna.page.waitForURL(new RegExp(`/polls/${poll.json}$`));
+    check(true, "Hanna ist mit dem Link aus dem Stimmzettel in der Crew und landet direkt bei der Abstimmung");
     await hanna.page.getByRole("region", { name: "Du hast hier schon als Gast abgestimmt" }).waitFor();
     check(true, "nach dem Beitritt: Stimme übernehmen");
 
@@ -1828,11 +1825,10 @@ await step("W10 Etappe 2 + W11 – Gast tritt vom Plan-Link aus bei und übernim
     await register(jonas, { here: true });
     await jonas.page.getByRole("heading", { name: "Fast drin" }).waitFor();
     await jonas.page.getByRole("button", { name: "Tresen Crew beitreten" }).click();
-    await jonas.page.waitForURL(new RegExp(`/crews/${crew.json}`));
-
-    // Auf der Planseite wartet die Übernahme.
-    await jonas.page.goto(`${APP}/plans/${plan.json}`);
+    // W11 Etappe 2: Nach dem Beitritt geht es direkt zum Plan, dort wartet die Übernahme.
+    await jonas.page.waitForURL(new RegExp(`/plans/${plan.json}$`));
     await jonas.page.getByRole("heading", { level: 1, name: "Quiz im Eck" }).waitFor();
+    check(true, "W11 Etappe 2: nach dem Beitritt direkt auf der Planseite statt auf der Crew-Seite");
     const card = jonas.page.getByRole("region", { name: "Du hast hier schon als Gast geantwortet" });
     await card.waitFor();
     check(await card.getByText("Als „Jonas“ hast du über den Link mit „Bin dabei“ geantwortet.", { exact: false }).isVisible(), "W10: Hinweis nennt Gastname und Antwort");
