@@ -232,6 +232,7 @@ export const errors = {
     plan_waitlist_going: "You're already in.",
     plan_guest_member: "You're in this crew – answer directly in the app.",
     plan_guest_limit: "30 guests have already answered this plan – that's the maximum.",
+    plan_guest_join_off: "The crew isn't taking guests through this plan right now. Ask in the group chat for the invite link.",
     plan_guest_not_found: "This guest answer no longer exists – maybe it has already been taken over or removed.",
     guest_not_found: "This guest vote no longer exists – maybe it has already been taken over or removed.",
     invalid_credentials: "Email address or password is incorrect.",

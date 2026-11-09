@@ -89,5 +89,17 @@ export const planGuests = {
     removeBody: "Their name and answer disappear from the plan. They can answer again via the link as long as answers are on.",
     removeConfirm: "Remove",
     removed: "Guest removed.",
+    joinToggle: "Guests may join the crew",
+    joinToggleBody: "Anyone who answered via the link sees “Join crew” there and gets their own invite link (single use, 7 days) – even after the evening. Switching this off invalidates open guest links.",
+    joinOn: "Guests can now join the crew via the plan link.",
+    joinOff: "Guests can no longer join. Open guest links are invalid.",
+    joinAdminOnly: "Owners or admins of the crew can let guests join.",
+  },
+  join: {
+    title: (name: string) => `Join the crew, ${name}`,
+    body: "The crew is inviting everyone who answered here. Join and you'll plan along from now on – and your answer comes with you.",
+    bodyAfter: "The crew is inviting everyone who was there. Join and you'll be in from the start next time.",
+    cta: "Join crew",
+    privacy: "Your invite link is just for you, single use and valid for 7 days. After that you'll see the crew, members and shared plans.",
   },
 } satisfies typeof dePlanGuests;

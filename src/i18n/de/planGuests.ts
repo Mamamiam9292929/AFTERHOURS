@@ -89,5 +89,19 @@ export const planGuests = {
     removeBody: "Name und Antwort verschwinden aus dem Plan. Über den Link kann die Person danach wieder zusagen, solange Zusagen an sind.",
     removeConfirm: "Entfernen",
     removed: "Gast entfernt.",
+    /** W11: Gäste treten vom Plan-Link aus der Crew bei (nur Owner/Admin schalten frei). */
+    joinToggle: "Gäste dürfen der Crew beitreten",
+    joinToggleBody: "Wer über den Link geantwortet hat, sieht dort „Crew beitreten“ und bekommt einen eigenen Einladungslink (einmal gültig, 7 Tage) – auch noch nach dem Abend. Ausschalten macht offene Gast-Links ungültig.",
+    joinOn: "Gäste können der Crew jetzt über den Plan-Link beitreten.",
+    joinOff: "Gäste können nicht mehr beitreten. Offene Gast-Links sind ungültig.",
+    joinAdminOnly: "Den Beitritt für Gäste schalten Owner oder Admins der Crew frei.",
+  },
+  /** W11 · Vom Plan-Link der Crew beitreten – Karte für Gäste mit Antwort. */
+  join: {
+    title: (name: string) => `Komm in die Crew, ${name}`,
+    body: "Die Crew lädt alle ein, die hier geantwortet haben. Tritt bei, dann planst du ab jetzt mit – und deine Antwort kommt mit.",
+    bodyAfter: "Die Crew lädt alle ein, die dabei waren. Tritt bei, dann bist du beim nächsten Mal von Anfang an dabei.",
+    cta: "Crew beitreten",
+    privacy: "Dein Einladungslink gilt nur für dich, einmal und 7 Tage. Danach siehst du Crew, Mitglieder und gemeinsame Pläne.",
   },
 };

@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import type { PlanGuest } from "@/lib/types";
 import type { PlanWithParticipants } from "./api";
-import { useClaimPlanGuest, usePlanGuestClaimPreview, useRemovePlanGuest, useSetPlanGuests } from "./guestsApi";
+import { useClaimPlanGuest, usePlanGuestClaimPreview, useRemovePlanGuest, useSetPlanGuestJoin, useSetPlanGuests } from "./guestsApi";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 
 // F7: Texte der Zusagen ohne Konto liegen nicht im Start-Bundle.
@@ -21,9 +21,11 @@ const DOT: Record<PlanGuest["attendance_status"], string> = { going: "bg-lime", 
  * Teilen-Link eine Zusage mit Namen erlaubt, und die Gäste mit ihrer Antwort zum Entfernen. Eingeschaltet
  * zeigt der Link auch Ort, Adresse und Treffpunkt (wer zusagt, muss wissen, wohin) – das steht im Hinweis.
  */
-export function PlanGuestsPanel({ plan, started }: { plan: PlanWithParticipants; started: boolean }) {
+export function PlanGuestsPanel({ plan, started, crewAdmin }: { plan: PlanWithParticipants; started: boolean; crewAdmin: boolean }) {
   const toast = useToast();
   const setGuests = useSetPlanGuests(plan.id);
+  const setJoin = useSetPlanGuestJoin(plan.id);
+  const joinOn = plan.guest_join_by != null;
   const removeGuest = useRemovePlanGuest(plan.id);
   const [removing, setRemoving] = useState<PlanGuest | null>(null);
   const allowed = plan.guests_allowed === true;
@@ -48,6 +50,25 @@ export function PlanGuestsPanel({ plan, started }: { plan: PlanWithParticipants;
         />
       </div>
       {allowed && !started && <p className="mt-2 px-1 text-[13px] leading-snug text-faint">{t.planGuests.panel.shareHint}</p>}
+
+      {/* W11: Wer über den Link geantwortet hat, darf der Crew beitreten – freischalten nur Owner/Admin (wie Einladungen). */}
+      {allowed && crewAdmin && (
+        <div className={cn(PANEL_ITEM, "mt-3 px-4 py-1.5")} data-testid="plan-guest-join">
+          <SwitchRow
+            label={t.planGuests.panel.joinToggle}
+            description={t.planGuests.panel.joinToggleBody}
+            checked={joinOn}
+            disabled={setJoin.isPending}
+            onChange={(next) =>
+              setJoin.mutate(next, {
+                onSuccess: () => toast.success(next ? t.planGuests.panel.joinOn : t.planGuests.panel.joinOff),
+                onError: (error) => toast.error(error),
+              })
+            }
+          />
+        </div>
+      )}
+      {allowed && !crewAdmin && !joinOn && <p className="mt-2 px-1 text-[13px] leading-snug text-faint">{t.planGuests.panel.joinAdminOnly}</p>}
 
       {(allowed || guests.length > 0) && (
         <div className="mt-4">

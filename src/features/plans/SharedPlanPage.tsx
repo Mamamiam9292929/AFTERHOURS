@@ -15,6 +15,7 @@ import { quorumLeft } from "@/lib/quorum";
 import { formatTime, ticketDate } from "@/lib/time";
 import { type SharedPlanPreview, useSharedPlanPreview } from "./api";
 import { planCountdown } from "./PlanTicket";
+import { storedPlanGuestSecret } from "./guestsApi";
 import { SharedPlanRsvp } from "./SharedPlanRsvp";
 
 type Valid = Extract<SharedPlanPreview, { status: "valid" }>;
@@ -72,8 +73,9 @@ export function SharedPlanPage() {
       </ButtonLink>
     </AuthLayout>
   ) : null;
-  // W10: Die Crew erlaubt Zusagen ohne Konto – dann steht hier die Zusagekarte.
-  if (token && result.plan.guests) {
+  // W10: Die Crew erlaubt Zusagen ohne Konto – dann steht hier die Zusagekarte. W11: Wer hier schon als Gast
+  // geantwortet hat, sieht sie auch nach Beginn (eigene Antwort, „Crew beitreten“, falls freigeschaltet).
+  if (token && (result.plan.guests || storedPlanGuestSecret(token))) {
     // P26 Etappe 2: Runde voll – Gäste können dann nur „Vielleicht“ oder „Kann nicht“ sagen.
     const full = spotsLeft(result.plan, result.plan.going_count) === 0;
     return (

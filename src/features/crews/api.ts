@@ -148,6 +148,8 @@ export function useCrewInvitations(crewId: string, enabled: boolean) {
         .eq("crew_id", crewId)
         // W3 Etappe 3: persönliche Gast-Links aus Abstimmungen verwaltet die Abstimmung selbst.
         .is("via_poll_id", null)
+        // W11: ebenso die aus Plänen.
+        .is("via_plan_id", null)
         .order("created_at", { ascending: false })
         .limit(30);
       if (error) throw error;
