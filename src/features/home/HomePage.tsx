@@ -27,6 +27,7 @@ import { usePeople, useProfile, useSettings } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { HOME_CLOSE_LIMIT, plansToClose } from "@/lib/closing";
 import { cn } from "@/lib/cn";
+import { hideHomeCheck, planForHomeCheck } from "@/lib/homecheck";
 import { needsQuickVote, showTonightIdeas } from "@/lib/quickvote";
 import { openAsks } from "@/lib/spontaneous";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
@@ -87,6 +88,33 @@ function useCloseHidden(now: Date): [boolean, () => void] {
     setDay(today);
   };
   return [day === today, hide];
+}
+
+// P31 Etappe 2: „Gut heimgekommen?“ – gleicher Chunk wie auf der Planseite, lädt erst gegen Ende eines eigenen Abends.
+const HomePlanHomeCard = lazy(() => import("@/features/plans/PlanHome").then((m) => ({ default: m.HomePlanHomeCard })));
+
+const HOME_HIDDEN_KEY = "afterhours.home.hidden";
+
+/** P31 Etappe 2: Abende, deren „Gut heimgekommen?“ auf Home ausgeblendet wurde – nur auf diesem Gerät. */
+function useHomeCheckHidden(): [readonly string[], (planId: string) => void] {
+  const [hidden, setHidden] = useState<readonly string[]>(() => {
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem(HOME_HIDDEN_KEY) ?? "[]");
+      return Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const hide = (planId: string) => {
+    const next = hideHomeCheck(hidden, planId);
+    try {
+      localStorage.setItem(HOME_HIDDEN_KEY, JSON.stringify(next));
+    } catch {
+      // Ohne Speicher gilt das Ausblenden nur bis zum Neuladen.
+    }
+    setHidden(next);
+  };
+  return [hidden, hide];
 }
 
 export function HomePage() {
@@ -180,6 +208,10 @@ export function HomePage() {
     ? []
     : plansToClose(plans.data ?? [], (p) => p.created_by === user.id || canManageCrew(myRole(crewById.get(p.crew_id), user.id)), now);
 
+  // P31 Etappe 2: nach dem eigenen Abend „Gut heimgekommen?“ gleich auf Home.
+  const [homeHidden, hideHome] = useHomeCheckHidden();
+  const homeCheck = planForHomeCheck(plans.data ?? [], user.id, homeHidden, now);
+
   const loading = crews.isPending || polls.isPending || plans.isPending;
   const failed = crews.isError ? crews : polls.isError ? polls : plans.isError ? plans : null;
   const noCrews = crews.data?.length === 0;
@@ -211,6 +243,18 @@ export function HomePage() {
           <div className="mt-7 max-w-2xl">
             <ErrorState error={spontaneous.error} onRetry={() => void spontaneous.refetch()} />
           </div>
+        )}
+        {/* P31 Etappe 2: Auf dem Heimweg ist „Bin zuhause“ das Einzige, was zählt – vor dem Ticket. */}
+        {homeCheck && (
+          <Suspense fallback={null}>
+            <HomePlanHomeCard
+              plan={homeCheck}
+              crewName={crewById.get(homeCheck.crew_id)?.name}
+              userId={user.id}
+              lookup={people.lookup}
+              onHide={() => hideHome(homeCheck.id)}
+            />
+          </Suspense>
         )}
         {featured && !loading && !failed && (
           <div className="mt-7 max-w-2xl lg:mt-9">

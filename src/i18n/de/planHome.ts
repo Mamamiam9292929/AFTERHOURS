@@ -16,5 +16,11 @@ export const planHome = {
   allHome: "Alle sind zuhause.",
   honest: "Nur ein Zeichen für die Crew: Die App merkt nicht, wenn jemand nicht ankommt. Im Notfall 112.",
   error: "„Gut heimgekommen?“ ließ sich gerade nicht laden.",
+  home: {
+    /** Link zur Planseite, z. B. „Pizzaabend öffnen“. */
+    open: (title: string) => `${title} öffnen`,
+    hide: "Ausblenden",
+    hidden: "Ausgeblendet – auf der Planseite bleibt die Karte.",
+  },
   retry: "Nochmal versuchen",
 };
