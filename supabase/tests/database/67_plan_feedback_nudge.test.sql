@@ -75,8 +75,8 @@ select tests.logout();
 select is(app_private.send_plan_photo_nudges(tests.uid('alice'), '2026-11-07 09:59+01'), 0, 'vor 10 Uhr am Morgen danach: nichts');
 
 -- ---- Samstag 10 Uhr ------------------------------------------------------------------------------
-select is(app_private.send_plan_photo_nudges(tests.uid('carol'), '2026-11-07 10:00+01'), 6,
-          'Bowling an Alice und Dave (nur „Wie war’s?“), Kino an Alice und Bob (beides), Quiz an Alice und Bob (nur Fotos)');
+select is(app_private.send_plan_photo_nudges(tests.uid('carol'), '2026-11-07 10:00+01'), 7,
+          'Bowling an Alice und Dave (nur „Wie war’s?“), Kino an Alice und Bob (beides), Quiz an Alice und Bob (nur Fotos), Billard an Alice (P30: „Fand der Abend statt?“)');
 
 select is((select array_agg(r.user_id order by r.user_id) from public.plan_photo_nudges r where r.plan_id = tests.var('bowling')::uuid),
           (select array_agg(u order by u) from unnest(array[tests.uid('alice'), tests.uid('dave')]) u),
@@ -94,8 +94,8 @@ select is((select count(*)::int from public.notifications n where n.user_id = te
           1, 'genau eine Benachrichtigung, keine zweite fürs Urteil');
 select is((select n.payload ->> 'yesterday' from public.notifications n
            where n.user_id = tests.uid('bob') and n.related_entity_id = tests.var('kino')::uuid), 'true', 'weiterhin als „gestern“ gekennzeichnet');
-select is((select count(*)::int from public.plan_photo_nudges r where r.plan_id = tests.var('billard')::uuid), 0,
-          'Billard: nicht abgeschlossen und Fotos reichen – keine Erinnerung');
+select is((select array_agg(r.user_id) from public.plan_photo_nudges r where r.plan_id = tests.var('billard')::uuid), array[tests.uid('alice')],
+          'Billard: nicht abgeschlossen und Fotos reichen – nur die Organisatorin wird gefragt, ob er stattfand (P30)');
 select is((select count(*)::int from public.plan_photo_nudges r where r.plan_id = tests.var('quiz')::uuid), 2,
           'Quiz: nicht abgeschlossen, keine Fotos – Fotos-Erinnerung wie bisher');
 select is((select n.payload ->> 'feedback' || ':' || (n.payload ->> 'photos') from public.notifications n
@@ -115,7 +115,8 @@ update public.plans set status = 'completed', completed_at = '2026-11-08 11:00+0
 insert into public.plan_feedback (plan_id, user_id, verdict) values (tests.var('billard')::uuid, tests.uid('bob'), 'ok');
 select is(app_private.send_plan_photo_nudges(tests.uid('bob'), '2026-11-08 12:00+01'), 1, 'Billard nach dem Abschluss: nur an Alice');
 select is((select n.payload ->> 'feedback' || ':' || (n.payload ->> 'photos') || ':' || (n.payload ->> 'yesterday') from public.notifications n
-           where n.user_id = tests.uid('alice') and n.related_entity_id = tests.var('billard')::uuid), 'true:false:false',
+           where n.user_id = tests.uid('alice') and n.related_entity_id = tests.var('billard')::uuid
+             and n.dedupe_key = 'plan_feedback_ask:' || tests.var('billard')), 'true:false:false',
           'Billard: nur „Wie war’s?“, nicht mehr „gestern“');
 
 -- ---- Fenster von 3 Tagen bleibt -----------------------------------------------------------------

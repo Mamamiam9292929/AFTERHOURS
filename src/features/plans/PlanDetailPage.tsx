@@ -17,6 +17,7 @@ import { SpotMap } from "@/features/discover/SpotMap";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { joinsWaitlist } from "@/lib/capacity";
+import { closePromptDue } from "@/lib/closing";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
@@ -27,7 +28,7 @@ import { mapProvider } from "@/lib/maps";
 import { goingWithGuests } from "@/lib/quorum";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
-import { estimateCosts, hasStarted, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
+import { estimateCosts, hasStarted, useClosePlan, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { AnswerNote } from "./AnswerNote";
 import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
@@ -58,6 +59,8 @@ const PlanGuestClaimCard = lazy(() => import("./PlanGuests").then((m) => ({ defa
 // P29: „Wie war’s?“ – Karte und Texte erst auf abgeschlossenen Plänen.
 const PlanFeedbackCard = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanFeedbackCard })));
 const PlanFeedbackAgainPill = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanFeedbackAgainPill })));
+// P30: „Fand der Abend statt?“ – gleicher Chunk und Text-Bereich wie „Wie war’s?“, erst wenn der Abend vorbei ist.
+const PlanCloseCard = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanCloseCard })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -113,6 +116,8 @@ export function PlanDetailPage() {
   const setAttendance = useSetAttendance(planId ?? "");
   const joinWaitlist = useJoinPlanWaitlist(planId ?? "");
   const setStatus = useSetPlanStatus(planId ?? "");
+  // P30: Abschließen läuft über `close_plan` – dann fragt „Wie war’s?“ sofort alle mit Zusage.
+  const closePlan = useClosePlan(planId ?? "");
   const remind = useRemindPlan(planId ?? "");
   const update = useUpdatePlan(planId ?? "");
   // W2: Teilen-Link vorab holen – das Teilen-Menü muss direkt auf den Tipp hin aufgehen.
@@ -194,6 +199,13 @@ export function PlanDetailPage() {
       <div className="max-w-3xl">
         <FeatureTicket plan={plan} crew={crew} userId={user.id} lookup={people.lookup} now={now} hero />
       </div>
+
+      {/* P30: Der Abend ist vorbei – wer organisiert, schließt hier mit einem Tipp ab. */}
+      {canManage && closePromptDue(plan, now) && (
+        <Suspense fallback={null}>
+          <PlanCloseCard planId={plan.id} />
+        </Suspense>
+      )}
 
       {plan.status === "proposed" && (
         <Notice icon={<IconInfo aria-hidden />} className="mt-5">
@@ -624,9 +636,16 @@ export function PlanDetailPage() {
         title={t.plans.detail.manage.completeTitle}
         description={t.plans.detail.manage.completeBody}
         confirmLabel={t.plans.detail.manage.complete}
-        loading={setStatus.isPending}
-        error={setStatus.isError ? errorMessage(setStatus.error) : null}
-        onConfirm={() => changeStatus("completed", t.plans.detail.manage.completed)}
+        loading={closePlan.isPending}
+        error={closePlan.isError ? errorMessage(closePlan.error) : null}
+        onConfirm={() =>
+          closePlan.mutate(true, {
+            onSuccess: () => {
+              setConfirming(null);
+              toast.success(t.plans.detail.manage.completed);
+            },
+          })
+        }
       />
     </div>
   );

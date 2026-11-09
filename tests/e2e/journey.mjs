@@ -6980,6 +6980,101 @@ await step("P12 – Anmeldung mit Google und Apple: Knöpfe, Weiterleitung, Fehl
   }
 });
 
+await step("P30 – „Fand der Abend statt?“: Abend mit einem Tipp abschließen oder still absagen (Bob 390 px, Alice, Carol)", async () => {
+  if (!DB_URL) {
+    console.log("   (E2E_DB_URL nicht gesetzt – Pläne in der Vergangenheit lassen sich nicht anlegen, P30 wird übersprungen)");
+    return;
+  }
+  const sql = (q) => execFileSync("psql", [DB_URL, "-Atqc", q]).toString().trim();
+  const uidOf = (user) => sql(`select id from auth.users where email = '${user.email}'`);
+  const [aliceId, bobId, carolId] = [uidOf(alice), uidOf(bob), uidOf(carol)];
+  // Zwei Abende von vorgestern (der Morgen danach ist sicher vorbei): Bob organisiert „Pizzaabend“ (Alice und Bob
+  // dabei), Alice „Minigolf“ (nur Vorschlag, Bob dabei).
+  const insertPlan = (title, by, status) =>
+    sql(`insert into public.plans (crew_id, created_by, title, starts_at, status) values ('${ids.crew}', '${by}', '${title}', now() - interval '2 days', '${status}') returning id`).split("\n")[0];
+  const pizza = insertPlan("Pizzaabend", bobId, "confirmed");
+  const minigolf = insertPlan("Minigolf", aliceId, "proposed");
+  sql(`insert into public.plan_participants (plan_id, user_id, attendance_status) values ('${pizza}', '${aliceId}', 'going'), ('${pizza}', '${bobId}', 'going'), ('${minigolf}', '${bobId}', 'going')
+       on conflict (plan_id, user_id) do update set attendance_status = excluded.attendance_status`);
+
+  // Bob (Organisator, 390 px) sieht die Karte oben auf der Planseite – die Erinnerung führt mit #abschliessen hierher.
+  const bp = bob.page;
+  await bp.goto(`${APP}/plans/${pizza}#abschliessen`);
+  const card = bp.getByTestId("plan-close");
+  await card.waitFor();
+  check((await card.getByRole("heading", { name: "Fand der Abend statt?" }).count()) === 1, "P30: Organisator wird gefragt, ob der Abend stattfand");
+  const cardBox = await card.boundingBox();
+  const attendanceBox = await bp.locator("#attendance-heading").boundingBox();
+  check(Boolean(cardBox && attendanceBox && cardBox.y < attendanceBox.y), "P30: Karte steht oben, vor der eigenen Antwort");
+  await shot(bob, "19d-fand-statt");
+
+  // Carol (Mitglied, organisiert nicht) sieht keine Karte; über die API scheitert sie.
+  if (sql(`select count(*) from public.crew_members where crew_id = '${ids.crew}' and user_id = '${carolId}'`) === "1") {
+    await carol.page.goto(`${APP}/plans/${pizza}`);
+    await carol.page.locator("#attendance-heading").waitFor();
+    check((await carol.page.getByTestId("plan-close").count()) === 0, "P30: Carol (einfaches Mitglied) bekommt keine Karte");
+  }
+  if (ANON) {
+    const carolTry = await api(carol, "POST", "rpc/close_plan", { p_plan_id: pizza, p_happened: true });
+    check(carolTry.status >= 400, `API: Carol schließt Bobs Plan nicht ab (${carolTry.status})`);
+    const anonTry = await api(null, "POST", "rpc/close_plan", { p_plan_id: pizza, p_happened: false });
+    check(anonTry.status >= 400, `API: ohne Anmeldung nichts (${anonTry.status})`);
+  }
+
+  // Fehlerzustand: Ist der Server nicht erreichbar, bleibt alles, wie es war.
+  await bp.route("**/rest/v1/rpc/close_plan", (route) => route.abort());
+  await card.getByRole("button", { name: "Ja, abschließen" }).click();
+  await bp.locator('[role="alert"]').first().waitFor();
+  await bp.waitForFunction(() => !document.querySelector("[data-testid=plan-close-happened]")?.hasAttribute("disabled"));
+  check(sql(`select status from public.plans where id = '${pizza}'`) === "confirmed" && (await card.isVisible()), "P30: Fehler – Plan bleibt offen, Karte bleibt");
+  await bp.unroute("**/rest/v1/rpc/close_plan");
+
+  // Ein Tipp: abgeschlossen, „Wie war’s?“ steht da, Alice (dabei) wird sofort gefragt.
+  await card.getByRole("button", { name: "Ja, abschließen" }).click();
+  await toast(bob, "Abgeschlossen – die Crew wird gefragt, wie’s war.");
+  await bp.getByTestId("plan-feedback").waitFor();
+  check((await bp.getByTestId("plan-close").count()) === 0, "P30: nach dem Abschluss ist die Karte weg, „Wie war’s?“ steht da");
+  check(sql(`select status from public.plans where id = '${pizza}'`) === "completed", "P30: Plan ist abgeschlossen");
+  check(sql(`select count(*) from public.notifications where user_id = '${aliceId}' and related_entity_id = '${pizza}' and type = 'plan_photo_nudge' and payload ->> 'feedback' = 'true'`) === "1",
+        "P30: Alice wird genau einmal gefragt, wie’s war");
+  // Bob kann vorher schon „Fand der Abend statt?“ bekommen haben (öffnet jemand aus der Crew die App, gehen die
+  // Erinnerungen raus) – nach „Wie war’s?“ wird er aber nicht gefragt, er hat ja gerade selbst abgeschlossen.
+  check(sql(`select count(*) from public.notifications where user_id = '${bobId}' and related_entity_id = '${pizza}' and type = 'plan_photo_nudge' and payload ->> 'feedback' = 'true'`) === "0",
+        "P30: Bob hat selbst abgeschlossen und wird nicht nach „Wie war’s?“ gefragt");
+  check(sql(`select count(*) from public.notifications where user_id = '${bobId}' and related_entity_id = '${pizza}' and type = 'plan_photo_nudge' and coalesce(payload ->> 'close', 'false') <> 'true'`) === "0",
+        "P30: an Bob höchstens „Fand der Abend statt?“");
+  await shot(bob, "19e-abgeschlossen");
+
+  // Alice öffnet die Benachrichtigung – sie führt zu „Wie war’s?“.
+  {
+    const ap = alice.page;
+    await ap.goto(`${APP}/notifications`);
+    const note = ap.getByRole("link").filter({ hasText: "Wie war der Abend? Sag’s mit einem Tipp" }).filter({ hasText: "Pizzaabend" }).first();
+    await note.waitFor();
+    await note.click();
+    await ap.waitForURL(new RegExp(`/plans/${pizza}#wie-wars`));
+    await ap.getByTestId("plan-feedback").waitFor();
+    check(true, "P30: Alice landet bei „Wie war’s?“");
+  }
+
+  // Alice: Minigolf hat nicht stattgefunden – Rückfrage, dann still abgesagt (keine Nachricht an Bob).
+  {
+    const ap = alice.page;
+    await ap.goto(`${APP}/plans/${minigolf}`);
+    const close = ap.getByTestId("plan-close");
+    await close.waitFor();
+    await close.getByRole("button", { name: "Hat nicht stattgefunden" }).click();
+    await dialog(alice).getByRole("heading", { name: "Hat nicht stattgefunden?" }).waitFor();
+    await shot(alice, "19f-nicht-stattgefunden");
+    await dialog(alice).getByRole("button", { name: "Ja, absagen" }).click();
+    await toast(alice, "Plan abgesagt – ohne Nachricht an die Crew.");
+    await ap.getByText("Dieser Plan wurde abgesagt.").first().waitFor().catch(() => {});
+    check(sql(`select status from public.plans where id = '${minigolf}'`) === "cancelled", "P30: Minigolf ist abgesagt");
+    check(sql(`select count(*) from public.notifications where related_entity_id = '${minigolf}' and type = 'plan_cancelled'`) === "0", "P30: niemand bekommt eine Absage-Nachricht");
+    check((await ap.getByTestId("plan-close").count()) === 0, "P30: abgesagt – keine Karte mehr");
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);
