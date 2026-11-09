@@ -240,7 +240,17 @@ export function usePublicInvitationPreview(token: string | undefined, enabled = 
   });
 }
 
-export type AcceptResult = { status: "joined" | "already_member"; crew_id: string } | { status: "not_found" | "revoked" | "expired" | "exhausted" | "crew_full" | "crew_limit_reached" };
+/** W11 Etappe 2: `plan_id`/`poll_id` sind gesetzt, wenn die Einladung von einem Gast-Link (Plan bzw. Abstimmung) kam. */
+export type AcceptResult =
+  | { status: "joined" | "already_member"; crew_id: string; plan_id?: string | null; poll_id?: string | null }
+  | { status: "not_found" | "revoked" | "expired" | "exhausted" | "crew_full" | "crew_limit_reached" };
+
+/** W11 Etappe 2: Wer vom Plan- oder Abstimm-Link aus beitritt, landet beim Abend bzw. der Abstimmung (dort wird die Gast-Antwort übernommen). */
+export function joinTarget(result: Extract<AcceptResult, { crew_id: string }>): string {
+  if (result.plan_id) return `/plans/${result.plan_id}`;
+  if (result.poll_id) return `/polls/${result.poll_id}`;
+  return `/crews/${result.crew_id}`;
+}
 
 export function useAcceptInvitation() {
   const invalidate = useInvalidateCrews();
