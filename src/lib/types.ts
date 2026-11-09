@@ -235,6 +235,8 @@ export interface Plan {
   skipped_at?: string | null;
   /** W10: Freunde ohne Konto dürfen über den Teilen-Link zusagen. */
   guests_allowed?: boolean;
+  /** W11: Wer (Owner/Admin) „Gäste dürfen der Crew beitreten“ eingeschaltet hat – null = aus. */
+  guest_join_by?: string | null;
   /** P25: findet ab so vielen Zusagen statt (Mitglieder + Gäste), sonst null. */
   min_going?: number | null;
   /** P25: wann die Mindestzahl erreicht wurde (Nachricht verschickt bzw. beim Setzen schon erreicht). */

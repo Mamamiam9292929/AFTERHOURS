@@ -1618,9 +1618,9 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
   await page.goto(`${APP}/plans/${ids.plan}`);
   await page.getByRole("heading", { level: 1, name: "Strike District Bowling" }).waitFor();
   const panel = page.locator("#gaeste");
-  await panel.getByRole("switch").waitFor();
-  check((await panel.getByRole("switch").getAttribute("aria-checked")) === "false", "W10: Zusagen ohne Konto sind standardmäßig aus");
-  await panel.getByRole("switch").click();
+  await panel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).waitFor();
+  check((await panel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).getAttribute("aria-checked")) === "false", "W10: Zusagen ohne Konto sind standardmäßig aus");
+  await panel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).click();
   await toast(alice, "Freunde ohne Konto können jetzt über den Link zusagen.");
   await panel.getByText("Noch hat niemand über den Link geantwortet.").waitFor();
   check(await panel.getByTestId("plan-guests-count").filter({ hasText: "Noch keine" }).isVisible(), "W10: Leerzustand mit Pille „Noch keine“");
@@ -1744,7 +1744,7 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await panel.getByRole("button", { name: "Dana entfernen" }).click();
     await dialog(alice).getByRole("button", { name: "Entfernen" }).click();
     await toast(alice, "Gast entfernt.");
-    await panel.getByRole("switch").click();
+    await panel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).click();
     await toast(alice, "Zusagen über den Link sind aus.");
     check((await page.getByTestId("who-guest").count()) === 0, "W10: entfernte Gäste stehen nicht mehr bei „Wer“");
     await guest.page.reload();
@@ -1756,7 +1756,7 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
   }
 });
 
-await step("W10 Etappe 2 – Wer als Gast zugesagt hat und beitritt, übernimmt die Zusage", async () => {
+await step("W10 Etappe 2 + W11 – Gast tritt vom Plan-Link aus bei und übernimmt die Zusage", async () => {
   if (!ANON) {
     console.log("   (übersprungen: SUPABASE_ANON_KEY fehlt)");
     return;
@@ -1769,26 +1769,62 @@ await step("W10 Etappe 2 – Wer als Gast zugesagt hat und beitritt, übernimmt 
     await onboard(ida);
     const crew = await api(ida, "POST", "rpc/create_crew", { p_name: "Tresen Crew", p_emoji: "🍺" });
     check(crew.status === 200, `Ida gründet die Tresen Crew (${crew.status})`);
-    const inviteToken = (await api(ida, "POST", "rpc/create_crew_invitation", { p_crew_id: crew.json })).json?.[0]?.token;
     const plan = await api(ida, "POST", "rpc/create_plan", {
       p_crew_id: crew.json, p_title: "Quiz im Eck", p_starts_at: new Date(Date.now() + 3 * 24 * 3600_000).toISOString(), p_activity_id: null,
       p_address: "Eckstraße 5, Berlin", p_meeting_point: null, p_notes: null, p_cost_per_person_cents: null, p_total_cost_cents: null, p_ends_at: null, p_confirmed: true,
     });
-    check(plan.status < 300 && Boolean(inviteToken), `Plan und Einladungslink stehen (${plan.status})`);
-    await api(ida, "POST", "rpc/set_plan_guests", { p_plan_id: plan.json, p_allowed: true });
+    check(plan.status < 300, `Plan steht (${plan.status})`);
     const token = (await api(ida, "POST", "rpc/plan_share_token", { p_plan_id: plan.json })).json;
 
-    // Jonas sagt ohne Konto zu …
+    // W11: Ida (Owner) schaltet auf der Planseite erst Zusagen über den Link, dann den Beitritt frei.
+    await ida.page.goto(`${APP}/plans/${plan.json}`);
+    await ida.page.getByRole("heading", { level: 1, name: "Quiz im Eck" }).waitFor();
+    const guestsPanel = ida.page.locator("#gaeste");
+    check((await guestsPanel.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ }).count()) === 0, "W11: Beitritt erst wählbar, wenn Gäste zusagen dürfen");
+    await guestsPanel.getByRole("switch", { name: /Über den Link zusagen lassen/ }).click();
+    await toast(ida, "Freunde ohne Konto können jetzt über den Link zusagen.");
+    await guestsPanel.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/ }).click();
+    await toast(ida, "Gäste können der Crew jetzt über den Plan-Link beitreten.");
+    await guestsPanel.getByRole("switch", { name: /Gäste dürfen der Crew beitreten/, checked: true }).waitFor();
+    check(true, "W11: Owner schaltet den Beitritt frei");
+    await guestsPanel.getByTestId("plan-guest-join").scrollIntoViewIfNeeded();
+    await shot(ida, "16w4b-plan-gaeste-beitreten-schalter");
+
+    // Jonas sagt ohne Konto zu – erst danach erscheint der Beitritt.
     await jonas.page.goto(`${APP}/s/${token}`);
     await jonas.page.getByRole("heading", { level: 1, name: "Bist du dabei?" }).waitFor();
+    check((await jonas.page.getByTestId("plan-guest-join-card").count()) === 0, "W11: vor der Antwort kein Beitritt");
     await jonas.page.getByLabel("Dein Name").fill("Jonas");
     await jonas.page.getByRole("radio", { name: "Bin dabei" }).click();
     await jonas.page.getByRole("button", { name: "Antwort senden" }).click();
     await jonas.page.getByRole("heading", { level: 1, name: "Hallo Jonas" }).waitFor();
+    const joinCard = jonas.page.getByRole("region", { name: "Komm in die Crew, Jonas" });
+    await joinCard.waitFor();
+    check((await jonas.page.getByTestId("rsvp-cta").count()) === 0, "W11: statt „Konto erstellen“ der Weg direkt in die Crew");
+    check(!/Tresen Crew|Ida/.test(await jonas.page.locator("body").innerText()), "W11: die Zusagekarte verrät vor dem Beitritt weder Crew-Namen noch Mitglieder");
+    await joinCard.scrollIntoViewIfNeeded();
+    await shot(jonas, "16w4c-plan-gast-crew-beitreten");
+    for (const viewport of ["tablet", "desktop"]) {
+      await jonas.page.setViewportSize(VIEWPORTS[viewport]);
+      await shot({ ...jonas, viewport }, "16w4c-plan-gast-crew-beitreten");
+    }
+    await jonas.page.setViewportSize(VIEWPORTS.mobile);
 
-    // … legt über den Einladungslink ein Konto an und tritt bei.
-    await jonas.page.goto(`${APP}/join/${inviteToken}`);
+    // Fehlerzustand: Antwort des Servers wird verständlich angezeigt, die Karte bleibt.
+    await jonas.page.route("**/rpc/guest_join_shared_plan", (route) =>
+      route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ code: "P0001", message: "plan_guest_join_off", details: null, hint: null }) }),
+    );
+    await joinCard.getByRole("button", { name: "Crew beitreten" }).click();
+    await joinCard.getByText("Die Crew nimmt über diesen Plan gerade keine Gäste auf.", { exact: false }).waitFor();
+    check(true, "W11: Fehler beim Beitritt wird angezeigt");
+    await jonas.page.unroute("**/rpc/guest_join_shared_plan");
+
+    // Ein Tipp: persönliche Einladung, Konto anlegen, beitreten.
+    await joinCard.getByRole("button", { name: "Crew beitreten" }).click();
     await jonas.page.waitForURL(/\/invite\/[0-9a-f]{64}$/);
+    await jonas.page.getByText(/Tresen Crew/).first().waitFor();
+    check(true, "W11: die Einladung zeigt jetzt die Crew");
+    const inviteToken = jonas.page.url().split("/invite/")[1];
     await register(jonas, { here: true });
     await jonas.page.getByRole("heading", { name: "Fast drin" }).waitFor();
     await jonas.page.getByRole("button", { name: "Tresen Crew beitreten" }).click();
@@ -1830,6 +1866,14 @@ await step("W10 Etappe 2 – Wer als Gast zugesagt hat und beitritt, übernimmt 
 
     const guests = await api(ida, "GET", `plan_guests?select=id&plan_id=eq.${plan.json}`);
     check(guests.status === 200 && guests.json.length === 0, "W10: in der Datenbank gibt es keinen Gast mehr");
+    // W11: Der persönliche Link gilt nur einmal; die Einladungsliste der Crew zeigt ihn nicht.
+    const reuse = await api(null, "POST", "rpc/preview_public_invitation", { p_token: inviteToken });
+    check(reuse.json?.status === "exhausted", `W11: der Gast-Link ist verbraucht (${reuse.json?.status})`);
+    const listed = await api(ida, "GET", `crew_invitations?select=id&crew_id=eq.${crew.json}&via_plan_id=is.null`);
+    const all = await api(ida, "GET", `crew_invitations?select=id,via_plan_id&crew_id=eq.${crew.json}`);
+    check(listed.status === 200 && listed.json.length === 0 && all.json?.some((i) => i.via_plan_id === plan.json), "W11: Gast-Links stehen nicht in der Einladungsliste");
+    const joinAsMember = await api(jonas, "POST", "rpc/guest_join_shared_plan", { p_token: token, p_secret: "a".repeat(64) });
+    check(joinAsMember.status === 400 && joinAsMember.json?.message === "plan_guest_member", `W11: Mitglieder holen keinen Gast-Link (${joinAsMember.json?.message})`);
     const attack = await api(null, "POST", "rpc/claim_plan_guest", { p_plan_id: plan.json, p_secret: "a".repeat(64), p_keep: true });
     check(attack.status >= 400, `W10: ohne Konto keine Übernahme (${attack.status})`);
     const guess = await api(ida, "POST", "rpc/claim_plan_guest", { p_plan_id: plan.json, p_secret: "a".repeat(64), p_keep: true });

@@ -41,6 +41,8 @@ export type SharedPlanRsvp =
         place: string | null;
         address: string | null;
         meeting_point: string | null;
+        /** W11: Gäste mit Antwort dürfen der Crew beitreten (Owner/Admin hat freigeschaltet). */
+        can_join?: boolean;
       };
       counts: { going: number; maybe: number };
       /**
@@ -130,6 +132,35 @@ export function useSetPlanGuests(planId: string) {
     onSettled: () => {
       void client.invalidateQueries({ queryKey: qk.plan(planId) });
       void client.invalidateQueries({ queryKey: qk.plans });
+    },
+  });
+}
+
+/** W11: Gäste dürfen der Crew vom Plan-Link aus beitreten (nur Owner/Admin). */
+export function useSetPlanGuestJoin(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (allowed: boolean) => {
+      const { error } = await supabase.rpc("set_plan_guest_join", { p_plan_id: planId, p_allowed: allowed });
+      if (error) throw error;
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: qk.plan(planId) });
+      void client.invalidateQueries({ queryKey: qk.plans });
+    },
+  });
+}
+
+/**
+ * W11 · Persönlichen Einladungslink holen (einmal gültig, 7 Tage). Nur für Gäste, die mit diesem Gerät schon
+ * geantwortet haben; der Link führt auf die normale Einladung (/invite/<token>).
+ */
+export function useGuestJoinPlan(token: string, secret: string) {
+  return useMutation({
+    mutationFn: async (): Promise<{ token: string; expires_at: string }> => {
+      const { data, error } = await supabase.rpc("guest_join_shared_plan", { p_token: token, p_secret: secret });
+      if (error) throw error;
+      return data as { token: string; expires_at: string };
     },
   });
 }

@@ -235,6 +235,7 @@ export const errors = {
     plan_waitlist_going: "Du bist schon dabei.",
     plan_guest_member: "Du bist in dieser Crew – sag direkt in der App zu.",
     plan_guest_limit: "Bei diesem Plan haben schon 30 Gäste geantwortet – mehr gehen nicht.",
+    plan_guest_join_off: "Die Crew nimmt über diesen Plan gerade keine Gäste auf. Frag im Gruppenchat nach dem Einladungslink.",
     plan_guest_not_found: "Diese Gast-Antwort gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.",
     guest_not_found: "Diese Gast-Stimme gibt es nicht mehr – vielleicht wurde sie schon übernommen oder entfernt.",
     // Supabase Auth

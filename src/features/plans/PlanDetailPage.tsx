@@ -496,7 +496,7 @@ export function PlanDetailPage() {
           {canManage && !locked && (
             <PlanPanel id="gaeste" title={t.plans.detail.attendance.guestsTitle} icon={<IconUserPlus className="size-5" />} tone="lime">
               <Suspense fallback={<Skeleton className="h-16" />}>
-                <PlanGuestsPanel plan={plan} started={started} />
+                <PlanGuestsPanel plan={plan} started={started} crewAdmin={canManageCrew(myRole(crew, user.id))} />
               </Suspense>
             </PlanPanel>
           )}

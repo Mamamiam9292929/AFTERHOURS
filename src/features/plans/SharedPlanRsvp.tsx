@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { IconPin } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { NoteEditor } from "./AnswerNote";
 import { GuestCalendar } from "./GuestCalendar";
-import { type GuestAnswer, planGuestSecret, useGuestNote, useGuestRsvp, useGuestWaitlist, useSharedPlanRsvp } from "./guestsApi";
+import { type GuestAnswer, planGuestSecret, useGuestJoinPlan, useGuestNote, useGuestRsvp, useGuestWaitlist, useSharedPlanRsvp } from "./guestsApi";
 
 // F7: Texte der Zusagen ohne Konto liegen nicht im Start-Bundle.
 await loadTexts("planGuests");
@@ -314,7 +314,10 @@ export function SharedPlanRsvp({
         {open && <p className="text-[13px] leading-snug text-faint">{t.planGuests.rsvp.privacy}</p>}
       </form>
 
-      {!signedIn && (me || !open) && (
+      {/* W11: Die Crew hat den Beitritt freigeschaltet – wer hier geantwortet hat, kommt mit einem Tipp in die Crew. */}
+      {me && loaded.plan.can_join && <GuestJoinPlanCard token={token} secret={secret} name={me.name} after={!open} />}
+
+      {!signedIn && (me || !open) && !(me && loaded.plan.can_join) && (
         <div className="vote-card mt-8 p-5 sm:p-6" data-testid="rsvp-cta">
           <p className="text-[17px] font-bold text-fg">{t.planGuests.rsvp.ctaTitle}</p>
           <p className="mt-1.5 text-[15px] leading-snug text-muted">{t.planGuests.rsvp.ctaBody}</p>
@@ -330,5 +333,39 @@ export function SharedPlanRsvp({
         </div>
       )}
     </AuthLayout>
+  );
+}
+
+/**
+ * W11 · Vom Plan-Link der Crew beitreten: Owner/Admin haben es freigeschaltet, und auf diesem Gerät liegt eine
+ * Gast-Antwort. Der Tipp holt einen persönlichen Einladungslink und führt auf die normale Einladung – Konto
+ * anlegen oder anmelden, beitreten, auf der Planseite die Antwort übernehmen (W10 Etappe 2).
+ */
+function GuestJoinPlanCard({ token, secret, name, after }: { token: string; secret: string; name: string; after: boolean }) {
+  const navigate = useNavigate();
+  const join = useGuestJoinPlan(token, secret);
+  const texts = t.planGuests.join;
+  return (
+    <section aria-labelledby="plan-guest-join-title" className="mt-8 rounded-card border border-lime/60 bg-lime/10 p-5" data-testid="plan-guest-join-card">
+      <h2 id="plan-guest-join-title" className="text-[17px] font-bold text-fg">
+        {texts.title(name)}
+      </h2>
+      <p className="mt-1.5 text-[15px] leading-snug text-muted">{after ? texts.bodyAfter : texts.body}</p>
+      {join.isError && (
+        <div className="mt-3">
+          <FormMessage>{errorMessage(join.error)}</FormMessage>
+        </div>
+      )}
+      <Button
+        size="lg"
+        block
+        className="mt-4"
+        loading={join.isPending}
+        onClick={() => join.mutate(undefined, { onSuccess: (result) => navigate(`/invite/${result.token}`) })}
+      >
+        {texts.cta}
+      </Button>
+      <p className="mt-3 text-[13px] leading-snug text-muted">{texts.privacy}</p>
+    </section>
   );
 }
