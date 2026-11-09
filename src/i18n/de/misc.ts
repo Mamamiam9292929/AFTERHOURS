@@ -142,13 +142,10 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
   plan_photo_nudge: (_actor, p) =>
     p.feedback === true
       ? {
-          title: p.yesterday ? "Wie war’s gestern? Sag’s mit einem Tipp" : "Wie war der Abend? Sag’s mit einem Tipp",
-          body: [str(p, "title"), p.photos === false ? "Die Crew sieht nur die Zahlen" : "Und teilt eure Fotos mit der Crew"].filter(Boolean).join(" · "),
+          title: `Wie war${p.yesterday ? "’s gestern" : " der Abend"}? Sag’s mit einem Tipp`,
+          body: `${str(p, "title")} · ${p.photos === false ? "Die Crew sieht nur die Zahlen" : "Und teilt eure Fotos mit der Crew"}`,
         }
-      : {
-          title: p.yesterday ? "Fotos von gestern? Teilt sie mit der Crew" : "Fotos vom Abend? Teilt sie mit der Crew",
-          body: str(p, "title"),
-        },
+      : { title: `Fotos ${p.yesterday ? "von gestern" : "vom Abend"}? Teilt sie mit der Crew`, body: str(p, "title") },
   // P4 Etappe 2: Am Tag des Plans einmal, ohne auslösende Person; die Frage nur, solange die Zusage fehlt.
   plan_day_reminder: (_actor, p) => ({
     title: str(p, "starts_at") ? `Heute ${formatTime(str(p, "starts_at"))}: ${str(p, "title")}` : `Heute: ${str(p, "title")}`,
