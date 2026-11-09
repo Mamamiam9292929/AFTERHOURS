@@ -29,3 +29,17 @@ export function closePromptDue(plan: ClosablePlan, now: Date = new Date()): bool
   const t = now.getTime();
   return t >= over && t < start + CLOSE_PROMPT_DAYS * 24 * HOUR;
 }
+
+/** P30 Etappe 2 · so viele offene Abende zeigt Home höchstens; der Rest steht als „+ N weitere“ in der Planliste. */
+export const HOME_CLOSE_LIMIT = 3;
+
+/**
+ * P30 Etappe 2 · „Fand’s statt?“ auf Home: alle vergangenen, offenen Abende, die du abschließen darfst
+ * (`canManage` – Organisator:in, Owner, Admins, wie auf der Planseite), der jüngste zuerst. Wer die Erinnerung am
+ * Morgen danach weggewischt hat, sieht sie so beim nächsten Öffnen der App.
+ */
+export function plansToClose<P extends ClosablePlan>(plans: readonly P[], canManage: (plan: P) => boolean, now: Date = new Date()): P[] {
+  return plans
+    .filter((plan) => closePromptDue(plan, now) && canManage(plan))
+    .sort((a, b) => Date.parse(b.starts_at) - Date.parse(a.starts_at));
+}

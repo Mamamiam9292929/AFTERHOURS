@@ -6997,8 +6997,70 @@ await step("P30 – „Fand der Abend statt?“: Abend mit einem Tipp abschließ
   sql(`insert into public.plan_participants (plan_id, user_id, attendance_status) values ('${pizza}', '${aliceId}', 'going'), ('${pizza}', '${bobId}', 'going'), ('${minigolf}', '${bobId}', 'going')
        on conflict (plan_id, user_id) do update set attendance_status = excluded.attendance_status`);
 
-  // Bob (Organisator, 390 px) sieht die Karte oben auf der Planseite – die Erinnerung führt mit #abschliessen hierher.
+  // P30 Etappe 2: „Fand’s statt?“ auf Home – Bob hat die Erinnerung weggewischt und öffnet einfach die App.
+  const karaoke = insertPlan("Karaokeabend", bobId, "confirmed");
+  sql(`update public.plans set starts_at = now() - interval '1 day' where id = '${karaoke}'`);
+  sql(`insert into public.plan_participants (plan_id, user_id, attendance_status) values ('${karaoke}', '${bobId}', 'going')
+       on conflict (plan_id, user_id) do update set attendance_status = excluded.attendance_status`);
   const bp = bob.page;
+  await bp.evaluate(() => localStorage.removeItem("afterhours.close.hidden")).catch(() => {});
+  await bp.goto(`${APP}/`);
+  const homeClose = bp.getByTestId("home-close");
+  await homeClose.waitFor();
+  const rowOf = (title) => homeClose.getByTestId("home-close-plan").filter({ hasText: title });
+  await rowOf("Pizzaabend").waitFor();
+  check((await rowOf("Karaokeabend").count()) === 1 && (await rowOf("Pizzaabend").count()) === 1, "P30 2: Home zeigt Bob beide offenen Abende");
+  {
+    const titles = await homeClose.getByTestId("home-close-plan").allInnerTexts();
+    const k = titles.findIndex((x) => x.includes("Karaokeabend"));
+    const p = titles.findIndex((x) => x.includes("Pizzaabend"));
+    check(k >= 0 && p > k, "P30 2: der jüngste Abend steht oben");
+    check(titles.length <= 3, `P30 2: höchstens drei Abende auf Home (${titles.length})`);
+  }
+  check((await rowOf("Minigolf").count()) === 0 || sql(`select count(*) from public.crew_members where crew_id = '${ids.crew}' and user_id = '${bobId}' and role in ('owner', 'admin')`) === "1",
+        "P30 2: Alices Minigolf nur, wenn Bob Owner/Admin ist");
+  check((await rowOf("Karaokeabend").getByText("1 dabei").count()) === 1, "P30 2: Zeile nennt, wie viele dabei waren");
+  check((await rowOf("Pizzaabend").getByRole("link").getAttribute("href"))?.endsWith(`/plans/${pizza}#abschliessen`), "P30 2: Titel führt zur Karte auf der Planseite");
+  {
+    const box = await homeClose.boundingBox();
+    const width = await bp.evaluate(() => document.documentElement.scrollWidth);
+    check(Boolean(box && box.x >= 0 && box.x + box.width <= width + 1) && width <= (bp.viewportSize()?.width ?? 390), "P30 2: Karte passt auf 390 px");
+  }
+  await shot(bob, "19c-home-fands-statt");
+
+  // „Heute ausblenden“ hält bis morgen (nur dieses Gerät).
+  await homeClose.getByTestId("home-close-hide").click();
+  await bp.getByTestId("home-close").waitFor({ state: "detached" });
+  await bp.reload();
+  await bp.getByRole("heading", { level: 1 }).waitFor();
+  await bp.waitForTimeout(500);
+  check((await bp.getByTestId("home-close").count()) === 0, "P30 2: „Heute ausblenden“ hält nach dem Neuladen");
+  await bp.evaluate(() => localStorage.removeItem("afterhours.close.hidden"));
+  await bp.reload();
+  await rowOf("Karaokeabend").waitFor();
+
+  // Fehler: Plan bleibt offen, Zeile bleibt.
+  await bp.route("**/rest/v1/rpc/close_plan", (route) => route.abort());
+  await rowOf("Karaokeabend").getByRole("button", { name: "Ja, abschließen" }).click();
+  await bp.locator('[role="alert"]').first().waitFor();
+  await bp.waitForFunction(() => [...document.querySelectorAll("[data-testid=home-close-plan] [data-testid=plan-close-happened]")].every((b) => !b.hasAttribute("disabled")));
+  check(sql(`select status from public.plans where id = '${karaoke}'`) === "confirmed" && (await rowOf("Karaokeabend").count()) === 1, "P30 2: Fehler – Abend bleibt offen, Zeile bleibt");
+  await bp.unroute("**/rest/v1/rpc/close_plan");
+
+  // Ein Tipp auf Home schließt ab – die Zeile verschwindet, Pizzaabend bleibt.
+  await rowOf("Karaokeabend").getByRole("button", { name: "Ja, abschließen" }).click();
+  await toast(bob, "Abgeschlossen – die Crew wird gefragt, wie’s war.");
+  await rowOf("Karaokeabend").waitFor({ state: "detached" });
+  check(sql(`select status from public.plans where id = '${karaoke}'`) === "completed", "P30 2: Karaokeabend von Home aus abgeschlossen");
+  check((await rowOf("Pizzaabend").count()) === 1, "P30 2: die anderen Abende bleiben stehen");
+
+  // Carol organisiert keinen der Abende – auf ihrer Startseite steht keiner davon.
+  await carol.page.goto(`${APP}/`);
+  await carol.page.getByRole("heading", { level: 1 }).waitFor();
+  await carol.page.waitForTimeout(800);
+  check((await carol.page.getByTestId("home-close-plan").filter({ hasText: /Pizzaabend|Karaokeabend/ }).count()) === 0, "P30 2: Carol sieht Bobs Abende nicht auf Home");
+
+  // Bob (Organisator, 390 px) sieht die Karte oben auf der Planseite – die Erinnerung führt mit #abschliessen hierher.
   await bp.goto(`${APP}/plans/${pizza}#abschliessen`);
   const card = bp.getByTestId("plan-close");
   await card.waitFor();
@@ -7073,6 +7135,12 @@ await step("P30 – „Fand der Abend statt?“: Abend mit einem Tipp abschließ
     check(sql(`select count(*) from public.notifications where related_entity_id = '${minigolf}' and type = 'plan_cancelled'`) === "0", "P30: niemand bekommt eine Absage-Nachricht");
     check((await ap.getByTestId("plan-close").count()) === 0, "P30: abgesagt – keine Karte mehr");
   }
+
+  // P30 2: Alles abgeschlossen – auf Bobs Startseite steht keiner der Abende mehr.
+  await bp.goto(`${APP}/`);
+  await bp.getByRole("heading", { level: 1 }).waitFor();
+  await bp.waitForTimeout(800);
+  check((await bp.getByTestId("home-close-plan").filter({ hasText: /Pizzaabend|Karaokeabend|Minigolf/ }).count()) === 0, "P30 2: nach dem Abschluss ist Home wieder ruhig");
 });
 
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {

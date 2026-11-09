@@ -47,5 +47,14 @@ export const planFeedback = {
     skipBody: "The plan gets cancelled without notifying everyone – the night is over anyway. This can't be undone.",
     skipConfirm: "Yes, cancel",
     skippedDone: "Plan cancelled – no message to the crew.",
+    home: {
+      title: "Did it happen?",
+      lead: "These nights are over but still open. One tap finishes them – then AFTERHOURS asks everyone who went how it was.",
+      going: (n: number) => `${n} going`,
+      open: (title: string) => `Open ${title}`,
+      more: (n: number) => (n === 1 ? "1 more night in your plans" : `${n} more nights in your plans`),
+      hide: "Hide for today",
+      hidden: "Hidden until tomorrow – you can finish it on the plan page any time.",
+    },
   },
 } satisfies typeof dePlanFeedback;
