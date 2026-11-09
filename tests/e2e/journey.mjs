@@ -2317,6 +2317,80 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
     check(true, "P29: „Nochmal versuchen“ lädt die Karte");
   }
 
+  // P31: „Gut heimgekommen?“ – der Abend hat vor zwei Stunden begonnen, also ist die Karte offen (bis 12 h nach dem
+  // Ende). Wer dabei war, tippt „Bin zuhause“; die Crew sieht Namen mit Uhrzeit, wer fehlt, nur als Zahl.
+  {
+    const missingNow = () =>
+      sql(`select count(*) from public.plan_participants pp where pp.plan_id = '${ids.plan}' and pp.attendance_status in ('going', 'maybe')
+           and not exists (select 1 from public.plan_home_checkins h where h.plan_id = pp.plan_id and h.user_id = pp.user_id)`);
+    await page.reload();
+    const card = page.getByTestId("plan-home");
+    await card.waitFor();
+    check((await card.getByRole("heading", { name: "Gut heimgekommen?" }).count()) === 1, "P31: Plan in der Nacht fragt „Gut heimgekommen?“");
+    check((await card.getAttribute("data-answer")) === null, "P31: Karte noch ohne Farbe");
+    check((await card.getByTestId("plan-home-list").innerText()).includes("Noch hat sich niemand gemeldet."), "P31: Leerzustand ohne Meldungen");
+    check((await card.getByTestId("plan-home-honest").innerText()).includes("Im Notfall 112"), "P31: Karte sagt ehrlich, dass sie kein Notruf ist");
+    const homeBox = await card.boundingBox();
+    const feedbackBox = await page.getByTestId("plan-feedback").boundingBox();
+    check(Boolean(homeBox && feedbackBox && homeBox.y < feedbackBox.y), "P31: „Gut heimgekommen?“ steht vor „Wie war’s?“");
+    const before = Number(missingNow());
+    await card.getByTestId("plan-home-report").click();
+    await toast(alice, "Gemeldet – gute Nacht!");
+    await page.locator('[data-testid=plan-home][data-answer="yes"]').waitFor();
+    check(sql(`select count(*) from public.plan_home_checkins where plan_id = '${ids.plan}' and user_id = '${uidOf(alice)}'`) === "1", "P31: Meldung gespeichert");
+    check((await card.getByTestId("plan-home-person").first().innerText()).startsWith("Du · "), "P31: die eigene Meldung steht vorn");
+    check((await card.getByTestId("plan-home-lead").innerText()).includes("zuhause seit"), "P31: Uhrzeit der eigenen Meldung");
+    check(Number(missingNow()) === before - 1, "P31: eine Person weniger ohne Meldung");
+    await card.scrollIntoViewIfNeeded();
+    await shot(alice, "19d-heimgekommen");
+  }
+  // Bob (390 px) sieht Alice mit Uhrzeit, meldet sich und nimmt es zurück.
+  {
+    const bp = bob.page;
+    await bp.goto(`${APP}/plans/${ids.plan}`);
+    const card = bp.getByTestId("plan-home");
+    await card.waitFor();
+    await card.getByTestId("plan-home-person").first().waitFor();
+    check(/^Alice · \d{2}:\d{2} Uhr$/.test((await card.getByTestId("plan-home-person").first().innerText()).trim()), "P31: Bob sieht Alice mit Uhrzeit");
+    check((await card.getByTestId("plan-home-missing").innerText()).includes("noch nicht gemeldet"), "P31: wer fehlt, steht nur als Zahl da");
+    await card.getByTestId("plan-home-report").click();
+    await bp.locator('[data-testid=plan-home][data-answer="yes"]').waitFor();
+    await card.scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Gut heimgekommen?");
+    await shot(bob, "19d-heimgekommen");
+    await card.getByTestId("plan-home-undo").click();
+    await toast(bob, "Meldung zurückgenommen.");
+    await bp.waitForFunction(() => !document.querySelector("[data-testid=plan-home]")?.hasAttribute("data-answer"));
+    check(sql(`select count(*) from public.plan_home_checkins where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`) === "0", "P31: zurückgenommen – Bobs Meldung ist weg");
+  }
+  // Carol hat abgesagt: Sie sieht, wer zuhause ist, meldet aber nichts; über die API scheitert sie.
+  {
+    const cp = carol.page;
+    await cp.goto(`${APP}/plans/${ids.plan}`);
+    const card = cp.getByTestId("plan-home");
+    await card.waitFor();
+    check((await card.getByTestId("plan-home-report").count()) === 0, "P31: Carol (abgesagt) bekommt keinen Knopf");
+    check((await card.getByTestId("plan-home-lead").innerText()).includes("schon zuhause"), "P31: Carol sieht, wer schon zuhause ist");
+    await shot(carol, "19d-heimgekommen");
+    if (ANON) {
+      const carolSet = await api(carol, "POST", "rpc/set_plan_home", { p_plan_id: ids.plan, p_home: true });
+      check(carolSet.status === 400 && /plan_home_not_going/.test(JSON.stringify(carolSet.json)), `API: Carol meldet nichts (${carolSet.status})`);
+      const direct = await api(carol, "GET", `plan_home_checkins?plan_id=eq.${ids.plan}&select=user_id`);
+      check(direct.status >= 400, `API: Meldungen nicht direkt lesbar (${direct.status})`);
+      const anon = await api(null, "POST", "rpc/plan_home_status", { p_plan_id: ids.plan });
+      check(anon.status >= 400, `API: ohne Anmeldung kein Stand (${anon.status})`);
+    }
+    // Fehlerzustand mit „Nochmal versuchen“.
+    await cp.route("**/rest/v1/rpc/plan_home_status", (route) => route.abort());
+    await cp.reload();
+    await cp.getByTestId("plan-home-error").waitFor({ timeout: 20_000 });
+    check(true, "P31: Fehlerzustand statt leerer Karte");
+    await cp.unroute("**/rest/v1/rpc/plan_home_status");
+    await cp.getByTestId("plan-home-error").getByRole("button", { name: "Nochmal versuchen" }).click();
+    await card.waitFor();
+    check(true, "P31: „Nochmal versuchen“ lädt die Karte");
+  }
+
   // P29 Etappe 2: Mit nur einem „Nochmal!“ (Alice; Bob „War okay“) ist der Abend noch kein Lieblingsabend.
   {
     const cp = carol.page;
