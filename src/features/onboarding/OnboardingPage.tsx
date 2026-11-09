@@ -11,7 +11,7 @@ import { CITY_NAMES } from "@/data/cities";
 import { CATEGORIES, INTERESTS } from "@/data/options";
 import { useUser } from "@/features/auth/AuthProvider";
 import { clearNext, consumeNext, peekNext } from "@/features/auth/next";
-import { type InvitationPreview, useAcceptInvitation, useInvitationPreview } from "@/features/crews/api";
+import { type InvitationPreview, joinTarget, useAcceptInvitation, useInvitationPreview } from "@/features/crews/api";
 import { useProfile, useSettings, useUpdateProfile, useUpdateSettings } from "@/features/profile/api";
 import { AvatarPicker } from "@/features/profile/AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "@/features/profile/notificationGroups";
@@ -149,7 +149,7 @@ export function OnboardingPage() {
       const result = await acceptInvite.mutateAsync(inviteToken);
       if (result.status === "joined" || result.status === "already_member") {
         toast.success(t.crews.join.joined(invite.crew.name));
-        setTarget(`/crews/${result.crew_id}`);
+        setTarget(joinTarget(result));
         return;
       }
     } catch {
