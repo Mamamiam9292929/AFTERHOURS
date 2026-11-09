@@ -2392,6 +2392,9 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
     check((await bp.getByTestId("home-plan-home").count()) === 0, "P31 2: „Ausblenden“ hält nach dem Neuladen");
     // Aufräumen: Bob ist für die weiteren Schritte wieder „nicht gemeldet“.
     sql(`delete from public.plan_home_checkins where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`);
+    // Die folgenden Schritte erwarten Bob wieder auf der Planseite.
+    await bp.goto(`${APP}/plans/${ids.plan}`);
+    await bp.getByTestId("plan-feedback").waitFor();
   }
   {
     const cp = carol.page;
