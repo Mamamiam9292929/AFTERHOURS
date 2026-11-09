@@ -93,11 +93,15 @@ select is((select count(*)::int from public.notifications n where n.type = 'plan
           'Mallory löst nichts in fremden Crews aus');
 
 -- Carol öffnet die App um 10 Uhr: die ganze Crew erfährt es.
-select is(app_private.send_plan_photo_nudges(tests.uid('carol'), '2026-11-07 10:00+01'), 3, 'ab 10 Uhr: Bowling an Alice, Bob und Dave');
+-- P30: Alice organisiert Kino (noch offen) und bekommt dort „Fand der Abend statt?“, auch ohne Fotos-Frage.
+select is(app_private.send_plan_photo_nudges(tests.uid('carol'), '2026-11-07 10:00+01'), 4, 'ab 10 Uhr: Bowling an Alice, Bob und Dave, Kino an Alice (nur „Fand der Abend statt?“)');
 select is((select array_agg(r.user_id order by r.user_id) from public.plan_photo_nudges r where r.plan_id = tests.var('bowling')::uuid),
           (select array_agg(u order by u) from unnest(array[tests.uid('alice'), tests.uid('bob'), tests.uid('dave')]) u),
           'nur Zusagen ohne eigenes Foto – nicht Carol („vielleicht“), nicht Erik (hat schon geteilt)');
-select is((select count(*)::int from public.plan_photo_nudges r where r.plan_id = tests.var('kino')::uuid), 0, 'schon zwei Fotos: keine Erinnerung');
+select is((select array_agg(r.user_id) from public.plan_photo_nudges r where r.plan_id = tests.var('kino')::uuid), array[tests.uid('alice')],
+          'schon zwei Fotos: keine Fotos-Erinnerung – nur die Organisatorin wird gefragt, ob der Abend stattfand');
+select is((select n.payload ->> 'photos' || ':' || (n.payload ->> 'close') from public.notifications n
+           where n.user_id = tests.uid('alice') and n.related_entity_id = tests.var('kino')::uuid), 'false:true', 'Kino: nur „Fand der Abend statt?“');
 select is((select count(*)::int from public.plan_photo_nudges r where r.plan_id = tests.var('abgesagt')::uuid), 0, 'abgesagter Plan: keine Erinnerung');
 select is((select count(*)::int from public.plan_photo_nudges r where r.plan_id = tests.var('ausflug')::uuid), 0, 'mehrtägiger Plan läuft noch: keine Erinnerung');
 select is((select count(*)::int from public.plan_photo_nudges r where r.plan_id = tests.var('morgen')::uuid), 0, 'Plan, der erst heute Abend ist: keine Erinnerung');

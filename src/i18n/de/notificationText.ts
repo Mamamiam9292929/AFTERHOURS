@@ -142,10 +142,16 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     title: str(p, "date") ? `${actor} hat am ${formatPlainDate(str(p, "date"), "long")} Geburtstag` : `${actor} hat bald Geburtstag`,
     body: str(p, "crew_name") ? `Feier planen mit „${str(p, "crew_name")}“?` : "Feier planen?",
   }),
-  // P16 + P29 Etappe 3: eine Erinnerung am Morgen danach – ist der Plan abgeschlossen und fehlt dein Urteil,
+  // P16 + P29 Etappe 3 + P30: eine Erinnerung am Morgen danach – ist der Plan abgeschlossen und fehlt dein Urteil,
   // fragt sie zuerst „Wie war’s?“ (Fotos nur noch als Zusatz, wenn noch kaum welche da sind).
   plan_photo_nudge: (_actor, p) =>
-    p.feedback === true
+    // P30: Wer organisiert, wird bei einem noch offenen Plan zuerst gefragt, ob der Abend stattfand.
+    p.close === true
+      ? {
+          title: `${p.yesterday ? "Fand’s gestern statt" : "Fand der Abend statt"}? Mit einem Tipp abschließen`,
+          body: `${str(p, "title")} · Dann fragen wir die Crew, wie’s war`,
+        }
+      : p.feedback === true
       ? {
           title: `Wie war${p.yesterday ? "’s gestern" : " der Abend"}? Sag’s mit einem Tipp`,
           body: `${str(p, "title")} · ${p.photos === false ? "Die Crew sieht nur die Zahlen" : "Und teilt eure Fotos mit der Crew"}`,

@@ -13,7 +13,7 @@ export interface NotificationRef {
   crew_id: string | null;
   entity_type: string | null;
   related_entity_id: string | null;
-  /** P29 Etappe 3: nur für die Erinnerung am Morgen danach (`feedback`), sonst egal. */
+  /** P29 Etappe 3 / P30: nur für die Erinnerung am Morgen danach (`feedback`, `close`), sonst egal. */
   payload?: Record<string, unknown> | null;
 }
 
@@ -28,8 +28,10 @@ export function notificationTarget(n: NotificationRef): string | null {
   if (n.type === "plan_photo_reported" && n.related_entity_id) return `/plans/${n.related_entity_id}#fotos`;
   // P16: „Fotos von gestern?“ führt ebenfalls direkt zu „Fotos vom Abend“ – fragt sie auch „Wie war’s?“ (P29
   // Etappe 3), zuerst dorthin; die Fotos liegen auf derselben Seite darunter.
+  // P30: Fragt sie die organisierende Person „Fand der Abend statt?“, führt sie zur Karte oben auf der Planseite.
   if (n.type === "plan_photo_nudge" && n.related_entity_id) {
-    return `/plans/${n.related_entity_id}${n.payload?.feedback === true ? "#wie-wars" : "#fotos"}`;
+    const anchor = n.payload?.close === true ? "#abschliessen" : n.payload?.feedback === true ? "#wie-wars" : "#fotos";
+    return `/plans/${n.related_entity_id}${anchor}`;
   }
   // P20 Etappe 2: Die Geburtstags-Erinnerung führt zur Karte „Bald Geburtstag“ mit „Feier planen“.
   if (n.type === "birthday_reminder" && n.crew_id) return `/crews/${n.crew_id}#geburtstage`;

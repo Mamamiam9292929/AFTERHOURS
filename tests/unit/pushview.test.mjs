@@ -106,3 +106,11 @@ test("P29 Etappe 3: Erinnerung am Morgen danach mit „Wie war’s?“ führt zu
   assert.equal(view.url, `/plans/${PLAN}#wie-wars`, "auch der Push führt dorthin");
   assert.equal(view.title, "Wie war’s gestern?");
 });
+
+test("P30: „Fand der Abend statt?“ führt zur Karte oben auf der Planseite", () => {
+  const ref = { type: "plan_photo_nudge", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN };
+  assert.equal(notificationTarget({ ...ref, payload: { close: true, photos: true, feedback: false } }), `/plans/${PLAN}#abschliessen`);
+  assert.equal(notificationTarget({ ...ref, payload: { close: true, photos: false, feedback: false } }), `/plans/${PLAN}#abschliessen`);
+  assert.equal(notificationTarget({ ...ref, payload: { close: false, feedback: true } }), `/plans/${PLAN}#wie-wars`, "ohne close wie bisher");
+  assert.equal(notificationTarget({ ...ref, payload: { close: "true", photos: true } }), `/plans/${PLAN}#fotos`, "nur echtes true zählt");
+});

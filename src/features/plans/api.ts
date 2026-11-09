@@ -207,6 +207,25 @@ export function useSetPlanStatus(planId: string) {
   });
 }
 
+/**
+ * P30 · „Fand der Abend statt?“ – abschließen (`true`) oder still absagen (`false`), erst ab Beginn. Auch „Organisieren →
+ * Als abgeschlossen markieren“ geht hierüber, damit „Wie war’s?“ sofort an alle mit Zusage geht.
+ */
+export function useClosePlan(planId: string) {
+  const invalidate = useInvalidatePlans();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (happened: boolean) => {
+      const { error } = await supabase.rpc("close_plan", { p_plan_id: planId, p_happened: happened });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidate();
+      void client.invalidateQueries({ queryKey: ["plan-feedback", planId] });
+    },
+  });
+}
+
 /** P19: Alle ohne Antwort fragen, ob sie dabei sind. Liefert die Zahl der gefragten Personen. */
 export function useRemindPlan(planId: string) {
   return useMutation({

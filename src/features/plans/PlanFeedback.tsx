@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { IconCalendarCheck } from "@/components/icons";
 import { PosterTitle } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
@@ -9,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { isFavoriteEvening } from "@/lib/favorites";
 import { supabase } from "@/lib/supabase";
+import { useClosePlan } from "./api";
 
 // F7: Texte von „Wie war’s?“ liegen nicht im Start-Bundle – sie laden erst mit der Karte auf einem abgeschlossenen Plan.
 await loadTexts("planFeedback");
@@ -199,5 +202,62 @@ export function PlanFeedbackAgainPill({ planId }: { planId: string }) {
     >
       {t.planFeedback.againPill(summary.data.again)}
     </span>
+  );
+}
+
+/**
+ * P30 · „Fand der Abend statt?“ – oben auf der Planseite für Organisator:in, Owner und Admins, sobald der Abend vorbei
+ * ist (`closePromptDue`). „Ja, abschließen“ schließt mit einem Tipp ab – danach steht hier „Wie war’s?“ und alle mit
+ * Zusage werden gefragt. „Hat nicht stattgefunden“ sagt nach einer Rückfrage still ab (ohne Nachricht an alle).
+ * Die Erinnerung am Morgen danach führt hierher (`#abschliessen`).
+ */
+export function PlanCloseCard({ planId }: { planId: string }) {
+  const toast = useToast();
+  const close = useClosePlan(planId);
+  const copy = t.planFeedback.close;
+  const [asking, setAsking] = useState(false);
+
+  useEffect(() => {
+    if (window.location.hash === "#abschliessen") document.getElementById("abschliessen")?.scrollIntoView({ block: "start" });
+  }, []);
+
+  function happened() {
+    if (close.isPending) return;
+    close.mutate(true, { onSuccess: () => toast.success(copy.done), onError: (error) => toast.error(error) });
+  }
+
+  return (
+    <section id="abschliessen" aria-labelledby="plan-close-title" data-testid="plan-close" className="vote-card answer-card answer-open mt-5 max-w-3xl scroll-mt-24 p-4 sm:p-5">
+      <h2 id="plan-close-title" className="display chrome text-[22px] uppercase sm:text-[26px]">
+        <PosterTitle text={copy.title} />
+      </h2>
+      <p className="mt-1.5 max-w-prose text-sm leading-snug text-muted">{copy.lead}</p>
+      <div className="mt-4 flex flex-wrap gap-2.5">
+        <Button onClick={happened} loading={close.isPending && !asking} disabled={close.isPending} icon={<IconCalendarCheck className="size-4" aria-hidden />} data-testid="plan-close-happened">
+          {copy.happened}
+        </Button>
+        <Button variant="secondary" onClick={() => setAsking(true)} disabled={close.isPending} data-testid="plan-close-skipped">
+          {copy.skipped}
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={asking}
+        onClose={() => setAsking(false)}
+        title={copy.skipTitle}
+        description={copy.skipBody}
+        confirmLabel={copy.skipConfirm}
+        destructive
+        loading={close.isPending}
+        error={close.isError && asking ? errorMessage(close.error) : null}
+        onConfirm={() =>
+          close.mutate(false, {
+            onSuccess: () => {
+              setAsking(false);
+              toast.success(copy.skippedDone);
+            },
+          })
+        }
+      />
+    </section>
   );
 }

@@ -125,7 +125,12 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     body: str(p, "crew_name") ? `Plan a party with “${str(p, "crew_name")}”?` : "Plan a party?",
   }),
   plan_photo_nudge: (_actor, p) =>
-    p.feedback === true
+    p.close === true
+      ? {
+          title: p.yesterday ? "Did last night happen? Finish it with one tap" : "Did the night happen? Finish it with one tap",
+          body: [serverTitle(p), "Then we'll ask the crew how it was"].filter(Boolean).join(" · "),
+        }
+      : p.feedback === true
       ? {
           title: p.yesterday ? "How was last night? One tap to say" : "How was the night? One tap to say",
           body: [serverTitle(p), p.photos === false ? "The crew only sees the numbers" : "And share your photos with the crew"].filter(Boolean).join(" · "),

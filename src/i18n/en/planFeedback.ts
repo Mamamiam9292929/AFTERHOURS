@@ -37,4 +37,15 @@ export const planFeedback = {
     loading: "Loading favourite nights",
     failed: "Couldn't load your favourite nights just now.",
   },
+  close: {
+    title: "Did the night happen?",
+    lead: "One tap – then AFTERHOURS asks everyone who went how it was, and the night lands in your recap.",
+    happened: "Yes, finish it",
+    skipped: "It didn't happen",
+    done: "Finished – the crew will be asked how it was.",
+    skipTitle: "It didn't happen?",
+    skipBody: "The plan gets cancelled without notifying everyone – the night is over anyway. This can't be undone.",
+    skipConfirm: "Yes, cancel",
+    skippedDone: "Plan cancelled – no message to the crew.",
+  },
 } satisfies typeof dePlanFeedback;

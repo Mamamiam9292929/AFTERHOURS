@@ -37,4 +37,16 @@ export const planFeedback = {
     loading: "Lieblingsabende werden geladen",
     failed: "Die Lieblingsabende ließen sich gerade nicht laden.",
   },
+  /** P30 · „Fand der Abend statt?“ – oben auf der Planseite für Organisator:in, Owner und Admins, sobald der Abend vorbei ist. */
+  close: {
+    title: "Fand der Abend statt?",
+    lead: "Ein Tipp – dann fragt AFTERHOURS alle, die dabei waren, wie’s war, und der Abend landet im Rückblick.",
+    happened: "Ja, abschließen",
+    skipped: "Hat nicht stattgefunden",
+    done: "Abgeschlossen – die Crew wird gefragt, wie’s war.",
+    skipTitle: "Hat nicht stattgefunden?",
+    skipBody: "Der Plan wird abgesagt, ohne Nachricht an alle – der Abend ist ja vorbei. Das lässt sich nicht rückgängig machen.",
+    skipConfirm: "Ja, absagen",
+    skippedDone: "Plan abgesagt – ohne Nachricht an die Crew.",
+  },
 };
