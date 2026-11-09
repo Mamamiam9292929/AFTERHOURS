@@ -17,5 +17,10 @@ export const planHome = {
   allHome: "Everyone's home.",
   honest: "Just a sign for the crew: the app doesn't notice if someone doesn't make it home. In an emergency call 112.",
   error: "Couldn't load “Home safe?” right now.",
+  home: {
+    open: (title: string) => `Open ${title}`,
+    hide: "Hide",
+    hidden: "Hidden – the card stays on the plan page.",
+  },
   retry: "Try again",
 } satisfies typeof dePlanHome;

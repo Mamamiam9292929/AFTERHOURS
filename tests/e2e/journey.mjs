@@ -2363,6 +2363,43 @@ await step("Schritt 11 – Abschluss, Punkte, Folgeaktivität", async () => {
     await bp.waitForFunction(() => !document.querySelector("[data-testid=plan-home]")?.hasAttribute("data-answer"));
     check(sql(`select count(*) from public.plan_home_checkins where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`) === "0", "P31: zurückgenommen – Bobs Meldung ist weg");
   }
+  // P31 Etappe 2: Gegen Ende des Abends steht „Gut heimgekommen?“ auch auf Home – nur bei eigener Zusage. Bob (390 px)
+  // meldet sich direkt dort, blendet die Karte aus (hält nach dem Neuladen); Carol (abgesagt) sieht auf Home nichts.
+  {
+    // Ohne Ende gilt Home ab zwei Stunden nach Beginn; mit Ende ab zwei Stunden davor – sicherheitshalber festlegen.
+    sql(`update public.plans set ends_at = now() - interval '5 minutes' where id = '${ids.plan}' and ends_at is not null and ends_at > now()`);
+    const bp = bob.page;
+    await bp.goto(`${APP}/home`);
+    const box = bp.getByTestId("home-plan-home");
+    await box.waitFor({ timeout: 20_000 });
+    const card = box.getByTestId("plan-home");
+    await card.waitFor();
+    check((await card.getByRole("heading", { name: "Gut heimgekommen?" }).count()) === 1, "P31 2: Home fragt nachts „Gut heimgekommen?“");
+    check((await box.getByTestId("home-plan-home-link").innerText()).includes("Strike District Bowling"), "P31 2: Home sagt, um welchen Abend es geht");
+    check((await box.getByTestId("home-plan-home-link").getAttribute("href"))?.endsWith(`/plans/${ids.plan}#heimgekommen`), "P31 2: Link führt zur Karte auf der Planseite");
+    await card.getByTestId("plan-home-report").click();
+    await toast(bob, "Gemeldet – gute Nacht!");
+    await bp.locator('[data-testid=home-plan-home] [data-testid=plan-home][data-answer="yes"]').waitFor();
+    check(sql(`select count(*) from public.plan_home_checkins where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`) === "1", "P31 2: Meldung von Home gespeichert");
+    await noOverflow(bob, "Gut heimgekommen? auf Home");
+    await shot(bob, "19e-heimgekommen-home");
+    await box.getByTestId("home-plan-home-hide").click();
+    await toast(bob, "Ausgeblendet – auf der Planseite bleibt die Karte.");
+    await box.waitFor({ state: "detached" });
+    await bp.reload();
+    await bp.getByRole("heading", { level: 1 }).first().waitFor();
+    await bp.waitForLoadState("networkidle");
+    check((await bp.getByTestId("home-plan-home").count()) === 0, "P31 2: „Ausblenden“ hält nach dem Neuladen");
+    // Aufräumen: Bob ist für die weiteren Schritte wieder „nicht gemeldet“.
+    sql(`delete from public.plan_home_checkins where plan_id = '${ids.plan}' and user_id = '${uidOf(bob)}'`);
+  }
+  {
+    const cp = carol.page;
+    await cp.goto(`${APP}/home`);
+    await cp.getByRole("heading", { level: 1 }).first().waitFor();
+    await cp.waitForLoadState("networkidle");
+    check((await cp.getByTestId("home-plan-home").count()) === 0, "P31 2: Carol (abgesagt) sieht auf Home keine Karte");
+  }
   // Carol hat abgesagt: Sie sieht, wer zuhause ist, meldet aber nichts; über die API scheitert sie.
   {
     const cp = carol.page;

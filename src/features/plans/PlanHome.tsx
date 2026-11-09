@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconHome } from "@/components/icons";
 import { PosterTitle } from "@/components/layout/Page";
@@ -55,7 +57,21 @@ function useSetPlanHome(planId: string) {
  * wer schon zuhause ist (mit Uhrzeit), und nur als Zahl, wie viele sich noch nicht gemeldet haben – niemand wird mit
  * Namen als „fehlt“ vorgeführt. Kein Standort, keine Benachrichtigung, kein Alarm – und das steht auch so auf der Karte.
  */
-export function PlanHomeCard({ planId, userId, lookup }: { planId: string; userId: string; lookup: (id: string | null | undefined) => Person | null }) {
+export function PlanHomeCard({
+  planId,
+  userId,
+  lookup,
+  kicker,
+  aside,
+}: {
+  planId: string;
+  userId: string;
+  lookup: (id: string | null | undefined) => Person | null;
+  /** Home: welcher Abend (Titel als Link zur Planseite) – auf der Planseite steht das schon darüber. */
+  kicker?: ReactNode;
+  /** Home: „Ausblenden“ rechts neben der Überschrift. */
+  aside?: ReactNode;
+}) {
   const toast = useToast();
   const status = usePlanHome(planId);
   const setHome = useSetPlanHome(planId);
@@ -101,9 +117,15 @@ export function PlanHomeCard({ planId, userId, lookup }: { planId: string; userI
       data-answer={mine ? "yes" : undefined}
       className={cn("vote-card answer-card mt-4 scroll-mt-24 p-4 sm:p-5", !mine && data.can_answer && "answer-open")}
     >
-      <h2 id="plan-home-title" className={cn("display text-[22px] uppercase sm:text-[26px]", mine ? "text-fg" : "chrome")}>
-        <PosterTitle text={copy.title} />
-      </h2>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {kicker}
+          <h2 id="plan-home-title" className={cn("display text-[22px] uppercase sm:text-[26px]", mine ? "text-fg" : "chrome")}>
+            <PosterTitle text={copy.title} />
+          </h2>
+        </div>
+        {aside}
+      </div>
       <p className="mt-1.5 max-w-prose text-sm leading-snug text-muted" data-testid="plan-home-lead">
         {lead}
       </p>
@@ -153,5 +175,61 @@ export function PlanHomeCard({ planId, userId, lookup }: { planId: string; userI
         {copy.honest}
       </p>
     </section>
+  );
+}
+
+/**
+ * P31 Etappe 2 · „Gut heimgekommen?“ auf Home – wer nach dem Abend die App öffnet, meldet sich gleich hier, ohne erst
+ * die Planseite zu suchen. Welcher Abend und ab wann, entscheidet `planForHomeCheck` (src/lib/homecheck.ts): nur mit
+ * eigener Zusage, ab zwei Stunden vor dem Ende bis zum Vormittag. „Ausblenden“ gilt für diesen Abend auf diesem Gerät;
+ * auf der Planseite bleibt die Karte.
+ */
+export function HomePlanHomeCard({
+  plan,
+  crewName,
+  userId,
+  lookup,
+  onHide,
+}: {
+  plan: { id: string; title: string };
+  crewName?: string;
+  userId: string;
+  lookup: (id: string | null | undefined) => Person | null;
+  onHide: () => void;
+}) {
+  const toast = useToast();
+  const copy = t.planHome.home;
+  return (
+    <div className="mt-7 max-w-2xl [&>*:first-child]:mt-0" data-testid="home-plan-home">
+      <PlanHomeCard
+        planId={plan.id}
+        userId={userId}
+        lookup={lookup}
+        kicker={
+          <Link
+            to={`/plans/${plan.id}#heimgekommen`}
+            aria-label={copy.open(plan.title)}
+            data-testid="home-plan-home-link"
+            className="mb-1 inline-flex min-h-11 max-w-full items-center text-[13px] font-semibold text-muted hover:text-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
+          >
+            <span className="truncate">{[plan.title, crewName].filter(Boolean).join(" · ")}</span>
+          </Link>
+        }
+        aside={
+          <Button
+            size="sm"
+            variant="ghost"
+            className="shrink-0"
+            data-testid="home-plan-home-hide"
+            onClick={() => {
+              onHide();
+              toast.success(copy.hidden);
+            }}
+          >
+            {copy.hide}
+          </Button>
+        }
+      />
+    </div>
   );
 }
