@@ -48,5 +48,15 @@ export const planFeedback = {
     skipBody: "Der Plan wird abgesagt, ohne Nachricht an alle – der Abend ist ja vorbei. Das lässt sich nicht rückgängig machen.",
     skipConfirm: "Ja, absagen",
     skippedDone: "Plan abgesagt – ohne Nachricht an die Crew.",
+    /** P30 Etappe 2 · „Fand’s statt?“ auf Home – vergangene, offene Abende, die du abschließen darfst. */
+    home: {
+      title: "Fand’s statt?",
+      lead: "Diese Abende sind vorbei, aber noch offen. Ein Tipp schließt ab – dann fragt AFTERHOURS alle, die dabei waren, wie’s war.",
+      going: (n: number) => (n === 1 ? "1 dabei" : `${n} dabei`),
+      open: (title: string) => `${title} öffnen`,
+      more: (n: number) => (n === 1 ? "1 weiterer Abend in deinen Plänen" : `${n} weitere Abende in deinen Plänen`),
+      hide: "Heute ausblenden",
+      hidden: "Ausgeblendet bis morgen – auf der Planseite kannst du jederzeit abschließen.",
+    },
   },
 };

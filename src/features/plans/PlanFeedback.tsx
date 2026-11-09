@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { IconCalendarCheck } from "@/components/icons";
 import { PosterTitle } from "@/components/layout/Page";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialog";
+import { PanelCard } from "@/components/ui/PanelCard";
 import { Skeleton } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
@@ -11,6 +13,7 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { isFavoriteEvening } from "@/lib/favorites";
 import { supabase } from "@/lib/supabase";
+import { formatDateLong } from "@/lib/time";
 import { useClosePlan } from "./api";
 
 // F7: Texte von „Wie war’s?“ liegen nicht im Start-Bundle – sie laden erst mit der Karte auf einem abgeschlossenen Plan.
@@ -212,19 +215,11 @@ export function PlanFeedbackAgainPill({ planId }: { planId: string }) {
  * Die Erinnerung am Morgen danach führt hierher (`#abschliessen`).
  */
 export function PlanCloseCard({ planId }: { planId: string }) {
-  const toast = useToast();
-  const close = useClosePlan(planId);
   const copy = t.planFeedback.close;
-  const [asking, setAsking] = useState(false);
 
   useEffect(() => {
     if (window.location.hash === "#abschliessen") document.getElementById("abschliessen")?.scrollIntoView({ block: "start" });
   }, []);
-
-  function happened() {
-    if (close.isPending) return;
-    close.mutate(true, { onSuccess: () => toast.success(copy.done), onError: (error) => toast.error(error) });
-  }
 
   return (
     <section id="abschliessen" aria-labelledby="plan-close-title" data-testid="plan-close" className="vote-card answer-card answer-open mt-5 max-w-3xl scroll-mt-24 p-4 sm:p-5">
@@ -232,14 +227,34 @@ export function PlanCloseCard({ planId }: { planId: string }) {
         <PosterTitle text={copy.title} />
       </h2>
       <p className="mt-1.5 max-w-prose text-sm leading-snug text-muted">{copy.lead}</p>
-      <div className="mt-4 flex flex-wrap gap-2.5">
-        <Button onClick={happened} loading={close.isPending && !asking} disabled={close.isPending} icon={<IconCalendarCheck className="size-4" aria-hidden />} data-testid="plan-close-happened">
-          {copy.happened}
-        </Button>
-        <Button variant="secondary" onClick={() => setAsking(true)} disabled={close.isPending} data-testid="plan-close-skipped">
-          {copy.skipped}
-        </Button>
-      </div>
+      <CloseActions planId={planId} className="mt-4" />
+    </section>
+  );
+}
+
+/**
+ * P30 · „Ja, abschließen“ (ein Tipp) und „Hat nicht stattgefunden“ (nach Rückfrage still absagen) – auf der Planseite
+ * und je Abend in „Fand’s statt?“ auf Home. Fehler kommen als Meldung; der Plan bleibt dann offen.
+ */
+function CloseActions({ planId, className }: { planId: string; className?: string }) {
+  const toast = useToast();
+  const close = useClosePlan(planId);
+  const copy = t.planFeedback.close;
+  const [asking, setAsking] = useState(false);
+
+  function happened() {
+    if (close.isPending) return;
+    close.mutate(true, { onSuccess: () => toast.success(copy.done), onError: (error) => toast.error(error) });
+  }
+
+  return (
+    <div className={cn("flex flex-wrap gap-2.5", className)}>
+      <Button onClick={happened} loading={close.isPending && !asking} disabled={close.isPending} icon={<IconCalendarCheck className="size-4" aria-hidden />} data-testid="plan-close-happened">
+        {copy.happened}
+      </Button>
+      <Button variant="secondary" onClick={() => setAsking(true)} disabled={close.isPending} data-testid="plan-close-skipped">
+        {copy.skipped}
+      </Button>
       <ConfirmDialog
         open={asking}
         onClose={() => setAsking(false)}
@@ -258,6 +273,71 @@ export function PlanCloseCard({ planId }: { planId: string }) {
           })
         }
       />
-    </section>
+    </div>
+  );
+}
+
+/** Ein offener Abend für „Fand’s statt?“ auf Home – nur, was die Zeile zeigt. */
+export interface HomeClosePlan {
+  id: string;
+  title: string;
+  starts_at: string;
+  crewName?: string;
+  going: number;
+}
+
+/**
+ * P30 Etappe 2 · „Fand’s statt?“ auf Home: vergangene, offene Abende, die du abschließen darfst (`plansToClose` in
+ * `src/lib/closing.ts`), höchstens drei, der jüngste zuerst – je mit denselben zwei Knöpfen wie auf der Planseite.
+ * Abgeschlossene oder abgesagte Abende fallen nach dem Neuladen der Pläne von selbst heraus. „Heute ausblenden“ gilt
+ * nur auf diesem Gerät bis morgen. Liegt im Chunk von „Wie war’s?“ (Texte `planFeedback`), lädt also erst, wenn
+ * überhaupt ein Abend offen ist.
+ */
+export function HomeCloseCard({ plans, more, onHide }: { plans: readonly HomeClosePlan[]; more: number; onHide: () => void }) {
+  const toast = useToast();
+  const copy = t.planFeedback.close.home;
+  return (
+    <div className="mt-9 first:mt-0">
+      <PanelCard
+        id="fands-statt"
+        title={copy.title}
+        icon={<IconCalendarCheck />}
+        tone="lime"
+        lead={copy.lead}
+        testId="home-close"
+        status={
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              onHide();
+              toast.success(copy.hidden);
+            }}
+            data-testid="home-close-hide"
+          >
+            {copy.hide}
+          </Button>
+        }
+      >
+        <ul className="grid gap-3">
+          {plans.map((plan) => (
+            <li key={plan.id} data-testid="home-close-plan" className="rounded-[20px] border border-white/[0.08] bg-white/[0.03] p-3.5">
+              <Link to={`/plans/${plan.id}#abschliessen`} aria-label={copy.open(plan.title)} className="group block min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime">
+                <span className="block break-words font-semibold text-fg group-hover:underline">{plan.title}</span>
+                <span className="mt-0.5 block text-[13px] text-muted">
+                  {[formatDateLong(plan.starts_at), plan.crewName, plan.going > 0 ? copy.going(plan.going) : null].filter(Boolean).join(" · ")}
+                </span>
+              </Link>
+              <CloseActions planId={plan.id} className="mt-3" />
+            </li>
+          ))}
+        </ul>
+        {more > 0 && (
+          <Link to="/plans" className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-lime hover:underline" data-testid="home-close-more">
+            {copy.more(more)}
+          </Link>
+        )}
+      </PanelCard>
+    </div>
   );
 }

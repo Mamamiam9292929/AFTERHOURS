@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { isQuickPollHandoff } from "@/app/ShareTarget";
 import { IconCalendarPlus, IconPinOff, IconPlans, IconSpinner, IconVote } from "@/components/icons";
@@ -6,7 +6,7 @@ import { Section, SectionLink } from "@/components/layout/Page";
 import { ButtonLink } from "@/components/ui/Button";
 import { EmptyState, ErrorState, ListSkeleton, Notice, Skeleton } from "@/components/ui/Feedback";
 import { useUser } from "@/features/auth/AuthProvider";
-import { useCrews } from "@/features/crews/api";
+import { canManageCrew, myRole, useCrews } from "@/features/crews/api";
 import { CrewRow } from "@/features/crews/CrewsPage";
 import { ActivityCard } from "@/features/discover/ActivityCard";
 import { isUpcoming, usePlans } from "@/features/plans/api";
@@ -25,6 +25,7 @@ import { busyLine, myBusyPlans } from "@/features/polls/OptionBusy";
 import { PollQuickVote } from "@/features/polls/QuickVote";
 import { usePeople, useProfile, useSettings } from "@/features/profile/api";
 import { t } from "@/i18n";
+import { HOME_CLOSE_LIMIT, plansToClose } from "@/lib/closing";
 import { cn } from "@/lib/cn";
 import { needsQuickVote, showTonightIdeas } from "@/lib/quickvote";
 import { openAsks } from "@/lib/spontaneous";
@@ -60,6 +61,32 @@ function headline(now: Date, plan: { title: string; starts_at: string } | undefi
     if (lead) return { lead: `${lead} `, key: plan.title, tail: "" };
   }
   return leadQuestion(now);
+}
+
+// P30 Etappe 2: „Fand’s statt?“ liegt im Chunk von „Wie war’s?“ – lädt erst, wenn ein Abend offen ist.
+const HomeCloseCard = lazy(() => import("@/features/plans/PlanFeedback").then((m) => ({ default: m.HomeCloseCard })));
+
+const CLOSE_HIDDEN_KEY = "afterhours.close.hidden";
+
+/** P30 Etappe 2: Tag (Berliner Zeit), an dem „Fand’s statt?“ auf Home ausgeblendet wurde – nur auf diesem Gerät. */
+function useCloseHidden(now: Date): [boolean, () => void] {
+  const today = zonedParts(now).date;
+  const [day, setDay] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(CLOSE_HIDDEN_KEY);
+    } catch {
+      return null;
+    }
+  });
+  const hide = () => {
+    try {
+      localStorage.setItem(CLOSE_HIDDEN_KEY, today);
+    } catch {
+      // Ohne Speicher gilt das Ausblenden nur bis zum Neuladen.
+    }
+    setDay(today);
+  };
+  return [day === today, hide];
 }
 
 export function HomePage() {
@@ -146,6 +173,12 @@ export function HomePage() {
       },
       now,
     );
+
+  // P30 Etappe 2: vergangene, offene Abende, die du abschließen darfst – wie die Karte oben auf der Planseite.
+  const [closeHidden, hideClose] = useCloseHidden(now);
+  const toClose = closeHidden
+    ? []
+    : plansToClose(plans.data ?? [], (p) => p.created_by === user.id || canManageCrew(myRole(crewById.get(p.crew_id), user.id)), now);
 
   const loading = crews.isPending || polls.isPending || plans.isPending;
   const failed = crews.isError ? crews : polls.isError ? polls : plans.isError ? plans : null;
@@ -288,6 +321,22 @@ export function HomePage() {
                     ))}
                   </div>
                 </Section>
+              )}
+
+              {toClose.length > 0 && (
+                <Suspense fallback={null}>
+                  <HomeCloseCard
+                    plans={toClose.slice(0, HOME_CLOSE_LIMIT).map((p) => ({
+                      id: p.id,
+                      title: p.title,
+                      starts_at: p.starts_at,
+                      crewName: crewById.get(p.crew_id)?.name,
+                      going: p.participants.filter((pp) => pp.attendance_status === "going").length,
+                    }))}
+                    more={Math.max(0, toClose.length - HOME_CLOSE_LIMIT)}
+                    onHide={hideClose}
+                  />
+                </Suspense>
               )}
 
               {crews.data && <HomeBirthdays crews={crews.data} userId={user.id} today={zonedParts(now).date} lookup={people.lookup} />}
