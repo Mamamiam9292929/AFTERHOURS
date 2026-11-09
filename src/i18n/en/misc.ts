@@ -126,10 +126,16 @@ const notificationText: Record<NotificationType, (actor: string, payload: Payloa
     title: str(p, "date") ? `${actor}'s birthday is on ${formatPlainDateLong(str(p, "date"))}` : `${actor}'s birthday is coming up`,
     body: str(p, "crew_name") ? `Plan a party with “${str(p, "crew_name")}”?` : "Plan a party?",
   }),
-  plan_photo_nudge: (_actor, p) => ({
-    title: p.yesterday ? "Photos from last night? Share them with the crew" : "Photos from the night? Share them with the crew",
-    body: serverTitle(p),
-  }),
+  plan_photo_nudge: (_actor, p) =>
+    p.feedback === true
+      ? {
+          title: p.yesterday ? "How was last night? One tap to say" : "How was the night? One tap to say",
+          body: [serverTitle(p), p.photos === false ? "The crew only sees the numbers" : "And share your photos with the crew"].filter(Boolean).join(" · "),
+        }
+      : {
+          title: p.yesterday ? "Photos from last night? Share them with the crew" : "Photos from the night? Share them with the crew",
+          body: serverTitle(p),
+        },
   plan_day_reminder: (_actor, p) => ({
     title: str(p, "starts_at") ? `Today ${formatTime(str(p, "starts_at"))}: ${serverTitle(p)}` : `Today: ${serverTitle(p)}`,
     body:

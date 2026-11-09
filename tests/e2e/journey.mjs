@@ -3095,6 +3095,51 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P29 Etappe 3 – „Wie war’s?“ am Morgen danach: Der Abend war gestern und ist abgeschlossen, alle haben zugesagt,
+  // niemand hat geurteilt. Dieselbe eine Erinnerung fragt jetzt zuerst „Wie war’s?“ und führt zu `#wie-wars`; ein Tipp
+  // dort speichert das Urteil. Wer schon geurteilt hat (Alice), bekommt nichts, solange Fotos fehlen – nur die Fotos.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const evening = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, completed_at, created_at)
+      values ('${ids.crew}', '${aliceId}', 'Karaoke im Keller',
+        ((now() at time zone 'Europe/Berlin')::date - case when (now() at time zone 'Europe/Berlin')::time >= time '10:00' then 1 else 2 end + time '20:00') at time zone 'Europe/Berlin',
+        'completed', now() - interval '1 hour', now() - interval '5 days')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status)
+      select '${evening}', m.user_id, 'going' from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    psql(`insert into public.plan_feedback (plan_id, user_id, verdict) values ('${evening}', '${aliceId}', 'again')`);
+    try {
+      await bob.page.goto(`${APP}/notifications`);
+      const nudge = bob.page.getByRole("link", { name: /Wie war(’s gestern| der Abend)\? Sag’s mit einem Tipp/ }).filter({ hasText: "Karaoke im Keller" });
+      await nudge.waitFor();
+      check((await nudge.innerText()).includes("Und teilt eure Fotos mit der Crew"), "P29 Etappe 3: eine Erinnerung fragt „Wie war’s?“ und nach Fotos");
+      check(psql(`select count(*) from public.notifications where related_entity_id = '${evening}' and user_id = '${bobId}'`) === "1",
+        "P29 Etappe 3: genau eine Benachrichtigung, keine zweite fürs Urteil");
+      check(psql(`select payload ->> 'feedback' from public.notifications where related_entity_id = '${evening}' and user_id = '${aliceId}' and type = 'plan_photo_nudge'`) === "false",
+        "P29 Etappe 3: Alice hat schon geurteilt – ihre Erinnerung fragt nur nach Fotos");
+      await noOverflow(bob, "Wie war’s am Morgen danach");
+      await shot(bob, "21h-wie-wars-morgen");
+      await nudge.click();
+      await bob.page.waitForURL(`**/plans/${evening}#wie-wars`);
+      const card = bob.page.getByTestId("plan-feedback");
+      await card.waitFor();
+      await bob.page.waitForFunction(() => {
+        const r = document.getElementById("wie-wars")?.getBoundingClientRect();
+        return Boolean(r && r.top >= -2 && r.top < window.innerHeight / 2);
+      });
+      check(true, "P29 Etappe 3: Tipp führt zu „Wie war’s?“, die Karte steht oben im Bild");
+      await card.getByRole("radio", { name: "Nochmal!" }).click();
+      await bob.page.locator('[data-testid=plan-feedback][data-answer="yes"]').waitFor();
+      check(psql(`select verdict from public.plan_feedback where plan_id = '${evening}' and user_id = '${bobId}'`) === "again",
+        "P29 Etappe 3: Urteil aus der Erinnerung gespeichert");
+      await shot(bob, "21i-wie-wars-aus-erinnerung");
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${evening}'; delete from public.plans where id = '${evening}'`);
+    }
+  }
+
   // P19 – Nachfragen beim Plan: Bob organisiert (390 px), alle anderen haben noch nicht geantwortet. Ein Tipp auf
   // „Nachfragen“ fragt alle ohne Antwort; Carol (einfaches Mitglied) bekommt „Bob fragt: Bist du dabei?“, sieht selbst
   // aber keinen Knopf. Ein zweiter Tipp innerhalb von 6 Stunden wird abgewiesen.

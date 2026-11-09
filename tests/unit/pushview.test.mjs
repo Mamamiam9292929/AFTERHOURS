@@ -89,3 +89,20 @@ test("Sprache: aus dem Profil, sonst die des Geräts", () => {
     assert.equal(pushLocale(raw, "de"), "de");
   }
 });
+
+test("P29 Etappe 3: Erinnerung am Morgen danach mit „Wie war’s?“ führt zuerst zum Urteil", () => {
+  const ref = { type: "plan_photo_nudge", crew_id: CREW, entity_type: "plan", related_entity_id: PLAN };
+  assert.equal(notificationTarget({ ...ref, payload: { feedback: true, photos: true } }), `/plans/${PLAN}#wie-wars`);
+  assert.equal(notificationTarget({ ...ref, payload: { feedback: true, photos: false } }), `/plans/${PLAN}#wie-wars`);
+  assert.equal(notificationTarget({ ...ref, payload: { feedback: false, photos: true } }), `/plans/${PLAN}#fotos`);
+  assert.equal(notificationTarget({ ...ref, payload: { feedback: "true" } }), `/plans/${PLAN}#fotos`, "nur echtes true zählt");
+  assert.equal(notificationTarget({ ...ref, payload: null }), `/plans/${PLAN}#fotos`, "alte Benachrichtigungen ohne Angabe: Fotos");
+  const nudge = (actor, p) => ({ title: p.feedback === true ? "Wie war’s gestern?" : "Fotos von gestern?", body: p.title });
+  const view = pushView(
+    { v: 1, id: NOTE, type: "plan_photo_nudge", actor: null, crew_id: CREW, entity_type: "plan", entity_id: PLAN, payload: { title: "Bowling", feedback: true, photos: false } },
+    (type) => (type === "plan_photo_nudge" ? nudge : undefined),
+    TEXTS,
+  );
+  assert.equal(view.url, `/plans/${PLAN}#wie-wars`, "auch der Push führt dorthin");
+  assert.equal(view.title, "Wie war’s gestern?");
+});
