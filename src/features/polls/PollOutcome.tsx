@@ -1,10 +1,15 @@
-import { IconCalendarCheck, IconVote } from "@/components/icons";
-import { ButtonLink } from "@/components/ui/Button";
+import { useMemo } from "react";
+import { IconCalendarCheck, IconCheck, IconVote } from "@/components/icons";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { FormMessage } from "@/components/ui/Field";
+import { planGuestSecret, useGuestRsvp, useSharedPlanRsvp } from "@/features/plans/guestsApi";
 import { loadTexts, locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { errorMessage } from "@/lib/errors";
 import { localizedServerTitle } from "@/lib/servertitle";
 import { formatDateTime } from "@/lib/time";
-import type { BallotOption, SharedPollOutcome } from "./api";
+import type { VoteResponse } from "@/lib/types";
+import { type BallotOption, rememberGuestName, type SharedPollOutcome } from "./api";
 
 // F7: Die Texte des Ergebnisses liegen nicht im Start-Bundle – sie laden erst, wenn eine geteilte Abstimmung vorbei ist.
 await loadTexts("pollOutcome");
@@ -15,7 +20,16 @@ await loadTexts("pollOutcome");
  * Stichwahl steht nur da, wenn der Server ihn liefert – also für Gäste, die mit diesem Gerät mitgestimmt haben,
  * und nur, wenn die Crew ihn schon geteilt hat. Sonst sagt die Karte ehrlich, wo es den Link gibt.
  */
-export function PollOutcomeCard({ outcome, options, voted }: { outcome: SharedPollOutcome; options: BallotOption[]; voted: boolean }) {
+export function PollOutcomeCard({
+  outcome,
+  options,
+  me,
+}: {
+  outcome: SharedPollOutcome;
+  options: BallotOption[];
+  me: { name: string; votes: Record<string, VoteResponse | null> } | null;
+}) {
+  const voted = me != null;
   const winner = outcome.winner == null ? null : (options.find((o) => o.key === outcome.winner) ?? null);
   const plan = outcome.plan;
   const runoff = outcome.runoff;
@@ -27,6 +41,9 @@ export function PollOutcomeCard({ outcome, options, voted }: { outcome: SharedPo
   let body: string | null = null;
   let link: { to: string; label: string; icon: "plan" | "vote" } | null = null;
   let hint: string | null = null;
+
+  // P28 Etappe 3: Wer beim Gewinner „Bin dabei“ gesagt hat, sagt zum Plan mit einem Tipp zu – nie automatisch.
+  const quick = plan && !plan.cancelled && plan.token && me && outcome.winner != null && me.votes[String(outcome.winner)] === "yes" ? { token: plan.token, name: me.name } : null;
 
   if (plan) {
     kicker = copy.planKicker;
@@ -64,12 +81,14 @@ export function PollOutcomeCard({ outcome, options, voted }: { outcome: SharedPo
           {body}
         </p>
       )}
+      {quick && <QuickRsvp token={quick.token} name={quick.name} winner={winner?.title ?? heading} />}
       {link && (
         <ButtonLink
           to={link.to}
+          variant={quick ? "secondary" : "primary"}
           size="lg"
           block
-          className="mt-4"
+          className={quick ? "mt-3" : "mt-4"}
           icon={link.icon === "plan" ? <IconCalendarCheck className="size-5" aria-hidden /> : <IconVote className="size-5" aria-hidden />}
           data-testid="poll-outcome-link"
         >
@@ -78,5 +97,48 @@ export function PollOutcomeCard({ outcome, options, voted }: { outcome: SharedPo
       )}
       {hint && <p className="mt-3 text-sm text-muted">{hint}</p>}
     </section>
+  );
+}
+
+/**
+ * P28 Etappe 3 · Aus der Stimme wird eine Zusage – mit einem Tipp. Erscheint nur, wenn die Crew Zusagen über den
+ * Plan-Link erlaubt (W10) und der Plan noch nicht begonnen hat; Name und Geheimnis wie auf der Plan-Karte, also
+ * dieselbe Datenbankfunktion mit denselben Prüfungen (Grenze, volle Runde, Rate Limit). Wer dort schon geantwortet
+ * hat, sieht nur seine Antwort. Lädt still: ohne Antwort vom Server bleibt nur der Link zum Plan.
+ */
+function QuickRsvp({ token, name, winner }: { token: string; name: string; winner: string }) {
+  const secret = useMemo(() => planGuestSecret(token), [token]);
+  const rsvp = useSharedPlanRsvp(token, secret);
+  const answer = useGuestRsvp(token, secret);
+  const copy = t.pollOutcome.quick;
+  const data = rsvp.data?.status === "valid" ? rsvp.data : null;
+  if (!data || !data.plan.open) return null;
+
+  const mine = data.me;
+  if (mine && !answer.isPending) {
+    return (
+      <p className="mt-4 flex items-center gap-2 text-[15px] font-semibold text-fg" role="status" data-testid="poll-outcome-rsvp">
+        {mine.status === "going" && <IconCheck className="size-5 shrink-0" aria-hidden />}
+        {mine.status === "going" ? copy.going(mine.name) : mine.status === "maybe" ? copy.maybe(mine.name) : copy.declined(mine.name)}
+      </p>
+    );
+  }
+
+  const full = answer.isError && (answer.error as { message?: string }).message === "plan_full";
+  return (
+    <div className="mt-4 space-y-2" data-testid="poll-outcome-quick">
+      <p className="text-[15px] leading-snug text-fg">{copy.prompt(winner)}</p>
+      <Button
+        size="lg"
+        block
+        loading={answer.isPending}
+        icon={<IconCheck className="size-5" aria-hidden />}
+        onClick={() => answer.mutate({ name, status: "going" }, { onSuccess: () => rememberGuestName(name) })}
+      >
+        {copy.button(name)}
+      </Button>
+      <p className="text-sm text-muted">{copy.privacy}</p>
+      <div aria-live="polite">{answer.isError && <FormMessage>{full ? copy.full : errorMessage(answer.error)}</FormMessage>}</div>
+    </div>
   );
 }

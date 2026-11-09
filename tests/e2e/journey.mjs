@@ -6900,9 +6900,47 @@ await step("P28 – „Was draus wurde“: Ergebnis und Plan auf dem Abstimm-Lin
       await shot({ ...mira, viewport }, "75b-abstimmung-plan-gast");
     }
     await mira.page.setViewportSize(VIEWPORTS.mobile);
+    check((await mira.page.getByTestId("poll-outcome-quick").count()) === 0, "P28 Etappe 3: ohne Zusagen über den Link keine Ein-Tipp-Zusage");
+
+    // P28 Etappe 3: Bob erlaubt Zusagen über den Link – Mira (beim Gewinner „Bin dabei“) sagt mit einem Tipp zu.
+    check((await api(bob, "POST", "rpc/set_plan_guests", { p_plan_id: planId, p_allowed: true })).status < 300, "P28 Etappe 3: Bob erlaubt Zusagen über den Link");
+    await mira.page.reload();
+    const quick = mira.page.getByTestId("poll-outcome-quick");
+    await quick.waitFor();
+    check((await quick.innerText()).includes("Du warst für „Minigolf am Hafen“"), "P28 Etappe 3: Frage nennt den Gewinner, für den Mira gestimmt hat");
+    check(
+      (await mira.page.getByTestId("poll-outcome-link").getAttribute("href")) === `/s/${planToken}`,
+      "P28 Etappe 3: der Link zur Plan-Karte bleibt daneben",
+    );
+    let miraGuests = (await api(bob, "GET", `plan_guests?select=display_name&plan_id=eq.${planId}`)).json ?? [];
+    check(miraGuests.length === 0, "P28 Etappe 3: nichts passiert automatisch – vor dem Tipp kein Gast am Plan");
+    await noOverflow(mira, "Abstimm-Link mit Ein-Tipp-Zusage");
+    await a11y(mira, "abstimmung-ergebnis-zusage");
+    await quick.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(mira, "75d-abstimmung-ein-tipp-zusage");
+    await quick.getByRole("button", { name: "Bin dabei – als Mira" }).click();
+    const done = mira.page.getByTestId("poll-outcome-rsvp");
+    await done.waitFor();
+    check((await done.innerText()).includes("Du bist dabei, Mira."), "P28 Etappe 3: Zusage bestätigt");
+    miraGuests = (await api(bob, "GET", `plan_guests?select=display_name,attendance_status&plan_id=eq.${planId}`)).json ?? [];
+    check(
+      miraGuests.length === 1 && miraGuests[0].display_name === "Mira" && miraGuests[0].attendance_status === "going",
+      `P28 Etappe 3: Mira steht als Gast mit Zusage am Plan (${JSON.stringify(miraGuests)})`,
+    );
+    await a11y(mira, "abstimmung-ergebnis-zugesagt");
+    await shot(mira, "75e-abstimmung-zugesagt");
+    for (const viewport of ["tablet", "desktop"]) {
+      await mira.page.setViewportSize(VIEWPORTS[viewport]);
+      await shot({ ...mira, viewport }, "75e-abstimmung-zugesagt");
+    }
+    await mira.page.setViewportSize(VIEWPORTS.mobile);
+
     await link.click();
     await mira.page.waitForURL(new RegExp(`/s/${planToken}$`));
     check(true, "P28: Gast landet auf der Plan-Karte");
+    // Dasselbe Gerät, derselbe Gast: die Plan-Karte kennt die Zusage schon.
+    await mira.page.getByRole("heading", { level: 1, name: "Hallo Mira" }).waitFor();
+    check(true, "P28 Etappe 3: die Plan-Karte zeigt Miras Zusage (kein zweites Antworten)");
 
     // Ohne die eigene Stimme auf dem Gerät (anderer Browser): Ergebnis ja, Link nein.
     const stranger = await newUser("Fremd", "mobile");
