@@ -2,6 +2,21 @@ import type { planCards as dePlanCards } from "../de/planCards";
 
 /** F10 · Plan page cards: booking, rides, photos, live location, bring list and costs. Loaded with the plan page. */
 export const planCards = {
+  standing: {
+    button: "Share the count",
+    hint: "Numbers only, no names – with a link to answer.",
+    head: (title: string, when: string) => `${title}, ${when}`,
+    going: (n: number) => (n === 0 ? "nobody in yet" : `${n} in`),
+    maybe: (n: number) => `${n} maybe`,
+    waiting: (n: number) => `${n} on the waitlist`,
+    open: (n: number) => (n === 1 ? "1 hasn’t answered yet" : `${n} haven’t answered yet`),
+    quorumLeft: (n: number) => (n === 1 ? "1 more yes and it’s on." : `${n} more yeses and it’s on.`),
+    quorumReached: "It’s on.",
+    spotsLeft: (n: number) => (n === 1 ? "1 spot left." : `${n} spots left.`),
+    full: "All spots taken – anyone else joins the waitlist.",
+    answer: "Answer with one tap:",
+    link: "To the plan:",
+  },
   booking: {
     none: "No booking prepared yet.",
     noneMember: "The organiser hasn't prepared a booking yet.",

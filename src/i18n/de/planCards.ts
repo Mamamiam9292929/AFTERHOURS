@@ -3,6 +3,22 @@
  * Eigener Chunk – lädt erst mit der Planseite (`loadTexts` in src/i18n/index.ts, Router parallel zum Seiten-Chunk).
  */
 export const planCards = {
+  // P37: „Zwischenstand“ für den Gruppenchat – nur Zahlen, keine Namen.
+  standing: {
+    button: "Zwischenstand teilen",
+    hint: "Nur Zahlen, keine Namen – mit Link zum Antworten.",
+    head: (title: string, when: string) => `${title}, ${when}`,
+    going: (n: number) => (n === 0 ? "noch niemand dabei" : `${n} dabei`),
+    maybe: (n: number) => `${n} vielleicht`,
+    waiting: (n: number) => `${n} auf der Nachrückliste`,
+    open: (n: number) => (n === 1 ? "1 hat noch nicht geantwortet" : `${n} haben noch nicht geantwortet`),
+    quorumLeft: (n: number) => (n === 1 ? "Noch 1 Zusage, dann findet es statt." : `Noch ${n} Zusagen, dann findet es statt.`),
+    quorumReached: "Findet statt.",
+    spotsLeft: (n: number) => (n === 1 ? "Noch 1 Platz frei." : `Noch ${n} Plätze frei.`),
+    full: "Alle Plätze vergeben – wer will, rückt nach.",
+    answer: "Antwort mit einem Tipp:",
+    link: "Zum Plan:",
+  },
   booking: {
     none: "Noch keine Reservierung vorbereitet.",
     noneMember: "Die Organisation hat noch keine Reservierung vorbereitet.",

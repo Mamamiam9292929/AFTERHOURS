@@ -1513,6 +1513,27 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
     await page.keyboard.press("Escape");
     await page.getByRole("dialog", { name: "Zum Scannen" }).waitFor({ state: "detached" });
   }
+  // P37: „Zwischenstand teilen“ – Zahlen wie bei „Wer kommt mit?“, keine Namen, gleicher Vorschau-Link.
+  {
+    const main = await page.locator("main").innerText();
+    const group = (label) => Number(new RegExp(`${label} \\((\\d+)\\)`).exec(main)?.[1] ?? 0);
+    const [going, maybe, open] = [group("Dabei"), group("Vielleicht"), group("Noch offen")];
+    await page.getByTestId("plan-standing").scrollIntoViewIfNeeded();
+    await shot(carol, "16c-zwischenstand");
+    await page.getByRole("button", { name: "Zwischenstand teilen" }).click();
+    await page.waitForFunction(() => (window.__shared ?? []).length >= 2);
+    const standing = (await sharedData(page))[1];
+    const counts = [going === 0 ? "noch niemand dabei" : `${going} dabei`];
+    if (maybe > 0) counts.push(`${maybe} vielleicht`);
+    if (open > 0) counts.push(open === 1 ? "1 hat noch nicht geantwortet" : `${open} haben noch nicht geantwortet`);
+    check(
+      (standing?.text ?? "").startsWith(`Strike District Bowling, `) && (standing?.text ?? "").includes(` – ${counts.join(", ")}.`),
+      `P37: Zwischenstand mit den Zahlen der Planseite (${counts.join(", ")}) – „${standing?.text}“`,
+    );
+    check(/ (Antwort mit einem Tipp|Zum Plan):$/.test(standing?.text ?? ""), "P37: Zwischenstand endet mit dem Hinweis auf den Link");
+    check(standing?.url === ids.shareUrl, "P37: Zwischenstand teilt denselben Vorschau-Link wie „Plan teilen“");
+    check(!/Alice|Bob|Carol|@/.test(JSON.stringify(standing ?? {})), "P37: keine Namen oder E-Mail-Adressen im Zwischenstand");
+  }
   // Rückfall ohne Teilen-Menü: Text und Link landen in der Zwischenablage.
   await unstubShare(page);
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(APP).origin }).catch(() => {});
@@ -1521,6 +1542,11 @@ await step("W8 – Plan in den Gruppenchat teilen (Carol)", async () => {
   check(true, "Plan teilen ohne Web Share API: Text und Link werden kopiert");
   const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
   if (clip !== null) check(clip.startsWith("Strike District Bowling – ") && clip.trim().endsWith(ids.shareUrl), "Zwischenablage enthält Text und Link");
+  // P37: auch der Zwischenstand fällt auf Kopieren zurück.
+  await page.getByRole("button", { name: "Zwischenstand teilen" }).click();
+  await toast(carol, "Text und Link kopiert");
+  const standingClip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
+  if (standingClip !== null) check(standingClip.startsWith("Strike District Bowling, ") && standingClip.trim().endsWith(ids.shareUrl), "P37: Zwischenablage enthält Zwischenstand und Link");
 
   // P2 Etappe 1: Plan als Kalenderdatei – entsteht im Browser, ohne Namen oder E-Mail-Adressen.
   const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "In den Kalender" }).click()]);
