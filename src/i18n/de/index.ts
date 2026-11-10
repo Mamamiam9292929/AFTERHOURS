@@ -1,5 +1,6 @@
 import { admin } from "./admin";
 import { assistant } from "./assistant";
+import { crewMute } from "./crewMute";
 import { deCore } from "./core";
 import { landing } from "./landing";
 import { notificationText } from "./notificationText";
@@ -35,6 +36,7 @@ export const de = {
   planHome,
   planCards,
   notificationText,
+  crewMute,
 };
 
 /** F7 · Bereiche, die nicht im Start-Bundle liegen, sondern mit ihrer Seite nachgeladen werden. */

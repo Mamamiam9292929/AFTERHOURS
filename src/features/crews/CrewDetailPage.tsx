@@ -37,6 +37,8 @@ import { InviteDialog } from "./InviteDialog";
 
 // P22: Merkliste mit Kategorie-Bildern als eigener Chunk – die Crew-Seite bleibt unter der Chunk-Grenze.
 const CrewWishlist = lazy(() => import("./CrewWishlist").then((m) => ({ default: m.CrewWishlist })));
+// P35: „Mitteilungen dieser Crew“ mit eigenen Texten – erst im Reiter „Einstellungen“ geladen.
+const CrewMute = lazy(() => import("./CrewMute").then((m) => ({ default: m.CrewMute })));
 
 type Tab = "overview" | "chat" | "members" | "settings";
 
@@ -326,6 +328,7 @@ function Members({ crew, role }: { crew: CrewWithMembers; role: CrewRole | null 
 
 // ---- Einstellungen ------------------------------------------------------------------------------------------
 function Settings({ crew, role, onInvite }: { crew: CrewWithMembers; role: CrewRole | null; onInvite: () => void }) {
+  const user = useUser();
   const navigate = useNavigate();
   const toast = useToast();
   const people = usePeople();
@@ -340,6 +343,10 @@ function Settings({ crew, role, onInvite }: { crew: CrewWithMembers; role: CrewR
 
   return (
     <div className="max-w-2xl">
+      <Suspense fallback={<ListSkeleton rows={1} height="h-40" />}>
+        <CrewMute crewId={crew.id} userId={user.id} />
+      </Suspense>
+
       {manage && (
         <Section title={t.crews.settings.editTitle}>
           <CrewForm

@@ -147,6 +147,7 @@ export const errors = {
     ends_too_late: "Eine Abstimmung kann höchstens 90 Tage laufen.",
     invalid_options: "Eine Abstimmung braucht 1 bis 10 Optionen, jede mit Titel oder Ort.",
     invalid_birthday: "Diesen Tag gibt es nicht. Wähl Tag und Monat aus.",
+    invalid_crew_mute: "Diese Dauer gibt es nicht – wähle 8 Stunden, eine Woche oder „Bis ich’s ändere“.",
     invalid_absence: "Dieser Zeitraum geht nicht: Ende nicht vor dem Beginn, nicht vorbei, höchstens ein Jahr lang.",
     crew_wishlist_full: "Auf der Liste eurer Crew stehen schon 50 Orte. Nehmt einen runter, bevor ihr einen neuen merkt.",
     too_many_absences: "Du hast schon 20 Zeiträume eingetragen. Entferne einen, bevor du einen neuen einträgst.",
