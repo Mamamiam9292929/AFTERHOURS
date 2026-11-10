@@ -122,7 +122,7 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                       <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="ride-passengers" aria-label={t.planCards.rides.passengersLabel(passengers.map(nameOf).join(", "))} role="group">
                         <span className="text-[13px] font-semibold text-muted">{t.planCards.rides.passengers}</span>
                         {passengers.map((id) => (
-                          <span key={id} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 py-0.5 pl-0.5 pr-2.5 text-sm font-medium text-fg">
+                          <span key={id} className="who-chip inline-flex h-9 max-w-full items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm text-fg">
                             <Avatar person={lookup(id)} size="xs" decorative />
                             {nameOf(id)}
                           </span>
@@ -208,7 +208,7 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
           <p className="text-[13px] font-semibold text-muted">{t.planCards.rides.withoutRide}</p>
           <ul className="mt-2 flex flex-wrap gap-1.5">
             {seatless.map((id) => (
-              <li key={id} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 py-0.5 pl-0.5 pr-2.5 text-sm font-medium text-fg">
+              <li key={id} className="who-chip inline-flex h-9 max-w-full items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm text-fg">
                 <Avatar person={lookup(id)} size="xs" decorative />
                 {nameOf(id)}
               </li>
