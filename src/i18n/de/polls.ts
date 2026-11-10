@@ -427,6 +427,17 @@ export const polls = {
     shared: "Aus dem Chat übernommen – Namen und Links sind raus. Schau kurz auf die Vorschau.",
     sharedEmpty: "Im geteilten Text war nichts, was ich übernehmen kann. Schreib kurz, was ihr vorhabt.",
     sharedNoCrew: "Für eine Abstimmung brauchst du zuerst eine Crew. Gründe eine – dann teil den Satz noch einmal.",
+    /** P33 · Steht schon fest? Eine Sache, ein Tag, eine Uhrzeit → gleich als Plan. */
+    plan: {
+      title: "Steht schon fest?",
+      body: "Eine Sache, ein Tag, eine Uhrzeit – dafür braucht es keine Abstimmung. Die Crew sagt gleich zu oder ab.",
+      guests: "Freunde ohne App sagen über den Link zu",
+      submit: "Plan steht – in die Gruppe",
+      submitting: "Plan wird angelegt …",
+      poll: "Lieber abstimmen",
+      created: "Plan steht – Link ist bereit",
+      copied: "Plan steht – Link kopiert, füg ihn in die Gruppe ein",
+    },
   },
   /** S6 · Wischen statt Liste (V2). */
   swipe: {

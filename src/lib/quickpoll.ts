@@ -391,3 +391,28 @@ function endsAt(days: string[], time: string | null, now: Date): Date {
   }
   return new Date(Math.min(max, Math.max(min, target)));
 }
+
+/** P33 · Frühester Beginn eines direkt angelegten Plans: mindestens 15 Minuten ab jetzt. */
+export const QUICK_PLAN_LEAD_MINUTES = 15;
+
+export interface QuickPlan {
+  /** Titel des Plans = die eine Aktivität („Kino“). */
+  title: string;
+  /** Beginn (ISO, aus Tag und Uhrzeit in Berliner Zeit). */
+  startsAt: string;
+}
+
+/**
+ * P33 · Steht schon fest? „kino fr 20 uhr“ nennt genau eine Sache, einen Tag und eine Uhrzeit – darüber muss
+ * niemand abstimmen. Dann kann der Satz gleich ein Plan werden, auf den die Crew mit „Bin dabei / Vielleicht /
+ * Kann nicht“ antwortet. Nur, wenn alles drei eindeutig erkannt ist und der Beginn mindestens 15 Minuten in der
+ * Zukunft liegt; sonst `null` (dann bleibt es bei der Abstimmung). Nichts wird geraten: kein Tag → keine Uhrzeit.
+ */
+export function quickPlan(parsed: QuickPoll, now: Date = new Date()): QuickPlan | null {
+  const activity = parsed.activities.length === 1 ? parsed.activities[0] : undefined;
+  const day = parsed.days.length === 1 ? parsed.days[0] : undefined;
+  if (!activity || !day || !parsed.time) return null;
+  const start = berlinToUtc(day.date, parsed.time);
+  if (start.getTime() < now.getTime() + QUICK_PLAN_LEAD_MINUTES * 60_000) return null;
+  return { title: activity, startsAt: start.toISOString() };
+}

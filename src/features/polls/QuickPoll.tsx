@@ -5,14 +5,15 @@ import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { IconClose, IconPlus } from "@/components/icons";
 import { Button, IconButton } from "@/components/ui/Button";
+import { DateTile } from "@/components/ui/FormCard";
 import { useToast } from "@/components/ui/Toast";
 import { locale, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { qk } from "@/lib/query";
-import { parseQuickPoll } from "@/lib/quickpoll";
-import { pollShare, shareOrCopy } from "@/lib/share";
+import { parseQuickPoll, quickPlan } from "@/lib/quickpoll";
+import { planShare, pollShare, shareOrCopy } from "@/lib/share";
 import { supabase } from "@/lib/supabase";
-import { formatDateTime } from "@/lib/time";
+import { formatDateLong, formatDateTime, formatTime } from "@/lib/time";
 import type { Crew } from "@/lib/types";
 
 const CREW_KEY = "afterhours.quickpoll.crew";
@@ -40,6 +41,10 @@ function morph(update: () => void) {
  * Browser zerlegt (src/lib/quickpoll.ts) und als Vorschau gezeigt. „Los“ startet die Abstimmung, schaltet
  * Gäste-Stimmen ein (S2: Freunde ohne App stimmen über den Link ab), öffnet das Teilen-Menü und führt
  * zur Abstimmung. Die Abstimmung entscheidet sich zum angezeigten Zeitpunkt wie jede andere.
+ *
+ * P33: Nennt der Satz genau eine Sache, einen Tag und eine Uhrzeit („kino fr 20 uhr“), gibt es nichts abzustimmen –
+ * dann ist „Plan steht – in die Gruppe“ der Hauptknopf: Plan als Vorschlag anlegen, Zusagen über den Link
+ * einschalten (W10), Teilen-Menü öffnen, zur Planseite. „Lieber abstimmen“ startet weiter die Abstimmung.
  */
 export function QuickPollLauncher({ crews, shared = null, className }: { crews: Crew[]; shared?: string | null; className?: string }) {
   // S3: Kommt ein Satz über das Teilen-Menü (`/share-target`), ist das Sheet von Anfang an offen und vorausgefüllt.
@@ -78,6 +83,15 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
   const client = useQueryClient();
   const parsed = useMemo(() => parseQuickPoll(text, new Date(), locale), [text]);
   const crew = crews.find((c) => c.id === crewId) ?? crews[0] ?? null;
+  const direct = useMemo(() => quickPlan(parsed), [parsed]);
+
+  const remember = () => {
+    try {
+      localStorage.setItem(CREW_KEY, crew?.id ?? "");
+    } catch {
+      // nur Komfort
+    }
+  };
 
   const start = useMutation({
     mutationFn: async () => {
@@ -102,11 +116,7 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
       return { pollId, token: (token.data as string | null) ?? null };
     },
     onSuccess: async ({ pollId, token }) => {
-      try {
-        localStorage.setItem(CREW_KEY, crew?.id ?? "");
-      } catch {
-        // nur Komfort
-      }
+      remember();
       void client.invalidateQueries({ queryKey: qk.polls });
       const outcome = await shareOrCopy(pollShare({ id: pollId, title: parsed.title, ends_at: parsed.endsAt }, token));
       toast.success(outcome === "copied" ? t.polls.quick.copied : t.polls.quick.created);
@@ -117,10 +127,47 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
     onError: (error) => toast.error(error),
   });
 
+  // P33: gleich als Plan – Vorschlag, auf den die Crew antwortet; Freunde ohne App sagen über den Link zu.
+  const startPlan = useMutation({
+    mutationFn: async () => {
+      if (!crew || !direct) throw new Error("no_crew");
+      const { data, error } = await supabase.rpc("create_plan", {
+        p_crew_id: crew.id,
+        p_title: direct.title,
+        p_starts_at: direct.startsAt,
+        p_activity_id: null,
+        p_address: null,
+        p_meeting_point: null,
+        p_notes: null,
+        p_cost_per_person_cents: null,
+        p_total_cost_cents: null,
+        p_ends_at: null,
+        p_confirmed: false,
+      });
+      if (error) throw error;
+      const planId = data as string;
+      // Wie S2: Schlägt das Einschalten fehl, steht der Plan trotzdem – der Link führt dann zur Karte ohne Zusage.
+      await supabase.rpc("set_plan_guests", { p_plan_id: planId, p_allowed: true });
+      const token = await supabase.rpc("plan_share_token", { p_plan_id: planId });
+      return { plan: { id: planId, title: direct.title, starts_at: direct.startsAt }, token: (token.data as string | null) ?? null };
+    },
+    onSuccess: async ({ plan, token }) => {
+      remember();
+      void client.invalidateQueries({ queryKey: qk.plans });
+      const outcome = await shareOrCopy(planShare(plan, token));
+      toast.success(outcome === "copied" ? t.polls.quick.plan.copied : t.polls.quick.plan.created);
+      setText("");
+      onClose();
+      navigate(`/plans/${plan.id}`);
+    },
+    onError: (error) => toast.error(error),
+  });
+
+  const busy = start.isPending || startPlan.isPending;
   const ready = parsed.options.length > 0 && crew !== null;
 
   return (
-    <HeadlessDialog open={open} onClose={() => !start.isPending && onClose()} className="relative z-50">
+    <HeadlessDialog open={open} onClose={() => !busy && onClose()} className="relative z-50">
       <DialogBackdrop className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
       <div className="fixed inset-0 flex items-end justify-center sm:items-center sm:p-6">
         <DialogPanel className="vt-quickpoll glass flex max-h-[92dvh] w-full flex-col overflow-y-auto rounded-t-[36px] border border-white/10 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-6 shadow-2xl shadow-black/70 sm:max-w-lg sm:rounded-[36px] sm:px-7">
@@ -135,7 +182,9 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
             className="mt-5 flex flex-col gap-5"
             onSubmit={(e) => {
               e.preventDefault();
-              if (ready && !start.isPending) start.mutate();
+              if (!ready || busy) return;
+              if (direct) startPlan.mutate();
+              else start.mutate();
             }}
           >
             <div className="flex flex-col gap-2">
@@ -189,11 +238,31 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
                     ))}
                     {parsed.time && <li className="rounded-full bg-white/[0.1] px-3.5 py-2 text-sm font-bold text-fg">{parsed.time}</li>}
                   </ul>
-                  <p className="text-sm text-muted">
-                    {t.polls.quick.options(parsed.options.length)} · {t.polls.quick.endsAt(formatDateTime(parsed.endsAt))}
-                  </p>
-                  <p className="text-[13px] text-faint">{t.polls.quick.guests}</p>
-                  <p className="text-[13px] text-faint">{t.polls.quick.auto}</p>
+                  {direct ? (
+                    <div data-testid="quickpoll-plan" className="relative overflow-hidden rounded-[24px] border border-lime/40 bg-lime/[0.08] p-4">
+                      <div aria-hidden className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-lime/25 blur-2xl" />
+                      <div className="relative flex items-center gap-3.5">
+                        <DateTile at={new Date(direct.startsAt)} />
+                        <div className="min-w-0">
+                          <p className="font-display text-[15px] font-black uppercase tracking-tight text-lime">{t.polls.quick.plan.title}</p>
+                          <p className="mt-1 truncate text-[15px] font-semibold text-fg">
+                            {direct.title} · {formatTime(direct.startsAt)}
+                          </p>
+                          <p className="sr-only">{formatDateLong(direct.startsAt)}</p>
+                        </div>
+                      </div>
+                      <p className="relative mt-3 text-[13px] leading-snug text-muted">{t.polls.quick.plan.body}</p>
+                      <p className="relative mt-1.5 text-[13px] text-faint">{t.polls.quick.plan.guests}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted">
+                        {t.polls.quick.options(parsed.options.length)} · {t.polls.quick.endsAt(formatDateTime(parsed.endsAt))}
+                      </p>
+                      <p className="text-[13px] text-faint">{t.polls.quick.guests}</p>
+                      <p className="text-[13px] text-faint">{t.polls.quick.auto}</p>
+                    </>
+                  )}
                 </>
               )}
             </section>
@@ -217,9 +286,20 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
               </fieldset>
             )}
 
-            <Button type="submit" size="lg" disabled={!ready} loading={start.isPending} className="h-15 font-display text-[16px] font-black uppercase">
-              {start.isPending ? t.polls.quick.submitting : t.polls.quick.submit}
-            </Button>
+            {direct ? (
+              <>
+                <Button type="submit" size="lg" disabled={!ready || start.isPending} loading={startPlan.isPending} className="h-15 font-display text-[16px] font-black uppercase">
+                  {startPlan.isPending ? t.polls.quick.plan.submitting : t.polls.quick.plan.submit}
+                </Button>
+                <Button variant="secondary" size="lg" disabled={!ready || startPlan.isPending} loading={start.isPending} onClick={() => start.mutate()} className="-mt-2">
+                  {start.isPending ? t.polls.quick.submitting : t.polls.quick.plan.poll}
+                </Button>
+              </>
+            ) : (
+              <Button type="submit" size="lg" disabled={!ready} loading={start.isPending} className="h-15 font-display text-[16px] font-black uppercase">
+                {start.isPending ? t.polls.quick.submitting : t.polls.quick.submit}
+              </Button>
+            )}
             <button type="button" onClick={() => { onClose(); navigate("/polls/new"); }} className="-mt-2 h-10 self-center text-sm font-semibold text-muted underline-offset-4 hover:text-fg hover:underline">
               {t.polls.quick.more}
             </button>

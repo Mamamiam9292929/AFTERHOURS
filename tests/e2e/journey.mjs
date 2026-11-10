@@ -6019,6 +6019,53 @@ await step("S3 – Teilen-Ziel: Satz aus WhatsApp landet in der Ein-Satz-Abstimm
   }
 });
 
+await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
+  const page = bob.page;
+  const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;
+  const pollsBefore = await count("polls");
+  const plansBefore = await count("plans");
+  // Ein fester Tag in zehn Tagen (nie „heute, schon vorbei“), so wie man ihn in den Chat schreibt: „20.11.“
+  const day = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" }).format(new Date(Date.now() + 10 * 86_400_000));
+  await page.goto(`${APP}/home`);
+  await page.getByRole("button", { name: "Was geht?" }).click();
+  const sheet = page.getByRole("dialog", { name: "Ein Satz reicht." });
+  const input = sheet.getByLabel("Was, wann, wo – wie im Chat");
+  await input.waitFor();
+  const card = sheet.getByTestId("quickpoll-plan");
+  // Zwei Sachen oder keine Uhrzeit: es bleibt bei der Abstimmung.
+  await input.fill(`kino oder bowling ${day}. 20 uhr`);
+  await sheet.getByText("2 Vorschläge", { exact: false }).waitFor();
+  check((await card.count()) === 0 && (await sheet.getByRole("button", { name: /Los – in die Gruppe/ }).isEnabled()), "P33: zwei Sachen → Abstimmung, keine Plan-Karte");
+  await input.fill(`kino ${day}.`);
+  await sheet.getByText("1 Vorschlag", { exact: false }).waitFor();
+  check((await card.count()) === 0, "P33: ohne Uhrzeit → Abstimmung, keine Plan-Karte");
+  // Eine Sache, ein Tag, eine Uhrzeit: „Steht schon fest?“
+  await input.fill(`kino ${day}. 20 uhr`);
+  await card.waitFor();
+  const cardText = await card.innerText();
+  check(cardText.includes("Steht schon fest?") && cardText.includes("Kino · 20:00 Uhr") && cardText.includes("Freunde ohne App sagen über den Link zu"), `P33: Plan-Karte mit Sache und Uhrzeit („${cardText.replace(/\s+/g, " ")}“)`);
+  check((await sheet.getByRole("button", { name: /Los – in die Gruppe/ }).count()) === 0, "P33: Hauptknopf legt den Plan an, kein „Los – in die Gruppe“");
+  check(await sheet.getByRole("button", { name: "Lieber abstimmen" }).isEnabled(), "P33: „Lieber abstimmen“ bleibt möglich");
+  await shot(bob, "51b-gleich-als-plan");
+  await stubShare(page);
+  await sheet.getByRole("button", { name: "Plan steht – in die Gruppe" }).click();
+  await page.waitForURL(/\/plans\/[0-9a-f-]{36}/, { timeout: 20000 });
+  const planId = idFromUrl(page);
+  await page.getByRole("heading", { level: 1 }).filter({ hasText: "Kino" }).waitFor();
+  const row = (await api(bob, "GET", `plans?id=eq.${planId}&select=title,status,starts_at,guests_allowed,poll_id`)).json?.[0];
+  const berlin = row && new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(row.starts_at));
+  check(row?.title === "Kino" && row.status === "proposed" && row.poll_id === null, `P33: Plan „Kino“ als Vorschlag ohne Abstimmung (${JSON.stringify(row)})`);
+  check(berlin === `${day}., 20:00`, `P33: Beginn am ${day}. um 20:00 Berliner Zeit (${berlin})`);
+  check(row?.guests_allowed === true, "P33: Freunde ohne App dürfen über den Link zusagen (W10)");
+  const shared = await sharedData(page);
+  check(shared.length === 1 && shared[0].title === "Kino" && /\/s\/[A-Za-z0-9_-]{16,}/.test(shared[0].url ?? ""), `P33: Teilen-Menü mit dem Plan-Link /s/… (${JSON.stringify(shared)})`);
+  check((await count("polls")) === pollsBefore && (await count("plans")) === plansBefore + 1, "P33: genau ein Plan, keine Abstimmung");
+  await unstubShare(page);
+  await shot(bob, "51c-gleich-als-plan-planseite");
+  // Aufräumen: der Rest der Journey kennt diesen Plan nicht.
+  execFileSync("psql", [DB_URL, "-qc", `delete from public.plans where id = '${planId}'`]);
+});
+
 await step("S4 – „Heute noch wer?“: Spontan-Frage an die Crew (Bob, Alice, Carol)", async () => {
   const page = bob.page;
   await page.goto(`${APP}/home`);

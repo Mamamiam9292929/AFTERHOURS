@@ -1,7 +1,7 @@
 // S1 · Ein Satz, eine Abstimmung (src/lib/quickpoll.ts) – Sätze, wie sie im Gruppenchat stehen.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_OPTIONS, parseQuickPoll } from "../../src/lib/quickpoll.ts";
+import { MAX_OPTIONS, QUICK_PLAN_LEAD_MINUTES, parseQuickPoll, quickPlan } from "../../src/lib/quickpoll.ts";
 
 // Montag, 19. Oktober 2026, 20:00 Berliner Zeit (UTC+2).
 const NOW = new Date("2026-10-19T18:00:00Z");
@@ -140,4 +140,40 @@ test("Englisch: Tage, Füllwörter und Trenner", () => {
 test("Deutsch bleibt Standard – englische Wörter sind dort Aktivitäten", () => {
   assert.equal(parseQuickPoll("bowling fr 20 uhr", WED).time, "20:00");
   assert.deepEqual(parseQuickPoll("bowling or cinema", WED).activities, ["Bowling or cinema"]);
+});
+
+// P33 · Steht schon fest? Eine Sache, ein Tag, eine Uhrzeit → gleich als Plan.
+test("P33: eine Sache, ein Tag, eine Uhrzeit → Plan mit Beginn in Berliner Zeit", () => {
+  // Freitag, 23.10.2026, 20:00 Sommerzeit (UTC+2)
+  assert.deepEqual(quickPlan(p("kino fr 20 uhr"), NOW), { title: "Kino", startsAt: "2026-10-23T18:00:00.000Z" });
+  assert.deepEqual(quickPlan(p("Grillen am See, Sa 16 Uhr"), NOW), { title: "Grillen am See", startsAt: "2026-10-24T14:00:00.000Z" });
+  // Winterzeit ab 25.10.: 1.11. 18:30 = 17:30 UTC
+  assert.deepEqual(quickPlan(p("bowling 1.11. halb 7 abends"), NOW), { title: "Bowling", startsAt: "2026-11-01T17:30:00.000Z" });
+  assert.deepEqual(quickPlan(p("wer hat bock auf billard am samstag um 21 uhr?"), NOW), { title: "Billard", startsAt: "2026-10-24T19:00:00.000Z" });
+});
+
+test("P33: mehr als eine Möglichkeit oder etwas fehlt → Abstimmung bleibt", () => {
+  for (const s of [
+    "bowling oder kino, fr 20 uhr", // zwei Sachen
+    "kino fr oder sa 20 uhr", // zwei Tage
+    "Wochenende bowling 18 uhr", // Wochenende = zwei Tage
+    "kino freitag", // keine Uhrzeit
+    "kino um 20 uhr", // kein Tag
+    "fr oder sa, 20 uhr", // keine Sache
+    "",
+  ]) assert.equal(quickPlan(p(s), NOW), null, s);
+});
+
+test("P33: Beginn muss mindestens 15 Minuten in der Zukunft liegen", () => {
+  // NOW = Montag 20:00 Berliner Zeit
+  assert.equal(quickPlan(p("kino heute 20:10"), NOW), null);
+  assert.equal(quickPlan(p("kino heute 20:14"), NOW), null);
+  assert.deepEqual(quickPlan(p("kino heute 20:15"), NOW), { title: "Kino", startsAt: "2026-10-19T18:15:00.000Z" });
+  assert.equal(QUICK_PLAN_LEAD_MINUTES, 15);
+});
+
+test("P33: englische Sätze", () => {
+  const en = (s) => parseQuickPoll(s, NOW, "en");
+  assert.deepEqual(quickPlan(en("cinema fri 8pm"), NOW), { title: "Cinema", startsAt: "2026-10-23T18:00:00.000Z" });
+  assert.equal(quickPlan(en("cinema or bowling fri 8pm"), NOW), null);
 });

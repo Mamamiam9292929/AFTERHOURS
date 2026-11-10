@@ -405,6 +405,16 @@ export const polls = {
     shared: "Taken from the chat – names and links removed. Take a quick look at the preview.",
     sharedEmpty: "There was nothing in the shared text I could use. Write briefly what you're planning.",
     sharedNoCrew: "You need a crew first for a poll. Start one – then share the sentence again.",
+    plan: {
+      title: "Already settled?",
+      body: "One thing, one day, one time – no need for a poll. The crew can say yes or no right away.",
+      guests: "Friends without the app reply via the link",
+      submit: "Plan's on – send to the group",
+      submitting: "Creating plan …",
+      poll: "Rather vote on it",
+      created: "Plan's on – link is ready",
+      copied: "Plan's on – link copied, paste it into the group",
+    },
   },
   swipe: {
     title: "Swipe through",
