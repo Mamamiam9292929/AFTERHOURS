@@ -207,6 +207,7 @@ export const errors = {
     settlement_changed: "The amounts have changed in the meantime. Check the new total and tap again.",
     invalid_expense_share: "Each share must be at least €0.01 and can't exceed the amount.",
     expense_shares_mismatch: "The shares don't add up exactly to the amount. Check the amounts per person.",
+    ride_after_decline: "You said you can’t make it – answer “going” or “maybe” first, then you can sort out a ride.",
     ride_not_available: "This ride is no longer available.",
     no_seats_left: "There aren't that many seats left.",
     invalid_report: "Please briefly describe what's wrong (at least 5 characters).",

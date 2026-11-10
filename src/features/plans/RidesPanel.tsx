@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
+import { canRide, rideFreeSeats, ridePassengers, withoutRide } from "@/lib/rides";
 import { formatDateTime, fromLocalInputValue, toLocalInputValue } from "@/lib/time";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 import { useCancelRideOffer, useCancelRideRequest, useOfferRide, useRequestRide, useRespondRide, useRides, type PlanWithParticipants } from "./api";
@@ -46,6 +47,10 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
 
   const offers = rides.data.filter((o) => o.status === "open");
   const mine = offers.find((o) => o.driver_user_id === userId);
+  // P36: Wer abgesagt hat, fährt nicht mit und bietet nichts an; wer kommt und noch keinen Platz hat, sehen alle.
+  const mayRide = canRide(plan.participants, userId);
+  const seatless = locked ? [] : withoutRide(offers, plan.participants);
+  const nameOf = (id: string) => (id === userId ? t.planCards.rides.youPassenger : (lookup(id)?.display_name ?? t.states.formerMember));
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -88,8 +93,8 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
           {offers.map((o) => {
             const driver = lookup(o.driver_user_id);
             const isMine = o.driver_user_id === userId;
-            const taken = o.requests.filter((r) => r.status === "accepted").reduce((sum, r) => sum + r.seats_requested, 0);
-            const free = Math.max(0, o.available_seats - taken);
+            const free = rideFreeSeats(o);
+            const passengers = ridePassengers(o);
             const myRequest = o.requests.find((r) => r.passenger_user_id === userId && (r.status === "requested" || r.status === "accepted" || r.status === "declined"));
             const pending = o.requests.filter((r) => r.status === "requested");
             const accepted = o.requests.filter((r) => r.status === "accepted");
@@ -112,6 +117,18 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                         <span key={index} className={cn("size-3 rounded-full border-2", index < o.available_seats - free ? "border-transparent bg-pink" : "border-white/30")} />
                       ))}
                     </p>
+                    {/* P36: Wer im Auto sitzt, sieht die ganze Crew – nicht nur die fahrende Person. */}
+                    {!isMine && passengers.length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="ride-passengers" aria-label={t.planCards.rides.passengersLabel(passengers.map(nameOf).join(", "))} role="group">
+                        <span className="text-[13px] font-semibold text-muted">{t.planCards.rides.passengers}</span>
+                        {passengers.map((id) => (
+                          <span key={id} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 py-0.5 pl-0.5 pr-2.5 text-sm font-medium text-fg">
+                            <Avatar person={lookup(id)} size="xs" decorative />
+                            {nameOf(id)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <StatusPill tone={free > 0 ? "lime" : "glass"} testId="ride-seats">
                     {t.planCards.rides.seatsFree(free)}
@@ -159,7 +176,8 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                     )}
                   </div>
                 ) : (
-                  !locked && (
+                  !locked &&
+                  (mayRide || (myRequest && myRequest.status !== "declined")) && (
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {myRequest && myRequest.status !== "declined" ? (
                         <>
@@ -185,7 +203,23 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
         </ul>
       )}
 
-      {!locked && !mine && (
+      {seatless.length > 0 && (
+        <div className={cn(PANEL_ITEM, "p-4")} data-testid="ride-without">
+          <p className="text-[13px] font-semibold text-muted">{t.planCards.rides.withoutRide}</p>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {seatless.map((id) => (
+              <li key={id} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 py-0.5 pl-0.5 pr-2.5 text-sm font-medium text-fg">
+                <Avatar person={lookup(id)} size="xs" decorative />
+                {nameOf(id)}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[13px] text-faint">{t.planCards.rides.withoutRideHint}</p>
+        </div>
+      )}
+
+      {!locked && !mayRide && !mine && <p className="text-sm text-muted" data-testid="ride-declined">{t.planCards.rides.declined}</p>}
+      {!locked && mayRide && !mine && (
         <Button variant="secondary" onClick={openForm} icon={<IconCar className="size-4" aria-hidden />}>
           {t.planCards.rides.offer}
         </Button>

@@ -76,7 +76,7 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     const status: Record<string, string> = { confirmed: "Reservierung bestätigt", unavailable: "Reservierung nicht möglich: nichts frei", failed: "Reservierung fehlgeschlagen", cancelled_by_user: "Reservierung storniert" };
     return { title: status[str(p, "status")] ?? "Reservierungsstand geändert", body: str(p, "title") };
   },
-  ride_request: (actor, p) => ({ title: `${actor} möchte bei dir mitfahren`, body: str(p, "title") }),
+  ride_request: (actor, p) => ({ title: p.cancelled ? `${actor} fährt doch nicht mit` : `${actor} möchte bei dir mitfahren`, body: str(p, "title") }),
   ride_confirmed: (actor, p) => ({ title: p.accepted ? `${actor} nimmt dich mit` : `${actor} kann dich nicht mitnehmen`, body: str(p, "title") }),
   // P3: Ausgabe, an der du beteiligt bist (oder die als von dir bezahlt eingetragen wurde), und Rückzahlungen.
   plan_expense: (actor, p) => ({

@@ -83,6 +83,13 @@ export const planCards = {
     accept: "Mitnehmen",
     decline: "Ablehnen",
     myStatus: (status: string) => `Deine Anfrage: ${status}`,
+    // P36 · „Wer fährt?“
+    passengers: "Fährt mit",
+    passengersLabel: (names: string) => `Fährt mit: ${names}`,
+    youPassenger: "du",
+    withoutRide: "Noch ohne Platz im Auto",
+    withoutRideHint: "Wer anders hinkommt, kann das ignorieren.",
+    declined: "Du hast für diesen Abend abgesagt – Fahrten sind für alle, die dabei sind.",
     safety: "Mitfahrten kommen nur zustande, wenn beide Seiten zustimmen. Haltet euch an die Verkehrsregeln – niemand fährt unter Alkohol- oder Drogeneinfluss.",
   },
   /** P14 · Wer bringt was? Mitbring-Liste je Plan – eine Sache bringt genau eine Person mit. */

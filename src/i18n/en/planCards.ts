@@ -82,6 +82,13 @@ export const planCards = {
     accept: "Take along",
     decline: "Decline",
     myStatus: (status: string) => `Your request: ${status}`,
+    // P36 · Who's driving?
+    passengers: "Riding along",
+    passengersLabel: (names: string) => `Riding along: ${names}`,
+    youPassenger: "you",
+    withoutRide: "No seat in a car yet",
+    withoutRideHint: "If you're getting there another way, just ignore this.",
+    declined: "You said you can't make it – rides are for everyone who's coming.",
     safety: "Rides only happen if both sides agree. Follow the traffic rules – nobody drives under the influence of alcohol or drugs.",
   },
   /** P14 · Wer bringt was? */
