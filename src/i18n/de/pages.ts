@@ -14,5 +14,6 @@ export const germanPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]> 
   pollOutcome: () => import("./pollOutcome").then((m) => m.pollOutcome),
   planFeedback: () => import("./planFeedback").then((m) => m.planFeedback),
   planHome: () => import("./planHome").then((m) => m.planHome),
+  planCards: () => import("./planCards").then((m) => m.planCards),
   notificationText: () => import("./notificationText").then((m) => m.notificationText),
 };

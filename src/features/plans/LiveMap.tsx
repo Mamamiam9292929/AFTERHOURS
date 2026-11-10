@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { IconMap, IconMinus, IconPlus } from "@/components/icons";
 import { Avatar, type Person } from "@/components/ui/Avatar";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { spreadMarkers, type LivePoint } from "@/lib/live";
 import { mapProvider, mapTilesAllowed, setMapTilesAllowed } from "@/lib/maps";
 import { clampZoom, fitView, MAX_ZOOM, MIN_ZOOM, toScreen, visibleTiles } from "@/lib/tiles";
+
+/** F10 · Texte der Planseiten-Karten kommen erst mit der Planseite. */
+await loadTexts("planCards");
 
 export interface LiveMapPerson {
   userId: string;
@@ -64,7 +67,7 @@ export function LiveMap({ place, placeName, people }: { place: LivePoint | null;
       <div
         ref={frame}
         role="group"
-        aria-label={t.plans.live.map.label(people.length, placeName)}
+        aria-label={t.planCards.live.map.label(people.length, placeName)}
         data-zoom={view?.zoom}
         data-tiles={tilesOn || undefined}
         className="map-frame relative overflow-hidden rounded-card border border-white/[0.08]"
@@ -147,16 +150,16 @@ export function LiveMap({ place, placeName, people }: { place: LivePoint | null;
         {place && (
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2.5 rounded-full bg-lime" />
-            {t.plans.live.map.legendPlace}
+            {t.planCards.live.map.legendPlace}
           </span>
         )}
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2.5 rounded-full border-2 border-lime" />
-          {t.plans.live.map.legendYou}
+          {t.planCards.live.map.legendYou}
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2.5 rounded-full border-2 border-violet" />
-          {t.plans.live.map.legendOthers}
+          {t.planCards.live.map.legendOthers}
         </span>
       </div>
       {tilesOn ? (
@@ -174,7 +177,7 @@ export function LiveMap({ place, placeName, people }: { place: LivePoint | null;
             className="flex min-h-11 items-center gap-2 rounded-full text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"
           >
             <IconMap className="size-4 shrink-0 text-lime" aria-hidden />
-            {t.plans.live.map.loadTiles}
+            {t.planCards.live.map.loadTiles}
           </button>
           <p className="text-[13px] leading-snug text-faint">{t.discover.map.tilesPrivacy}</p>
         </div>

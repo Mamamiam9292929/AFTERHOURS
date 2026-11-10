@@ -7,7 +7,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ErrorState, Skeleton } from "@/components/ui/Feedback";
 import { TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { useNow } from "@/lib/hooks";
@@ -17,7 +17,10 @@ import { StatusPill } from "./PlanPanel";
 import type { PlanWithParticipants } from "./api";
 import { useDeletePlanPhoto, useKeepPlanPhoto, usePlanPhotoReports, usePlanPhotos, useReportPlanPhoto, useUploadPlanPhoto, type PlanPhotoWithUrl } from "./photosApi";
 
-type ReasonKey = keyof typeof t.plans.photos.reportReasons;
+/** F10 · Texte der Planseiten-Karten kommen erst mit der Planseite. */
+await loadTexts("planCards");
+
+type ReasonKey = keyof typeof t.planCards.photos.reportReasons;
 const REASONS: ReasonKey[] = ["me", "inappropriate", "other"];
 /** Ab so vielen Pixeln seitlich gilt ein Wischen in der Großansicht als Blättern. */
 const SWIPE_THRESHOLD = 60;
@@ -94,7 +97,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
   const pile = list.length >= 2 ? list.slice(-3).reverse() : [];
   const flags = new Map((reports.data ?? []).map((r) => [r.photo_id, r]));
   const openFlag = open ? flags.get(open.id) : undefined;
-  const nameOf = (photo: PlanPhotoWithUrl) => (photo.uploaded_by === userId ? t.plans.photos.you : (lookup(photo.uploaded_by)?.display_name ?? t.states.formerMember));
+  const nameOf = (photo: PlanPhotoWithUrl) => (photo.uploaded_by === userId ? t.planCards.photos.you : (lookup(photo.uploaded_by)?.display_name ?? t.states.formerMember));
 
   async function pick(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -104,7 +107,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
     const images = files.filter(looksLikeImage);
     if (images.length < files.length) setError(t.errors.codes.invalid_plan_photo);
     const batch = images.slice(0, left);
-    if (images.length > left) setError(t.plans.photos.tooMany(left));
+    if (images.length > left) setError(t.planCards.photos.tooMany(left));
     if (batch.length === 0) return;
     let done = 0;
     setProgress({ done, total: batch.length });
@@ -119,7 +122,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
       }
     }
     setProgress(null);
-    if (done > 0) toast.success(t.plans.photos.uploaded(done));
+    if (done > 0) toast.success(t.planCards.photos.uploaded(done));
   }
 
   function deleteOpen() {
@@ -128,7 +131,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
       onSuccess: () => {
         setConfirmDelete(false);
         setOpenId(null);
-        toast.success(t.plans.photos.deleted);
+        toast.success(t.planCards.photos.deleted);
       },
     });
   }
@@ -182,7 +185,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
     resetActions();
   }
 
-  const reasonText = reason === "other" ? otherText.trim() : reason ? t.plans.photos.reportReasons[reason] : "";
+  const reasonText = reason === "other" ? otherText.trim() : reason ? t.planCards.photos.reportReasons[reason] : "";
   function sendReport() {
     if (!open || reasonText.length < 5) return;
     report.mutate(
@@ -190,7 +193,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
       {
         onSuccess: () => {
           closeDialog();
-          toast.success(t.plans.photos.reported);
+          toast.success(t.planCards.photos.reported);
         },
       },
     );
@@ -201,7 +204,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
     keep.mutate(open.id, {
       onSuccess: () => {
         closeDialog();
-        toast.success(t.plans.photos.kept);
+        toast.success(t.planCards.photos.kept);
       },
     });
   }
@@ -215,16 +218,16 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
 
   return (
     <div className="space-y-3">
-      <p className="text-[15px] leading-snug text-muted">{t.plans.photos.intro}</p>
+      <p className="text-[15px] leading-snug text-muted">{t.planCards.photos.intro}</p>
 
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill tone={list.length > 0 ? "lime" : "glass"} testId="photos-count">
-          {t.plans.photos.count(list.length)}
+          {t.planCards.photos.count(list.length)}
         </StatusPill>
         {list.length >= PLAN_PHOTO_LIMIT ? (
-          <span className="text-sm text-muted">{t.plans.photos.full}</span>
+          <span className="text-sm text-muted">{t.planCards.photos.full}</span>
         ) : (
-          mine > 0 && <span className="text-sm text-muted">{t.plans.photos.left(left)}</span>
+          mine > 0 && <span className="text-sm text-muted">{t.planCards.photos.left(left)}</span>
         )}
       </div>
 
@@ -233,7 +236,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
           <button
             type="button"
             onClick={() => openPhoto(pile[0]!.id)}
-            aria-label={t.plans.photos.stack(list.length)}
+            aria-label={t.planCards.photos.stack(list.length)}
             data-testid="photo-stack"
             className="photo-stack relative block aspect-[4/3] w-full rounded-[22px] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime"
           >
@@ -251,12 +254,12 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
                   {photo.url ? (
                     <img src={photo.url} alt="" loading="lazy" decoding="async" width={photo.width} height={photo.height} className={cn("size-full object-cover", layer > 0 && "opacity-60")} />
                   ) : (
-                    <span className="grid size-full place-items-center text-xs text-faint">{t.plans.photos.missing}</span>
+                    <span className="grid size-full place-items-center text-xs text-faint">{t.planCards.photos.missing}</span>
                   )}
                   {layer === 0 && (
                     <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-linear-to-t from-black/75 via-black/30 to-transparent px-3.5 pt-10 pb-3 text-left">
-                      <span className="display shrink-0 whitespace-nowrap text-[17px] leading-none text-fg">{t.plans.photos.count(list.length)}</span>
-                      <span className="min-w-0 text-right text-[12px] font-semibold leading-tight text-fg/80">{t.plans.photos.stackHint}</span>
+                      <span className="display shrink-0 whitespace-nowrap text-[17px] leading-none text-fg">{t.planCards.photos.count(list.length)}</span>
+                      <span className="min-w-0 text-right text-[12px] font-semibold leading-tight text-fg/80">{t.planCards.photos.stackHint}</span>
                     </span>
                   )}
                 </span>
@@ -267,27 +270,27 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
       )}
 
       {list.length === 0 ? (
-        <p className="text-[15px] text-muted">{t.plans.photos.empty}</p>
+        <p className="text-[15px] text-muted">{t.planCards.photos.empty}</p>
       ) : (
-        <ul className="grid grid-cols-3 gap-1.5 sm:grid-cols-4" aria-label={t.plans.photos.title}>
+        <ul className="grid grid-cols-3 gap-1.5 sm:grid-cols-4" aria-label={t.planCards.photos.title}>
           {list.map((photo) => (
             <li key={photo.id} data-testid="plan-photo" data-flagged={flags.has(photo.id) || undefined} className="relative">
               <button
                 type="button"
                 onClick={() => openPhoto(photo.id)}
-                aria-label={t.plans.photos.open(nameOf(photo))}
+                aria-label={t.planCards.photos.open(nameOf(photo))}
                 className="block aspect-square w-full overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
               >
                 {photo.url ? (
                   <img src={photo.url} alt="" loading="lazy" decoding="async" width={photo.width} height={photo.height} className="size-full object-cover" />
                 ) : (
-                  <span className="grid size-full place-items-center px-1 text-center text-xs text-faint">{t.plans.photos.missing}</span>
+                  <span className="grid size-full place-items-center px-1 text-center text-xs text-faint">{t.planCards.photos.missing}</span>
                 )}
               </button>
               {flags.has(photo.id) && (
                 <StatusPill tone="amber" className="pointer-events-none absolute bottom-1.5 left-1.5 h-6 bg-bg/80 px-2 text-[11px] backdrop-blur-sm">
                   <IconFlag className="size-3" aria-hidden />
-                  {t.plans.photos.flagged}
+                  {t.planCards.photos.flagged}
                 </StatusPill>
               )}
             </li>
@@ -295,15 +298,15 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
         </ul>
       )}
 
-      <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => void pick(e)} data-testid="photos-input" aria-label={t.plans.photos.add} />
+      <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => void pick(e)} data-testid="photos-input" aria-label={t.planCards.photos.add} />
       {left > 0 && (
         <Button variant="secondary" size="sm" icon={<IconCamera className="size-4" aria-hidden />} onClick={() => input.current?.click()} loading={busy}>
-          {progress ? t.plans.photos.uploading(progress.done + 1, progress.total) : t.plans.photos.add}
+          {progress ? t.planCards.photos.uploading(progress.done + 1, progress.total) : t.planCards.photos.add}
         </Button>
       )}
       {progress && (
         <p className="sr-only" role="status">
-          {t.plans.photos.uploading(progress.done + 1, progress.total)}
+          {t.planCards.photos.uploading(progress.done + 1, progress.total)}
         </p>
       )}
       {error && (
@@ -312,13 +315,13 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
         </p>
       )}
       <p className="text-[13px] leading-snug text-faint">
-        {t.plans.photos.privacy} {t.plans.photos.retention}
+        {t.planCards.photos.privacy} {t.planCards.photos.retention}
       </p>
 
       <Dialog
         open={open != null}
         onClose={closeDialog}
-        title={open ? t.plans.photos.by(nameOf(open)) : t.plans.photos.title}
+        title={open ? t.planCards.photos.by(nameOf(open)) : t.planCards.photos.title}
         description={open?.uploaded_at ? formatAgo(open.uploaded_at, now) : undefined}
         size="lg"
         footer={
@@ -328,12 +331,12 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
                 {t.actions.cancel}
               </Button>
               <Button variant="danger" icon={<IconFlag className="size-4" aria-hidden />} onClick={sendReport} loading={report.isPending} disabled={reasonText.length < 5}>
-                {t.plans.photos.reportSend}
+                {t.planCards.photos.reportSend}
               </Button>
             </>
           ) : canReport ? (
             <Button variant="ghost" icon={<IconFlag className="size-4" aria-hidden />} onClick={() => setReporting(true)}>
-              {t.plans.photos.report}
+              {t.planCards.photos.report}
             </Button>
           ) : canDelete ? (
             confirmDelete ? (
@@ -342,18 +345,18 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
                   {t.actions.cancel}
                 </Button>
                 <Button variant="danger" onClick={deleteOpen} loading={remove.isPending}>
-                  {t.plans.photos.deleteConfirm}
+                  {t.planCards.photos.deleteConfirm}
                 </Button>
               </>
             ) : (
               <>
                 {openFlag?.can_review && (
                   <Button variant="secondary" icon={<IconEye className="size-4" aria-hidden />} onClick={keepOpen} loading={keep.isPending}>
-                    {t.plans.photos.keep}
+                    {t.planCards.photos.keep}
                   </Button>
                 )}
                 <Button variant="danger" icon={<IconTrash className="size-4" aria-hidden />} onClick={() => setConfirmDelete(true)}>
-                  {t.plans.photos.delete}
+                  {t.planCards.photos.delete}
                 </Button>
               </>
             )
@@ -375,31 +378,31 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
               {open.url ? (
                 <img
                   src={open.url}
-                  alt={t.plans.photos.alt(nameOf(open))}
+                  alt={t.planCards.photos.alt(nameOf(open))}
                   width={open.width}
                   height={open.height}
                   draggable={false}
                   className="mx-auto max-h-[56dvh] w-auto max-w-full rounded-[16px] object-contain"
                 />
               ) : (
-                <p className="text-[15px] text-muted">{t.plans.photos.missing}</p>
+                <p className="text-[15px] text-muted">{t.planCards.photos.missing}</p>
               )}
             </div>
             {list.length > 1 && !reporting && (
               <div className="flex items-center justify-between gap-3">
-                <IconButton label={t.plans.photos.previous} variant="secondary" onClick={() => step(-1)} disabled={openIndex <= 0 || confirmDelete}>
+                <IconButton label={t.planCards.photos.previous} variant="secondary" onClick={() => step(-1)} disabled={openIndex <= 0 || confirmDelete}>
                   <IconBack className="size-5" aria-hidden />
                 </IconButton>
                 <p className="text-center text-[13px] text-muted">
                   <span className="font-display text-[15px] font-bold text-fg" data-testid="photo-position">
-                    {t.plans.photos.position(openIndex + 1, list.length)}
+                    {t.planCards.photos.position(openIndex + 1, list.length)}
                   </span>
-                  <span className="ml-2 hidden sm:inline">{t.plans.photos.swipeHint}</span>
+                  <span className="ml-2 hidden sm:inline">{t.planCards.photos.swipeHint}</span>
                   <span className="sr-only" aria-live="polite">
-                    {t.plans.photos.positionLabel(openIndex + 1, list.length, nameOf(open))}
+                    {t.planCards.photos.positionLabel(openIndex + 1, list.length, nameOf(open))}
                   </span>
                 </p>
-                <IconButton label={t.plans.photos.next} variant="secondary" onClick={() => step(1)} disabled={openIndex >= list.length - 1 || confirmDelete}>
+                <IconButton label={t.planCards.photos.next} variant="secondary" onClick={() => step(1)} disabled={openIndex >= list.length - 1 || confirmDelete}>
                   <IconForward className="size-5" aria-hidden />
                 </IconButton>
               </div>
@@ -408,7 +411,7 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
               <div data-testid="photo-flag" className="rounded-[16px] border border-amber/40 bg-amber/[0.08] px-4 py-3 text-[14px] leading-snug text-fg">
                 {openFlag.can_review ? (
                   <>
-                    <p>{t.plans.photos.flaggedReview(openFlag.count)}</p>
+                    <p>{t.planCards.photos.flaggedReview(openFlag.count)}</p>
                     <ul className="mt-1.5 space-y-1 text-muted">
                       {openFlag.reasons.map((r, i) => (
                         <li key={i} className="break-words">„{r}“</li>
@@ -416,27 +419,27 @@ export function PhotosPanel({ plan, userId, canManage, lookup }: PhotosPanelProp
                     </ul>
                   </>
                 ) : (
-                  <p>{canManage ? t.plans.photos.flaggedOwnManager : t.plans.photos.flaggedOwn}</p>
+                  <p>{canManage ? t.planCards.photos.flaggedOwnManager : t.planCards.photos.flaggedOwn}</p>
                 )}
               </div>
             )}
             {reporting && (
               <fieldset className="space-y-3">
-                <legend className="text-[15px] font-semibold text-fg">{t.plans.photos.reportTitle}</legend>
+                <legend className="text-[15px] font-semibold text-fg">{t.planCards.photos.reportTitle}</legend>
                 <div className="flex flex-wrap gap-2">
                   {REASONS.map((key) => (
                     <Chip key={key} selected={reason === key} onToggle={() => setReason(key)} className="h-auto min-h-10 py-2 whitespace-normal text-left">
-                      {t.plans.photos.reportReasons[key]}
+                      {t.planCards.photos.reportReasons[key]}
                     </Chip>
                   ))}
                 </div>
                 {reason === "other" && (
-                  <TextField label={t.plans.photos.reportOther} value={otherText} onChange={(e) => setOtherText(e.target.value)} maxLength={300} />
+                  <TextField label={t.planCards.photos.reportOther} value={otherText} onChange={(e) => setOtherText(e.target.value)} maxLength={300} />
                 )}
-                <p className="text-[13px] leading-snug text-muted">{t.plans.photos.reportHint}</p>
+                <p className="text-[13px] leading-snug text-muted">{t.planCards.photos.reportHint}</p>
               </fieldset>
             )}
-            {confirmDelete && <p className="text-sm text-muted">{t.plans.photos.deleteHint}</p>}
+            {confirmDelete && <p className="text-sm text-muted">{t.planCards.photos.deleteHint}</p>}
             {actionError && (
               <p role="alert" className="text-sm text-danger">
                 {errorMessage(actionError)}

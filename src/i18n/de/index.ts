@@ -3,6 +3,7 @@ import { assistant } from "./assistant";
 import { deCore } from "./core";
 import { landing } from "./landing";
 import { notificationText } from "./notificationText";
+import { planCards } from "./planCards";
 import { planFeedback } from "./planFeedback";
 import { planHome } from "./planHome";
 import { planGuests } from "./planGuests";
@@ -32,6 +33,7 @@ export const de = {
   pollOutcome,
   planFeedback,
   planHome,
+  planCards,
   notificationText,
 };
 

@@ -29,7 +29,7 @@ export function bringSummary(items: readonly BringItem[], userId: string): Bring
   };
 }
 
-/** Anlässe mit Vorlagen; die Sachen selbst stehen sprachabhängig in den Texten (`t.plans.items.templates`). */
+/** Anlässe mit Vorlagen; die Sachen selbst stehen sprachabhängig in den Texten (`t.planCards.items.templates`). */
 export const BRING_TEMPLATES = ["grill", "games", "picnic", "movie"] as const;
 export type BringTemplate = (typeof BRING_TEMPLATES)[number];
 
