@@ -6043,7 +6043,8 @@ await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (
   await input.fill(`kino ${day} 20 uhr`);
   await card.waitFor();
   const cardText = await card.innerText();
-  check(/steht schon fest\?/i.test(cardText) && cardText.includes("Kino · 20:00 Uhr") && cardText.includes("Freunde ohne App sagen über den Link zu"), `P33: Plan-Karte mit Sache und Uhrzeit („${cardText.replace(/\s+/g, " ")}“)`);
+  check(/steht schon fest\?/i.test(cardText) && cardText.includes(" · 20:00 Uhr") && cardText.includes("Freunde ohne App sagen über den Link zu"), `P33: Plan-Karte mit Sache und Uhrzeit („${cardText.replace(/\s+/g, " ")}“)`);
+  check((await sheet.getByText("Kino", { exact: true }).count()) === 2 && (await sheet.getByText(/^Was geht/).count()) === 0, "P33: Vorschau heißt wie der Plan („Kino“), nicht „Was geht Freitag?“");
   check((await sheet.getByRole("button", { name: /Los – in die Gruppe/ }).count()) === 0, "P33: Hauptknopf legt den Plan an, kein „Los – in die Gruppe“");
   check(await sheet.getByRole("button", { name: "Lieber abstimmen" }).isEnabled(), "P33: „Lieber abstimmen“ bleibt möglich");
   await shot(bob, "51b-gleich-als-plan");

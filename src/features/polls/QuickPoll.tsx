@@ -224,7 +224,7 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
                 <p className="text-sm text-muted">{t.polls.quick.empty}</p>
               ) : (
                 <>
-                  <p className="display text-[19px] text-fg">{parsed.title}</p>
+                  <p className="display text-[19px] text-fg">{direct ? direct.title : parsed.title}</p>
                   <ul className="flex flex-wrap gap-2" aria-label={t.polls.quick.preview}>
                     {parsed.activities.map((a, i) => (
                       <li key={`a-${a}`} className={cn("rounded-full px-3.5 py-2 text-sm font-bold text-white", i % 2 ? "bg-[#c2246f]" : "bg-[#5b3fe0]")}>
@@ -244,10 +244,9 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
                         <DateTile at={new Date(direct.startsAt)} />
                         <div className="min-w-0">
                           <p className="font-display text-[15px] font-black uppercase tracking-tight text-lime">{t.polls.quick.plan.title}</p>
-                          <p className="mt-1 truncate text-[15px] font-semibold text-fg">
-                            {direct.title} · {formatTime(direct.startsAt)}
+                          <p className="mt-1 text-[15px] font-semibold text-fg">
+                            {formatDateLong(direct.startsAt)} · {formatTime(direct.startsAt)}
                           </p>
-                          <p className="sr-only">{formatDateLong(direct.startsAt)}</p>
                         </div>
                       </div>
                       <p className="mt-3 text-[13px] leading-snug text-muted">{t.polls.quick.plan.body}</p>
