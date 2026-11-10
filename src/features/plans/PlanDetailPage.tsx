@@ -525,7 +525,7 @@ export function PlanDetailPage() {
               </div>
               {/* P37: „Wer kommt jetzt eigentlich?“ – der Stand als Text in den Gruppenchat, nur Zahlen, mit Link zum Antworten. */}
               {standing && (
-                <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
                   <Button
                     variant="secondary"
                     size="sm"
