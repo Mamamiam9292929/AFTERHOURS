@@ -1,7 +1,7 @@
 // D3 Etappe 1 · Abstimmen und Live-Countdown auf Home (src/lib/quickvote.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatCountdown, liveCountdown, needsQuickVote, pendingOptions, showTonightIdeas, tonightStrip } from "../../src/lib/quickvote.ts";
+import { formatCountdown, liveCountdown, needsQuickVote, pendingOptions, showTonightIdeas, tonightStrip, VOTE_ALL_MIN, voteAllTargets } from "../../src/lib/quickvote.ts";
 
 const opt = (id, mine = null) => ({ id, mine });
 const ids = (list) => list.map((o) => o.id);
@@ -128,4 +128,33 @@ test("„Heute Abend“ ohne Plan: verschwindet, sobald heute etwas ansteht – 
   assert.equal(showTonightIdeas({ ...evening, plans: [p({ days: 1, starts_at: "2026-10-30T23:30:00.000Z" })] }, at), false, "Plan kurz nach Mitternacht liegt im Countdown-Fenster");
   assert.equal(showTonightIdeas({ ...evening, plans: [p({ days: 0, starts_at: "2026-10-30T20:00:00.000Z", status: "cancelled" })] }, at), true, "abgesagter Plan zählt nicht");
   assert.equal(showTonightIdeas({ ...evening, plans: [p({ days: 0, starts_at: "2026-10-30T20:00:00.000Z", mine: "declined" })] }, at), true, "eigene Absage zählt nicht");
+});
+
+// P34 · „Bin bei allem dabei“
+test("bei allem dabei: alle ohne Antwort, auch übersprungene, nicht die in dieser Sitzung beantworteten", () => {
+  const options = [
+    { id: "a", mine: null },
+    { id: "b", mine: "no" },
+    { id: "c", mine: null },
+    { id: "d", mine: null },
+  ];
+  const { targets, rest, show } = voteAllTargets(options, new Set(["d"]));
+  assert.deepEqual(targets.map((o) => o.id), ["a", "c"]);
+  assert.equal(rest, true);
+  assert.equal(show, true);
+});
+
+test("bei allem dabei: ohne eigene Antwort heißt es „bei allen“", () => {
+  const { targets, rest, show } = voteAllTargets([{ id: "a", mine: null }, { id: "b", mine: null }]);
+  assert.equal(targets.length, 2);
+  assert.equal(rest, false);
+  assert.equal(show, true);
+});
+
+test("bei allem dabei: erst ab zwei offenen Vorschlägen", () => {
+  assert.equal(VOTE_ALL_MIN, 2);
+  assert.equal(voteAllTargets([{ id: "a", mine: null }]).show, false);
+  assert.equal(voteAllTargets([{ id: "a", mine: null }, { id: "b", mine: "yes" }]).show, false);
+  assert.equal(voteAllTargets([{ id: "a", mine: "maybe" }, { id: "b", mine: "yes" }]).targets.length, 0);
+  assert.equal(voteAllTargets([]).show, false);
 });

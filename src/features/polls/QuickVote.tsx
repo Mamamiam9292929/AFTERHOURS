@@ -1,13 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { IconCheck } from "@/components/icons";
 import { useToast } from "@/components/ui/Toast";
 import { useCrewAbsences } from "@/features/crews/absencesApi";
 import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
-import { pendingOptions, type QuickResponse } from "@/lib/quickvote";
+import { pendingOptions, voteAllTargets, type QuickResponse } from "@/lib/quickvote";
 import { formatPlainDate, formatPlainTime } from "@/lib/time";
 import type { PollOption } from "@/lib/types";
-import { useVote } from "./api";
+import { useVote, useVoteAll } from "./api";
 import { summarizePoll, type PollWithDetails } from "./logic";
 import { awayLine } from "./OptionAway";
 
@@ -45,6 +46,7 @@ interface PollQuickVoteProps {
 export function PollQuickVote({ poll, memberIds, userId, now, onTouched, busy }: PollQuickVoteProps) {
   const toast = useToast();
   const vote = useVote(poll.id);
+  const voteAll = useVoteAll(poll.id);
   const [answered, setAnswered] = useState<ReadonlyMap<string, QuickResponse>>(new Map());
   const [skipped, setSkipped] = useState<ReadonlySet<string>>(new Set());
   const tallies = summarizePoll(poll, memberIds, userId, now).tallies;
@@ -65,6 +67,28 @@ export function PollQuickVote({ poll, memberIds, userId, now, onTouched, busy }:
       setAnswered((map) => {
         const next = new Map(map);
         next.delete(optionId);
+        return next;
+      });
+      toast.error(error);
+    }
+  }
+
+  // P34: „Bin bei allem dabei“ – alle offenen Vorschläge auf einmal, auch übersprungene.
+  const all = voteAllTargets(options, new Set(answered.keys()));
+  async function answerAll() {
+    onTouched(poll.id);
+    const ids = all.targets.map((option) => option.id);
+    setAnswered((map) => {
+      const next = new Map(map);
+      for (const id of ids) next.set(id, "yes");
+      return next;
+    });
+    try {
+      await voteAll.mutateAsync();
+    } catch (error) {
+      setAnswered((map) => {
+        const next = new Map(map);
+        for (const id of ids) next.delete(id);
         return next;
       });
       toast.error(error);
@@ -121,6 +145,18 @@ export function PollQuickVote({ poll, memberIds, userId, now, onTouched, busy }:
           ))}
         </div>
       </div>
+      {all.show && (
+        <button
+          type="button"
+          onClick={() => void answerAll()}
+          disabled={voteAll.isPending}
+          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.08] px-4 text-[14px] font-semibold text-lime transition-transform hover:bg-lime/15 active:scale-95 disabled:opacity-60"
+          data-testid="poll-quick-all"
+        >
+          <IconCheck className="size-4" aria-hidden />
+          {t.polls.swipe.all(all.targets.length, isDate, all.rest)}
+        </button>
+      )}
     </section>
   );
 }

@@ -6019,6 +6019,70 @@ await step("S3 – Teilen-Ziel: Satz aus WhatsApp landet in der Ein-Satz-Abstimm
   }
 });
 
+await step("P34 – „Bin bei allem dabei“: ein Tipp, dabei bei allen offenen Vorschlägen (Carol auf Home, Alice und Bob auf der Abstimmung)", async () => {
+  const title = `Mir egal ${RUN}`;
+  const created = await api(bob, "POST", "rpc/create_poll", {
+    p_crew_id: ids.crew, p_title: title, p_ends_at: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+    p_options: [{ title: "Bowling" }, { title: "Kino" }, { title: "Pizza" }],
+    p_description: null, p_meeting_point: null, p_budget_cents: null, p_min_participants: null,
+  });
+  if (created.status >= 300) throw new Error(`Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+  const pollId = created.json;
+  // Eigene Antworten je Vorschlag, direkt aus der Datenbank: { Bowling: "no", Kino: "yes", … }
+  const mine = (user) =>
+    Object.fromEntries(
+      execFileSync("psql", [DB_URL, "-Atqc", `select o.title || '=' || v.response from public.poll_votes v join public.poll_options o on o.id = v.poll_option_id
+        join auth.users u on u.id = v.user_id where v.poll_id = '${pollId}' and u.email = '${user.email}'`]).toString().trim().split("\n").filter(Boolean).map((line) => line.split("=")),
+    );
+  try {
+    // Home: Carol sagt bei Bowling ab, dann „Bei den übrigen 2 dabei“ – ihr „nein“ bleibt.
+    await carol.page.goto(`${APP}/home`);
+    const quick = carol.page.getByRole("region", { name: `Gleich hier abstimmen: ${title}` });
+    await quick.getByTestId("poll-quick-option").waitFor();
+    check((await quick.getByTestId("poll-quick-all").innerText()).trim() === "Bin bei allen 3 dabei", "P34: Home bietet „Bin bei allen 3 dabei“ an");
+    await quick.getByRole("group", { name: "Schnell antworten für Bowling" }).getByRole("button", { name: "Bin nicht dabei", exact: true }).click();
+    const rest = quick.getByRole("button", { name: "Bei den übrigen 2 dabei" });
+    await rest.waitFor();
+    await noOverflow(carol, "Home – bei allem dabei");
+    await a11y(carol, "home-bei-allem-dabei");
+    await shot(carol, "72a-home-bei-allem-dabei");
+    const saved = carol.page.waitForResponse((r) => r.url().includes("/rpc/cast_vote_all") && r.request().method() === "POST");
+    await rest.click();
+    check((await saved).ok(), "P34: „Bei den übrigen 2 dabei“ gespeichert");
+    await carol.page.getByTestId("poll-quick-done").waitFor();
+    const c = mine(carol);
+    check(c.Bowling === "no" && c.Kino === "yes" && c.Pizza === "yes", `P34: Carols „nein“ bei Bowling bleibt, Kino und Pizza „dabei“ (${JSON.stringify(c)})`);
+
+    // Abstimmung: Bob (390 px) sieht den Knopf unter dem Stapel, Alice (Desktop) tippt ihn.
+    await bob.page.goto(`${APP}/polls/${pollId}`);
+    const bobAll = bob.page.getByTestId("vote-all");
+    await bobAll.getByRole("button", { name: "Bin bei allen 3 dabei" }).waitFor();
+    check(await bobAll.getByText(/^Mir egal, ich komm mit/).isVisible(), "P34: Hinweis, dass eigene Antworten bleiben");
+    await noOverflow(bob, "Abstimmung – bei allem dabei");
+    await a11y(bob, "abstimmung-bei-allem-dabei");
+    await shot(bob, "72b-abstimmung-bei-allem-dabei");
+    await bob.page.getByTestId("swipe-deck").getByRole("button", { name: /^Bin dabei: Bowling/ }).click();
+    await bobAll.getByRole("button", { name: "Bei den übrigen 2 dabei" }).waitFor();
+    check(true, "P34: nach der ersten Antwort heißt der Knopf „Bei den übrigen 2 dabei“");
+    await bob.page.getByTestId("swipe-deck").getByRole("button", { name: /^Eher nicht: Kino/ }).click();
+    await bob.page.getByTestId("swipe-deck").getByText("noch 1 Vorschlag").waitFor();
+    check((await bob.page.getByTestId("vote-all").count()) === 0, "P34: bei nur einem offenen Vorschlag kein Extra-Knopf");
+
+    await alice.page.goto(`${APP}/polls/${pollId}`);
+    await alice.page.getByTestId("vote-all").getByRole("button", { name: "Bin bei allen 3 dabei" }).click();
+    await toast(alice, "Bei 3 Vorschlägen dabei");
+    await alice.page.getByTestId("swipe-deck").getByText(/Alles gewischt/).waitFor();
+    const a = mine(alice);
+    check(a.Bowling === "yes" && a.Kino === "yes" && a.Pizza === "yes", `P34: Alice ist bei allen drei dabei (${JSON.stringify(a)})`);
+    await alice.page.locator('.vote-card[data-answer="yes"]').filter({ hasText: "Pizza" }).waitFor();
+    check(true, "P34: die Vorschläge tragen Alices Antwort als Farbe");
+    await shot(alice, "72c-abstimmung-alles-dabei");
+  } finally {
+    // Aufräumen: der Rest der Journey kennt diese Abstimmung nicht.
+    execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;
