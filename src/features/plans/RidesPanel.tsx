@@ -124,7 +124,7 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                         {passengers.map((id) => (
                           <span key={id} className="who-chip inline-flex h-9 max-w-full items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm text-fg">
                             <Avatar person={lookup(id)} size="xs" decorative />
-                            {nameOf(id)}
+                            <span className="min-w-0 truncate">{nameOf(id)}</span>
                           </span>
                         ))}
                       </div>
@@ -210,7 +210,7 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
             {seatless.map((id) => (
               <li key={id} className="who-chip inline-flex h-9 max-w-full items-center gap-2 rounded-full py-0.5 pl-1 pr-3 text-sm text-fg">
                 <Avatar person={lookup(id)} size="xs" decorative />
-                {nameOf(id)}
+                <span className="min-w-0 truncate">{nameOf(id)}</span>
               </li>
             ))}
           </ul>
