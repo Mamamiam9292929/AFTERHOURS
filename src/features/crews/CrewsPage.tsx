@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { IconChevronRight, IconCrews, IconPlus } from "@/components/icons";
+import { IconBellOff, IconChevronRight, IconCrews, IconPlus } from "@/components/icons";
 import { PageHeader, PosterLine, Section } from "@/components/layout/Page";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { GLASS_PILL, LivePill } from "@/components/ui/Pill";
@@ -18,8 +18,9 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { crewPulse, crewWorld, type CrewPulse } from "@/lib/crewWorld";
 import { errorMessage } from "@/lib/errors";
+import { mutedCrews } from "@/lib/crewmute";
 import { useDocumentTitle } from "@/lib/hooks";
-import { extractInviteToken, useCreateCrew, useCrews, type CrewWithMembers } from "./api";
+import { extractInviteToken, useCreateCrew, useCrews, useMyCrewMutes, type CrewWithMembers } from "./api";
 import { CrewForm } from "./CrewForm";
 
 /** Hervorhebung auf der Crew-Zeile (nur Crews-Übersicht): laufende Abstimmung leuchtet Lime, Plan als Glas-Pille. */
@@ -29,7 +30,7 @@ export type CrewRowStatus = { pulse: CrewPulse; label: string };
  * V2 Etappe 3i: Die Crew-Zeile ist eine Glas-Karte in der Farbwelt der Crew (fest aus der ID), das Symbol
  * auf einer Kachel im selben Licht, der Name in Unbounded. Was gerade läuft, steht als Pille daneben.
  */
-export function CrewRow({ crew, status }: { crew: CrewWithMembers; status?: CrewRowStatus }) {
+export function CrewRow({ crew, status, muted = false }: { crew: CrewWithMembers; status?: CrewRowStatus; muted?: boolean }) {
   const people = usePeople();
   return (
     <Link
@@ -64,6 +65,13 @@ export function CrewRow({ crew, status }: { crew: CrewWithMembers; status?: Crew
               </span>
             )
           ) : null}
+          {/* P35 Etappe 2: eigene Stille – nur man selbst sieht sie. */}
+          {muted && (
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-amber/40 bg-amber/10 px-3 text-[12px] font-semibold text-fg" data-testid="crew-row-muted">
+              <IconBellOff className="size-3.5 text-amber" aria-hidden />
+              {t.crews.card.muted}
+            </span>
+          )}
         </span>
       </span>
       <IconChevronRight className="size-5 shrink-0 text-faint" aria-hidden />
@@ -81,6 +89,8 @@ export function CrewsPage() {
   const plans = usePlans();
   const create = useCreateCrew();
   const user = useUser();
+  const mutes = useMyCrewMutes(user.id);
+  const muted = useMemo(() => mutedCrews(mutes.data, new Date()), [mutes.data]);
   const [createOpen, setCreateOpen] = useState(params.get("new") === "1");
   const [invite, setInvite] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -138,7 +148,7 @@ export function CrewsPage() {
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           {crews.data.map((crew) => (
-            <CrewRow key={crew.id} crew={crew} status={status.get(crew.id)} />
+            <CrewRow key={crew.id} crew={crew} status={status.get(crew.id)} muted={muted.has(crew.id)} />
           ))}
         </div>
       )}

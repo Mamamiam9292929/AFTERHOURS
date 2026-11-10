@@ -21,6 +21,19 @@ export function crewMuteState(row: { muted_until: string | null } | null | undef
   return { kind: "until", until, sameDay: berlinDay.format(until) === berlinDay.format(now) };
 }
 
+/**
+ * P35 Etappe 2 · Stand je Crew aus allen eigenen Zeilen (Crew-Liste, Kopf der Crew-Seite).
+ * Nur Crews, die jetzt stumm sind – abgelaufene Zeilen fallen weg wie in `app_private.queue_push`.
+ */
+export function mutedCrews(rows: readonly { crew_id: string; muted_until: string | null }[] | null | undefined, now: Date): Map<string, CrewMuteState> {
+  const map = new Map<string, CrewMuteState>();
+  for (const row of rows ?? []) {
+    const state = crewMuteState(row, now);
+    if (state.kind !== "on") map.set(row.crew_id, state);
+  }
+  return map;
+}
+
 /** Welche Dauer ist gerade gewählt? „Bis ich’s ändere“ eindeutig; bei begrenzter Stille nach der Restzeit (über 8 h = Woche). */
 export function activeCrewMuteMode(state: CrewMuteState, now: Date): CrewMuteMode | null {
   if (state.kind === "on") return null;

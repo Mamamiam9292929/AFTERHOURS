@@ -31,6 +31,8 @@ export const crews = {
     openPolls: (n: number) => (n === 1 ? "1 Abstimmung läuft" : `${n} Abstimmungen laufen`),
     upcomingPlans: (n: number) => (n === 1 ? "1 Plan steht an" : `${n} Pläne stehen an`),
     quiet: "Gerade nichts geplant",
+    /** P35 Etappe 2: eigene Stille als Pille an der Crew-Zeile (sieht nur man selbst). */
+    muted: "Stumm",
   },
   detail: {
     back: "Crews",
@@ -47,6 +49,12 @@ export const crews = {
     /** V2 Etappe 3j: Kopf der Crew-Seite als Karte in der Farbwelt der Crew. */
     kicker: "Eure Crew",
     yourRole: (role: string) => `Du bist ${role}`,
+    /** P35 Etappe 2: Pille im Kopf der Crew-Seite, führt zu „Mitteilungen dieser Crew“. */
+    muted: {
+      always: "Stumm",
+      until: (when: string) => `Stumm bis ${when}`,
+      open: "Mitteilungen dieser Crew ändern",
+    },
     morePlans: "Danach",
     evenings: (n: number) => (n === 1 ? "1 gemeinsamer Abend" : `${n} gemeinsame Abende`),
     noPolls: "Keine laufende Abstimmung",

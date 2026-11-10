@@ -1,7 +1,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { lazy, Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { IconBack, IconCalendar, IconCalendarPlus, IconMore, IconPlans, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
+import { IconBack, IconBellOff, IconCalendar, IconCalendarPlus, IconMore, IconPlans, IconSend, IconTrash, IconUserPlus, IconVote } from "@/components/icons";
 import { PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar, AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink, IconButton } from "@/components/ui/Button";
@@ -20,13 +20,14 @@ import { usePeople } from "@/features/profile/api";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { crewWorld } from "@/lib/crewWorld";
+import { mutedCrews } from "@/lib/crewmute";
 import { errorMessage } from "@/lib/errors";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
-import { formatAgo, formatDateWithYear, formatRelative, formatTime } from "@/lib/time";
+import { formatAgo, formatDateTime, formatDateWithYear, formatRelative, formatTime } from "@/lib/time";
 import type { CrewMember, CrewRole } from "@/lib/types";
 import {
   canManageCrew, invitationState, myRole, useCrew, useCrewInvitations, useCrewMessages, useDeleteCrew, useDeleteMessage, useLeaveCrew,
-  useRemoveMember, useRevokeInvitation, useSendMessage, useSetMemberRole, useUpdateCrew, type CrewWithMembers,
+  useMyCrewMutes, useRemoveMember, useRevokeInvitation, useSendMessage, useSetMemberRole, useUpdateCrew, type CrewWithMembers,
 } from "./api";
 import { CrewBalances } from "./CrewBalances";
 import { CrewAway } from "./CrewAway";
@@ -472,6 +473,8 @@ export function CrewDetailPage() {
   const now = useNow(60_000);
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>("overview");
+  const mutes = useMyCrewMutes(user.id);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   // Der Dialog wird erst geladen, wenn er zum ersten Mal aufgeht, und bleibt danach für die Schließen-Animation da.
   const [invitedOnce, setInvitedOnce] = useState(false);
@@ -508,6 +511,12 @@ export function CrewDetailPage() {
   // Echte Zahl: abgeschlossene Pläne dieser Crew. Erscheint erst ab dem ersten gemeinsamen Abend.
   const evenings = (plans.data ?? []).filter((p) => p.crew_id === crew.id && p.status === "completed").length;
   const openPolls = (polls.data ?? []).filter((p) => p.crew_id === crew.id && !isPollOver(p, now)).length;
+  // P35 Etappe 2: eigene Stille als Pille im Kopf – ein Tipp öffnet die Einstellungen mit „Mitteilungen dieser Crew“.
+  const mute = mutedCrews(mutes.data, now).get(crew.id);
+  const openMute = () => {
+    setTab("settings");
+    requestAnimationFrame(() => panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   return (
     <>
@@ -555,6 +564,23 @@ export function CrewDetailPage() {
               {t.crews.detail.yourRole(t.enums.crewRole[role])}
             </li>
           )}
+          {mute && (
+            <li>
+              <button
+                type="button"
+                onClick={openMute}
+                title={t.crews.detail.muted.open}
+                data-testid="crew-pass-muted"
+                className="inline-flex h-9 items-center gap-2 rounded-full border border-amber/40 bg-amber/10 px-3.5 text-[14px] font-semibold text-fg transition-colors hover:border-amber/70"
+              >
+                <IconBellOff className="size-4 text-amber" aria-hidden />
+                {mute.kind === "until"
+                  ? t.crews.detail.muted.until(mute.sameDay ? formatTime(mute.until) : formatDateTime(mute.until))
+                  : t.crews.detail.muted.always}
+                <span className="sr-only"> – {t.crews.detail.muted.open}</span>
+              </button>
+            </li>
+          )}
         </ul>
         {/* Auf dem Handy: Hauptknopf über die ganze Breite, die übrigen zu zweit nebeneinander (dort ohne Symbol, damit sie auch bei 360 px passen). */}
         <div className="mt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
@@ -585,7 +611,7 @@ export function CrewDetailPage() {
           { value: "settings", label: t.crews.detail.tabs.settings },
         ]}
       />
-      <div className="mt-6" role="tabpanel">
+      <div ref={panelRef} className="mt-6 scroll-mt-4" role="tabpanel">
         {tab === "overview" && <Overview crew={crew} onInvite={() => setInviteOpen(true)} canInvite={manage} />}
         {tab === "chat" && <Chat crew={crew} role={role} />}
         {tab === "members" && <Members crew={crew} role={role} />}

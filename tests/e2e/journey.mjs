@@ -7565,17 +7565,45 @@ await step("P35 – Crew stummschalten: 8 Stunden, bis auf Weiteres, wieder laut
     await bob.page.waitForFunction(() => document.querySelector('[data-testid="crew-mute-status"]')?.textContent?.trim() === "Stumm");
     check(psql(`select count(*) from public.crew_push_mutes m join auth.users u on u.id = m.user_id where u.email = '${bob.email}' and m.muted_until is null`) === "1", "P35: ohne Ende gespeichert");
 
+    // Etappe 2: „Stumm“ auf einen Blick – Pille im Kopf der Crew-Seite (Tipp führt zu den Einstellungen) und in der Crew-Liste.
+    const pass = bob.page.getByTestId("crew-pass-muted");
+    await pass.waitFor();
+    check((await pass.innerText()).trim().startsWith("Stumm"), "P35 2: Pille „Stumm“ im Kopf der Crew-Seite");
+    await bob.page.goto(`${APP}/crews/${ids.crew}`);
+    await pass.waitFor();
+    check(await bob.page.getByRole("tab", { name: "Übersicht" }).getAttribute("aria-selected") === "true", "P35 2: Seite öffnet in der Übersicht");
+    await noOverflow(bob, "Crew-Kopf – stumm");
+    await a11y(bob, "crew-kopf-stumm");
+    await bob.page.getByTestId("crew-pass").evaluate((el) => el.scrollIntoView({ block: "start" }));
+    await shot(bob, "73b-crew-kopf-stumm");
+    await pass.click();
+    await bob.page.getByTestId("crew-mute").getByTestId("crew-mute-status").waitFor();
+    check(await bob.page.getByRole("tab", { name: "Einstellungen" }).getAttribute("aria-selected") === "true", "P35 2: Tipp auf die Pille öffnet die Einstellungen");
+    await bob.page.goto(`${APP}/crews`);
+    const row = bob.page.locator(`[data-testid="crew-row"][href="/crews/${ids.crew}"]`);
+    await row.getByTestId("crew-row-muted").waitFor();
+    check((await row.getByTestId("crew-row-muted").innerText()).trim() === "Stumm", "P35 2: Pille „Stumm“ an der Crew-Zeile");
+    check((await bob.page.getByTestId("crew-row-muted").count()) === 1, "P35 2: nur die stumme Crew trägt die Pille");
+    await noOverflow(bob, "Crew-Liste – stumm");
+    await shot(bob, "73c-crew-liste-stumm");
+    await carol.page.goto(`${APP}/crews`);
+    await carol.page.getByTestId("crew-row").first().waitFor();
+    await carol.page.waitForTimeout(500);
+    check((await carol.page.getByTestId("crew-row-muted").count()) === 0, "P35 2: Carol sieht keine Pille – Bobs Stille bleibt privat");
+
     // Privat: Carol (Desktop) sieht für sich „Laut“ – nichts von Bobs Stille.
     const carolCard = await openSettings(carol);
     check((await carolCard.getByTestId("crew-mute-status").innerText()).trim() === "Laut", "P35: Carol sieht ihre eigene Einstellung, nicht Bobs");
     const visible = await api(carol, "GET", "crew_push_mutes?select=user_id");
     check(visible.status === 200 && Array.isArray(visible.json) && visible.json.length === 0, `P35: Carol liest keine fremde Stille über die API (${visible.status})`);
 
-    // Wieder laut.
-    await again.getByRole("button", { name: "Wieder laut" }).click();
+    // Wieder laut (Bob ist inzwischen auf der Crew-Liste – zurück in die Einstellungen).
+    const loud = await openSettings(bob);
+    await loud.getByRole("button", { name: "Wieder laut" }).click();
     await toast(bob, "Die Crew ist wieder laut.");
     await bob.page.waitForFunction(() => document.querySelector('[data-testid="crew-mute-status"]')?.textContent?.trim() === "Laut");
     check(psql(`select count(*) from public.crew_push_mutes m join auth.users u on u.id = m.user_id where u.email = '${bob.email}'`) === "0", "P35: wieder laut – keine Zeile mehr");
+    check((await bob.page.getByTestId("crew-pass-muted").count()) === 0, "P35 2: wieder laut – Pille im Kopf ist weg");
 
     // Fehlerzustand: Lesen scheitert → Fehlerkarte mit „Erneut versuchen“, danach geht es wieder.
     // 400 mit PostgREST-Code: kein automatisches Wiederholen und kein Serverfehler im Protokoll.
