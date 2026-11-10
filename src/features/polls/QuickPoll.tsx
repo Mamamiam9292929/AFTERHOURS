@@ -239,9 +239,8 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
                     {parsed.time && <li className="rounded-full bg-white/[0.1] px-3.5 py-2 text-sm font-bold text-fg">{parsed.time}</li>}
                   </ul>
                   {direct ? (
-                    <div data-testid="quickpoll-plan" className="relative overflow-hidden rounded-[24px] border border-lime/40 bg-lime/[0.08] p-4">
-                      <div aria-hidden className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-lime/25 blur-2xl" />
-                      <div className="relative flex items-center gap-3.5">
+                    <div data-testid="quickpoll-plan" className="rounded-[24px] border border-lime/40 bg-lime/[0.08] p-4">
+                      <div className="flex items-center gap-3.5">
                         <DateTile at={new Date(direct.startsAt)} />
                         <div className="min-w-0">
                           <p className="font-display text-[15px] font-black uppercase tracking-tight text-lime">{t.polls.quick.plan.title}</p>
@@ -251,8 +250,8 @@ function QuickPollSheet({ open, onClose, crews, shared }: { open: boolean; onClo
                           <p className="sr-only">{formatDateLong(direct.startsAt)}</p>
                         </div>
                       </div>
-                      <p className="relative mt-3 text-[13px] leading-snug text-muted">{t.polls.quick.plan.body}</p>
-                      <p className="relative mt-1.5 text-[13px] text-faint">{t.polls.quick.plan.guests}</p>
+                      <p className="mt-3 text-[13px] leading-snug text-muted">{t.polls.quick.plan.body}</p>
+                      <p className="mt-1.5 text-[13px] text-faint">{t.polls.quick.plan.guests}</p>
                     </div>
                   ) : (
                     <>
