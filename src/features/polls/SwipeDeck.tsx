@@ -102,6 +102,22 @@ export function SwipeDeck({
         {deck.length > 0 && <span className="text-sm font-semibold text-muted">{t.polls.swipe.left(deck.length)}</span>}
       </div>
 
+      {/* P34: über dem Stapel, damit es auf dem Handy ohne Scrollen zu sehen ist. */}
+      {all && deck.length >= 2 && (
+        <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="vote-all">
+          <button
+            type="button"
+            onClick={all.onAll}
+            disabled={all.busy}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.08] px-4 text-[15px] font-semibold text-lime transition-transform hover:bg-lime/10 active:scale-90 disabled:opacity-60"
+          >
+            <IconCheck className="size-4" aria-hidden />
+            {all.label}
+          </button>
+          <p className="max-w-xs text-[13px] leading-snug text-faint">{t.polls.swipe.allHint}</p>
+        </div>
+      )}
+
       {deck.length === 0 && !leaving ? (
         <p className="rounded-card border border-white/10 bg-white/[0.04] p-5 text-[15px] text-muted">{t.polls.swipe.done}</p>
       ) : (
@@ -177,20 +193,6 @@ export function SwipeDeck({
             </div>
           )}
           <p className="mt-3 text-center text-[13px] text-faint">{t.polls.swipe.hint}</p>
-          {all && deck.length >= 2 && (
-            <div className="mt-5 flex flex-col items-center gap-1.5 text-center" data-testid="vote-all">
-              <button
-                type="button"
-                onClick={all.onAll}
-                disabled={all.busy}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.08] px-4 text-[15px] font-semibold text-lime transition-transform hover:bg-lime/10 active:scale-90 disabled:opacity-60"
-              >
-                <IconCheck className="size-4" aria-hidden />
-                {all.label}
-              </button>
-              <p className="max-w-xs text-[13px] leading-snug text-faint">{t.polls.swipe.allHint}</p>
-            </div>
-          )}
         </>
       )}
 
