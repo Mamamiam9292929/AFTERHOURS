@@ -259,6 +259,13 @@ export const plans = {
       findDatePlace: "Nochmal hier – Termin finden",
       findDate: "Termin für nochmal finden",
     },
+    /** P32: „Neuer Anlauf?“ auf abgesagten Plänen. */
+    retry: {
+      title: "Neuer Anlauf?",
+      leadPlace: (place: string) => `Abgesagt heißt nicht abgeblasen. Ein Tipp, und die Crew sucht einen neuen Termin bei ${place}.`,
+      lead: "Abgesagt heißt nicht abgeblasen. Ein Tipp, und die Crew sucht einen neuen Termin.",
+      findDate: "Neuen Termin finden",
+    },
     followUp: {
       title: "Was kommt als Nächstes?",
       body: "Ideen für eure nächste Unternehmung.",

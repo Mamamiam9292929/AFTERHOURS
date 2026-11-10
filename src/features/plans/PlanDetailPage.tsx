@@ -22,6 +22,7 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
 import { homeCheckOpen } from "@/lib/homecheck";
+import { retryDue } from "@/lib/retry";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { downloadPlanIcs } from "@/lib/ics";
 import { liveStage } from "@/lib/live";
@@ -36,7 +37,7 @@ import { BringPanel } from "./BringPanel";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { storedPlanGuestSecret } from "./guestsApi";
 import { LivePanel } from "./LivePanel";
-import { AgainCard } from "./PlanAgain";
+import { AgainCard, RetryCard } from "./PlanAgain";
 import { PlanForm } from "./PlanForm";
 import { PlanPanel } from "./PlanPanel";
 import { RepeatCard, RepeatLine, SkippedNotice } from "./PlanRepeat";
@@ -317,6 +318,9 @@ export function PlanDetailPage() {
               }
             />
           )}
+
+          {/* P32: Abgesagt – ein Tipp, und die Crew sucht einen neuen Termin. */}
+          {retryDue(plan, now) && <RetryCard plan={plan} placeName={place?.name ?? null} />}
 
           <dl className="plan-facts mt-4 divide-y divide-line rounded-card border border-white/[0.08] px-4 sm:px-5">
             <Fact icon={<IconPlans aria-hidden />} label={t.plans.detail.what}>

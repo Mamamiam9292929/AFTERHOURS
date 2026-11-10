@@ -259,6 +259,13 @@ export const plans = {
       findDatePlace: "Same place – find a date",
       findDate: "Find a date to do it again",
     },
+    /** P32: "Try again?" on cancelled plans. */
+    retry: {
+      title: "Try again?",
+      leadPlace: (place: string) => `Cancelled doesn’t mean off. One tap and the crew finds a new date at ${place}.`,
+      lead: "Cancelled doesn’t mean off. One tap and the crew finds a new date.",
+      findDate: "Find a new date",
+    },
     followUp: {
       title: "What's next?",
       body: "Ideas for your next outing.",

@@ -46,6 +46,8 @@ export const polls = {
       defaultTitle: "When can you make it?",
       /** P20: „Feier planen“ von der Crew-Seite. */
       birthdayTitle: (name: string) => `${name}'s birthday – when shall we celebrate?`,
+      /** P32: "Try again?" from a cancelled plan. */
+      retryTitle: (plan: string) => `${plan} – when does it work?`,
       birthdayHint: (name: string, date: string) => `Around ${name}'s birthday on ${date} – change the dates as you like.`,
       title: "Dates",
       hint: "2 to 10 dates. The time is optional.",

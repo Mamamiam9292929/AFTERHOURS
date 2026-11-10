@@ -4,6 +4,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { PanelCard } from "@/components/ui/PanelCard";
 import { GLASS_PILL } from "@/components/ui/Pill";
 import { t } from "@/i18n";
+import { retryLink } from "@/lib/retry";
 import type { PlanWithParticipants } from "./api";
 
 /**
@@ -45,6 +46,28 @@ export function AgainCard({ plan, placeName, verdict }: { plan: PlanWithParticip
     >
       <ButtonLink to={againLink(plan)} size="lg" className="w-full sm:w-auto" icon={<IconCalendar className="size-5" aria-hidden />}>
         {withPlace ? t.plans.detail.again.findDatePlace : t.plans.detail.again.findDate}
+      </ButtonLink>
+    </PanelCard>
+  );
+}
+
+/**
+ * P32 · „Neuer Anlauf?“ – auf einem abgesagten Plan (nicht beim ausgesetzten Stammtisch-Termin, bis 30 Tage danach,
+ * Regel in `src/lib/retry.ts`) startet ein Tipp „Wann könnt ihr?“ für dieselbe Crew, mit Ort und Plan-Name im Titel.
+ */
+export function RetryCard({ plan, placeName }: { plan: PlanWithParticipants; placeName: string | null }) {
+  return (
+    <PanelCard
+      id="neuer-anlauf"
+      testId="plan-retry"
+      tone="amber"
+      icon={<IconRepeat />}
+      title={t.plans.detail.retry.title}
+      lead={plan.activity_id && placeName ? t.plans.detail.retry.leadPlace(placeName) : t.plans.detail.retry.lead}
+      className="mt-4"
+    >
+      <ButtonLink to={retryLink(plan)} size="lg" className="w-full sm:w-auto" icon={<IconCalendar className="size-5" aria-hidden />}>
+        {t.plans.detail.retry.findDate}
       </ButtonLink>
     </PanelCard>
   );
