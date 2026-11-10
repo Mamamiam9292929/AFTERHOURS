@@ -35,6 +35,7 @@ import { useCreateDatePoll, useCreatePoll, useCreateWherePoll, usePoll, type Pol
 import { MAX_POLL_OPTIONS, usePollDraft } from "./draft";
 import { dateOptionLabel, upcomingDateWinner } from "./logic";
 import { awayLine } from "./OptionAway";
+import { retryTitle } from "@/lib/retry";
 
 interface OptionRow {
   key: string;
@@ -127,6 +128,7 @@ export function PollCreatePage() {
   const fixedPlace = kind === "date" && placeId ? (pickedPlace?.id === placeId ? pickedPlace : (placeQuery.data ?? null)) : null;
   const placeMissing = kind === "date" && Boolean(placeId) && !fixedPlace && (placeQuery.isError || (placeQuery.isSuccess && !placeQuery.data));
   const [birthday] = useState(() => (kind === "date" ? linkedBirthday(params.get("birthday"), params.get("for")) : null));
+  const [retryFor] = useState(() => (kind === "date" ? retryTitle(params.get("again")) : null));
   const [slots, setSlots] = useState<SlotRow[]>(() => {
     const around = birthday ? birthdaySlots(birthday.date, today()) : [];
     return around.length >= MIN_DATE_SLOTS ? around.map((date) => ({ key: newKey(), date, time: "19:00" })) : defaultSlots();
@@ -188,11 +190,16 @@ export function PollCreatePage() {
     return at ? t.polls.create.defaultTitle(t.weekdays[zonedParts(at).weekday]) : t.polls.create.pollTitlePlaceholder;
   }, [sharedDate]);
   const birthdayTitle = birthday ? t.polls.create.dates.birthdayTitle(birthday.name) : null;
-  const dateTitle = fixedPlace
-    ? placeTitle(fixedPlace.name)
-    : birthdayTitle && birthdayTitle.length <= 80
-      ? birthdayTitle
-      : t.polls.create.dates.defaultTitle;
+  // P32: „Neuer Anlauf?“ – der Name des abgesagten Plans steht im Titel („Hütte – wann klappt’s?“).
+  const againTitle = retryFor ? t.polls.create.dates.retryTitle(retryFor) : null;
+  const dateTitle =
+    againTitle && againTitle.length <= 80
+      ? againTitle
+      : fixedPlace
+        ? placeTitle(fixedPlace.name)
+        : birthdayTitle && birthdayTitle.length <= 80
+          ? birthdayTitle
+          : t.polls.create.dates.defaultTitle;
   useEffect(() => {
     if (!titleTouched.current) setTitle(kind === "date" ? dateTitle : suggestedTitle);
   }, [suggestedTitle, kind, dateTitle]);

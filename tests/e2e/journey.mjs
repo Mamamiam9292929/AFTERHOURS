@@ -3993,6 +3993,32 @@ await step("Plan direkt anlegen: Vorschlag → bestätigt → abgesagt (Carol)",
   // „Abgesagt“ steht auch als Gruppe in der Teilnehmerliste – auf den neuen Planstatus warten, nicht nur auf das Wort.
   await page.getByRole("button", { name: "Plan bearbeiten" }).waitFor({ state: "detached", timeout: 10_000 }).catch(() => {});
   check((await page.getByRole("button", { name: "Plan bearbeiten" }).count()) === 0, "abgesagter Plan lässt sich nicht mehr bearbeiten");
+  // P32: „Neuer Anlauf?“ – auf dem abgesagten Plan ein Tipp zur Terminsuche, mit Ort und Plan-Name im Titel.
+  {
+    const cancelledUrl = page.url();
+    const retry = page.getByTestId("plan-retry");
+    await retry.waitFor();
+    check((await retry.innerText()).includes("Abgesagt heißt nicht abgeblasen") && (await retry.innerText()).includes("Schwarzlicht Minigolf 18"), "P32: „Neuer Anlauf?“ mit Ort auf dem abgesagten Plan");
+    await retry.scrollIntoViewIfNeeded();
+    await shot(carol, "31a-neuer-anlauf");
+    const link = retry.getByRole("link", { name: "Neuen Termin finden" });
+    const href = new URL((await link.getAttribute("href")) ?? "", APP);
+    check(href.pathname === "/polls/new" && href.searchParams.get("kind") === "date" && Boolean(href.searchParams.get("place")) && href.searchParams.get("again") === "Schwarzlicht Minigolf 18", "P32: Link mit Crew, Termin-Abstimmung, Ort und Plan-Name");
+    await link.click();
+    await page.waitForURL(/\/polls\/new\?/);
+    const titleField = page.getByLabel("Frage an die Crew");
+    await titleField.waitFor();
+    await page.waitForFunction((want) => [...document.querySelectorAll("input")].some((i) => i.value === want), "Schwarzlicht Minigolf 18 – wann klappt’s?", { timeout: 10_000 }).catch(() => {});
+    check((await titleField.inputValue()) === "Schwarzlicht Minigolf 18 – wann klappt’s?", "P32: Terminsuche trägt den Namen des abgesagten Plans im Titel");
+    await noOverflow(carol, "Neuer Anlauf – Terminsuche");
+    await shot(carol, "31b-neuer-anlauf-terminsuche");
+    // Auf dem Handy (390 px, axe läuft am Screenshot): Bob sieht die Karte ebenso.
+    await bob.page.goto(cancelledUrl);
+    await bob.page.getByTestId("plan-retry").waitFor();
+    await noOverflow(bob, "Neuer Anlauf (390 px)");
+    await bob.page.getByTestId("plan-retry").scrollIntoViewIfNeeded();
+    await shot(bob, "31c-neuer-anlauf-handy");
+  }
   await alice.page.goto(`${APP}/notifications`);
   await alice.page.getByText("Carol hat einen Plan abgesagt").waitFor();
   check(true, "Absage benachrichtigt die Crew");
