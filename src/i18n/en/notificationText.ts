@@ -68,7 +68,7 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     const status: Record<string, string> = { confirmed: "Booking confirmed", unavailable: "Booking not possible: nothing available", failed: "Booking failed", cancelled_by_user: "Booking cancelled" };
     return { title: status[str(p, "status")] ?? "Booking status changed", body: serverTitle(p) };
   },
-  ride_request: (actor, p) => ({ title: `${actor} would like a ride with you`, body: serverTitle(p) }),
+  ride_request: (actor, p) => ({ title: p.cancelled ? `${actor} won't ride with you after all` : `${actor} would like a ride with you`, body: serverTitle(p) }),
   ride_confirmed: (actor, p) => ({ title: p.accepted ? `${actor} will give you a ride` : `${actor} can't give you a ride`, body: serverTitle(p) }),
   plan_expense: (actor, p) => ({
     title: p.you_paid ? `${actor} noted that you paid for “${str(p, "description")}”` : `${actor} added “${str(p, "description")}”`,

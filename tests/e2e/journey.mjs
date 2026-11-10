@@ -1916,6 +1916,13 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   await dialog(alice).getByLabel("Freie Plätze").fill("2");
   await dialog(alice).getByRole("button", { name: "Angebot speichern" }).click();
   await page.getByText("ab Bahnhof Ostkreuz").waitFor();
+  // P36: Wer zugesagt hat und noch keinen Platz im Auto hat, sehen alle – die Fahrerin steht nicht drin.
+  {
+    const without = page.getByTestId("ride-without");
+    await without.waitFor();
+    check((await without.getByText("Bob", { exact: true }).count()) === 1, "P36: Bob steht bei „Noch ohne Platz im Auto“");
+    check((await without.getByText("du", { exact: true }).count()) === 0, "P36: die Fahrerin selbst steht nicht bei „Noch ohne Platz“");
+  }
   await bob.page.reload();
   await bob.page.getByRole("button", { name: "Mitfahrt anfragen" }).click();
   await bob.page.getByText("Deine Anfrage: Angefragt").waitFor();
@@ -1928,9 +1935,14 @@ await step("Schritt 10 – Durchführung vorbereiten: Kosten, Reservierung, Fahr
   check((await page.getByTestId("ride-seats").getAttribute("data-tone")) === "lime", "V2: freie Plätze als Lime-Pille");
   await page.locator("#fahrten").scrollIntoViewIfNeeded();
   await shot(alice, "17a-fahrten");
+  check(!(await page.getByTestId("ride-without").getByText("Bob", { exact: true }).isVisible().catch(() => false)), "P36: Bob hat jetzt einen Platz – nicht mehr „ohne Platz“");
   await bob.page.reload();
   await bob.page.getByText("Deine Anfrage: Bestätigt").waitFor();
   check(true, "Mitfahrt: Anfrage und Bestätigung durch die Fahrerin");
+  // P36: Wer mitfährt, sehen alle am Auto – Bob sieht sich selbst als „du“.
+  check((await bob.page.getByTestId("ride-passengers").getAttribute("aria-label")) === "Fährt mit: du", "P36: Mitfahrende am Auto sichtbar („Fährt mit: du“)");
+  await bob.page.locator("#fahrten").scrollIntoViewIfNeeded();
+  await shot(bob, "17b-fahrten-mitfahrer");
   await bob.page.goto(`${APP}/notifications`);
   await bob.page.getByText("Reservierung bestätigt").waitFor();
   await bob.page.getByText("Alice nimmt dich mit").waitFor();

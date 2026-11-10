@@ -210,6 +210,7 @@ export const errors = {
     settlement_changed: "Inzwischen hat sich bei den Beträgen etwas geändert. Schau dir die neue Summe an und tippe noch einmal.",
     invalid_expense_share: "Jeder Anteil muss mindestens 0,01 € sein und darf den Betrag nicht übersteigen.",
     expense_shares_mismatch: "Die Anteile ergeben nicht genau den Betrag. Prüf die Beträge je Person.",
+    ride_after_decline: "Du hast für diesen Abend abgesagt – sag erst zu oder „Vielleicht“, dann klappt’s mit der Fahrt.",
     ride_not_available: "Diese Fahrt ist nicht mehr verfügbar.",
     no_seats_left: "So viele Plätze sind nicht mehr frei.",
     invalid_report: "Bitte beschreibe kurz, was nicht stimmt (mindestens 5 Zeichen).",

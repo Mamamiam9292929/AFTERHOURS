@@ -134,6 +134,8 @@ select tests.set_var('req_bob', public.request_ride(tests.var('offer')::uuid)::t
 select throws_ok($$ select public.respond_ride_request(tests.var('req_bob')::uuid, true) $$, '42501', 'forbidden', 'Mitfahrende können sich nicht selbst bestätigen');
 select throws_ok($$ update public.ride_requests set status = 'accepted' $$, '42501', null, 'auch nicht an der RPC vorbei');
 select tests.login('carol');
+select throws_ok($$ select public.request_ride(tests.var('offer')::uuid) $$, 'P0001', 'ride_after_decline', 'wer abgesagt hat, fragt keine Fahrt an (P36)');
+select public.set_attendance(tests.var('plan')::uuid, 'maybe');
 select tests.set_var('req_carol', public.request_ride(tests.var('offer')::uuid)::text);
 select tests.login('mallory');
 select is((select count(*)::int from public.ride_offers) + (select count(*)::int from public.ride_requests), 0, 'Außenstehende sehen weder Angebote noch Anfragen');
@@ -141,6 +143,8 @@ select tests.login('alice');
 select lives_ok($$ select public.respond_ride_request(tests.var('req_bob')::uuid, true) $$, 'Fahrerin bestätigt Bob');
 select throws_ok($$ select public.respond_ride_request(tests.var('req_carol')::uuid, true) $$, 'P0001', 'no_seats_left', 'mehr Zusagen als freie Plätze sind nicht möglich');
 select lives_ok($$ select public.respond_ride_request(tests.var('req_carol')::uuid, false) $$, 'Fahrerin lehnt Carol ab');
+select tests.login('carol');
+select public.set_attendance(tests.var('plan')::uuid, 'declined'); -- Carol bleibt für den Rest abgesagt
 select tests.logout();
 select is((select count(*)::int from public.notifications where type = 'ride_request' and user_id = tests.uid('alice')), 2, 'die Fahrerin erfährt von Anfragen');
 select is((select (payload ->> 'accepted')::boolean from public.notifications where type = 'ride_confirmed' and user_id = tests.uid('bob')), true, 'Bob erfährt von der Zusage');
