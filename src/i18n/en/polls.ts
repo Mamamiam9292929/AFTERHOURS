@@ -423,6 +423,10 @@ export const polls = {
     yes: "I'm in",
     maybe: "Maybe",
     no: "Probably not",
+    all: (n: number, date: boolean, rest: boolean) =>
+      date ? (rest ? `I can make the other ${n} dates` : `I can make all ${n} dates`) : rest ? `I'm in for the other ${n}` : `I'm in for all ${n}`,
+    allHint: "Happy with anything – answers you've already given stay.",
+    allDone: (n: number) => (n === 1 ? "You're in for 1 option" : `You're in for ${n} options`),
     card: (title: string, when: string) => `${title}, ${when}`,
     going: (n: number) => `${n} in`,
     done: "All swiped – your answers are below and can be changed any time.",

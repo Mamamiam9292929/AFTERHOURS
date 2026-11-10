@@ -27,6 +27,7 @@ import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { nextRound } from "@/lib/pollrepeat";
+import { voteAllTargets } from "@/lib/quickvote";
 import { addDays, formatAgo, formatDateTime, formatPlainDate, formatPlainTime, formatRelative, today, zonedToUtc } from "@/lib/time";
 import type { PollGuest, PollOption, VoteResponse } from "@/lib/types";
 import type { PollOptionWeather } from "@/lib/weather";
@@ -47,6 +48,7 @@ import {
   usePollWeather,
   useStartRunoff,
   useVote,
+  useVoteAll,
 } from "./api";
 import { OptionWeather, PollWeatherFooter } from "./PollWeather";
 import { ParticipationBar } from "./PollCard";
@@ -618,6 +620,7 @@ export function PollDetailPage() {
   const plans = usePlans();
   const allPolls = usePolls();
   const vote = useVote(pollId ?? "");
+  const voteAll = useVoteAll(pollId ?? "");
   const close = useClosePoll();
   const remind = useRemindPoll();
   const [confirmClose, setConfirmClose] = useState(false);
@@ -699,6 +702,12 @@ export function PollDetailPage() {
 
   function castVote(optionId: string, response: VoteResponse | null) {
     vote.mutate({ optionId, response }, { onError: (error) => toast.error(error) });
+  }
+
+  // P34: „Bin bei allem dabei“ – „dabei“ bei allen Vorschlägen ohne eigene Antwort.
+  const allTargets = voteAllTargets(summary.tallies.map((tally) => ({ id: tally.option.id, mine: tally.mine })));
+  function castVoteAll() {
+    voteAll.mutate(undefined, { onSuccess: (n) => toast.success(t.polls.swipe.allDone(n)), onError: (error) => toast.error(error) });
   }
 
   return (
@@ -829,7 +838,14 @@ export function PollDetailPage() {
           {/* S5 Etappe 2: Entscheidet sich die Abstimmung jetzt, springt die Seite zum Plan bzw. zur Stichwahl. */}
           <DecidedMoment key={poll.id} open={!summary.isOver} auto={poll.auto_decide && (!closed || poll.closed_by == null)} plan={plan} runoffId={runoff?.id} />
           {!summary.isOver && (
-            <SwipeDeck tallies={summary.tallies} onVote={(optionId, response) => castVote(optionId, response)} when={(tally) => optionWhen(tally.option)} extra={(tally) => busyOf(tally.option, "deck")} memberCount={memberIds.length} />
+            <SwipeDeck
+              tallies={summary.tallies}
+              onVote={(optionId, response) => castVote(optionId, response)}
+              when={(tally) => optionWhen(tally.option)}
+              extra={(tally) => busyOf(tally.option, "deck")}
+              memberCount={memberIds.length}
+              all={allTargets.show ? { label: t.polls.swipe.all(allTargets.targets.length, poll.kind === "date", allTargets.rest), onAll: castVoteAll, busy: voteAll.isPending } : undefined}
+            />
           )}
 
           <ul className="space-y-3">

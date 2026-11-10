@@ -20,6 +20,19 @@ export function pendingOptions<T extends QuickOption>(options: T[], answered: Re
   return options.filter((option) => option.mine === null && !answered.has(option.id) && !skipped.has(option.id));
 }
 
+/** P34: Ab so vielen offenen Vorschlägen lohnt „Bin bei allem dabei“ – bei einem reicht der normale Knopf. */
+export const VOTE_ALL_MIN = 2;
+
+/**
+ * P34 · „Bin bei allem dabei“: Welche Vorschläge bekommen ein „dabei“? Alle ohne gespeicherte Antwort, die auch
+ * in dieser Sitzung noch nicht beantwortet wurden – übersprungene zählen mit (der Server setzt sie ebenfalls).
+ * `rest` = du hast schon irgendwo geantwortet, dann heißt der Knopf „Bei den übrigen 2 dabei“.
+ */
+export function voteAllTargets<T extends QuickOption>(options: T[], answered: ReadonlySet<string> = new Set()): { targets: T[]; rest: boolean; show: boolean } {
+  const targets = options.filter((option) => option.mine === null && !answered.has(option.id));
+  return { targets, rest: targets.length < options.length, show: targets.length >= VOTE_ALL_MIN };
+}
+
 /**
  * Gehört eine laufende Abstimmung unter „Deine Antwort fehlt“? Ja, solange du noch gar nicht abgestimmt hast –
  * und auch danach, wenn du in dieser Sitzung auf Home angefangen hast (`touched`). So verschwindet die

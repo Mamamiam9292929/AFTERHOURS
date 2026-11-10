@@ -226,6 +226,42 @@ export function useVote(pollId: string) {
   });
 }
 
+/**
+ * P34 · „Bin bei allem dabei“: „dabei“ bei allen Vorschlägen ohne eigene Antwort, mit einem Tipp und sofortiger
+ * Anzeige. Schon gegebene Antworten bleiben (der Server fasst sie nicht an). Liefert die Zahl der neuen Stimmen.
+ */
+export function useVoteAll(pollId: string) {
+  const client = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("cast_vote_all", { p_poll_id: pollId });
+      if (error) throw error;
+      return (data as number | null) ?? 0;
+    },
+    onMutate: async () => {
+      await client.cancelQueries({ queryKey: qk.poll(pollId) });
+      const previous = client.getQueryData<PollWithDetails | null>(qk.poll(pollId));
+      if (previous && user) {
+        const answered = new Set(previous.votes.filter((v) => v.user_id === user.id).map((v) => v.poll_option_id));
+        const added: PollVote[] = previous.options
+          .filter((option) => !answered.has(option.id))
+          .map((option) => ({ id: `optimistic-${option.id}`, poll_id: pollId, poll_option_id: option.id, user_id: user.id, response: "yes" as const, updated_at: new Date().toISOString() }));
+        client.setQueryData<PollWithDetails | null>(qk.poll(pollId), (old) => (old ? { ...old, votes: [...old.votes, ...added] } : old));
+      }
+      return { previous };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous !== undefined) client.setQueryData(qk.poll(pollId), context.previous);
+    },
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: qk.poll(pollId) });
+      void client.invalidateQueries({ queryKey: qk.polls, exact: true });
+      void client.invalidateQueries({ queryKey: qk.plans });
+    },
+  });
+}
+
 function usePollAction<TInput, TResult>(fn: (input: TInput) => Promise<TResult>) {
   const client = useQueryClient();
   return useMutation({

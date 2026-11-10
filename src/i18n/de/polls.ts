@@ -447,6 +447,11 @@ export const polls = {
     yes: "Bin dabei",
     maybe: "Vielleicht",
     no: "Eher nicht",
+    /** P34 · „Bin bei allem dabei“: ein Tipp, „dabei“ bei allen Vorschlägen ohne eigene Antwort. */
+    all: (n: number, date: boolean, rest: boolean) =>
+      date ? (rest ? `Kann an den übrigen ${n} Terminen` : `Kann an allen ${n} Terminen`) : rest ? `Bei den übrigen ${n} dabei` : `Bin bei allen ${n} dabei`,
+    allHint: "Mir egal, ich komm mit – Antworten, die du schon gegeben hast, bleiben.",
+    allDone: (n: number) => (n === 1 ? "Bei 1 Vorschlag dabei" : `Bei ${n} Vorschlägen dabei`),
     card: (title: string, when: string) => `${title}, ${when}`,
     going: (n: number) => (n === 1 ? "1 ist dabei" : `${n} sind dabei`),
     done: "Alles gewischt – deine Antworten stehen unten und lassen sich jederzeit ändern.",
