@@ -6083,6 +6083,54 @@ await step("P34 – „Bin bei allem dabei“: ein Tipp, dabei bei allen offenen
   }
 });
 
+await step("P34 Etappe 2 – „Bin bei allem dabei“ für Gäste auf dem Abstimm-Link (Gast, 390 px)", async () => {
+  const created = await api(bob, "POST", "rpc/create_poll", {
+    p_crew_id: ids.crew, p_title: `Egal für Gäste ${RUN}`, p_ends_at: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+    p_options: [{ title: "Bowling" }, { title: "Kino" }, { title: "Pizza" }],
+    p_description: null, p_meeting_point: null, p_budget_cents: null, p_min_participants: null,
+  });
+  if (created.status >= 300) throw new Error(`Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+  const pollId = created.json;
+  const guest = await newUser("Gast", "mobile");
+  const guestVotes = () =>
+    Object.fromEntries(
+      execFileSync("psql", [DB_URL, "-Atqc", `select o.title || '=' || v.response from public.poll_guest_votes v join public.poll_options o on o.id = v.poll_option_id
+        where v.poll_id = '${pollId}'`]).toString().trim().split("\n").filter(Boolean).map((line) => line.split("=")),
+    );
+  try {
+    check((await api(bob, "POST", "rpc/set_poll_guests", { p_poll_id: pollId, p_allowed: true })).status < 300, "Bob lässt Gäste mitstimmen");
+    const pollToken = (await api(bob, "POST", "rpc/poll_share_token", { p_poll_id: pollId })).json;
+    await guest.page.goto(`${APP}/v/${pollToken}`);
+    await guest.page.getByRole("heading", { level: 1, name: "Stimm mit ab" }).waitFor();
+    const all = guest.page.getByTestId("vote-all");
+    await all.getByRole("button", { name: "Bin bei allen 3 dabei" }).waitFor();
+    check(true, "P34 Etappe 2: Gast sieht „Bin bei allen 3 dabei“");
+    // Erst „nein“ bei Bowling, dann Name und abstimmen – der Knopf zählt nur noch die übrigen.
+    await answer(guest, "Bowling", "Bin nicht dabei").click();
+    await all.getByRole("button", { name: "Bei den übrigen 2 dabei" }).waitFor();
+    await noOverflow(guest, "Gast-Stimmzettel – bei allem dabei");
+    await a11y(guest, "gast-bei-allem-dabei");
+    await shot(guest, "72d-gast-bei-allem-dabei");
+    await guest.page.getByLabel("Dein Name").fill("Mila");
+    await guest.page.getByRole("button", { name: "Abstimmen" }).click();
+    await guest.page.getByRole("heading", { level: 1, name: "Deine Stimme ist drin, Mila" }).waitFor();
+    check(JSON.stringify(guestVotes()) === JSON.stringify({ Bowling: "no" }), `P34 Etappe 2: erst nur „nein“ bei Bowling gespeichert (${JSON.stringify(guestVotes())})`);
+    // Jetzt mit Namen auf dem Gerät: ein Tipp speichert sofort.
+    const saved = guest.page.waitForResponse((r) => r.url().includes("/rpc/guest_vote_shared_poll") && r.request().method() === "POST");
+    await all.getByRole("button", { name: "Bei den übrigen 2 dabei" }).click();
+    check((await saved).ok(), "P34 Etappe 2: „Bei den übrigen 2 dabei“ mit einem Tipp gespeichert");
+    await guest.page.getByTestId("vote-all").waitFor({ state: "detached" });
+    const v = guestVotes();
+    check(v.Bowling === "no" && v.Kino === "yes" && v.Pizza === "yes", `P34 Etappe 2: Bowling bleibt „nein“, Kino und Pizza „dabei“ (${JSON.stringify(v)})`);
+    await guest.page.locator('.vote-card[data-answer="yes"]').filter({ hasText: "Pizza" }).waitFor();
+    check(true, "P34 Etappe 2: die Vorschläge tragen die Antwort als Farbe");
+  } finally {
+    users.splice(users.indexOf(guest), 1);
+    await guest.context.close();
+    execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;

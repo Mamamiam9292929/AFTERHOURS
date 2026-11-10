@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { IconVote } from "@/components/icons";
+import { IconCheck, IconVote } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { ErrorState, PageSpinner } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
@@ -11,6 +11,7 @@ import { clearNext, rememberNext } from "@/features/auth/next";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
+import { voteAllTargets } from "@/lib/quickvote";
 import { errorMessage } from "@/lib/errors";
 import { formatDateTime, formatPlainDate, formatPlainTime, formatRelative } from "@/lib/time";
 import type { VoteResponse } from "@/lib/types";
@@ -298,6 +299,33 @@ function GuestBallot({ token, data, signedIn, fallback }: { token: string; data:
     );
   }
 
+  // P34 Etappe 2: „Bin bei allem dabei“ auch für Gäste – mit Namen geht es gleich raus, sonst nur vorgemerkt.
+  const all = voteAllTargets(loaded.options.map((option) => ({ id: String(option.key), mine: answers[String(option.key)] ?? null })));
+  function answerAll() {
+    const keys = all.targets.map((option) => option.id);
+    const yes = Object.fromEntries(keys.map((key) => [key, "yes" as const]));
+    setAnswers((prev) => ({ ...prev, ...yes }));
+    setErrors((prev) => ({ ...prev, answers: null }));
+    setSaved(false);
+    if (!oneTap || !knownName) return;
+    const guestName = knownName;
+    queue.current = queue.current.then(() =>
+      vote
+        .mutateAsync({ name: guestName, votes: yes })
+        .then(() => {
+          setSaved(true);
+          rememberGuestName(guestName);
+        })
+        .catch(() =>
+          setAnswers((prev) => {
+            const next = { ...prev };
+            for (const key of keys) next[key] = null;
+            return next;
+          }),
+        ),
+    );
+  }
+
   return (
     <AuthLayout
       hero={<SharedPollTicket data={data} />}
@@ -312,6 +340,20 @@ function GuestBallot({ token, data, signedIn, fallback }: { token: string; data:
       <form onSubmit={submit} noValidate className="space-y-5">
         <fieldset className="space-y-3" aria-describedby={errors.answers ? "ballot-answers-error" : undefined}>
           <legend className="mb-3 text-[15px] font-bold text-fg">{isDate ? t.polls.shared.ballot.dates.options : t.polls.shared.ballot.options}</legend>
+          {open && all.show && (
+            <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="vote-all">
+              <button
+                type="button"
+                onClick={answerAll}
+                disabled={vote.isPending}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.08] px-4 text-[15px] font-semibold text-lime transition-transform hover:bg-lime/10 active:scale-90 disabled:opacity-60"
+              >
+                <IconCheck className="size-4" aria-hidden />
+                {t.polls.swipe.all(all.targets.length, isDate, all.rest)}
+              </button>
+              <p className="max-w-xs text-[13px] leading-snug text-faint">{t.polls.swipe.allHint}</p>
+            </div>
+          )}
           {loaded.options.map((option) => {
             const key = String(option.key);
             const mine = answers[key] ?? null;
