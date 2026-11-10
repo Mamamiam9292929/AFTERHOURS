@@ -571,7 +571,7 @@ export function CrewDetailPage() {
                 onClick={openMute}
                 title={t.crews.detail.muted.open}
                 data-testid="crew-pass-muted"
-                className="inline-flex h-9 items-center gap-2 rounded-full border border-amber/40 bg-amber/10 px-3.5 text-[14px] font-semibold text-fg transition-colors hover:border-amber/70"
+                className="inline-flex h-9 items-center gap-2 rounded-full border border-amber/40 bg-amber/10 px-3.5 text-[14px] font-semibold text-fg"
               >
                 <IconBellOff className="size-4 text-amber" aria-hidden />
                 {mute.kind === "until"
@@ -611,7 +611,7 @@ export function CrewDetailPage() {
           { value: "settings", label: t.crews.detail.tabs.settings },
         ]}
       />
-      <div ref={panelRef} className="mt-6 scroll-mt-4" role="tabpanel">
+      <div ref={panelRef} className="mt-6" role="tabpanel">
         {tab === "overview" && <Overview crew={crew} onInvite={() => setInviteOpen(true)} canInvite={manage} />}
         {tab === "chat" && <Chat crew={crew} role={role} />}
         {tab === "members" && <Members crew={crew} role={role} />}
