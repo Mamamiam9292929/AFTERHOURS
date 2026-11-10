@@ -6,12 +6,15 @@ import { Dialog } from "@/components/ui/Dialog";
 import { ErrorState, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatDateTime, fromLocalInputValue, toLocalInputValue } from "@/lib/time";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 import { useCancelRideOffer, useCancelRideRequest, useOfferRide, useRequestRide, useRespondRide, useRides, type PlanWithParticipants } from "./api";
+
+/** F10 · Texte der Planseiten-Karten kommen erst mit der Planseite. */
+await loadTexts("planCards");
 
 interface RidesPanelProps {
   plan: PlanWithParticipants;
@@ -57,7 +60,7 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
       {
         onSuccess: () => {
           setOpen(false);
-          toast.success(t.plans.rides.offered);
+          toast.success(t.planCards.rides.offered);
         },
         onError: (error) => setFormError(errorMessage(error)),
       },
@@ -79,7 +82,7 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
   return (
     <div className="space-y-3">
       {offers.length === 0 ? (
-        <p className="text-[15px] text-muted">{t.plans.rides.none}</p>
+        <p className="text-[15px] text-muted">{t.planCards.rides.none}</p>
       ) : (
         <ul className="space-y-3">
           {offers.map((o) => {
@@ -96,11 +99,11 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                   <Avatar person={driver} size="md" decorative />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-fg">
-                      {isMine ? t.plans.rides.yourOffer : (driver?.display_name ?? t.states.formerMember)} <span className="font-normal text-muted">{t.plans.rides.from(o.departure_area)}</span>
+                      {isMine ? t.planCards.rides.yourOffer : (driver?.display_name ?? t.states.formerMember)} <span className="font-normal text-muted">{t.planCards.rides.from(o.departure_area)}</span>
                     </p>
                     <p className="mt-0.5 text-sm text-muted">
                       {formatDateTime(o.departure_time)}
-                      {o.return_trip && `, ${t.plans.rides.withReturn}`}
+                      {o.return_trip && `, ${t.planCards.rides.withReturn}`}
                     </p>
                     {o.note && <p className="mt-1 text-sm text-fg">{o.note}</p>}
                     {/* V2 Etappe 3g: die Plätze als Punkte – gefüllt, wer schon mitfährt, als Ring, was frei ist. */}
@@ -111,15 +114,15 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                     </p>
                   </div>
                   <StatusPill tone={free > 0 ? "lime" : "glass"} testId="ride-seats">
-                    {t.plans.rides.seatsFree(free)}
+                    {t.planCards.rides.seatsFree(free)}
                   </StatusPill>
                 </div>
 
                 {isMine ? (
                   <div className="mt-3 border-t border-white/10 pt-3">
-                    <p className="mb-2 text-[13px] font-semibold text-muted">{t.plans.rides.requests}</p>
+                    <p className="mb-2 text-[13px] font-semibold text-muted">{t.planCards.rides.requests}</p>
                     {pending.length + accepted.length === 0 ? (
-                      <p className="text-sm text-muted">{t.plans.rides.noRequests}</p>
+                      <p className="text-sm text-muted">{t.planCards.rides.noRequests}</p>
                     ) : (
                       <ul className="space-y-2">
                         {[...accepted, ...pending].map((r) => (
@@ -133,10 +136,10 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                             ) : (
                               <span className="flex gap-2">
                                 <Button size="sm" disabled={locked || free < r.seats_requested} onClick={() => respond.mutate({ requestId: r.id, accept: true }, { onError: failed })}>
-                                  {t.plans.rides.accept}
+                                  {t.planCards.rides.accept}
                                 </Button>
                                 <Button size="sm" variant="ghost" disabled={locked} onClick={() => respond.mutate({ requestId: r.id, accept: false }, { onError: failed })}>
-                                  {t.plans.rides.decline}
+                                  {t.planCards.rides.decline}
                                 </Button>
                               </span>
                             )}
@@ -147,10 +150,10 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                     {!locked && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button size="sm" variant="secondary" onClick={openForm}>
-                          {t.plans.rides.editOffer}
+                          {t.planCards.rides.editOffer}
                         </Button>
                         <Button size="sm" variant="ghost" loading={cancelOffer.isPending} onClick={() => cancelOffer.mutate(o.id, { onError: failed })}>
-                          {t.plans.rides.withdrawOffer}
+                          {t.planCards.rides.withdrawOffer}
                         </Button>
                       </div>
                     )}
@@ -160,16 +163,16 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {myRequest && myRequest.status !== "declined" ? (
                         <>
-                          <span className="text-sm text-muted">{t.plans.rides.myStatus(t.enums.rideRequestStatus[myRequest.status])}</span>
+                          <span className="text-sm text-muted">{t.planCards.rides.myStatus(t.enums.rideRequestStatus[myRequest.status])}</span>
                           <Button size="sm" variant="ghost" loading={cancelRequest.isPending} onClick={() => cancelRequest.mutate(myRequest.id, { onError: failed })}>
-                            {t.plans.rides.withdraw}
+                            {t.planCards.rides.withdraw}
                           </Button>
                         </>
                       ) : (
                         <>
-                          {myRequest?.status === "declined" && <span className="text-sm text-muted">{t.plans.rides.myStatus(t.enums.rideRequestStatus.declined)}</span>}
-                          <Button size="sm" variant="secondary" disabled={free === 0} loading={request.isPending} onClick={() => request.mutate(o.id, { onSuccess: () => toast.success(t.plans.rides.requested), onError: failed })}>
-                            {t.plans.rides.request}
+                          {myRequest?.status === "declined" && <span className="text-sm text-muted">{t.planCards.rides.myStatus(t.enums.rideRequestStatus.declined)}</span>}
+                          <Button size="sm" variant="secondary" disabled={free === 0} loading={request.isPending} onClick={() => request.mutate(o.id, { onSuccess: () => toast.success(t.planCards.rides.requested), onError: failed })}>
+                            {t.planCards.rides.request}
                           </Button>
                         </>
                       )}
@@ -184,26 +187,26 @@ export function RidesPanel({ plan, userId, locked, lookup }: RidesPanelProps) {
 
       {!locked && !mine && (
         <Button variant="secondary" onClick={openForm} icon={<IconCar className="size-4" aria-hidden />}>
-          {t.plans.rides.offer}
+          {t.planCards.rides.offer}
         </Button>
       )}
-      <p className="text-[13px] leading-snug text-faint">{t.plans.rides.safety}</p>
+      <p className="text-[13px] leading-snug text-faint">{t.planCards.rides.safety}</p>
 
-      <Dialog open={open} onClose={() => setOpen(false)} title={t.plans.rides.offerTitle} description={t.plans.rides.offerBody} size="sm">
+      <Dialog open={open} onClose={() => setOpen(false)} title={t.planCards.rides.offerTitle} description={t.planCards.rides.offerBody} size="sm">
         <form onSubmit={submit} noValidate className="space-y-4">
-          <TextField label={t.plans.rides.area} name="departure_area" value={area} onChange={(e) => setArea(e.target.value)} placeholder={t.plans.rides.areaPlaceholder} hint={t.plans.rides.areaHint} maxLength={120} required />
+          <TextField label={t.planCards.rides.area} name="departure_area" value={area} onChange={(e) => setArea(e.target.value)} placeholder={t.planCards.rides.areaPlaceholder} hint={t.planCards.rides.areaHint} maxLength={120} required />
           <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-3">
-            <TextField label={t.plans.rides.departure} name="departure_time" type="datetime-local" value={departure} onChange={(e) => setDeparture(e.target.value)} required />
-            <TextField label={t.plans.rides.seats} name="seats" type="number" inputMode="numeric" min={1} max={8} value={seats} onChange={(e) => setSeats(e.target.value)} required />
+            <TextField label={t.planCards.rides.departure} name="departure_time" type="datetime-local" value={departure} onChange={(e) => setDeparture(e.target.value)} required />
+            <TextField label={t.planCards.rides.seats} name="seats" type="number" inputMode="numeric" min={1} max={8} value={seats} onChange={(e) => setSeats(e.target.value)} required />
           </div>
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
             <input type="checkbox" checked={returnTrip} onChange={(e) => setReturnTrip(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-lime)]" />
-            {t.plans.rides.returnTrip}
+            {t.planCards.rides.returnTrip}
           </label>
-          <TextField label={t.plans.rides.note} name="ride_note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.plans.rides.notePlaceholder} maxLength={300} optional />
+          <TextField label={t.planCards.rides.note} name="ride_note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.planCards.rides.notePlaceholder} maxLength={300} optional />
           {formError && <FormMessage>{formError}</FormMessage>}
           <Button type="submit" block loading={offer.isPending}>
-            {t.plans.rides.submitOffer}
+            {t.planCards.rides.submitOffer}
           </Button>
         </form>
       </Dialog>

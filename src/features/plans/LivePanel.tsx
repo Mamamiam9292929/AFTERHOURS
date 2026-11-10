@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { ErrorState, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatNumber } from "@/lib/format";
@@ -30,6 +30,9 @@ import type { PlanWithParticipants } from "./api";
 import { LiveMap, type LiveMapPerson } from "./LiveMap";
 import { usePlanLiveLocations, useSetLiveArrival, useShareLiveLocation, useStopLiveLocation } from "./liveApi";
 
+/** F10 · Texte der Planseiten-Karten kommen erst mit der Planseite. */
+await loadTexts("planCards");
+
 interface LivePanelProps {
   plan: PlanWithParticipants;
   userId: string;
@@ -47,8 +50,8 @@ const FINAL_CODES = ["live_location_outside_window", "live_location_not_going", 
 
 function distanceLabel(meters: number): string {
   const d = roundDistance(meters);
-  if (d.kind === "near") return t.plans.live.near;
-  return d.kind === "m" ? t.plans.live.meters(d.value) : t.plans.live.km(formatNumber(d.value));
+  if (d.kind === "near") return t.planCards.live.near;
+  return d.kind === "m" ? t.planCards.live.meters(d.value) : t.planCards.live.km(formatNumber(d.value));
 }
 
 /**
@@ -95,7 +98,7 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
   useEffect(() => {
     if ((expired || !open) && watchId.current != null) {
       clearWatch();
-      if (expired) toast.success(t.plans.live.expired);
+      if (expired) toast.success(t.planCards.live.expired);
     }
     // clearWatch hängt nur an Refs und State-Settern; toast ist der Kontext-Wert.
   }, [expired, open]);
@@ -109,7 +112,7 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
       {
         onSuccess: (until) => {
           setProblem(null);
-          if (first) toast.success(t.plans.live.started(formatTime(until)));
+          if (first) toast.success(t.planCards.live.started(formatTime(until)));
         },
         onError: (error) => {
           const code = (error as { message?: string }).message ?? "";
@@ -127,7 +130,7 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
   function start() {
     setProblem(null);
     if (!("geolocation" in navigator)) {
-      setProblem(t.plans.live.errors.unsupported);
+      setProblem(t.planCards.live.errors.unsupported);
       return;
     }
     clearWatch();
@@ -149,7 +152,7 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
         // Kurze Aussetzer während des Teilens nicht melden – nur wenn noch gar nichts ging oder gesperrt wurde.
         if (kind === "denied" || first) {
           clearWatch();
-          setProblem(t.plans.live.errors[kind]);
+          setProblem(t.planCards.live.errors[kind]);
         }
       },
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 30_000 },
@@ -159,13 +162,13 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
   function stopSharing() {
     clearWatch();
     setMyPoint(null);
-    stop.mutate(undefined, { onSuccess: () => toast.success(t.plans.live.stopped), onError: (error) => toast.error(error) });
+    stop.mutate(undefined, { onSuccess: () => toast.success(t.planCards.live.stopped), onError: (error) => toast.error(error) });
   }
 
   if (stage === "soon") {
-    return <p className="text-[15px] leading-snug text-muted">{t.plans.live.soon(formatTime(liveWindow(plan).start))}</p>;
+    return <p className="text-[15px] leading-snug text-muted">{t.planCards.live.soon(formatTime(liveWindow(plan).start))}</p>;
   }
-  if (!coming) return <p className="text-[15px] leading-snug text-muted">{t.plans.live.notGoing}</p>;
+  if (!coming) return <p className="text-[15px] leading-snug text-muted">{t.planCards.live.notGoing}</p>;
   if (locations.isPending) return <Skeleton className="h-28" />;
   if (locations.isError) return <ErrorState error={locations.error} onRetry={() => void locations.refetch()} />;
 
@@ -196,27 +199,27 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill tone="lime" testId="live-status">
               <span aria-hidden className={cn("size-2 rounded-full bg-lime-ink", watching && "animate-pulse")} />
-              {t.plans.live.sharing(formatTime(expiresAt))}
+              {t.planCards.live.sharing(formatTime(expiresAt))}
             </StatusPill>
           </div>
-          <p className="text-sm leading-snug text-muted">{watching ? t.plans.live.sharingLive : t.plans.live.sharingPaused(formatAgo(myRow.updated_at, now))}</p>
+          <p className="text-sm leading-snug text-muted">{watching ? t.planCards.live.sharingLive : t.planCards.live.sharingPaused(formatAgo(myRow.updated_at, now))}</p>
           <ArrivalPicker planId={plan.id} row={myRow} point={myPoint ?? myRow} place={place} now={now} />
           <div className="flex flex-wrap gap-2">
             {!watching && (
               <Button size="sm" loading={locating} onClick={start} icon={<IconNavigation className="size-4" aria-hidden />}>
-                {t.plans.live.resume}
+                {t.planCards.live.resume}
               </Button>
             )}
             <Button size="sm" variant="secondary" loading={stop.isPending} onClick={stopSharing}>
-              {t.plans.live.stop}
+              {t.planCards.live.stop}
             </Button>
           </div>
         </div>
       ) : (
         <div className={cn(PANEL_ITEM, "space-y-3 p-3.5")}>
-          <p className="text-[15px] leading-snug text-fg">{t.plans.live.intro(formatTime(shareUntil(plan, now)))}</p>
+          <p className="text-[15px] leading-snug text-fg">{t.planCards.live.intro(formatTime(shareUntil(plan, now)))}</p>
           <Button loading={locating || (share.isPending && !myRow)} onClick={start} icon={<IconNavigation className="size-4" aria-hidden />}>
-            {locating ? t.plans.live.starting : t.plans.live.start(formatTime(shareUntil(plan, now)))}
+            {locating ? t.planCards.live.starting : t.planCards.live.start(formatTime(shareUntil(plan, now)))}
           </Button>
         </div>
       )}
@@ -225,15 +228,15 @@ export function LivePanel({ plan, userId, now, place, placeName = null, lookup }
       {others.length > 0 && <LiveMap place={place} placeName={placeName} people={mapPeople} />}
 
       {others.length === 0 ? (
-        <p className="text-[15px] text-muted">{t.plans.live.empty}</p>
+        <p className="text-[15px] text-muted">{t.planCards.live.empty}</p>
       ) : (
-        <ul className="space-y-2" aria-label={t.plans.live.listLabel}>
+        <ul className="space-y-2" aria-label={t.planCards.live.listLabel}>
           {others.map(({ row, distance }) => (
             <LiveRow key={row.user_id} row={row} person={lookup(row.user_id)} distance={distance} fromYou={reference?.mine ?? false} place={place} now={now} />
           ))}
         </ul>
       )}
-      <p className="text-[13px] leading-snug text-faint">{t.plans.live.privacy}</p>
+      <p className="text-[13px] leading-snug text-faint">{t.planCards.live.privacy}</p>
     </div>
   );
 }
@@ -268,7 +271,7 @@ function ArrivalPicker({ planId, row, point, place, now }: { planId: string; row
   if (isAtPlace({ ...point, accuracy_m: row.accuracy_m }, place)) {
     return (
       <StatusPill tone="lime" testId="live-arrival-mine">
-        {t.plans.live.arrival.youAtPlace}
+        {t.planCards.live.arrival.youAtPlace}
       </StatusPill>
     );
   }
@@ -277,7 +280,7 @@ function ArrivalPicker({ planId, row, point, place, now }: { planId: string; row
     arrival.mutate(minutes, {
       onSuccess: (eta) => {
         setEditing(false);
-        toast.success(eta ? t.plans.live.arrival.saved(formatTime(new Date(eta))) : t.plans.live.arrival.cleared);
+        toast.success(eta ? t.planCards.live.arrival.saved(formatTime(new Date(eta))) : t.planCards.live.arrival.cleared);
       },
       onError: (error) => toast.error(error),
     });
@@ -288,13 +291,13 @@ function ArrivalPicker({ planId, row, point, place, now }: { planId: string; row
     return (
       <div className="flex flex-wrap items-center gap-2">
         <StatusPill tone={state === "upcoming" ? "lime" : "glass"} testId="live-arrival-mine">
-          {state === "upcoming" ? t.plans.live.arrival.mine(time) : t.plans.live.arrival.minePast(time)}
+          {state === "upcoming" ? t.planCards.live.arrival.mine(time) : t.planCards.live.arrival.minePast(time)}
         </StatusPill>
         <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-          {t.plans.live.arrival.change}
+          {t.planCards.live.arrival.change}
         </Button>
         <Button size="sm" variant="ghost" loading={arrival.isPending && arrival.variables === null} onClick={() => choose(null)}>
-          {t.plans.live.arrival.clear}
+          {t.planCards.live.arrival.clear}
         </Button>
       </div>
     );
@@ -303,7 +306,7 @@ function ArrivalPicker({ planId, row, point, place, now }: { planId: string; row
   const walk = place ? walkMinutes(distanceMeters(point, place)) : null;
   return (
     <fieldset className="space-y-2" data-testid="live-arrival-picker">
-      <legend className="mb-2 text-sm font-semibold text-fg">{t.plans.live.arrival.question}</legend>
+      <legend className="mb-2 text-sm font-semibold text-fg">{t.planCards.live.arrival.question}</legend>
       <div className="flex flex-wrap gap-2">
         {ARRIVAL_CHOICES.map((minutes) => (
           <button
@@ -316,11 +319,11 @@ function ArrivalPicker({ planId, row, point, place, now }: { planId: string; row
               arrival.isPending && arrival.variables === minutes && "border-lime bg-lime text-lime-ink",
             )}
           >
-            {t.plans.live.arrival.choice(minutes)}
+            {t.planCards.live.arrival.choice(minutes)}
           </button>
         ))}
       </div>
-      {walk != null && <p className="text-[13px] leading-snug text-muted">{t.plans.live.arrival.walk(walk)}</p>}
+      {walk != null && <p className="text-[13px] leading-snug text-muted">{t.planCards.live.arrival.walk(walk)}</p>}
     </fieldset>
   );
 }
@@ -341,7 +344,7 @@ function LiveRow({
   now: Date;
 }) {
   const stale = isStale(row.updated_at, now);
-  const away = distance == null ? null : (fromYou ? t.plans.live.fromYou : t.plans.live.fromPlace)(distanceLabel(distance));
+  const away = distance == null ? null : (fromYou ? t.planCards.live.fromYou : t.planCards.live.fromPlace)(distanceLabel(distance));
   const there = isAtPlace(row, place);
   const arrival = there ? "none" : arrivalState(row.arrival_eta, now);
   return (
@@ -350,17 +353,17 @@ function LiveRow({
       <div className="min-w-0 flex-1">
         <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
           <span className="truncate font-semibold text-fg">{person?.display_name ?? t.states.formerMember}</span>
-          {there && <ArrivalTag tone="lime">{t.plans.live.arrival.atPlace}</ArrivalTag>}
+          {there && <ArrivalTag tone="lime">{t.planCards.live.arrival.atPlace}</ArrivalTag>}
           {arrival !== "none" && (
             <ArrivalTag tone={arrival === "upcoming" ? "lime" : "glass"}>
-              {(arrival === "upcoming" ? t.plans.live.arrival.eta : t.plans.live.arrival.etaPast)(formatTime(new Date(row.arrival_eta!)))}
+              {(arrival === "upcoming" ? t.planCards.live.arrival.eta : t.planCards.live.arrival.etaPast)(formatTime(new Date(row.arrival_eta!)))}
             </ArrivalTag>
           )}
         </p>
         <p className="mt-0.5 text-[13px] text-muted">
-          {t.plans.live.updated(formatAgo(row.updated_at, now))}
-          {row.accuracy_m != null && row.accuracy_m > 100 && ` · ${t.plans.live.accuracy(row.accuracy_m)}`}
-          {stale && <span className="ml-1.5 font-semibold text-amber">· {t.plans.live.stale}</span>}
+          {t.planCards.live.updated(formatAgo(row.updated_at, now))}
+          {row.accuracy_m != null && row.accuracy_m > 100 && ` · ${t.planCards.live.accuracy(row.accuracy_m)}`}
+          {stale && <span className="ml-1.5 font-semibold text-amber">· {t.planCards.live.stale}</span>}
         </p>
       </div>
       {away && (

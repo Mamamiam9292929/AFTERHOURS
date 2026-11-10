@@ -15,7 +15,7 @@ import { ActivityCard } from "@/features/discover/ActivityCard";
 import { useActivity, useActivitySearch } from "@/features/discover/api";
 import { SpotMap } from "@/features/discover/SpotMap";
 import { usePeople } from "@/features/profile/api";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { joinsWaitlist } from "@/lib/capacity";
 import { closePromptDue } from "@/lib/closing";
 import { cn } from "@/lib/cn";
@@ -44,6 +44,9 @@ import { RepeatCard, RepeatLine, SkippedNotice } from "./PlanRepeat";
 import { FeatureTicket } from "./PlanTicket";
 import { PlanWeather } from "./PlanWeather";
 import { RidesPanel } from "./RidesPanel";
+
+/** F10 · Texte der Planseiten-Karten kommen erst mit der Planseite. */
+await loadTexts("planCards");
 
 // P10: Fotos erst ab Beginn des Plans – Upload-Code nur laden, wenn der Bereich erscheint.
 const PhotosPanel = lazy(() => import("./PhotosPanel").then((m) => ({ default: m.PhotosPanel })));
@@ -164,13 +167,13 @@ export function PlanDetailPage() {
   const organizer = plan.created_by === user.id ? t.plans.detail.organizerYou : t.plans.detail.organizer(people.lookup(plan.created_by)?.display_name ?? t.states.formerMember);
 
   const expensesSection = (
-    <PlanPanel id="kosten" title={t.plans.expenses.title} icon={<IconWallet className="size-5" />} tone="lime">
+    <PlanPanel id="kosten" title={t.planCards.expenses.title} icon={<IconWallet className="size-5" />} tone="lime">
       <ExpensesPanel plan={plan} userId={user.id} memberIds={crew?.members.map((m) => m.user_id) ?? []} canManageCrew={canManageCrew(myRole(crew, user.id))} lookup={people.lookup} />
     </PlanPanel>
   );
 
   const bringSection = (
-    <PlanPanel id="mitbringen" title={t.plans.items.title} icon={<IconBasket className="size-5" />} tone="amber">
+    <PlanPanel id="mitbringen" title={t.planCards.items.title} icon={<IconBasket className="size-5" />} tone="amber">
       <BringPanel plan={plan} userId={user.id} canManage={canManage} locked={locked} lookup={people.lookup} />
     </PlanPanel>
   );
@@ -517,7 +520,7 @@ export function PlanDetailPage() {
 
           {/* P13: „Wo seid ihr?“ – Live-Standort nur rund um den Plan (ab 12 h vorher als Hinweis, ab 2 h vorher zum Teilen). */}
           {liveStage(plan, now) !== "hidden" && (
-            <PlanPanel id="live" title={t.plans.live.title} icon={<IconNavigation className="size-5" />} tone="violet">
+            <PlanPanel id="live" title={t.planCards.live.title} icon={<IconNavigation className="size-5" />} tone="violet">
               <LivePanel
                 plan={plan}
                 userId={user.id}
@@ -537,7 +540,7 @@ export function PlanDetailPage() {
 
           {/* P10: Fotos vom Abend – ab Beginn des Plans, nicht bei abgesagten. */}
           {(started || locked) && plan.status !== "cancelled" && (
-            <PlanPanel id="fotos" title={t.plans.photos.title} icon={<IconCamera className="size-5" />} tone="pink">
+            <PlanPanel id="fotos" title={t.planCards.photos.title} icon={<IconCamera className="size-5" />} tone="pink">
               <Suspense fallback={<Skeleton className="h-28" />}>
                 <PhotosPanel plan={plan} userId={user.id} canManage={canManage} lookup={people.lookup} />
               </Suspense>

@@ -7,7 +7,7 @@ import { ConfirmDialog, Dialog } from "@/components/ui/Dialog";
 import { ErrorState, Notice, Skeleton } from "@/components/ui/Feedback";
 import { controlClass, FormMessage, SelectField, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
@@ -16,7 +16,10 @@ import { formatDateTime } from "@/lib/time";
 import { PANEL_ITEM } from "./PlanPanel";
 import { useAddExpense, useDeleteExpense, usePlanExpenses, useRecordSettlement, type AddExpenseInput, type PlanExpenseWithShares, type PlanWithParticipants } from "./api";
 
-const tx = t.plans.expenses;
+/** F10 · Texte der Planseiten-Karten kommen erst mit der Planseite. */
+await loadTexts("planCards");
+
+const tx = t.planCards.expenses;
 
 interface ExpensesPanelProps {
   plan: PlanWithParticipants;

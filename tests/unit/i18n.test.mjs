@@ -118,7 +118,7 @@ test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deu
   const { loadEnglish, englishPageTexts } = await import("../../src/i18n/en/index.ts");
   const pageKeys = Object.keys(de).filter((key) => !(key in deCore)).sort();
   // Diese Bereiche liegen nicht im Start-Bundle – jeder neue gehört bewusst hierher (und in den Router).
-  assert.deepEqual(pageKeys, ["admin", "assistant", "landing", "notificationText", "planCapacity", "planFeedback", "planGuests", "planHome", "planQuorum", "pollOutcome", "privacy", "rewards", "settings"]);
+  assert.deepEqual(pageKeys, ["admin", "assistant", "landing", "notificationText", "planCapacity", "planCards", "planFeedback", "planGuests", "planHome", "planQuorum", "pollOutcome", "privacy", "rewards", "settings"]);
   assert.deepEqual(Object.keys(germanPageTexts).sort(), pageKeys);
   assert.deepEqual(Object.keys(englishPageTexts).sort(), pageKeys);
   // Kern + nachgeladene Bereiche ergeben genau das ganze Wörterbuch.
@@ -200,4 +200,52 @@ test("F9: Texte der Benachrichtigungen nur dort, wo sie vorher geladen werden �
   const { notificationText: enText } = await import("../../src/i18n/en/notificationText.ts");
   assert.deepEqual(Object.keys(enText).sort(), Object.keys(deText).sort());
   assert.ok(Object.keys(deText).length >= 28, "alle Arten in einer Datei");
+});
+
+test("F10: Texte der Planseiten-Karten nur dort, wo sie vorher geladen werden – nicht mehr im Kern", async () => {
+  const { readdir, readFile } = await import("node:fs/promises");
+  const { join, relative } = await import("node:path");
+  const root = new URL("../../", import.meta.url).pathname;
+  const { deCore } = await import("../../src/i18n/de/core.ts");
+  const moved = ["booking", "rides", "photos", "live", "items", "expenses"];
+  for (const key of moved) assert.equal(key in deCore.plans, false, `t.plans.${key} liegt nicht mehr im Kern`);
+  assert.equal("planCards" in deCore, false);
+  const { planCards: deCards } = await import("../../src/i18n/de/planCards.ts");
+  const { planCards: enCards } = await import("../../src/i18n/en/planCards.ts");
+  assert.deepEqual(Object.keys(deCards).sort(), [...moved].sort());
+  assert.deepEqual(Object.keys(enCards).sort(), [...moved].sort());
+  const files = [];
+  async function walk(dir) {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (/\.(ts|tsx)$/.test(entry.name)) files.push(path);
+    }
+  }
+  await walk(join(root, "src"));
+  const users = [];
+  const old = new RegExp(`\\bt\\.plans\\.(${moved.join("|")})\\b`);
+  for (const file of files) {
+    const name = relative(root, file);
+    if (name.startsWith("src/i18n/")) continue;
+    const source = await readFile(file, "utf8");
+    if (old.test(source)) assert.fail(`${name} liest noch ${source.match(old)[0]}`);
+    // Nur Code zählt – ein Verweis im Kommentar (src/lib/bring.ts) lädt nichts.
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    if (!/\bt\.planCards\b/.test(code)) continue;
+    users.push(name);
+    assert.ok(source.includes('await loadTexts("planCards")'), `${name} liest t.planCards ohne loadTexts`);
+  }
+  assert.deepEqual(users.sort(), [
+    "src/features/plans/BookingPanel.tsx",
+    "src/features/plans/BringPanel.tsx",
+    "src/features/plans/ExpensesPanel.tsx",
+    "src/features/plans/LiveMap.tsx",
+    "src/features/plans/LivePanel.tsx",
+    "src/features/plans/PhotosPanel.tsx",
+    "src/features/plans/PlanDetailPage.tsx",
+    "src/features/plans/RidesPanel.tsx",
+  ]);
+  const router = await readFile(join(root, "src/app/router.tsx"), "utf8");
+  assert.match(router, /PlanDetailPage", \["planCards"\]\)/, "Router lädt die Texte parallel zur Planseite");
 });

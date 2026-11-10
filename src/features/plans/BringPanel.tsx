@@ -6,13 +6,16 @@ import { Chip } from "@/components/ui/Controls";
 import { ErrorState, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { BRING_TEMPLATES, guessTemplate, sameLabel, templateSuggestions, type BringTemplate } from "@/lib/bring";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 import type { PlanWithParticipants } from "./api";
 import { useAddPlanItem, useClaimPlanItem, usePlanItems, useRemovePlanItem } from "./itemsApi";
+
+/** F10 · Texte der Planseiten-Karten kommen erst mit der Planseite. */
+await loadTexts("planCards");
 
 interface BringPanelProps {
   plan: PlanWithParticipants;
@@ -77,7 +80,7 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
         onSuccess: () => {
           setLabel("");
           setMineToo(false);
-          toast.success(mineToo ? t.plans.items.addedMine : t.plans.items.added);
+          toast.success(mineToo ? t.planCards.items.addedMine : t.planCards.items.added);
         },
         onError: (error) => setFormError(errorMessage(error)),
       },
@@ -89,7 +92,7 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
     add.mutate(
       { label: suggestion, claim: false },
       {
-        onSuccess: () => toast.success(t.plans.items.suggestionAdded(suggestion)),
+        onSuccess: () => toast.success(t.planCards.items.suggestionAdded(suggestion)),
         onError: (error) => toast.error(error),
         onSettled: () => setSuggesting(null),
       },
@@ -101,30 +104,30 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
     claim.mutate(
       { itemId, claim: value },
       {
-        onSuccess: () => toast.success(value ? t.plans.items.claimed : t.plans.items.unclaimed),
+        onSuccess: () => toast.success(value ? t.planCards.items.claimed : t.planCards.items.unclaimed),
         onError: (error) => toast.error(error),
         onSettled: () => setBusyId(null),
       },
     );
   }
 
-  if (locked && list.length === 0) return <p className="text-[15px] text-muted">{t.plans.items.lockedEmpty}</p>;
+  if (locked && list.length === 0) return <p className="text-[15px] text-muted">{t.planCards.items.lockedEmpty}</p>;
 
   return (
     <div className="space-y-3">
-      {!locked && <p className="text-[15px] leading-snug text-muted">{t.plans.items.intro}</p>}
+      {!locked && <p className="text-[15px] leading-snug text-muted">{t.planCards.items.intro}</p>}
 
       {list.length === 0 ? (
-        <p className="text-[15px] text-muted">{t.plans.items.empty}</p>
+        <p className="text-[15px] text-muted">{t.planCards.items.empty}</p>
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2">
             <StatusPill tone={claimedCount === list.length ? "lime" : "amber"} testId="items-progress">
-              {t.plans.items.progress(claimedCount, list.length)}
+              {t.planCards.items.progress(claimedCount, list.length)}
             </StatusPill>
-            {mineCount > 0 && <span className="text-sm text-muted">{t.plans.items.mine(mineCount)}</span>}
+            {mineCount > 0 && <span className="text-sm text-muted">{t.planCards.items.mine(mineCount)}</span>}
           </div>
-          <ul className="space-y-2" aria-label={t.plans.items.title}>
+          <ul className="space-y-2" aria-label={t.planCards.items.title}>
             {sorted.map((item) => {
               const mine = item.claimed_by === userId;
               const bringer = item.claimed_by ? lookup(item.claimed_by) : null;
@@ -144,31 +147,31 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
                     <p className={cn("font-semibold break-words text-fg", state === "taken" && "text-muted")}>{item.label}</p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-[13px] text-muted">
                       {state === "open" ? (
-                        <span className="font-semibold text-amber">{t.plans.items.open}</span>
+                        <span className="font-semibold text-amber">{t.planCards.items.open}</span>
                       ) : (
                         <>
                           {/* Eigene Sachen ohne Profilbild: der Lime-Haken sagt es schon, und bei 390 px passt „Du bringst es“ neben „Doch nicht“. */}
                           {!mine && <Avatar person={bringer} size="xs" decorative />}
-                          <span className={mine ? "break-words" : "truncate"}>{mine ? t.plans.items.you : t.plans.items.bringer(bringer?.display_name ?? t.states.formerMember)}</span>
+                          <span className={mine ? "break-words" : "truncate"}>{mine ? t.planCards.items.you : t.planCards.items.bringer(bringer?.display_name ?? t.states.formerMember)}</span>
                         </>
                       )}
                     </p>
                   </div>
                   {!locked && state === "open" && (
                     <Button size="sm" variant="secondary" loading={busyId === item.id} onClick={() => toggle(item.id, true)}>
-                      {t.plans.items.claim}
+                      {t.planCards.items.claim}
                     </Button>
                   )}
                   {!locked && mine && (
                     <Button size="sm" variant="ghost" loading={busyId === item.id} onClick={() => toggle(item.id, false)}>
-                      {t.plans.items.unclaim}
+                      {t.planCards.items.unclaim}
                     </Button>
                   )}
                   {canRemove && (
                     <IconButton
-                      label={t.plans.items.remove(item.label)}
+                      label={t.planCards.items.remove(item.label)}
                       disabled={remove.isPending}
-                      onClick={() => remove.mutate(item.id, { onSuccess: () => toast.success(t.plans.items.removed), onError: (error) => toast.error(error) })}
+                      onClick={() => remove.mutate(item.id, { onSuccess: () => toast.success(t.planCards.items.removed), onError: (error) => toast.error(error) })}
                     >
                       <IconClose className="size-4" aria-hidden />
                     </IconButton>
@@ -182,7 +185,7 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
 
       {!locked &&
         (full ? (
-          <p className="text-[13px] text-faint">{t.plans.items.full}</p>
+          <p className="text-[13px] text-faint">{t.planCards.items.full}</p>
         ) : (
           <>
             <BringTemplates
@@ -196,11 +199,11 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
             />
             <form onSubmit={submit} noValidate className={cn(PANEL_ITEM, "space-y-3 p-3.5")}>
               <TextField
-                label={t.plans.items.label}
+                label={t.planCards.items.label}
                 name="plan_item"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder={t.plans.items.placeholder}
+                placeholder={t.planCards.items.placeholder}
                 maxLength={60}
                 autoComplete="off"
                 enterKeyHint="done"
@@ -208,10 +211,10 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px] text-fg">
                   <input type="checkbox" checked={mineToo} onChange={(e) => setMineToo(e.target.checked)} className="size-5 shrink-0 accent-[var(--color-lime)]" />
-                  {t.plans.items.claimSelf}
+                  {t.planCards.items.claimSelf}
                 </label>
                 <Button type="submit" size="sm" loading={add.isPending} icon={<IconPlus className="size-4" aria-hidden />}>
-                  {t.plans.items.add}
+                  {t.planCards.items.add}
                 </Button>
               </div>
               {formError && <FormMessage>{formError}</FormMessage>}
@@ -237,28 +240,28 @@ interface BringTemplatesProps {
  * Liste stehen – jede landet als offene Sache auf der Liste (gleiche RPC wie das Formular).
  */
 function BringTemplates({ template, onTemplate, existing, room, busy, suggesting, onAdd }: BringTemplatesProps) {
-  const chosen = template ? t.plans.items.templates[template] : null;
+  const chosen = template ? t.planCards.items.templates[template] : null;
   const suggestions = chosen ? templateSuggestions(chosen.items, existing, room) : [];
   return (
     <div className={cn(PANEL_ITEM, "space-y-3 p-3.5")} data-testid="bring-templates">
-      <p className="text-[12px] font-bold uppercase tracking-wide text-muted">{t.plans.items.templatesTitle}</p>
-      <div role="group" aria-label={t.plans.items.templatesLabel} className="flex flex-wrap gap-2">
+      <p className="text-[12px] font-bold uppercase tracking-wide text-muted">{t.planCards.items.templatesTitle}</p>
+      <div role="group" aria-label={t.planCards.items.templatesLabel} className="flex flex-wrap gap-2">
         {BRING_TEMPLATES.map((id) => (
           <Chip key={id} selected={template === id} onToggle={() => onTemplate(template === id ? null : id)}>
-            {t.plans.items.templates[id].name}
+            {t.planCards.items.templates[id].name}
           </Chip>
         ))}
       </div>
       {chosen &&
         (suggestions.length === 0 ? (
-          <p className="text-sm text-muted">{t.plans.items.allSuggested}</p>
+          <p className="text-sm text-muted">{t.planCards.items.allSuggested}</p>
         ) : (
-          <ul aria-label={t.plans.items.suggestionsLabel(chosen.name)} className="flex flex-wrap gap-2">
+          <ul aria-label={t.planCards.items.suggestionsLabel(chosen.name)} className="flex flex-wrap gap-2">
             {suggestions.map((label) => (
               <li key={label}>
                 <button
                   type="button"
-                  aria-label={t.plans.items.suggest(label)}
+                  aria-label={t.planCards.items.suggest(label)}
                   aria-busy={suggesting === label}
                   disabled={busy}
                   onClick={() => onAdd(label)}

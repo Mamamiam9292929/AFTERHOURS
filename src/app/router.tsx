@@ -63,7 +63,7 @@ const PollCreatePage = page(() => import("@/features/polls/PollCreatePage"), "Po
 const PollDetailPage = page(() => import("@/features/polls/PollDetailPage"), "PollDetailPage");
 const PlansPage = page(() => import("@/features/plans/PlansPage"), "PlansPage");
 const PlanCreatePage = page(() => import("@/features/plans/PlanCreatePage"), "PlanCreatePage");
-const PlanDetailPage = page(() => import("@/features/plans/PlanDetailPage"), "PlanDetailPage");
+const PlanDetailPage = page(() => import("@/features/plans/PlanDetailPage"), "PlanDetailPage", ["planCards"]);
 const SharedPlanPage = page(() => import("@/features/plans/SharedPlanPage"), "SharedPlanPage");
 const SharedPollPage = page(() => import("@/features/polls/SharedPollPage"), "SharedPollPage");
 const RewardsPage = page(() => import("@/features/rewards/RewardsPage"), "RewardsPage", ["rewards"]);
