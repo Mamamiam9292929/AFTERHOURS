@@ -33,10 +33,13 @@ import { CrewAway } from "./CrewAway";
 import { CrewBirthdays } from "./CrewBirthdays";
 import { CrewForm } from "./CrewForm";
 import { CrewRecap } from "./CrewRecap";
-import { InviteDialog } from "./InviteDialog";
 
 // P22: Merkliste mit Kategorie-Bildern als eigener Chunk – die Crew-Seite bleibt unter der Chunk-Grenze.
 const CrewWishlist = lazy(() => import("./CrewWishlist").then((m) => ({ default: m.CrewWishlist })));
+// P35: Einladungsdialog als eigener Chunk (erst nach dem ersten „Einladen“ geladen) – hält die Crew-Seite unter der Chunk-Grenze.
+const InviteDialog = lazy(() => import("./InviteDialog").then((m) => ({ default: m.InviteDialog })));
+// P35: „Mitteilungen dieser Crew“ mit eigenen Texten – erst im Reiter „Einstellungen“ geladen.
+const CrewMute = lazy(() => import("./CrewMute").then((m) => ({ default: m.CrewMute })));
 
 type Tab = "overview" | "chat" | "members" | "settings";
 
@@ -326,6 +329,7 @@ function Members({ crew, role }: { crew: CrewWithMembers; role: CrewRole | null 
 
 // ---- Einstellungen ------------------------------------------------------------------------------------------
 function Settings({ crew, role, onInvite }: { crew: CrewWithMembers; role: CrewRole | null; onInvite: () => void }) {
+  const user = useUser();
   const navigate = useNavigate();
   const toast = useToast();
   const people = usePeople();
@@ -340,6 +344,10 @@ function Settings({ crew, role, onInvite }: { crew: CrewWithMembers; role: CrewR
 
   return (
     <div className="max-w-2xl">
+      <Suspense fallback={<ListSkeleton rows={1} height="h-40" />}>
+        <CrewMute crewId={crew.id} userId={user.id} />
+      </Suspense>
+
       {manage && (
         <Section title={t.crews.settings.editTitle}>
           <CrewForm
@@ -465,6 +473,9 @@ export function CrewDetailPage() {
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>("overview");
   const [inviteOpen, setInviteOpen] = useState(false);
+  // Der Dialog wird erst geladen, wenn er zum ersten Mal aufgeht, und bleibt danach für die Schließen-Animation da.
+  const [invitedOnce, setInvitedOnce] = useState(false);
+  if (inviteOpen && !invitedOnce) setInvitedOnce(true);
   const crew = crewQuery.data;
   useDocumentTitle(crew?.name);
 
@@ -580,7 +591,11 @@ export function CrewDetailPage() {
         {tab === "members" && <Members crew={crew} role={role} />}
         {tab === "settings" && <Settings crew={crew} role={role} onInvite={() => setInviteOpen(true)} />}
       </div>
-      <InviteDialog crew={crew} open={inviteOpen} onClose={() => setInviteOpen(false)} />
+      {invitedOnce && (
+        <Suspense fallback={null}>
+          <InviteDialog crew={crew} open={inviteOpen} onClose={() => setInviteOpen(false)} />
+        </Suspense>
+      )}
     </>
   );
 }

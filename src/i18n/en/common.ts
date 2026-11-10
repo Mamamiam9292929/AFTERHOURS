@@ -144,6 +144,7 @@ export const errors = {
     ends_too_late: "A poll can run for at most 90 days.",
     invalid_options: "A poll needs 1 to 10 options, each with a title or place.",
     invalid_birthday: "That day doesn't exist. Choose a day and a month.",
+    invalid_crew_mute: "That duration doesn't exist – choose 8 hours, a week or “Until I change it”.",
     invalid_absence: "That period doesn't work: the end can't be before the start or in the past, and it can be at most a year long.",
     crew_wishlist_full: "Your crew's list already has 50 places. Remove one before saving another.",
     too_many_absences: "You've already added 20 periods. Remove one before adding another.",

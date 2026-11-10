@@ -7523,6 +7523,77 @@ await step("P30 – „Fand der Abend statt?“: Abend mit einem Tipp abschließ
   check((await bp.getByTestId("home-close-plan").filter({ hasText: /Pizzaabend|Karaokeabend|Minigolf/ }).count()) === 0, "P30 2: nach dem Abschluss ist Home wieder ruhig");
 });
 
+await step("P35 – Crew stummschalten: 8 Stunden, bis auf Weiteres, wieder laut; privat und mit Fehlerzustand (Bob 390 px, Carol)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const openSettings = async (user) => {
+    await user.page.goto(`${APP}/crews/${ids.crew}`);
+    await user.page.getByRole("tab", { name: "Einstellungen" }).click();
+    const card = user.page.getByTestId("crew-mute");
+    await card.getByTestId("crew-mute-status").waitFor();
+    return card;
+  };
+  try {
+    // Bob (390 px): Crew ist laut, keine Dauer gewählt, kein „Wieder laut“.
+    const card = await openSettings(bob);
+    check((await card.getByRole("heading").first().textContent())?.trim() === "Mitteilungen dieser Crew", "P35: Karte „Mitteilungen dieser Crew“ in den Einstellungen der Crew");
+    check((await card.getByTestId("crew-mute-status").innerText()).trim() === "Laut", "P35: Stand „Laut“");
+    check((await card.locator('button[aria-pressed="true"]').count()) === 0, "P35: keine Dauer gewählt");
+    check(await card.getByText(/in der App weiter alles/).isVisible(), "P35: ehrlich – in der App kommt weiter alles an");
+    check((await card.getByRole("button", { name: "Wieder laut" }).count()) === 0, "P35: kein „Wieder laut“, solange laut");
+
+    // 8 Stunden: Stand „Stumm bis <Uhrzeit>“, Zeile in der Datenbank mit Ende in 8 h.
+    const saved = bob.page.waitForResponse((r) => r.url().includes("/rpc/set_crew_push_mute") && r.request().method() === "POST");
+    await card.getByRole("button", { name: "8 Stunden" }).click();
+    check((await saved).ok(), "P35: „8 Stunden“ gespeichert");
+    await toast(bob, "Für 8 Stunden stumm.");
+    const status = card.getByTestId("crew-mute-status");
+    await bob.page.waitForFunction(() => /^Stumm bis \S/.test(document.querySelector('[data-testid="crew-mute-status"]')?.textContent?.trim() ?? ""));
+    check(true, `P35: Stand „${(await status.innerText()).trim()}“`);
+    check((await card.getByRole("button", { name: "8 Stunden" }).getAttribute("aria-pressed")) === "true", "P35: „8 Stunden“ ist gewählt");
+    const hours = Number(psql(`select round(extract(epoch from m.muted_until - now()) / 3600) from public.crew_push_mutes m join auth.users u on u.id = m.user_id where u.email = '${bob.email}' and m.crew_id = '${ids.crew}'`));
+    check(hours === 8, `P35: in der Datenbank stumm für 8 Stunden (${hours})`);
+    await noOverflow(bob, "Crew-Einstellungen – stumm");
+    await a11y(bob, "crew-stumm");
+    await card.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await shot(bob, "73a-crew-stumm");
+
+    // Nach dem Neuladen gleicher Stand; „Bis ich’s ändere“ ohne Ende.
+    const again = await openSettings(bob);
+    check(/^Stumm bis /.test((await again.getByTestId("crew-mute-status").innerText()).trim()), "P35: nach dem Neuladen weiter stumm");
+    await again.getByRole("button", { name: "Bis ich’s ändere" }).click();
+    await toast(bob, "Stumm, bis du es änderst.");
+    await bob.page.waitForFunction(() => document.querySelector('[data-testid="crew-mute-status"]')?.textContent?.trim() === "Stumm");
+    check(psql(`select count(*) from public.crew_push_mutes m join auth.users u on u.id = m.user_id where u.email = '${bob.email}' and m.muted_until is null`) === "1", "P35: ohne Ende gespeichert");
+
+    // Privat: Carol (Desktop) sieht für sich „Laut“ – nichts von Bobs Stille.
+    const carolCard = await openSettings(carol);
+    check((await carolCard.getByTestId("crew-mute-status").innerText()).trim() === "Laut", "P35: Carol sieht ihre eigene Einstellung, nicht Bobs");
+    const visible = await api(carol, "GET", "crew_push_mutes?select=user_id");
+    check(visible.status === 200 && Array.isArray(visible.json) && visible.json.length === 0, `P35: Carol liest keine fremde Stille über die API (${visible.status})`);
+
+    // Wieder laut.
+    await again.getByRole("button", { name: "Wieder laut" }).click();
+    await toast(bob, "Die Crew ist wieder laut.");
+    await bob.page.waitForFunction(() => document.querySelector('[data-testid="crew-mute-status"]')?.textContent?.trim() === "Laut");
+    check(psql(`select count(*) from public.crew_push_mutes m join auth.users u on u.id = m.user_id where u.email = '${bob.email}'`) === "0", "P35: wieder laut – keine Zeile mehr");
+
+    // Fehlerzustand: Lesen scheitert → Fehlerkarte mit „Erneut versuchen“, danach geht es wieder.
+    // 400 mit PostgREST-Code: kein automatisches Wiederholen und kein Serverfehler im Protokoll.
+    await bob.page.route("**/rest/v1/crew_push_mutes*", (route) => route.fulfill({ status: 400, contentType: "application/json", body: '{"code":"PGRST000","message":"kaputt","details":null,"hint":null}' }));
+    await bob.page.goto(`${APP}/crews/${ids.crew}`);
+    await bob.page.getByRole("tab", { name: "Einstellungen" }).click();
+    const broken = bob.page.getByTestId("crew-mute");
+    await broken.getByRole("alert").waitFor({ timeout: 20_000 });
+    check(await broken.getByText("Die Einstellung ließ sich gerade nicht laden.").isVisible(), "P35: Fehlerzustand mit eigenem Text");
+    await bob.page.unroute("**/rest/v1/crew_push_mutes*");
+    await broken.getByRole("button", { name: "Erneut versuchen" }).click();
+    await broken.getByTestId("crew-mute-status").waitFor();
+    check(true, "P35: nach „Erneut versuchen“ wieder geladen");
+  } finally {
+    psql(`delete from public.crew_push_mutes m using auth.users u where u.id = m.user_id and u.email in ('${bob.email}', '${carol.email}')`);
+  }
+});
+
 await step("Fehlerzustände – unbekannte Seite, Serverausfall, langsames Netz", async () => {
   const { page } = carol;
   await page.goto(`${APP}/gibt-es-nicht`);

@@ -16,4 +16,5 @@ export const germanPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]> 
   planHome: () => import("./planHome").then((m) => m.planHome),
   planCards: () => import("./planCards").then((m) => m.planCards),
   notificationText: () => import("./notificationText").then((m) => m.notificationText),
+  crewMute: () => import("./crewMute").then((m) => m.crewMute),
 };
