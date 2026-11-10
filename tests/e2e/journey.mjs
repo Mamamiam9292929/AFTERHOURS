@@ -7578,7 +7578,7 @@ await step("P35 – Crew stummschalten: 8 Stunden, bis auf Weiteres, wieder laut
     check(psql(`select count(*) from public.crew_push_mutes m join auth.users u on u.id = m.user_id where u.email = '${bob.email}'`) === "0", "P35: wieder laut – keine Zeile mehr");
 
     // Fehlerzustand: Lesen scheitert → Fehlerkarte mit „Erneut versuchen“, danach geht es wieder.
-    await bob.page.route("**/rest/v1/crew_push_mutes*", (route) => route.fulfill({ status: 500, contentType: "application/json", body: '{"message":"kaputt"}' }));
+    await bob.page.route("**/rest/v1/crew_push_mutes*", (route) => route.abort());
     await bob.page.goto(`${APP}/crews/${ids.crew}`);
     await bob.page.getByRole("tab", { name: "Einstellungen" }).click();
     const broken = bob.page.getByTestId("crew-mute");
