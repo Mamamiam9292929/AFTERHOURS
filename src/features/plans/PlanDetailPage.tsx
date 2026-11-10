@@ -1,8 +1,9 @@
 import { ShareButton } from "@/components/ui/ShareButton";
-import { planShare } from "@/lib/share";
+import { planShare, shareOrCopy } from "@/lib/share";
+import { planStanding, standingText } from "@/lib/standing";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { IconBack, IconBasket, IconBell, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
+import { IconBack, IconBasket, IconBell, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconShare, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
 import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -131,6 +132,7 @@ export function PlanDetailPage() {
   const shareToken = usePlanShareToken(plan?.id, Boolean(plan) && plan?.status !== "cancelled");
   const guestSecret = useMemo(() => storedPlanGuestSecret(shareToken.data), [shareToken.data]);
   const [editOpen, setEditOpen] = useState(false);
+  const [sharingStanding, setSharingStanding] = useState(false);
   const [confirming, setConfirming] = useState<Extract<PlanStatus, "cancelled" | "completed"> | null>(null);
   useDocumentTitle(plan?.title);
 
@@ -164,6 +166,8 @@ export function PlanDetailPage() {
   const othersAnswered = plan.participants.filter((p) => p.user_id !== user.id && p.attendance_status !== "invited").length;
   const costs = estimateCosts(plan);
   const place = activity.data ?? null;
+  // P37: Zwischenstand für den Gruppenchat – nur vor Beginn, nicht bei abgesagten oder abgeschlossenen Plänen.
+  const standing = planStanding(plan, now);
   const organizer = plan.created_by === user.id ? t.plans.detail.organizerYou : t.plans.detail.organizer(people.lookup(plan.created_by)?.display_name ?? t.states.formerMember);
 
   const expensesSection = (
@@ -177,6 +181,19 @@ export function PlanDetailPage() {
       <BringPanel plan={plan} userId={user.id} canManage={canManage} locked={locked} lookup={people.lookup} />
     </PlanPanel>
   );
+
+  async function shareStanding() {
+    if (!plan || !standing) return;
+    // Gleicher Link wie „Plan teilen“ (W2: /s/<token>); „Antwort mit einem Tipp“ nur, wenn Gäste dort antworten können (W10).
+    const { title, url } = planShare(plan, shareToken.data);
+    const when = `${formatDateLong(plan.starts_at)}, ${formatTime(plan.starts_at)}`;
+    const text = standingText(t.planCards.standing, standing, plan.title, when, Boolean(plan.guests_allowed && shareToken.data));
+    setSharingStanding(true);
+    const outcome = await shareOrCopy({ title, text, url });
+    setSharingStanding(false);
+    if (outcome === "copied") toast.success(t.share.copied);
+    else if (outcome === "failed") toast.error(t.share.failed);
+  }
 
   function changeStatus(status: PlanStatus, message: string) {
     setStatus.mutate(status, {
@@ -506,6 +523,22 @@ export function PlanDetailPage() {
                   );
                 })}
               </div>
+              {/* P37: „Wer kommt jetzt eigentlich?“ – der Stand als Text in den Gruppenchat, nur Zahlen, mit Link zum Antworten. */}
+              {standing && (
+                <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    data-testid="plan-standing"
+                    loading={sharingStanding}
+                    onClick={() => void shareStanding()}
+                    icon={<IconShare className="size-4" aria-hidden />}
+                  >
+                    {t.planCards.standing.button}
+                  </Button>
+                  <span className="text-[13px] leading-snug text-faint">{t.planCards.standing.hint}</span>
+                </div>
+              )}
             </Fact>
           </dl>
 
