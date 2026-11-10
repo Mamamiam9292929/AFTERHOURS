@@ -7578,11 +7578,12 @@ await step("P35 – Crew stummschalten: 8 Stunden, bis auf Weiteres, wieder laut
     check(psql(`select count(*) from public.crew_push_mutes m join auth.users u on u.id = m.user_id where u.email = '${bob.email}'`) === "0", "P35: wieder laut – keine Zeile mehr");
 
     // Fehlerzustand: Lesen scheitert → Fehlerkarte mit „Erneut versuchen“, danach geht es wieder.
-    await bob.page.route("**/rest/v1/crew_push_mutes*", (route) => route.abort());
+    // 400 mit PostgREST-Code: kein automatisches Wiederholen und kein Serverfehler im Protokoll.
+    await bob.page.route("**/rest/v1/crew_push_mutes*", (route) => route.fulfill({ status: 400, contentType: "application/json", body: '{"code":"PGRST000","message":"kaputt","details":null,"hint":null}' }));
     await bob.page.goto(`${APP}/crews/${ids.crew}`);
     await bob.page.getByRole("tab", { name: "Einstellungen" }).click();
     const broken = bob.page.getByTestId("crew-mute");
-    await broken.getByRole("alert").waitFor();
+    await broken.getByRole("alert").waitFor({ timeout: 20_000 });
     check(await broken.getByText("Die Einstellung ließ sich gerade nicht laden.").isVisible(), "P35: Fehlerzustand mit eigenem Text");
     await bob.page.unroute("**/rest/v1/crew_push_mutes*");
     await broken.getByRole("button", { name: "Erneut versuchen" }).click();
