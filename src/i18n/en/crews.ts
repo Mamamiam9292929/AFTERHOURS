@@ -33,6 +33,7 @@ export const crews = {
     openPolls: (n: number) => (n === 1 ? "1 poll running" : `${n} polls running`),
     upcomingPlans: (n: number) => (n === 1 ? "1 plan coming up" : `${n} plans coming up`),
     quiet: "Nothing planned right now",
+    muted: "Muted",
   },
   detail: {
     back: "Crews",
@@ -49,6 +50,11 @@ export const crews = {
     /** V2 Etappe 3j: Kopf der Crew-Seite als Karte in der Farbwelt der Crew. */
     kicker: "Your crew",
     yourRole: (role: string) => `Your role: ${role}`,
+    muted: {
+      always: "Muted",
+      until: (when: string) => `Muted until ${when}`,
+      open: "Change notifications from this crew",
+    },
     morePlans: "After that",
     evenings: (n: number) => (n === 1 ? "1 evening together" : `${n} evenings together`),
     noPolls: "No poll running",

@@ -27,6 +27,23 @@ export function useCrews() {
   });
 }
 
+/**
+ * P35 Etappe 2 · Alle eigenen Stummschaltungen (RLS: nur die eigenen Zeilen) für die Pille an Crew-Zeile und Crew-Kopf.
+ * Nur ein Hinweis: Lädt sie nicht, fehlt die Pille – die Karte in den Einstellungen zeigt den Fehler.
+ */
+export const crewMutesKey = (userId: string) => ["crew-mutes", userId] as const;
+export function useMyCrewMutes(userId: string) {
+  return useQuery({
+    queryKey: crewMutesKey(userId),
+    queryFn: async (): Promise<{ crew_id: string; muted_until: string | null }[]> => {
+      const { data, error } = await supabase.from("crew_push_mutes").select("crew_id, muted_until").eq("user_id", userId);
+      if (error) throw error;
+      return data as { crew_id: string; muted_until: string | null }[];
+    },
+    retry: false,
+  });
+}
+
 export function useCrew(crewId: string | undefined) {
   return useQuery({
     queryKey: qk.crew(crewId ?? "none"),

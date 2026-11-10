@@ -11,6 +11,7 @@ import { activeCrewMuteMode, CREW_MUTE_MODES, crewMuteState, type CrewMuteMode, 
 import { useNow } from "@/lib/hooks";
 import { supabase } from "@/lib/supabase";
 import { formatDateTime, formatTime } from "@/lib/time";
+import { crewMutesKey } from "./api";
 
 // F7: Texte laden erst mit den Einstellungen der Crew.
 await loadTexts("crewMute");
@@ -55,6 +56,8 @@ export function CrewMute({ crewId, userId }: { crewId: string; userId: string })
     },
     onSuccess: (data, mode) => {
       client.setQueryData(muteKey(crewId, userId), data.muted ? { muted_until: data.until } : null);
+      // P35 Etappe 2: Pillen im Kopf der Crew-Seite und in der Crew-Liste.
+      void client.invalidateQueries({ queryKey: crewMutesKey(userId) });
       toast.success(tx.saved[mode]);
     },
     onError: (error) => toast.error(error),

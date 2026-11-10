@@ -1,7 +1,7 @@
 // P35 · Crew stummschalten (src/lib/crewmute.ts): Stand der Karte – gleiche Regel wie app_private.queue_push.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { activeCrewMuteMode, crewMuteState, CREW_MUTE_MODES } from "../../src/lib/crewmute.ts";
+import { activeCrewMuteMode, crewMuteState, CREW_MUTE_MODES, mutedCrews } from "../../src/lib/crewmute.ts";
 
 const now = new Date("2026-11-10T13:00:00Z"); // 14:00 Uhr in Berlin
 
@@ -33,4 +33,19 @@ test("gewählte Dauer", () => {
   assert.equal(activeCrewMuteMode(crewMuteState({ muted_until: "2026-11-10T21:00:30Z" }, now), now), "8h", "kleine Uhrabweichung");
   assert.equal(activeCrewMuteMode(crewMuteState({ muted_until: "2026-11-17T13:00:00Z" }, now), now), "week");
   assert.deepEqual([...CREW_MUTE_MODES], ["8h", "week", "always"]);
+});
+
+test("Etappe 2: stumme Crews für Liste und Kopf – abgelaufene fallen weg", () => {
+  const rows = [
+    { crew_id: "a", muted_until: null },
+    { crew_id: "b", muted_until: "2026-11-10T21:00:00Z" },
+    { crew_id: "c", muted_until: "2026-11-10T12:00:00Z" },
+  ];
+  const map = mutedCrews(rows, now);
+  assert.deepEqual([...map.keys()], ["a", "b"]);
+  assert.equal(map.get("a")?.kind, "always");
+  assert.equal(map.get("b")?.kind, "until");
+  assert.equal(map.has("c"), false, "abgelaufen = laut, keine Pille");
+  assert.equal(mutedCrews(undefined, now).size, 0, "noch nicht geladen");
+  assert.equal(mutedCrews([], now).size, 0);
 });
