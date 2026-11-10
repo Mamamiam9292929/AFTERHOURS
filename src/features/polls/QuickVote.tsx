@@ -150,7 +150,7 @@ export function PollQuickVote({ poll, memberIds, userId, now, onTouched, busy }:
           type="button"
           onClick={() => void answerAll()}
           disabled={voteAll.isPending}
-          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.08] px-4 text-[14px] font-semibold text-lime transition-transform hover:bg-lime/15 active:scale-95 disabled:opacity-60"
+          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.08] px-4 text-[14px] font-semibold text-lime transition-transform hover:bg-lime/10 active:scale-90 disabled:opacity-60"
           data-testid="poll-quick-all"
         >
           <IconCheck className="size-4" aria-hidden />

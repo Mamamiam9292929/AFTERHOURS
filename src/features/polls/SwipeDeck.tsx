@@ -183,7 +183,7 @@ export function SwipeDeck({
                 type="button"
                 onClick={all.onAll}
                 disabled={all.busy}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.08] px-4 text-[15px] font-semibold text-lime transition-transform hover:bg-lime/15 active:scale-95 disabled:opacity-60"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-lime/40 bg-lime/[0.08] px-4 text-[15px] font-semibold text-lime transition-transform hover:bg-lime/10 active:scale-90 disabled:opacity-60"
               >
                 <IconCheck className="size-4" aria-hidden />
                 {all.label}
