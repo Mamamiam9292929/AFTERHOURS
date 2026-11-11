@@ -18,4 +18,5 @@ export const germanPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]> 
   notificationText: () => import("./notificationText").then((m) => m.notificationText),
   crewMute: () => import("./crewMute").then((m) => m.crewMute),
   pollStanding: () => import("./pollStanding").then((m) => m.pollStanding),
+  pollExtend: () => import("./pollExtend").then((m) => m.pollExtend),
 };

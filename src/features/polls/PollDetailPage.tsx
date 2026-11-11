@@ -22,6 +22,7 @@ import { loadTexts, t } from "@/i18n";
 import { DecidedMoment } from "./DecidedMoment";
 import { awayLine } from "./OptionAway";
 import { busyLine, myBusyPlans } from "./OptionBusy";
+import { PollExtend } from "./PollExtend";
 import { SwipeDeck } from "./SwipeDeck";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
@@ -982,6 +983,9 @@ export function PollDetailPage() {
             />
           )}
           {canManage && !summary.isOver && <GuestSettings poll={poll} guests={guests} crewAdmin={canManageCrew(myRole(crew, user.id))} />}
+
+          {/* P39: „Noch einen Tag?“ – Frist verlängern statt neu anfangen. */}
+          {canManage && !summary.isOver && <PollExtend poll={poll} now={now} />}
 
           {canManage && !summary.isOver && (
             <Section title={t.nav.settings} className="mt-0">
