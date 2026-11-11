@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { IconBasket, IconChat, IconCheck, IconPin, IconPlus, IconWarning, IconWeatherUnknown } from "@/components/icons";
 import { useToast } from "@/components/ui/Toast";
@@ -8,6 +8,7 @@ import { usePlanWeather, type PlanWithParticipants } from "@/features/plans/api"
 import { useClaimPlanItem, usePlanItems } from "@/features/plans/itemsApi";
 import { WEATHER_ICONS } from "@/features/plans/weatherIcons";
 import { t } from "@/i18n";
+import { arrivalOpen } from "@/lib/arrival";
 import { bringSummary } from "@/lib/bring";
 import { cn } from "@/lib/cn";
 import { answerNotes } from "@/lib/notes";
@@ -15,6 +16,10 @@ import type { Person } from "@/components/ui/Avatar";
 import { tonightStrip } from "@/lib/quickvote";
 import { calendarDaysBetween, formatTime, zonedParts } from "@/lib/time";
 import { formatTemperature, outdoorHint, weatherKind } from "@/lib/weather";
+import { Tile } from "./TonightTile";
+
+// P43 Etappe 2: „Schon da?“ in der Leiste – Kachel und Texte laden erst rund um den Beginn eines Abends.
+const TonightArrival = lazy(() => import("./TonightArrival").then((m) => ({ default: m.TonightArrival })));
 
 /**
  * D3 Etappe 2a · „Heute Abend“-Leiste direkt unter dem großen Ticket auf Home: in den letzten
@@ -105,6 +110,12 @@ export function TonightStrip({ plan, now, userId, lookup }: { plan: PlanWithPart
         </Link>
       </div>
       <div className={cn("mt-2 grid gap-2.5", weatherTile && "sm:grid-cols-2")}>
+        {/* P43 Etappe 2: rund um den Beginn zuerst, wer schon da ist – über die ganze Breite. */}
+        {arrivalOpen(plan, now) && (
+          <Suspense fallback={null}>
+            <TonightArrival planId={plan.id} userId={userId} lookup={lookup} now={now} wide={Boolean(weatherTile)} />
+          </Suspense>
+        )}
         {weatherTile}
         <Tile icon={<IconPin aria-hidden />} label={t.home.tonight.meeting}>
           {meetingMain ? (
@@ -278,20 +289,6 @@ function BringTile({ planId, userId, wide: spanBoth }: { planId: string; userId:
           summary.mine.length === 0 && <span className="block text-sm text-muted">{t.home.tonight.bring.allTaken}</span>
         )}
       </Tile>
-    </div>
-  );
-}
-
-function Tile({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-      <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-fg [&>svg]:size-5">
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[12px] font-bold uppercase tracking-wide text-muted">{label}</p>
-        <div className="mt-0.5">{children}</div>
-      </div>
     </div>
   );
 }

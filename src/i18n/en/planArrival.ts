@@ -25,4 +25,12 @@ export const planArrival = {
   honest: "Just a heads-up for the crew – no location, no notification. The time is whatever you say.",
   error: "Couldn't load “Here yet?” right now.",
   retry: "Try again",
+  home: {
+    label: "Here yet?",
+    mineHere: (time: string) => `You've been here since ${time}.`,
+    mineLate: (time: string) => `You'll be there around ${time}.`,
+    more: (n: number) => (n === 1 ? "1 more on the plan page" : `${n} more on the plan page`),
+    loading: "Loading “Here yet?” …",
+    error: "Couldn't load “Here yet?” right now.",
+  },
 } satisfies typeof dePlanArrival;

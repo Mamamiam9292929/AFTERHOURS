@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconCircleCheck } from "@/components/icons";
 import { PosterTitle } from "@/components/layout/Page";
 import { Avatar, type Person } from "@/components/ui/Avatar";
@@ -6,55 +5,14 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
-import { ARRIVAL_MINUTES, arrivalOrder, arrivalOverdue, type ArrivalEntry } from "@/lib/arrival";
+import { ARRIVAL_MINUTES, arrivalOrder, arrivalOverdue } from "@/lib/arrival";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
-import { supabase } from "@/lib/supabase";
 import { formatTime } from "@/lib/time";
+import { usePlanArrival, useSetPlanArrival, type ArrivalChoice } from "./arrivalApi";
 
 // F7: Texte von „Seid ihr schon da?“ laden erst mit der Karte – also nur rund um den Beginn eines Abends.
 await loadTexts("planArrival");
-
-export interface PlanArrivalStatus {
-  open: boolean;
-  can_answer: boolean;
-  mine: Omit<ArrivalEntry, "user_id"> | null;
-  people: ArrivalEntry[];
-  missing: number;
-}
-
-type Choice = { state: "here" } | { state: "late"; minutes: number } | { state: "none" };
-
-const arrivalKey = (planId: string) => ["plan-arrival", planId] as const;
-
-function usePlanArrival(planId: string) {
-  return useQuery({
-    queryKey: arrivalKey(planId),
-    queryFn: async (): Promise<PlanArrivalStatus> => {
-      const { data, error } = await supabase.rpc("plan_arrival_status", { p_plan_id: planId });
-      if (error) throw error;
-      return data as PlanArrivalStatus;
-    },
-    // Rund um den Beginn kommen die Ansagen schnell nacheinander – beim Draufschauen soll der Stand frisch sein.
-    refetchInterval: 30_000,
-  });
-}
-
-function useSetPlanArrival(planId: string) {
-  const client = useQueryClient();
-  return useMutation({
-    mutationFn: async (choice: Choice): Promise<string | null> => {
-      const { data, error } = await supabase.rpc("set_plan_arrival", {
-        p_plan_id: planId,
-        p_state: choice.state,
-        p_minutes: choice.state === "late" ? choice.minutes : null,
-      });
-      if (error) throw error;
-      return (data as string | null) ?? null;
-    },
-    onSettled: () => void client.invalidateQueries({ queryKey: arrivalKey(planId) }),
-  });
-}
 
 /**
  * P43 · „Seid ihr schon da?“ auf der Planseite – ab einer Stunde vor Beginn bis drei Stunden danach (`arrivalOpen`).
@@ -112,7 +70,7 @@ export function PlanArrivalCard({
         : copy.lead;
   const people = arrivalOrder(data.people, userId);
 
-  function say(choice: Choice) {
+  function say(choice: ArrivalChoice) {
     if (setArrival.isPending) return;
     setArrival.mutate(choice, {
       onSuccess: (eta) =>

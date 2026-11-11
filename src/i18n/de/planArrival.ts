@@ -26,4 +26,13 @@ export const planArrival = {
   honest: "Nur eine Ansage für die Crew – kein Standort, keine Benachrichtigung. Die Uhrzeit ist, was du sagst.",
   error: "„Seid ihr schon da?“ ließ sich gerade nicht laden.",
   retry: "Nochmal versuchen",
+  /** Etappe 2 · Kachel in der „Heute Abend“-Leiste auf Home. */
+  home: {
+    label: "Schon da?",
+    mineHere: (time: string) => `Du bist da seit ${time}.`,
+    mineLate: (time: string) => `Du kommst gegen ${time}.`,
+    more: (n: number) => (n === 1 ? "1 weitere Ansage auf der Planseite" : `${n} weitere Ansagen auf der Planseite`),
+    loading: "„Schon da?“ lädt …",
+    error: "„Schon da?“ gerade nicht abrufbar.",
+  },
 };
