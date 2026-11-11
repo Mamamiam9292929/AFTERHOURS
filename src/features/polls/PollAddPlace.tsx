@@ -125,7 +125,7 @@ export function PollAddPlace({ poll, now }: { poll: PollWithDetails; now: Date }
                 {tx.search}
               </Button>
             </div>
-            <p className="mt-3 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">{tx.or}</p>
+            <p className="mt-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-muted">{tx.or}</p>
             <div className="mt-2">
               <TextField
                 label={tx.own}
