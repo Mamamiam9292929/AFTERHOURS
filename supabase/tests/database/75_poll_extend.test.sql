@@ -86,8 +86,9 @@ select ok(public.extend_poll(tests.var('poll')::uuid, now() + interval '4 days')
 select tests.logout();
 select is((select count(*)::int from public.notifications where type = 'poll_reminder' and user_id = tests.uid('dave') and related_entity_id = tests.var('poll')::uuid), 1,
   'Dave hat „Erinnerungen“ abgeschaltet – nach der ersten Verlängerung kein weiterer Hinweis');
-select is((select count(*)::int from public.notifications where type = 'poll_reminder' and user_id = tests.uid('alice') and related_entity_id = tests.var('poll')::uuid), 1,
-  'Alice verlängert selbst – kein Hinweis an sich selbst');
+select is((select string_agg(p.display_name, ',' order by n.created_at, p.display_name) from public.notifications n join public.profiles p on p.id = n.actor_id
+           where n.type = 'poll_reminder' and n.user_id = tests.uid('alice') and n.related_entity_id = tests.var('poll')::uuid),
+  'Bob,Dave', 'Alice bekommt die Hinweise von Bob und Dave, keinen über ihre eigene Verlängerung');
 select is((select count(*)::int from public.notifications where type = 'poll_reminder' and user_id = tests.uid('bob') and related_entity_id = tests.var('poll')::uuid), 0,
   'Bob hat abgestimmt – kein Hinweis');
 
