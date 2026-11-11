@@ -6572,6 +6572,99 @@ await step("P42 – „Vertippt?“: nachgereichten Vorschlag zurückziehen, sol
   }
 });
 
+await step("P43 – „Seid ihr schon da?“: „Bin da“ oder „Bin da in 20 Min.“ ohne Standort (Bob 390 px, Carol, Alice)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const uidOf = (user) => psql(`select id from auth.users where email = '${user.email}'`);
+  const title = `Kicker im Eck ${RUN}`;
+  const planId = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+    values ('${ids.crew}', '${uidOf(bob)}', '${title}', now() + interval '30 minutes', 'confirmed') returning id`).split("\n")[0];
+  psql(`insert into public.plan_participants (plan_id, user_id, attendance_status) values
+    ('${planId}', '${uidOf(bob)}', 'going'), ('${planId}', '${uidOf(carol)}', 'maybe'), ('${planId}', '${uidOf(alice)}', 'going')`);
+  const row = (user) => psql(`select coalesce(state, '') from public.plan_arrivals where plan_id = '${planId}' and user_id = '${uidOf(user)}'`);
+  try {
+    // Bob (390 px): Karte eine halbe Stunde vor Beginn, noch ohne Farbe; „Bin da in 20 Min.“ färbt sie gelb.
+    const bp = bob.page;
+    await bp.goto(`${APP}/plans/${planId}`);
+    const card = bp.getByTestId("plan-arrival");
+    await card.waitFor({ timeout: 20_000 });
+    check((await card.getByRole("heading", { name: "Seid ihr schon da?" }).count()) === 1, "P43: eine halbe Stunde vor Beginn fragt die Planseite „Seid ihr schon da?“");
+    check((await card.getAttribute("data-answer")) === null, "P43: Karte noch ohne Farbe");
+    check((await card.getByTestId("plan-arrival-list").innerText()).includes("Noch hat niemand etwas gesagt."), "P43: Leerzustand ohne Ansagen");
+    check((await card.getByTestId("plan-arrival-honest").innerText()).includes("kein Standort"), "P43: Karte sagt ehrlich, dass sie keinen Standort nutzt");
+    const answerBox = await bp.getByRole("radiogroup", { name: "Bist du dabei?" }).boundingBox();
+    const cardBox = await card.boundingBox();
+    check(Boolean(answerBox && cardBox && answerBox.y < cardBox.y), "P43: Karte steht unter der eigenen Antwort");
+    await card.getByTestId("plan-arrival-late-20").click();
+    await toast(bob, "Gesagt – die Crew sieht: gegen");
+    await bp.locator('[data-testid=plan-arrival][data-answer="maybe"]').waitFor();
+    check(row(bob) === "late", "P43: Bobs Ansage gespeichert");
+    check(psql(`select eta between now() + interval '18 minutes' and now() + interval '21 minutes' from public.plan_arrivals
+      where plan_id = '${planId}' and user_id = '${uidOf(bob)}'`) === "t", "P43: Uhrzeit rechnet der Server (jetzt + 20 Min.)");
+    check((await card.getByTestId("plan-arrival-lead").innerText()).includes("du kommst gegen"), "P43: Bob sieht seine Ansage in der Einleitung");
+    check((await card.getByTestId("plan-arrival-person").first().innerText()).startsWith("Du · gegen "), "P43: die eigene Ansage steht vorn");
+    await card.scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Seid ihr schon da?");
+    await a11y(bob, "plan-schon-da");
+    await shot(bob, "79-schon-da-spaeter");
+
+    // Carol („Vielleicht“) sieht Bob mit Uhrzeit, sagt „Bin da“ – die Karte wird grün.
+    const cp = carol.page;
+    await cp.goto(`${APP}/plans/${planId}`);
+    const cCard = cp.getByTestId("plan-arrival");
+    await cCard.getByTestId("plan-arrival-person").first().waitFor();
+    check(/^Bob · gegen \d{2}:\d{2} Uhr$/.test((await cCard.getByTestId("plan-arrival-person").first().innerText()).trim()), "P43: Carol sieht Bob mit Uhrzeit");
+    check((await cCard.getByTestId("plan-arrival-missing").innerText()).includes("noch nichts gesagt"), "P43: wer nichts gesagt hat, steht nur als Zahl da");
+    await cCard.getByTestId("plan-arrival-here").click();
+    await toast(carol, "Gesagt – die Crew sieht, dass du da bist.");
+    await cp.locator('[data-testid=plan-arrival][data-answer="yes"]').waitFor();
+    check(row(carol) === "here", "P43: Carols „Bin da“ gespeichert");
+    check((await cCard.getByTestId("plan-arrival-here").count()) === 0, "P43: wer da ist, bekommt keine Knöpfe mehr – nur „Zurücknehmen“");
+    await cCard.scrollIntoViewIfNeeded();
+    await shot(carol, "79-schon-da");
+
+    // Ist Bobs Uhrzeit vorbei, heißt es „wollte … da sein“.
+    psql(`update public.plan_arrivals set eta = now() - interval '5 minutes' where plan_id = '${planId}' and user_id = '${uidOf(bob)}'`);
+    await cp.reload();
+    await cCard.getByTestId("plan-arrival-person").first().waitFor();
+    check((await cCard.getByText(/^Bob · wollte \d{2}:\d{2} Uhr da sein$/).count()) === 1, "P43: überfällige Ansage als „wollte … da sein“");
+
+    // Alice (Desktop) sieht beide; wer da ist, steht vor dem, der noch kommt.
+    const ap = alice.page;
+    await ap.goto(`${APP}/plans/${planId}`);
+    const aCard = ap.getByTestId("plan-arrival");
+    await aCard.getByTestId("plan-arrival-person").nth(1).waitFor();
+    check((await aCard.getByTestId("plan-arrival-person").first().getAttribute("data-state")) === "here", "P43: wer schon da ist, steht vorn");
+    await aCard.scrollIntoViewIfNeeded();
+    await shot(alice, "79-schon-da");
+
+    // Bob nimmt zurück.
+    await bp.reload();
+    await card.getByTestId("plan-arrival-undo").click();
+    await toast(bob, "Ansage zurückgenommen.");
+    await bp.waitForFunction(() => !document.querySelector("[data-testid=plan-arrival]")?.hasAttribute("data-answer"));
+    check(row(bob) === "", "P43: zurückgenommen – Bobs Ansage ist weg");
+
+    // Fehlerzustand: Server nicht erreichbar – Hinweis mit „Nochmal versuchen“.
+    await bp.route("**/rest/v1/rpc/plan_arrival_status", (route) => route.abort());
+    await bp.reload();
+    await bp.getByTestId("plan-arrival-error").waitFor({ timeout: 20_000 });
+    check(true, "P43: Fehlerzustand statt leerer Karte");
+    await bp.unroute("**/rest/v1/rpc/plan_arrival_status");
+    await bp.getByTestId("plan-arrival-error").getByRole("button", { name: "Nochmal versuchen" }).click();
+    await card.waitFor();
+    check(true, "P43: „Nochmal versuchen“ lädt die Karte");
+
+    if (ANON) {
+      const anon = await api(null, "POST", "rpc/plan_arrival_status", { p_plan_id: planId });
+      check(anon.status >= 400, `API: ohne Anmeldung kein Stand (${anon.status})`);
+      const direct = await api(carol, "GET", `plan_arrivals?plan_id=eq.${planId}&select=user_id,state`);
+      check(direct.status >= 400, `API: Ansagen nicht direkt lesbar (${direct.status})`);
+    }
+  } finally {
+    psql(`delete from public.plans where id = '${planId}'`);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;

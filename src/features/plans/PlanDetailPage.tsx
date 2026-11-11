@@ -22,6 +22,7 @@ import { closePromptDue } from "@/lib/closing";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatEuro } from "@/lib/format";
+import { arrivalOpen } from "@/lib/arrival";
 import { homeCheckOpen } from "@/lib/homecheck";
 import { retryDue } from "@/lib/retry";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
@@ -68,6 +69,7 @@ const PlanFeedbackAgainPill = lazy(() => import("./PlanFeedback").then((m) => ({
 // P30: „Fand der Abend statt?“ – gleicher Chunk und Text-Bereich wie „Wie war’s?“, erst wenn der Abend vorbei ist.
 const PlanCloseCard = lazy(() => import("./PlanFeedback").then((m) => ({ default: m.PlanCloseCard })));
 // P31: „Gut heimgekommen?“ – Karte und Texte nur rund um den Abend (ab Beginn bis 12 h nach dem Ende).
+const PlanArrivalCard = lazy(() => import("./PlanArrival").then((m) => ({ default: m.PlanArrivalCard })));
 const PlanHomeCard = lazy(() => import("./PlanHome").then((m) => ({ default: m.PlanHomeCard })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
@@ -310,6 +312,13 @@ export function PlanDetailPage() {
           {!locked && shareToken.data && guestSecret && (
             <Suspense fallback={null}>
               <PlanGuestClaimCard planId={plan.id} token={shareToken.data} secret={guestSecret} />
+            </Suspense>
+          )}
+
+          {/* P43: Seid ihr schon da? – ab 1 h vor bis 3 h nach Beginn, direkt unter der eigenen Antwort. */}
+          {arrivalOpen(plan, now) && (
+            <Suspense fallback={null}>
+              <PlanArrivalCard planId={plan.id} userId={user.id} lookup={people.lookup} now={now} />
             </Suspense>
           )}
 

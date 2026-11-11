@@ -1,0 +1,28 @@
+import type { planArrival as dePlanArrival } from "../de/planArrival";
+
+/** P43 · Here yet? – “I'm here” or “there in 20 min” on the night itself. */
+export const planArrival = {
+  title: "Here yet?",
+  lead: "Instead of “running 10 min late” in the group chat: one tap and the crew sees it here – no location.",
+  leadOthers: "Who's here and who's still coming:",
+  leadHere: (time: string) => `The crew sees: you've been here since ${time}.`,
+  leadLate: (time: string) => `The crew sees: you'll be there around ${time}.`,
+  here: "I'm here",
+  lateLabel: "There in …",
+  minutes: (n: number) => (n >= 60 && n % 60 === 0 ? `${n / 60} h` : `${n} min`),
+  minutesAria: (n: number) => (n >= 60 && n % 60 === 0 ? `There in ${n / 60} hour${n === 60 ? "" : "s"}` : `There in ${n} minutes`),
+  savedHere: "Done – the crew sees you're here.",
+  savedLate: (time: string) => `Done – the crew sees: around ${time}.`,
+  undo: "Take back",
+  removed: "Taken back.",
+  listLabel: "Who's here and who's still coming",
+  personHere: (name: string, time: string) => `${name} · here since ${time}`,
+  personLate: (name: string, time: string) => `${name} · around ${time}`,
+  personOverdue: (name: string, time: string) => `${name} · meant to be here by ${time}`,
+  none: "Nobody has said anything yet.",
+  missing: (n: number) => (n === 1 ? "1 person hasn't said anything yet" : `${n} haven't said anything yet`),
+  allSaid: "Everyone has checked in.",
+  honest: "Just a heads-up for the crew – no location, no notification. The time is whatever you say.",
+  error: "Couldn't load “Here yet?” right now.",
+  retry: "Try again",
+} satisfies typeof dePlanArrival;

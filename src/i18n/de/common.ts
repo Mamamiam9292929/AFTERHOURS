@@ -244,6 +244,8 @@ export const errors = {
     invalid_plan_feedback: "Das ist keine Antwort auf „Wie war’s?“.",
     plan_feedback_closed: "„Wie war’s?“ geht nach dem Abend – bis 30 Tage danach.",
     plan_feedback_not_going: "Nur wer dabei war, sagt, wie es war.",
+    plan_arrival_closed: "„Seid ihr schon da?“ geht ab einer Stunde vor Beginn bis drei Stunden danach.",
+    plan_arrival_not_going: "Ansagen kann, wer beim Plan „Bin dabei“ oder „Vielleicht“ gesagt hat.",
     plan_home_closed: "„Gut heimgekommen?“ geht ab Beginn des Abends bis zum nächsten Vormittag.",
     plan_home_not_going: "Melden kann sich, wer beim Plan „Bin dabei“ oder „Vielleicht“ gesagt hat.",
     plan_min_going_started: "Der Plan hat schon angefangen – die Mindestzahl lässt sich nur vorher ändern.",
