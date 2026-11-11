@@ -362,6 +362,15 @@ export function useClosePoll() {
   });
 }
 
+/** P39: Frist verlängern (Erstellerin, Owner, Admin) – liefert die neue Frist. */
+export function useExtendPoll() {
+  return usePollAction(async (input: { pollId: string; endsAt: Date }): Promise<string> => {
+    const { data, error } = await supabase.rpc("extend_poll", { p_poll_id: input.pollId, p_ends_at: input.endsAt.toISOString() });
+    if (error) throw error;
+    return data as string;
+  });
+}
+
 export function useRemindPoll() {
   return usePollAction(async (pollId: string): Promise<number> => {
     const { data, error } = await supabase.rpc("remind_poll", { p_poll_id: pollId });

@@ -6214,6 +6214,64 @@ await step("P34 Etappe 2 – „Bin bei allem dabei“ für Gäste auf dem Absti
   }
 });
 
+await step("P39 – „Noch einen Tag?“: Frist verlängern, alle Stimmen bleiben, Nachzügler bekommen Bescheid (Bob 390 px, Carol)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const title = `Verlängern ${RUN}`;
+  const created = await api(bob, "POST", "rpc/create_poll", {
+    p_crew_id: ids.crew, p_title: title, p_ends_at: new Date(Date.now() + 86_400_000).toISOString(),
+    p_options: [{ title: "Bowling" }, { title: "Kino" }],
+    p_description: null, p_meeting_point: null, p_budget_cents: null, p_min_participants: null,
+  });
+  if (created.status >= 300) throw new Error(`Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+  const pollId = created.json;
+  const endsAt = () => new Date(psql(`select to_char(ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') from public.polls where id = '${pollId}'`)).getTime();
+  try {
+    await api(alice, "POST", "rpc/cast_vote", { p_option_id: psql(`select id from public.poll_options where poll_id = '${pollId}' and title = 'Bowling'`), p_response: "yes" });
+    // Carol ist einfaches Mitglied: kein Verlängern bei Bobs Abstimmung.
+    await carol.page.goto(`${APP}/polls/${pollId}`);
+    await carol.page.getByRole("heading", { name: title }).waitFor();
+    check((await carol.page.getByTestId("poll-extend").count()) === 0, "P39: einfache Mitglieder sehen „Frist verlängern“ nicht");
+
+    // Bob (390 px) hat sie gestartet: drei Tipps ab der aktuellen Frist.
+    const { page } = bob;
+    await page.goto(`${APP}/polls/${pollId}`);
+    const box = page.getByTestId("poll-extend");
+    await box.scrollIntoViewIfNeeded();
+    for (const label of ["+2 Std.", "+1 Tag", "+3 Tage"]) check(await box.getByRole("button", { name: new RegExp(`^\\${label} – bis `) }).isEnabled(), `P39: „${label}“ wählbar`);
+    check(await box.getByText("Alle Stimmen bleiben. Wer noch nicht abgestimmt hat, bekommt Bescheid.").isVisible(), "P39: Hinweis, dass Stimmen bleiben");
+    await noOverflow(bob, "Abstimmung – Frist verlängern");
+    await a11y(bob, "abstimmung-frist-verlaengern");
+    await shot(bob, "75-abstimmung-frist-verlaengern");
+
+    // Fehlerzustand: ohne Verbindung bleibt die Frist, die Meldung sagt es.
+    const before = endsAt();
+    await page.route("**/rest/v1/rpc/extend_poll", (route) => route.abort());
+    await box.getByRole("button", { name: /^\+1 Tag – bis / }).click();
+    await page.getByText(/Keine Verbindung/).first().waitFor();
+    check(endsAt() === before, "P39: Fehler beim Verlängern – Frist unverändert");
+    await page.unroute("**/rest/v1/rpc/extend_poll");
+
+    const saved = page.waitForResponse((r) => r.url().includes("/rpc/extend_poll") && r.request().method() === "POST");
+    await box.getByRole("button", { name: /^\+1 Tag – bis / }).click();
+    check((await saved).ok(), "P39: „+1 Tag“ gespeichert");
+    await toast(bob, "Verlängert bis ");
+    const after = endsAt();
+    check(after - Math.floor(before / 60_000) * 60_000 === 86_400_000, `P39: Frist genau einen Tag später (${new Date(before).toISOString()} → ${new Date(after).toISOString()})`);
+    check(psql(`select count(*) from public.poll_votes where poll_id = '${pollId}'`) === "1", "P39: Alices Stimme bleibt");
+    const notified = (name) => psql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id
+      where n.type = 'poll_reminder' and n.related_entity_id = '${pollId}' and (n.payload ->> 'extended')::boolean and u.email = '${name.email}'`);
+    check(notified(carol) === "1", "P39: Carol hat noch nicht abgestimmt – sie bekommt Bescheid");
+    check(notified(alice) === "0" && notified(bob) === "0", "P39: wer abgestimmt oder verlängert hat, bekommt nichts");
+
+    await carol.page.goto(`${APP}/notifications`);
+    // Ungelesene tragen vorne „Ungelesen:“ für Screenreader – deshalb ohne Anker am Anfang.
+    await carol.page.getByText(/Verlängert bis .* – deine Stimme fehlt noch$/).first().waitFor();
+    check(true, "P39: Carol sieht „Verlängert bis … – deine Stimme fehlt noch“");
+  } finally {
+    execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;

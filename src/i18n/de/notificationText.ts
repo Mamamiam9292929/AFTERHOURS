@@ -31,9 +31,12 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
   }),
   // P15: Endspurt ohne auslösende Person – in den letzten drei Stunden, solange die eigene Stimme fehlt.
   poll_reminder: (actor, p) =>
-    p.closing
-      ? { title: str(p, "ends_at") ? `Endet um ${formatTime(str(p, "ends_at"))} – deine Stimme fehlt` : "Endet bald – deine Stimme fehlt", body: str(p, "title") }
-      : { title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") },
+    // P39: Frist verlängert – an alle, deren Stimme noch fehlt.
+    p.extended && str(p, "ends_at")
+      ? { title: `Verlängert bis ${formatDateTime(str(p, "ends_at"))} – deine Stimme fehlt noch`, body: str(p, "title") }
+      : p.closing
+        ? { title: str(p, "ends_at") ? `Endet um ${formatTime(str(p, "ends_at"))} – deine Stimme fehlt` : "Endet bald – deine Stimme fehlt", body: str(p, "title") }
+        : { title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") },
   poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (Gast) hat abgestimmt` : `${actor} hat abgestimmt`, body: str(p, "title") }),
   poll_result: (_actor, p) => ({
     title: p.winner_title ? `Ergebnis: ${str(p, "winner_title")}` : p.is_tie ? "Abstimmung endet mit Gleichstand" : "Abstimmung ohne Zusagen beendet",
