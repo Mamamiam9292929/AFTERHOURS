@@ -6338,6 +6338,93 @@ await step("P40 – „Und Sonntag?“: Termin nachreichen, wer abgestimmt hat, 
   }
 });
 
+await step("P40 Etappe 2 – „Und das Kino?“: Ort nachreichen – eigener Vorschlag und aus Discover (Bob 390 px, Carol)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const dayIn = (n) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() + n * 86_400_000));
+  const d1 = dayIn(3);
+  const title = `Ort nachreichen ${RUN}`;
+  const created = await api(bob, "POST", "rpc/create_poll", {
+    p_crew_id: ids.crew, p_title: title, p_ends_at: new Date(Date.now() + 86_400_000).toISOString(),
+    p_options: [{ title: "Billard", proposed_date: d1, proposed_time: "20:00" }, { title: "Kino", proposed_date: d1, proposed_time: "20:00" }],
+  });
+  if (created.status >= 300) throw new Error(`Orts-Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+  const pollId = created.json;
+  const options = () => psql(`select count(*) from public.poll_options where poll_id = '${pollId}'`);
+  try {
+    await api(carol, "POST", "rpc/cast_vote", { p_option_id: psql(`select id from public.poll_options where poll_id = '${pollId}' and title = 'Billard'`), p_response: "no" });
+
+    const { page } = bob;
+    await page.goto(`${APP}/polls/${pollId}`);
+    await page.getByRole("heading", { name: title }).waitFor();
+    check((await page.getByTestId("poll-add-slot").count()) === 0, "P40/2: bei Orts-Abstimmungen kein „Anderen Termin vorschlagen“");
+    const open = page.getByTestId("poll-add-place");
+    await open.scrollIntoViewIfNeeded();
+    await open.click();
+    const form = page.getByTestId("poll-add-place-form");
+    await form.waitFor();
+    check(await form.getByText("Du bist dort gleich dabei. Wer schon abgestimmt hat, bekommt Bescheid.").isVisible(), "P40/2: Hinweis, was beim Vorschlagen passiert");
+    check(await form.getByText(/^Gilt wie die anderen Vorschläge für .+, 20:00 Uhr\.$/).isVisible(), "P40/2: gemeinsamer Termin wird genannt");
+    await noOverflow(bob, "Abstimmung – Ort nachreichen");
+    await a11y(bob, "abstimmung-ort-nachreichen");
+    await shot(bob, "77-abstimmung-ort-nachreichen");
+
+    // Fehlerzustände: leer, doppelt (vor dem Server), keine Verbindung (nichts angelegt).
+    await form.getByRole("button", { name: "Vorschlagen" }).click();
+    await form.getByText("Such einen Ort aus oder schreib deinen Vorschlag hin.").waitFor();
+    await form.getByLabel("Eigener Vorschlag").fill("  kino ");
+    await form.getByRole("button", { name: "Vorschlagen" }).click();
+    await form.getByText("Diesen Vorschlag gibt es schon.").waitFor();
+    check(options() === "2", "P40/2: leer und doppelt – nichts angelegt");
+    await form.getByLabel("Eigener Vorschlag").fill("Picknick im Park");
+    await page.route("**/rest/v1/rpc/add_poll_place", (route) => route.abort());
+    await form.getByRole("button", { name: "Vorschlagen" }).click();
+    await page.getByText(/Keine Verbindung/).first().waitFor();
+    check(options() === "2", "P40/2: Fehler beim Vorschlagen – nichts angelegt");
+    await page.unroute("**/rest/v1/rpc/add_poll_place");
+
+    const saved = page.waitForResponse((r) => r.url().includes("/rpc/add_poll_place") && r.request().method() === "POST");
+    await form.getByRole("button", { name: "Vorschlagen" }).click();
+    check((await saved).ok(), "P40/2: eigener Vorschlag gespeichert");
+    await toast(bob, "Picknick im Park steht jetzt mit zur Wahl.");
+    check(options() === "3", "P40/2: dritter Vorschlag angelegt");
+    check(psql(`select o.proposed_date || ' ' || to_char(o.proposed_time, 'HH24:MI') || ' ' || v.response from public.poll_options o
+                join public.poll_votes v on v.poll_option_id = o.id and v.user_id = (select id from auth.users where email = '${bob.email}')
+                where o.poll_id = '${pollId}' and o.title = 'Picknick im Park'`) === `${d1} 20:00 yes`, "P40/2: gemeinsamer Termin übernommen, Bob ist dort dabei");
+    await optionCard(bob, "Picknick im Park").first().waitFor();
+
+    // Ort aus Discover: gleiche Suche wie beim Anlegen, ein Tipp wählt ihn.
+    await page.getByTestId("poll-add-place").click();
+    await form.getByRole("button", { name: "Ort suchen" }).click();
+    const picker = dialog(bob);
+    await picker.getByLabel("Stadt", { exact: true }).fill("Leipzig");
+    await picker.getByLabel("Stadt", { exact: true }).press("Enter");
+    await picker.getByLabel("Orte durchsuchen").fill("bowling_alley 4");
+    await picker.getByRole("button", { name: /bowling_alley 4\b/ }).first().click();
+    await picker.waitFor({ state: "hidden" });
+    const picked = form.getByTestId("poll-add-place-picked");
+    await picked.waitFor();
+    const placeName = (await picked.locator("span.truncate.font-semibold").first().textContent()).trim();
+    await shot(bob, "77b-abstimmung-ort-aus-discover");
+    const savedPlace = page.waitForResponse((r) => r.url().includes("/rpc/add_poll_place") && r.request().method() === "POST");
+    await form.getByRole("button", { name: "Vorschlagen" }).click();
+    check((await savedPlace).ok(), "P40/2: Ort aus Discover gespeichert");
+    check(options() === "4", "P40/2: vierter Vorschlag angelegt");
+    check(psql(`select count(*) from public.poll_options o join public.activities a on a.id = o.activity_id
+                where o.poll_id = '${pollId}' and o.title = a.name and a.name = '${placeName.replaceAll("'", "''")}'`) === "1", "P40/2: Ort mit Verweis auf Discover, Titel ist sein Name");
+    await optionCard(bob, placeName).first().waitFor();
+
+    const notified = (user) => psql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id
+      where n.type = 'poll_reminder' and n.related_entity_id = '${pollId}' and n.payload ? 'place' and u.email = '${user.email}'`);
+    check(notified(carol) === "2", "P40/2: Carol hat schon abgestimmt – sie bekommt zu beiden Orten Bescheid");
+    check(notified(alice) === "0" && notified(bob) === "0", "P40/2: wer noch nicht abgestimmt hat oder vorschlägt, bekommt nichts");
+    await carol.page.goto(`${APP}/notifications`);
+    await carol.page.getByText(/schlägt noch Picknick im Park vor – bist du dabei\?$/).first().waitFor();
+    check(true, "P40/2: Carol sieht „… schlägt noch Picknick im Park vor – bist du dabei?“");
+  } finally {
+    execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;
