@@ -114,7 +114,7 @@ export function TonightArrival({
             >
               {copy.here}
             </Button>
-            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={copy.lateLabel}>
+            <div className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center" role="group" aria-label={copy.lateLabel}>
               {ARRIVAL_MINUTES.map((minutes) => (
                 <button
                   key={minutes}
@@ -123,7 +123,7 @@ export function TonightArrival({
                   aria-label={copy.minutesAria(minutes)}
                   disabled={setArrival.isPending}
                   onClick={() => say({ state: "late", minutes })}
-                  className="inline-flex h-10 min-w-11 items-center justify-center rounded-full border border-amber/45 bg-amber/[0.08] px-3 text-sm font-semibold tabular-nums text-fg transition-colors hover:border-amber hover:text-amber disabled:cursor-wait disabled:opacity-60"
+                  className="inline-flex h-10 min-w-0 items-center justify-center whitespace-nowrap rounded-full border border-amber/45 bg-amber/[0.08] px-1 text-[13px] font-semibold tabular-nums text-fg sm:min-w-11 sm:px-3 sm:text-sm transition-colors hover:border-amber hover:text-amber disabled:cursor-wait disabled:opacity-60"
                 >
                   {copy.minutes(minutes)}
                 </button>
