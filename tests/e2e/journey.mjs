@@ -873,6 +873,8 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
     const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
     if (clip !== null) check(clip.startsWith(`${ids.pollTitle} – `) && clip.trim().endsWith(ids.pollShareUrl), "P38: Zwischenablage enthält Zwischenstand und Link");
     else check(true, "P38: Zwischenstand ohne Web Share API kopiert (Zwischenablage nicht lesbar)");
+    // Rechte für die Zwischenablage wieder zurücknehmen – sonst gelten für Bob später andere (P13 Standort).
+    await context.clearPermissions();
   }
 
   if (ANON) {
