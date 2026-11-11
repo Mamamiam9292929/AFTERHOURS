@@ -55,6 +55,7 @@ export const englishPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]>
   planCards: () => import("./planCards").then((m) => m.planCards),
   notificationText: () => import("./notificationText").then((m) => m.notificationText),
   crewMute: () => import("./crewMute").then((m) => m.crewMute),
+  pollStanding: () => import("./pollStanding").then((m) => m.pollStanding),
 };
 
 /** Ganzes englisches Wörterbuch (Kern und alle Seitentexte) – für die Unit-Tests. */

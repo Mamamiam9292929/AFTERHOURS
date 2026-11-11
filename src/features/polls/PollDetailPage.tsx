@@ -1,8 +1,9 @@
 import { ShareButton } from "@/components/ui/ShareButton";
-import { decidedShare, pollShare } from "@/lib/share";
+import { decidedShare, pollShare, shareOrCopy } from "@/lib/share";
+import { pollStanding, pollStandingText } from "@/lib/pollstanding";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconRepeat, IconVote } from "@/components/icons";
+import { IconBell, IconCalendarPlus, IconCrown, IconHourglass, IconPin, IconRepeat, IconShare, IconVote } from "@/components/icons";
 import { PageHeader, PosterTitle, Section } from "@/components/layout/Page";
 import { AvatarStack } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -17,7 +18,7 @@ import { canManageCrew, myRole, useCrews } from "@/features/crews/api";
 import { useActivity } from "@/features/discover/api";
 import { useCreatePlanFromPoll, usePlans, usePlanShareToken } from "@/features/plans/api";
 import { usePeople } from "@/features/profile/api";
-import { t } from "@/i18n";
+import { loadTexts, t } from "@/i18n";
 import { DecidedMoment } from "./DecidedMoment";
 import { awayLine } from "./OptionAway";
 import { busyLine, myBusyPlans } from "./OptionBusy";
@@ -54,6 +55,9 @@ import { OptionWeather, PollWeatherFooter } from "./PollWeather";
 import { ParticipationBar } from "./PollCard";
 import { activeWherePoll, dateOptionLabel, datePollPlaceId, GUEST_PREFIX, isGuestId, summarizePoll, type OptionTally, type PollWithDetails } from "./logic";
 import "@/styles/motion.css";
+
+// P38: Texte für „Zwischenstand teilen“ – der Router lädt sie parallel zum Seiten-Chunk (F7).
+await loadTexts("pollStanding");
 
 const RESPONSES: VoteResponse[] = ["yes", "maybe", "no"];
 
@@ -626,6 +630,7 @@ export function PollDetailPage() {
   const [confirmClose, setConfirmClose] = useState(false);
   const [planOption, setPlanOption] = useState<PollOption | null>(null);
   const [runoffOpen, setRunoffOpen] = useState(false);
+  const [sharingStanding, setSharingStanding] = useState(false);
   const poll = pollQuery.data;
   // W2 Etappe 2: Teilen-Link vorab holen – das Teilen-Menü muss direkt auf den Tipp hin aufgehen.
   const shareToken = usePollShareToken(poll?.id, poll?.status === "open");
@@ -699,6 +704,29 @@ export function PollDetailPage() {
       {!summary.isOver && awayLine(option.proposed_date, absences.data, memberIds, user.id, people.lookup, tone)}
     </>
   );
+
+  // P38: Zwischenstand für den Gruppenchat – nur solange abgestimmt wird, nur Zahlen.
+  const standing = pollStanding(
+    {
+      status: poll.status,
+      ends_at: poll.ends_at,
+      options: summary.tallies.map((tally) => ({ label: poll.kind === "date" ? dateOptionLabel(tally.option) : tally.option.title, yes: tally.yes.length })),
+      voters: votedCount + summary.guestVoterCount,
+      open: openMembers.length,
+    },
+    now,
+  );
+  async function shareStanding() {
+    if (!poll || !standing) return;
+    // Gleicher Link wie „Abstimmung teilen“ (W2 Etappe 2: /v/<token>); „mit einem Tipp“ nur, wenn Gäste dort abstimmen (W3).
+    const { title, url } = pollShare(poll, shareToken.data);
+    const text = pollStandingText(t.pollStanding, standing, poll.title, formatDateTime(poll.ends_at), poll.kind === "date", Boolean(poll.guests_allowed && shareToken.data));
+    setSharingStanding(true);
+    const outcome = await shareOrCopy({ title, text, url });
+    setSharingStanding(false);
+    if (outcome === "copied") toast.success(t.share.copied);
+    else if (outcome === "failed") toast.error(t.share.failed);
+  }
 
   function castVote(optionId: string, response: VoteResponse | null) {
     vote.mutate({ optionId, response }, { onError: (error) => toast.error(error) });
@@ -900,6 +928,22 @@ export function PollDetailPage() {
                 </>
               )}
             </p>
+            {/* P38: „Wie steht’s?“ – der Stand als Text in den Gruppenchat, nur Zahlen, mit Link zum Abstimmen. */}
+            {standing && (
+              <div className="mt-4 flex flex-col items-start gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  data-testid="poll-standing"
+                  loading={sharingStanding}
+                  onClick={() => void shareStanding()}
+                  icon={<IconShare className="size-4" aria-hidden />}
+                >
+                  {t.pollStanding.button}
+                </Button>
+                <span className="text-[13px] leading-snug text-faint">{t.pollStanding.hint}</span>
+              </div>
+            )}
           </div>
 
           {(poll.budget_cents != null || poll.meeting_point || poll.min_participants != null || poll.description) && (
