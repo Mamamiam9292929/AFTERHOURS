@@ -11,6 +11,7 @@ import { planGuests } from "./planGuests";
 import { planCapacity } from "./planCapacity";
 import { planQuorum } from "./planQuorum";
 import { pollOutcome } from "./pollOutcome";
+import { pollStanding } from "./pollStanding";
 import { privacy } from "./privacy";
 import { rewards } from "./rewards";
 import { settings } from "./settings";
@@ -37,6 +38,7 @@ export const de = {
   planCards,
   notificationText,
   crewMute,
+  pollStanding,
 };
 
 /** F7 · Bereiche, die nicht im Start-Bundle liegen, sondern mit ihrer Seite nachgeladen werden. */

@@ -842,6 +842,41 @@ await step("Schritt 6 – Die Crew stimmt ab", async () => {
   const bowlingBar = await optionCard(carol, "Strike District Bowling").locator(".poll-bar-fill").evaluate((b) => b.getBoundingClientRect().width / b.parentElement.getBoundingClientRect().width);
   check(bowlingBar > 0.2, `D1: nach dem Wachsen steht der Balken auf seinem Anteil (${Math.round(bowlingBar * 100)} %)`);
 
+  // P38: „Zwischenstand teilen“ auf der Abstimmung (Bob, 390 px) – Zusagen je Vorschlag, nur Zahlen, gleicher /v/-Link.
+  {
+    const { page, context } = bob;
+    const pollShareToken = page.waitForResponse((r) => r.url().includes("/rpc/poll_share_token") && r.ok());
+    await page.goto(`${APP}/polls/${ids.poll}`);
+    await optionCard(bob, "Strike District Bowling").getByText("3 Zusagen").waitFor();
+    await pollShareToken;
+    await page.getByTestId("poll-standing").scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Abstimmung – Zwischenstand teilen");
+    await shot(bob, "12b-abstimmung-zwischenstand-teilen");
+    await stubShare(page);
+    await page.getByRole("button", { name: "Zwischenstand teilen" }).click();
+    await page.waitForFunction(() => (window.__shared ?? []).length >= 1);
+    const standing = (await sharedData(page))[0];
+    const text = standing?.text ?? "";
+    check(
+      text.startsWith(`${ids.pollTitle} – Strike District Bowling: 3 dabei · Lichtspielhaus Nord: 1 dabei · Grillen bei Bob: noch niemand dabei. Aus der Crew haben alle abgestimmt. Läuft bis `),
+      `P38: Zwischenstand mit Zusagen je Vorschlag, die meisten zuerst („${text}“)`,
+    );
+    check(/ (Stimm mit einem Tipp ab|Zur Abstimmung):$/.test(text), "P38: Zwischenstand endet mit dem Hinweis auf den Link");
+    check(standing?.url === ids.pollShareUrl, `P38: Zwischenstand teilt denselben Abstimm-Link wie „Abstimmung teilen“ (${standing?.url})`);
+    // „Grillen bei Bob“ ist ein Vorschlag, kein Name – darüber hinaus keine Namen oder Adressen.
+    check(!/Alice|Carol|@/.test(JSON.stringify(standing ?? {}).replaceAll("Grillen bei Bob", "")), "P38: keine Namen oder E-Mail-Adressen im Zwischenstand");
+    // Rückfall ohne Teilen-Menü: Text und Link landen in der Zwischenablage.
+    await unstubShare(page);
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(APP).origin }).catch(() => {});
+    await page.getByRole("button", { name: "Zwischenstand teilen" }).click();
+    await toast(bob, "Text und Link kopiert");
+    const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => null);
+    if (clip !== null) check(clip.startsWith(`${ids.pollTitle} – `) && clip.trim().endsWith(ids.pollShareUrl), "P38: Zwischenablage enthält Zwischenstand und Link");
+    else check(true, "P38: Zwischenstand ohne Web Share API kopiert (Zwischenablage nicht lesbar)");
+    // Rechte für die Zwischenablage wieder zurücknehmen – sonst gelten für Bob später andere (P13 Standort).
+    await context.clearPermissions();
+  }
+
   if (ANON) {
     const votes = await api(alice, "GET", `poll_votes?select=user_id,poll_option_id&poll_id=eq.${ids.poll}`);
     const keys = votes.json.map((v) => `${v.user_id}:${v.poll_option_id}`);
@@ -1250,6 +1285,7 @@ await step("Schritt 7 – Abstimmung beenden, Ergebnis", async () => {
   check((await page.getByRole("radiogroup").count()) === 0, "nach dem Ende kann niemand mehr abstimmen");
   // V2 Etappe 3d: Ergebnis als Karte ganz in Lime, sobald es einen Gewinner gibt.
   check((await page.locator('.result-card[data-answer="yes"]').filter({ hasText: "Es wird Strike District Bowling" }).count()) === 1, "Ergebnis: Karte in Lime mit Gewinner");
+  check((await page.getByTestId("poll-standing").count()) === 0, "P38: nach dem Ende kein „Zwischenstand teilen“ mehr");
   await shot(alice, "13-ergebnis");
   await bob.page.reload();
   await bob.page.getByRole("heading", { name: "Es wird Strike District Bowling" }).waitFor();
@@ -4253,6 +4289,15 @@ await step("P1 – Termin-Abstimmung „Wann könnt ihr?“ (Alice, Bob)", async
   await stubShare(page);
   await page.getByRole("button", { name: "Abstimmung teilen" }).click();
   const dateShareUrl = (await sharedData(page))[0]?.url ?? "";
+  // P38: Zwischenstand der Termin-Abstimmung – das Datum ist der Titel des Vorschlags, die meisten Zusagen zuerst.
+  await page.getByRole("button", { name: "Zwischenstand teilen" }).click();
+  await page.waitForFunction(() => (window.__shared ?? []).length >= 2);
+  const dateStanding = (await sharedData(page))[1]?.text ?? "";
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  check(
+    new RegExp(`^Wann könnt ihr\\? – ${esc(l2)}: 1 dabei · ${esc(l1)}, 20:00[^:]*: noch niemand dabei\\. `).test(dateStanding),
+    `P38: Zwischenstand der Termin-Abstimmung mit Datum als Vorschlag („${dateStanding}“)`,
+  );
   await unstubShare(page);
   check(/\/v\/[0-9a-f]{32}$/.test(dateShareUrl), `Termin-Abstimmung teilen: eigener Link (${dateShareUrl})`);
   const short = (date) => `${["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][new Date(`${date}T12:00:00Z`).getUTCDay()]} ${date.slice(8, 10)}.${date.slice(5, 7)}.`;
