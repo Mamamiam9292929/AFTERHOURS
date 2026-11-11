@@ -36,6 +36,8 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
       const time = str(p, "time") ? `, ${formatPlainTime(str(p, "time"))}` : "";
       return { title: `${actor} schlägt noch ${formatPlainDate(str(p, "date"), "long")}${time} vor – kannst du?`, body: str(p, "title") };
     }
+    // P40 Etappe 2: jemand hat einen Ort nachgereicht.
+    if (p.added && str(p, "place")) return { title: `${actor} schlägt noch ${str(p, "place")} vor – bist du dabei?`, body: str(p, "title") };
     // P39: Frist verlängert – an alle, deren Stimme noch fehlt.
     if (p.extended && str(p, "ends_at")) return { title: `Verlängert bis ${formatDateTime(str(p, "ends_at"))} – deine Stimme fehlt noch`, body: str(p, "title") };
     return p.closing

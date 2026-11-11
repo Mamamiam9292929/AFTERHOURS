@@ -32,6 +32,7 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
       const time = str(p, "time") ? `, ${str(p, "time")}` : "";
       return { title: `${actor} suggested ${formatPlainDateLong(str(p, "date"))}${time} too – can you make it?`, body: serverTitle(p) };
     }
+    if (p.added && str(p, "place")) return { title: `${actor} suggested ${str(p, "place")} too – are you in?`, body: serverTitle(p) };
     if (p.extended && str(p, "ends_at")) return { title: `Extended until ${formatDateTime(str(p, "ends_at"))} – your vote is still missing`, body: serverTitle(p) };
     return p.closing
       ? { title: str(p, "ends_at") ? `Closes at ${formatTime(str(p, "ends_at"))} – your vote is missing` : "Closing soon – your vote is missing", body: serverTitle(p) }

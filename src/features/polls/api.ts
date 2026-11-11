@@ -380,6 +380,15 @@ export function useAddPollSlot() {
   });
 }
 
+/** P40 Etappe 2: weiteren Ort (aus Discover oder eigener Vorschlag) in einer laufenden Orts-Abstimmung vorschlagen – liefert die neue Option. */
+export function useAddPollPlace() {
+  return usePollAction(async (input: { pollId: string; activityId: string | null; title: string | null }): Promise<string> => {
+    const { data, error } = await supabase.rpc("add_poll_place", { p_poll_id: input.pollId, p_activity_id: input.activityId, p_title: input.title });
+    if (error) throw error;
+    return data as string;
+  });
+}
+
 export function useRemindPoll() {
   return usePollAction(async (pollId: string): Promise<number> => {
     const { data, error } = await supabase.rpc("remind_poll", { p_poll_id: pollId });
