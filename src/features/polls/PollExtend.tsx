@@ -65,9 +65,13 @@ export function PollExtend({ poll, now }: { poll: PollWithDetails; now: Date }) 
   function submitCustom(event: FormEvent) {
     event.preventDefault();
     const endsAt = fromLocalInputValue(custom);
-    const problem = endsAt ? checkCustomEnd(poll, endsAt, starts, new Date()) : "poll_extend_not_later";
-    if (problem || !endsAt) {
-      setCustomError(problem ? t.errors.codes[problem] : tx.custom.invalid);
+    if (!endsAt) {
+      setCustomError(tx.custom.invalid);
+      return;
+    }
+    const problem = checkCustomEnd(poll, endsAt, starts, new Date());
+    if (problem) {
+      setCustomError(t.errors.codes[problem]);
       return;
     }
     setCustomError(null);
