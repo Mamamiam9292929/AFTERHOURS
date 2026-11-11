@@ -7,6 +7,7 @@ import { notificationText } from "./notificationText";
 import { planCards } from "./planCards";
 import { planFeedback } from "./planFeedback";
 import { planHome } from "./planHome";
+import { planArrival } from "./planArrival";
 import { planGuests } from "./planGuests";
 import { planCapacity } from "./planCapacity";
 import { planQuorum } from "./planQuorum";
@@ -37,6 +38,7 @@ export const de = {
   pollOutcome,
   planFeedback,
   planHome,
+  planArrival,
   planCards,
   notificationText,
   crewMute,

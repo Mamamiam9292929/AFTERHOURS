@@ -118,7 +118,7 @@ test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deu
   const { loadEnglish, englishPageTexts } = await import("../../src/i18n/en/index.ts");
   const pageKeys = Object.keys(de).filter((key) => !(key in deCore)).sort();
   // Diese Bereiche liegen nicht im Start-Bundle – jeder neue gehört bewusst hierher (und in den Router).
-  assert.deepEqual(pageKeys, ["admin", "assistant", "crewMute", "landing", "notificationText", "planCapacity", "planCards", "planFeedback", "planGuests", "planHome", "planQuorum", "pollExtend", "pollOutcome", "pollSlot", "pollStanding", "privacy", "rewards", "settings"]);
+  assert.deepEqual(pageKeys, ["admin", "assistant", "crewMute", "landing", "notificationText", "planArrival", "planCapacity", "planCards", "planFeedback", "planGuests", "planHome", "planQuorum", "pollExtend", "pollOutcome", "pollSlot", "pollStanding", "privacy", "rewards", "settings"]);
   assert.deepEqual(Object.keys(germanPageTexts).sort(), pageKeys);
   assert.deepEqual(Object.keys(englishPageTexts).sort(), pageKeys);
   // Kern + nachgeladene Bereiche ergeben genau das ganze Wörterbuch.

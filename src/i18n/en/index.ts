@@ -52,6 +52,7 @@ export const englishPageTexts: { [K in PageTexts]: () => Promise<(typeof de)[K]>
   pollOutcome: () => import("./pollOutcome").then((m) => m.pollOutcome),
   planFeedback: () => import("./planFeedback").then((m) => m.planFeedback),
   planHome: () => import("./planHome").then((m) => m.planHome),
+  planArrival: () => import("./planArrival").then((m) => m.planArrival),
   planCards: () => import("./planCards").then((m) => m.planCards),
   notificationText: () => import("./notificationText").then((m) => m.notificationText),
   crewMute: () => import("./crewMute").then((m) => m.crewMute),
