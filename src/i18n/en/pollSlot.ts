@@ -24,7 +24,7 @@ export const pollSlot = {
     search: "Find a place",
     change: "Find another place",
     remove: "Remove place",
-    or: "or your own idea",
+    or: "or",
     own: "Your own idea",
     ownHint: "For example “Picnic in the park”",
     sameDate: (when: string) => `Same date as the other options: ${when}.`,
