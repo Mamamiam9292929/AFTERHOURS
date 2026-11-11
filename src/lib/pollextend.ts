@@ -18,6 +18,36 @@ const BEFORE_FIRST_MS = 30 * 60_000;
 export type ExtendChoice = { key: ExtendPreset; endsAt: Date; allowed: boolean };
 
 /**
+ * Spätester erlaubter Zeitpunkt in Millisekunden: 14 Tage ab jetzt, höchstens 30 Minuten vor dem frühesten Termin,
+ * der noch bevorsteht.
+ */
+export function extendLimit(firstStarts: (number | null)[], now: Date = new Date()): number {
+  const upcoming = firstStarts.filter((s): s is number => s != null && s > now.getTime());
+  return Math.min(now.getTime() + MAX_AHEAD_MS, upcoming.length ? Math.min(...upcoming) - BEFORE_FIRST_MS : Infinity);
+}
+
+/** Warum ein selbst gewählter Zeitpunkt nicht geht – gleiche Schlüssel wie die Fehler von `extend_poll`. */
+export type ExtendProblem = "poll_extend_not_later" | "poll_extend_too_far" | "poll_extend_too_late";
+
+/**
+ * P39 Etappe 2 · Frist bis zu einem selbst gewählten Zeitpunkt. Wie der Server auf die Minute abgerundet; `null`,
+ * wenn er passt, sonst der Schlüssel der Fehlermeldung (gleiche Reihenfolge wie `extend_poll`).
+ */
+export function checkCustomEnd(
+  poll: { ends_at: string },
+  endsAt: Date,
+  firstStarts: (number | null)[],
+  now: Date = new Date(),
+): ExtendProblem | null {
+  const ends = new Date(poll.ends_at).getTime();
+  const wanted = Math.floor(endsAt.getTime() / 60_000) * 60_000;
+  if (!Number.isFinite(wanted) || !(wanted > ends)) return "poll_extend_not_later";
+  if (wanted > now.getTime() + MAX_AHEAD_MS) return "poll_extend_too_far";
+  if (wanted > extendLimit(firstStarts, now)) return "poll_extend_too_late";
+  return null;
+}
+
+/**
  * Wahlmöglichkeiten ab der aktuellen Frist (auf die Minute). `null`, wenn es nichts zu verlängern gibt: beendet,
  * abgelaufen oder in einer laufenden Serie „Jede Woche neu“.
  * `firstStarts`: Beginn der Termine aller Vorschläge in Millisekunden (vergangene zählen nicht).
@@ -29,8 +59,7 @@ export function extendChoices(
 ): ExtendChoice[] | null {
   const ends = new Date(poll.ends_at).getTime();
   if (poll.status !== "open" || !(ends > now.getTime()) || poll.seriesActive) return null;
-  const upcoming = firstStarts.filter((s): s is number => s != null && s > now.getTime());
-  const limit = Math.min(now.getTime() + MAX_AHEAD_MS, upcoming.length ? Math.min(...upcoming) - BEFORE_FIRST_MS : Infinity);
+  const limit = extendLimit(firstStarts, now);
   return EXTEND_PRESETS.map(({ key, ms }) => {
     const endsAt = new Date(Math.floor((ends + ms) / 60_000) * 60_000);
     return { key, endsAt, allowed: endsAt.getTime() > ends && endsAt.getTime() <= limit };

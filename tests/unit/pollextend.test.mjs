@@ -1,7 +1,7 @@
 // P39 · „Noch einen Tag?“ – Wahlmöglichkeiten fürs Verlängern (src/lib/pollextend.ts), gleiche Grenzen wie `extend_poll`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { EXTEND_PRESETS, extendChoices } from "../../src/lib/pollextend.ts";
+import { checkCustomEnd, EXTEND_PRESETS, extendChoices, extendLimit } from "../../src/lib/pollextend.ts";
 
 const now = new Date("2026-11-11T12:00:00Z");
 const H = 3_600_000;
@@ -44,4 +44,30 @@ test("spätestens 30 Minuten vor dem frühesten bevorstehenden Termin", () => {
 test("erster Termin schon zu nah: alles ausgegraut", () => {
   const choices = extendChoices(poll(), [new Date("2026-11-11T18:00:00Z").getTime()], now);
   assert.equal(choices.some((c) => c.allowed), false);
+});
+
+// P39 Etappe 2 · selbst gewählter Zeitpunkt – gleiche Grenzen und Fehlerschlüssel wie `extend_poll`.
+test("eigener Zeitpunkt: passt", () => {
+  assert.equal(checkCustomEnd(poll(), new Date("2026-11-13T17:00:00Z"), [], now), null);
+  // Sekunden werden wie auf dem Server abgeschnitten: 17:00:30 → 17:00 ist nicht später als die Frist 17:00:30.
+  assert.equal(checkCustomEnd(poll({ ends_at: "2026-11-11T17:00:00Z" }), new Date("2026-11-11T17:01:00Z"), [], now), null);
+});
+
+test("eigener Zeitpunkt: muss nach der bisherigen Frist liegen", () => {
+  assert.equal(checkCustomEnd(poll(), new Date("2026-11-11T17:00:59Z"), [], now), "poll_extend_not_later");
+  assert.equal(checkCustomEnd(poll(), new Date("2026-11-11T16:00:00Z"), [], now), "poll_extend_not_later");
+  assert.equal(checkCustomEnd(poll(), new Date("kaputt"), [], now), "poll_extend_not_later");
+});
+
+test("eigener Zeitpunkt: höchstens 14 Tage ab jetzt", () => {
+  assert.equal(checkCustomEnd(poll(), new Date("2026-11-25T12:00:00Z"), [], now), null, "genau 14 Tage geht");
+  assert.equal(checkCustomEnd(poll(), new Date("2026-11-25T12:01:00Z"), [], now), "poll_extend_too_far");
+});
+
+test("eigener Zeitpunkt: spätestens 30 Minuten vor dem ersten Termin", () => {
+  const first = new Date("2026-11-13T19:00:00Z").getTime();
+  assert.equal(checkCustomEnd(poll(), new Date("2026-11-13T18:30:00Z"), [first], now), null);
+  assert.equal(checkCustomEnd(poll(), new Date("2026-11-13T18:31:00Z"), [first], now), "poll_extend_too_late");
+  assert.equal(extendLimit([first, null], now), new Date("2026-11-13T18:30:00Z").getTime());
+  assert.equal(extendLimit([], now), now.getTime() + 14 * 24 * H);
 });
