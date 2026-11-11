@@ -13,7 +13,7 @@ export const pollSlot = {
     past: "Dieser Termin ist schon vorbei.",
     duplicate: "Diesen Termin gibt es schon.",
     full: "Mehr als 10 Termine passen nicht in eine Abstimmung.",
-  },},
+  },
   /** Etappe 2 · „Und das Kino?“ – weiterer Ort in einer laufenden Orts-Abstimmung. */
   place: {
     open: "Anderen Ort vorschlagen",
