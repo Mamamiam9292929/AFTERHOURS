@@ -20,10 +20,10 @@ _Stand: 11.11.2026 · gezählt mit `node scripts/zahlen.mjs` (Zeilen ohne Leerze
 | Edge Functions | 1.987 | 13 |
 | Server für Vorschaukarten | 508 | 4 |
 | Werkzeuge | 378 | 6 |
-| Tests Datenbank (pgTAP) | 9.474 | 77 |
+| Tests Datenbank (pgTAP) | 9.475 | 77 |
 | Tests App und Funktionen | 13.251 | 63 |
 | **Code gesamt (ohne Tests)** | **53.409** | |
-| **Tests gesamt** | **22.725** | |
+| **Tests gesamt** | **22.726** | |
 
 | Was | Anzahl |
 |---|---:|
