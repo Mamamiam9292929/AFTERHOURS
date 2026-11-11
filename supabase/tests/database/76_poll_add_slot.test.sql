@@ -68,7 +68,7 @@ select is((select proposed_time from public.poll_options where id = tests.var('a
 select is((select position from public.poll_options where id = tests.var('added')::uuid),
   (select max(position) from public.poll_options where poll_id = tests.var('poll')::uuid and id <> tests.var('added')::uuid) + 1::smallint,
   'hinten angehängt – bestehende Positionen (Stimmzettel für Gäste) bleiben');
-select is((select string_agg(position::text, ',' order by position) from public.poll_options where poll_id = tests.var('poll')::uuid), '0,1,2', 'Positionen 0, 1, 2');
+select is((select string_agg(position::text, ',' order by position) from public.poll_options where poll_id = tests.var('poll')::uuid), '1,2,3', 'Positionen 1, 2, 3');
 select is((select response::text from public.poll_votes where poll_option_id = tests.var('added')::uuid and user_id = tests.uid('bob')), 'yes',
   'wer vorschlägt, ist dort dabei');
 select is((select count(*)::int from public.poll_votes where poll_id = tests.var('poll')::uuid), 3, 'bisherige Stimmen bleiben');
