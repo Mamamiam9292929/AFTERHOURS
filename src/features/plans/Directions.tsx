@@ -31,7 +31,7 @@ export function Directions({ target, className }: { target: DirectionsTarget; cl
       >
         <IconNavigation className="size-4 text-lime" aria-hidden />
         {t.plans.detail.route.open}
-        <IconChevronDown className={cn("size-4 transition-transform motion-reduce:transition-none", open && "rotate-180")} aria-hidden />
+        <IconChevronDown className="size-4" aria-hidden />
       </button>
       {open && (
         <div id={id} className="mt-1">
@@ -45,7 +45,7 @@ export function Directions({ target, className }: { target: DirectionsTarget; cl
                   data-app={link.app}
                   className={cn(
                     "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors",
-                    i === 0 ? "border-lime bg-lime text-lime-ink hover:bg-lime-press" : "border-white/[0.12] bg-white/[0.06] text-fg hover:border-lime/60",
+                    i === 0 ? "border-lime bg-lime text-lime-ink hover:bg-lime-press" : "border-white/10 bg-white/[0.06] text-fg hover:border-lime/60",
                   )}
                 >
                   {t.plans.detail.route.apps[link.app]}
