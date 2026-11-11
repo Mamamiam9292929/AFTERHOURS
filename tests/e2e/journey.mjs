@@ -6302,6 +6302,52 @@ await step("P39 – „Noch einen Tag?“: Frist verlängern, alle Stimmen bleib
     // Ungelesene tragen vorne „Ungelesen:“ für Screenreader – deshalb ohne Anker am Anfang.
     await carol.page.getByText(/Verlängert bis .* – deine Stimme fehlt noch$/).first().waitFor();
     check(true, "P39: Carol sieht „Verlängert bis … – deine Stimme fehlt noch“");
+
+    // Etappe 2: Frist bis zu einem selbst gewählten Zeitpunkt (Feld in Berliner Zeit).
+    const berlinLocal = (ms) => {
+      const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+        .formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+      return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+    };
+    const current = endsAt();
+    const untilButton = box.getByRole("button", { name: "Bis …" });
+    check((await untilButton.getAttribute("aria-expanded")) === "false", "P39 Etappe 2: „Bis …“ zu");
+    await untilButton.click();
+    const field = box.getByLabel("Neue Frist");
+    await field.waitFor();
+    check((await untilButton.getAttribute("aria-expanded")) === "true", "P39 Etappe 2: „Bis …“ offen");
+    check((await field.inputValue()) === berlinLocal(current + 86_400_000), `P39 Etappe 2: Vorschlag einen Tag nach der Frist (${await field.inputValue()})`);
+    check(await box.getByText(/^Spätestens .*\.$/).isVisible(), "P39 Etappe 2: Grenze steht unter dem Feld");
+    await noOverflow(bob, "Abstimmung – Frist bis …");
+    await a11y(bob, "abstimmung-frist-eigene-zeit");
+    await shot(bob, "75-abstimmung-frist-eigene-zeit");
+
+    // Leerzustand und Fehlerzustand: ohne Wert bzw. vor der bisherigen Frist geht nichts an den Server.
+    let calls = 0;
+    const count = (r) => { if (r.url().includes("/rpc/extend_poll")) calls += 1; };
+    page.on("request", count);
+    await field.fill("");
+    await box.getByRole("button", { name: "Verlängern", exact: true }).click();
+    await box.getByText("Bitte Tag und Uhrzeit wählen.").waitFor();
+    await field.fill(berlinLocal(current - 3_600_000));
+    await box.getByRole("button", { name: "Verlängern", exact: true }).click();
+    await box.getByText("Die neue Frist muss nach der bisherigen liegen.").waitFor();
+    await field.fill(berlinLocal(Date.now() + 15 * 86_400_000));
+    await box.getByRole("button", { name: "Verlängern", exact: true }).click();
+    await box.getByText("Höchstens 14 Tage im Voraus.").waitFor();
+    page.off("request", count);
+    check(calls === 0 && endsAt() === current, "P39 Etappe 2: ungültige Zeitpunkte werden im Browser abgefangen, Frist unverändert");
+
+    const wanted = Math.floor(current / 60_000) * 60_000 + 5 * 3_600_000;
+    await field.fill(berlinLocal(wanted));
+    const custom = page.waitForResponse((r) => r.url().includes("/rpc/extend_poll") && r.request().method() === "POST");
+    await box.getByRole("button", { name: "Verlängern", exact: true }).click();
+    check((await custom).ok(), "P39 Etappe 2: eigener Zeitpunkt gespeichert");
+    await toast(bob, "Verlängert bis ");
+    check(endsAt() === wanted, `P39 Etappe 2: Frist genau zum gewählten Zeitpunkt (${new Date(endsAt()).toISOString()})`);
+    await field.waitFor({ state: "detached" });
+    check(true, "P39 Etappe 2: Feld schließt sich nach dem Speichern");
+    check(notified(carol) === "2", "P39 Etappe 2: Carol bekommt zur neuen Frist erneut Bescheid");
   } finally {
     execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
   }
