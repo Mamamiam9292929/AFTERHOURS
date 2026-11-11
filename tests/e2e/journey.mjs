@@ -6264,7 +6264,8 @@ await step("P39 – „Noch einen Tag?“: Frist verlängern, alle Stimmen bleib
     check(notified(alice) === "0" && notified(bob) === "0", "P39: wer abgestimmt oder verlängert hat, bekommt nichts");
 
     await carol.page.goto(`${APP}/notifications`);
-    await carol.page.getByText(/^Verlängert bis .* – deine Stimme fehlt noch$/).first().waitFor();
+    // Ungelesene tragen vorne „Ungelesen:“ für Screenreader – deshalb ohne Anker am Anfang.
+    await carol.page.getByText(/Verlängert bis .* – deine Stimme fehlt noch$/).first().waitFor();
     check(true, "P39: Carol sieht „Verlängert bis … – deine Stimme fehlt noch“");
   } finally {
     execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
