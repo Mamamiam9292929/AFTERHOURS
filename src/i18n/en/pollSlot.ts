@@ -16,6 +16,15 @@ export const pollSlot = {
     duplicate: "That date is already in the poll.",
     full: "A poll can’t hold more than 10 dates.",
   },
+  withdraw: {
+    open: "Take back",
+    openLabel: (title: string) => `Take back ${title}`,
+    question: "Remove it again?",
+    body: "Nobody else has answered it yet. The heads-up to the crew goes too.",
+    confirm: "Yes, take it back",
+    keep: "Keep it",
+    done: (title: string) => `${title} is out again.`,
+  },
   place: {
     open: "Suggest another place",
     title: "Which other place?",

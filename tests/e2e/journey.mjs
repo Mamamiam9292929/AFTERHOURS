@@ -6506,6 +6506,72 @@ await step("P40 Etappe 2 – „Und das Kino?“: Ort nachreichen – eigener Vo
   }
 });
 
+await step("P42 – „Vertippt?“: nachgereichten Vorschlag zurückziehen, solange niemand sonst geantwortet hat (Bob 390 px, Carol)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const title = `Vorschlag zurückziehen ${RUN}`;
+  const created = await api(bob, "POST", "rpc/create_poll", {
+    p_crew_id: ids.crew, p_title: title, p_ends_at: new Date(Date.now() + 86_400_000).toISOString(),
+    p_options: [{ title: "Billard" }, { title: "Kino" }],
+  });
+  if (created.status >= 300) throw new Error(`Orts-Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+  const pollId = created.json;
+  const options = () => psql(`select count(*) from public.poll_options where poll_id = '${pollId}'`);
+  const notified = () => psql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id
+    where n.type = 'poll_reminder' and n.related_entity_id = '${pollId}' and n.payload ? 'place' and u.email = '${carol.email}'`);
+  try {
+    await api(carol, "POST", "rpc/cast_vote", { p_option_id: psql(`select id from public.poll_options where poll_id = '${pollId}' and title = 'Billard'`), p_response: "yes" });
+    const typo = await api(bob, "POST", "rpc/add_poll_place", { p_poll_id: pollId, p_title: "Picknik im Prak" });
+    if (typo.status >= 300) throw new Error(`Ort nachreichen fehlgeschlagen (${typo.status} ${typo.json?.message})`);
+    check(notified() === "1", "P42: Carol hat Bescheid bekommen");
+
+    const { page } = bob;
+    await page.goto(`${APP}/polls/${pollId}`);
+    await page.getByRole("heading", { name: title }).waitFor();
+    const typoCard = optionCard(bob, "Picknik im Prak").first();
+    await typoCard.waitFor();
+    check((await optionCard(bob, "Billard").getByTestId("poll-option-withdraw").count()) === 0
+      && (await optionCard(bob, "Kino").getByTestId("poll-option-withdraw").count()) === 0, "P42: Vorschläge vom Start lassen sich nicht zurückziehen");
+    const withdraw = typoCard.getByTestId("poll-option-withdraw");
+    await withdraw.scrollIntoViewIfNeeded();
+    await withdraw.click();
+    const confirm = typoCard.getByTestId("poll-option-withdraw-confirm");
+    await confirm.waitFor();
+    check(await confirm.getByText("Noch hat niemand sonst dazu geantwortet. Der Hinweis an die Crew verschwindet mit.").isVisible(), "P42: Nachfrage erklärt, was passiert");
+    await noOverflow(bob, "Abstimmung – Vorschlag zurückziehen");
+    await a11y(bob, "abstimmung-vorschlag-zurueckziehen");
+    await shot(bob, "78-abstimmung-vorschlag-zurueckziehen");
+    await confirm.getByRole("button", { name: "Behalten" }).click();
+    await withdraw.waitFor();
+    check(options() === "3", "P42: „Behalten“ ändert nichts");
+
+    // Fehlerzustand: keine Verbindung – der Vorschlag bleibt.
+    await withdraw.click();
+    await page.route("**/rest/v1/rpc/remove_poll_option", (route) => route.abort());
+    await confirm.getByRole("button", { name: "Ja, zurückziehen" }).click();
+    await page.getByText(/Keine Verbindung/).first().waitFor();
+    check(options() === "3", "P42: Fehler beim Zurückziehen – nichts gelöscht");
+    await page.unroute("**/rest/v1/rpc/remove_poll_option");
+
+    await withdraw.click();
+    const removed = page.waitForResponse((r) => r.url().includes("/rpc/remove_poll_option") && r.request().method() === "POST");
+    await confirm.getByRole("button", { name: "Ja, zurückziehen" }).click();
+    check((await removed).ok(), "P42: zurückgezogen");
+    await toast(bob, "Picknik im Prak ist wieder raus.");
+    await typoCard.waitFor({ state: "detached" });
+    check(options() === "2", "P42: Vorschlag ist weg");
+    check(notified() === "0", "P42: der Hinweis an Carol ist mit zurückgenommen");
+
+    // Hat jemand anderes geantwortet, bleibt der Vorschlag – kein Knopf.
+    const fixedUp = await api(bob, "POST", "rpc/add_poll_place", { p_poll_id: pollId, p_title: "Picknick im Park" });
+    await api(carol, "POST", "rpc/cast_vote", { p_option_id: fixedUp.json, p_response: "maybe" });
+    await page.reload();
+    await optionCard(bob, "Picknick im Park").first().waitFor();
+    check((await optionCard(bob, "Picknick im Park").getByTestId("poll-option-withdraw").count()) === 0, "P42: Carol hat geantwortet – kein „Zurückziehen“");
+  } finally {
+    execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;

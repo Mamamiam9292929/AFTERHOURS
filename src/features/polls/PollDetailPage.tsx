@@ -24,9 +24,11 @@ import { awayLine } from "./OptionAway";
 import { busyLine, myBusyPlans } from "./OptionBusy";
 import { PollAddPlace } from "./PollAddPlace";
 import { PollAddSlot } from "./PollAddSlot";
+import { OptionWithdraw } from "./OptionWithdraw";
 import { PollExtend } from "./PollExtend";
 import { SwipeDeck } from "./SwipeDeck";
 import { cn } from "@/lib/cn";
+import { canWithdrawOption } from "@/lib/pollwithdraw";
 import { errorMessage } from "@/lib/errors";
 import { centsToInput, formatEuro, parseEuroInput } from "@/lib/format";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
@@ -676,7 +678,8 @@ export function PollDetailPage() {
   const crew = crews.data?.find((c) => c.id === poll.crew_id);
   const memberIds = crew?.members.map((m) => m.user_id) ?? [];
   const summary = summarizePoll(poll, memberIds, user.id, now);
-  const canManage = poll.created_by === user.id || canManageCrew(myRole(crew, user.id));
+  const isCrewManager = canManageCrew(myRole(crew, user.id));
+  const canManage = poll.created_by === user.id || isCrewManager;
   const closed = poll.status === "closed";
   const winner = closed ? (poll.options.find((o) => o.id === poll.winning_option_id) ?? null) : null;
   const plan = plans.data?.find((p) => p.poll_id === poll.id);
@@ -897,6 +900,9 @@ export function PollDetailPage() {
                     <Button variant="secondary" size="sm" onClick={() => setPlanOption(tally.option)}>
                       {t.polls.detail.manage.planWithOption}
                     </Button>
+                  ) : !summary.isOver && canWithdrawOption(poll, tally.option, tally, user.id, isCrewManager, now) ? (
+                    // P42: „Vertippt?“ – nachgereichter Vorschlag, zu dem sonst niemand geantwortet hat.
+                    <OptionWithdraw optionId={tally.option.id} title={tally.option.title} />
                   ) : undefined
                 }
               />
