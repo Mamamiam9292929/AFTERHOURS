@@ -6272,6 +6272,72 @@ await step("P39 – „Noch einen Tag?“: Frist verlängern, alle Stimmen bleib
   }
 });
 
+await step("P40 – „Und Sonntag?“: Termin nachreichen, wer abgestimmt hat, bekommt Bescheid (Bob 390 px, Carol)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const dayIn = (n) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() + n * 86_400_000));
+  const label = (date) => new Intl.DateTimeFormat("de-DE", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${date}T12:00:00Z`));
+  const [d1, d2, d3] = [dayIn(3), dayIn(4), dayIn(5)];
+  const title = `Termin nachreichen ${RUN}`;
+  const created = await api(bob, "POST", "rpc/create_date_poll", {
+    p_crew_id: ids.crew, p_title: title, p_ends_at: new Date(Date.now() + 86_400_000).toISOString(),
+    p_slots: [{ date: d1, time: "20:00" }, { date: d2, time: "20:00" }],
+  });
+  if (created.status >= 300) throw new Error(`Termin-Abstimmung anlegen fehlgeschlagen (${created.status} ${created.json?.message})`);
+  const pollId = created.json;
+  const options = () => psql(`select count(*) from public.poll_options where poll_id = '${pollId}'`);
+  try {
+    await api(carol, "POST", "rpc/cast_vote", { p_option_id: psql(`select id from public.poll_options where poll_id = '${pollId}' and proposed_date = '${d1}'`), p_response: "no" });
+
+    const { page } = bob;
+    await page.goto(`${APP}/polls/${pollId}`);
+    await page.getByRole("heading", { name: title }).waitFor();
+    const open = page.getByTestId("poll-add-slot");
+    await open.scrollIntoViewIfNeeded();
+    await open.click();
+    const form = page.getByTestId("poll-add-slot-form");
+    await form.waitFor();
+    check(await form.getByText("Du bist dort gleich dabei. Wer schon abgestimmt hat, bekommt Bescheid.").isVisible(), "P40: Hinweis, was beim Vorschlagen passiert");
+    await noOverflow(bob, "Abstimmung – Termin nachreichen");
+    await a11y(bob, "abstimmung-termin-nachreichen");
+    await shot(bob, "76-abstimmung-termin-nachreichen");
+
+    // Fehlerzustände: doppelter Termin (vor dem Server), keine Verbindung (nichts angelegt).
+    await form.getByLabel("Tag", { exact: true }).fill(d1);
+    await form.getByLabel("Uhrzeit", { exact: false }).fill("20:00");
+    await form.getByRole("button", { name: "Vorschlagen" }).click();
+    await form.getByText("Diesen Termin gibt es schon.").waitFor();
+    check(options() === "2", "P40: doppelter Termin – nichts angelegt");
+    await form.getByLabel("Tag", { exact: true }).fill(d3);
+    await form.getByLabel("Uhrzeit", { exact: false }).fill("19:30");
+    await page.route("**/rest/v1/rpc/add_poll_slot", (route) => route.abort());
+    await form.getByRole("button", { name: "Vorschlagen" }).click();
+    await page.getByText(/Keine Verbindung/).first().waitFor();
+    check(options() === "2", "P40: Fehler beim Vorschlagen – nichts angelegt");
+    await page.unroute("**/rest/v1/rpc/add_poll_slot");
+
+    const saved = page.waitForResponse((r) => r.url().includes("/rpc/add_poll_slot") && r.request().method() === "POST");
+    await form.getByRole("button", { name: "Vorschlagen" }).click();
+    check((await saved).ok(), "P40: Termin gespeichert");
+    await toast(bob, "steht jetzt mit zur Wahl.");
+    check(options() === "3", "P40: dritter Termin angelegt");
+    check(psql(`select o.title || ' ' || to_char(o.proposed_time, 'HH24:MI') || ' ' || v.response from public.poll_options o
+                join public.poll_votes v on v.poll_option_id = o.id and v.user_id = (select id from auth.users where email = '${bob.email}')
+                where o.poll_id = '${pollId}' and o.proposed_date = '${d3}'`) === `${label(d3)} 19:30 yes`, "P40: Titel vom Server, Uhrzeit, Bob ist dort dabei");
+    await optionCard(bob, label(d3)).first().waitFor();
+    check(await page.getByTestId("poll-add-slot").isVisible(), "P40: danach wieder der Knopf statt des Formulars");
+
+    const notified = (user) => psql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id
+      where n.type = 'poll_reminder' and n.related_entity_id = '${pollId}' and (n.payload ->> 'added')::boolean and u.email = '${user.email}'`);
+    check(notified(carol) === "1", "P40: Carol hat schon abgestimmt – sie bekommt Bescheid");
+    check(notified(alice) === "0" && notified(bob) === "0", "P40: wer noch nicht abgestimmt hat oder vorschlägt, bekommt nichts");
+    await carol.page.goto(`${APP}/notifications`);
+    await carol.page.getByText(new RegExp(`schlägt noch ${label(d3)}, 19:30 Uhr vor – kannst du\\?$`)).first().waitFor();
+    check(true, "P40: Carol sieht „… schlägt noch …, 19:30 Uhr vor – kannst du?“");
+  } finally {
+    execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;

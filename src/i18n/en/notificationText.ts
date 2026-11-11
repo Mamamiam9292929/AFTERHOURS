@@ -27,12 +27,16 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
           : `${actor} started a poll`,
     body: serverTitle(p),
   }),
-  poll_reminder: (actor, p) =>
-    p.extended && str(p, "ends_at")
-      ? { title: `Extended until ${formatDateTime(str(p, "ends_at"))} – your vote is still missing`, body: serverTitle(p) }
-      : p.closing
-        ? { title: str(p, "ends_at") ? `Closes at ${formatTime(str(p, "ends_at"))} – your vote is missing` : "Closing soon – your vote is missing", body: serverTitle(p) }
-        : { title: `${actor} is reminding you about a poll`, body: serverTitle(p) },
+  poll_reminder: (actor, p) => {
+    if (p.added && str(p, "date")) {
+      const time = str(p, "time") ? `, ${str(p, "time")}` : "";
+      return { title: `${actor} suggested ${formatPlainDateLong(str(p, "date"))}${time} too – can you make it?`, body: serverTitle(p) };
+    }
+    if (p.extended && str(p, "ends_at")) return { title: `Extended until ${formatDateTime(str(p, "ends_at"))} – your vote is still missing`, body: serverTitle(p) };
+    return p.closing
+      ? { title: str(p, "ends_at") ? `Closes at ${formatTime(str(p, "ends_at"))} – your vote is missing` : "Closing soon – your vote is missing", body: serverTitle(p) }
+      : { title: `${actor} is reminding you about a poll`, body: serverTitle(p) };
+  },
   poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (guest) voted` : `${actor} voted`, body: serverTitle(p) }),
   poll_result: (_actor, p) => ({
     title: p.winner_title ? `Result: ${str(p, "winner_title")}` : p.is_tie ? "Poll ended in a tie" : "Poll ended with no yes votes",

@@ -4,7 +4,7 @@
  * (`src/push/render.ts`). Struktur-Vorlage für Englisch (`src/i18n/en/notificationText.ts`).
  */
 import { formatEuro } from "@/lib/format";
-import { formatDateTime, formatPlainDate, formatTime } from "@/lib/time";
+import { formatDateTime, formatPlainDate, formatPlainTime, formatTime } from "@/lib/time";
 import type { NotificationType } from "@/lib/types";
 
 type Payload = Record<string, unknown>;
@@ -30,13 +30,18 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     body: str(p, "title"),
   }),
   // P15: Endspurt ohne auslösende Person – in den letzten drei Stunden, solange die eigene Stimme fehlt.
-  poll_reminder: (actor, p) =>
+  poll_reminder: (actor, p) => {
+    // P40: „Und Sonntag?“ – jemand hat einen Termin nachgereicht; an alle, die schon abgestimmt haben.
+    if (p.added && str(p, "date")) {
+      const time = str(p, "time") ? `, ${formatPlainTime(str(p, "time"))}` : "";
+      return { title: `${actor} schlägt noch ${formatPlainDate(str(p, "date"), "long")}${time} vor – kannst du?`, body: str(p, "title") };
+    }
     // P39: Frist verlängert – an alle, deren Stimme noch fehlt.
-    p.extended && str(p, "ends_at")
-      ? { title: `Verlängert bis ${formatDateTime(str(p, "ends_at"))} – deine Stimme fehlt noch`, body: str(p, "title") }
-      : p.closing
-        ? { title: str(p, "ends_at") ? `Endet um ${formatTime(str(p, "ends_at"))} – deine Stimme fehlt` : "Endet bald – deine Stimme fehlt", body: str(p, "title") }
-        : { title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") },
+    if (p.extended && str(p, "ends_at")) return { title: `Verlängert bis ${formatDateTime(str(p, "ends_at"))} – deine Stimme fehlt noch`, body: str(p, "title") };
+    return p.closing
+      ? { title: str(p, "ends_at") ? `Endet um ${formatTime(str(p, "ends_at"))} – deine Stimme fehlt` : "Endet bald – deine Stimme fehlt", body: str(p, "title") }
+      : { title: `${actor} erinnert dich an eine Abstimmung`, body: str(p, "title") };
+  },
   poll_vote: (actor, p) => ({ title: p.guest ? `${str(p, "guest")} (Gast) hat abgestimmt` : `${actor} hat abgestimmt`, body: str(p, "title") }),
   poll_result: (_actor, p) => ({
     title: p.winner_title ? `Ergebnis: ${str(p, "winner_title")}` : p.is_tie ? "Abstimmung endet mit Gleichstand" : "Abstimmung ohne Zusagen beendet",

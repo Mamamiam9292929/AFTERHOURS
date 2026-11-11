@@ -22,6 +22,7 @@ import { loadTexts, t } from "@/i18n";
 import { DecidedMoment } from "./DecidedMoment";
 import { awayLine } from "./OptionAway";
 import { busyLine, myBusyPlans } from "./OptionBusy";
+import { PollAddSlot } from "./PollAddSlot";
 import { PollExtend } from "./PollExtend";
 import { SwipeDeck } from "./SwipeDeck";
 import { cn } from "@/lib/cn";
@@ -907,6 +908,8 @@ export function PollDetailPage() {
               onRetry={() => void weather.refetch()}
             />
           )}
+          {/* P40: „Und Sonntag?“ – passt keiner, schlägt jedes Mitglied einen weiteren Termin vor. */}
+          {poll.kind === "date" && !summary.isOver && <PollAddSlot poll={poll} now={now} />}
           {!summary.isOver && (
             <p className="mt-4 text-[13px] leading-snug text-faint">
               {t.polls.detail.rule}

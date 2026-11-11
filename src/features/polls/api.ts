@@ -371,6 +371,15 @@ export function useExtendPoll() {
   });
 }
 
+/** P40: weiteren Termin in einer laufenden Termin-Abstimmung vorschlagen (jedes Mitglied) – liefert die neue Option. */
+export function useAddPollSlot() {
+  return usePollAction(async (input: { pollId: string; date: string; time: string | null }): Promise<string> => {
+    const { data, error } = await supabase.rpc("add_poll_slot", { p_poll_id: input.pollId, p_date: input.date, p_time: input.time });
+    if (error) throw error;
+    return data as string;
+  });
+}
+
 export function useRemindPoll() {
   return usePollAction(async (pollId: string): Promise<number> => {
     const { data, error } = await supabase.rpc("remind_poll", { p_poll_id: pollId });
