@@ -6601,7 +6601,7 @@ await step("P43 – „Seid ihr schon da?“: „Bin da“ oder „Bin da in 20 
     check(psql(`select eta between now() + interval '18 minutes' and now() + interval '21 minutes' from public.plan_arrivals
       where plan_id = '${planId}' and user_id = '${uidOf(bob)}'`) === "t", "P43: Uhrzeit rechnet der Server (jetzt + 20 Min.)");
     check((await card.getByTestId("plan-arrival-lead").innerText()).includes("du kommst gegen"), "P43: Bob sieht seine Ansage in der Einleitung");
-    check((await card.getByTestId("plan-arrival-person").first().innerText()).startsWith("Du · gegen "), "P43: die eigene Ansage steht vorn");
+    check((await card.getByTestId("plan-arrival-person").first().getByText(/^Du · gegen \d{2}:\d{2} Uhr$/).count()) === 1, "P43: die eigene Ansage steht vorn");
     await card.scrollIntoViewIfNeeded();
     await noOverflow(bob, "Seid ihr schon da?");
     await a11y(bob, "plan-schon-da");
@@ -6612,7 +6612,7 @@ await step("P43 – „Seid ihr schon da?“: „Bin da“ oder „Bin da in 20 
     await cp.goto(`${APP}/plans/${planId}`);
     const cCard = cp.getByTestId("plan-arrival");
     await cCard.getByTestId("plan-arrival-person").first().waitFor();
-    check(/^Bob · gegen \d{2}:\d{2} Uhr$/.test((await cCard.getByTestId("plan-arrival-person").first().innerText()).trim()), "P43: Carol sieht Bob mit Uhrzeit");
+    check((await cCard.getByTestId("plan-arrival-person").first().getByText(/^Bob · gegen \d{2}:\d{2} Uhr$/).count()) === 1, "P43: Carol sieht Bob mit Uhrzeit");
     check((await cCard.getByTestId("plan-arrival-missing").innerText()).includes("noch nichts gesagt"), "P43: wer nichts gesagt hat, steht nur als Zahl da");
     await cCard.getByTestId("plan-arrival-here").click();
     await toast(carol, "Gesagt – die Crew sieht, dass du da bist.");
