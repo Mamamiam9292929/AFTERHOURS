@@ -173,6 +173,8 @@ export const errors = {
     poll_place_invalid: "Such einen Ort aus oder schreib deinen Vorschlag hin.",
     poll_place_duplicate: "Diesen Vorschlag gibt es schon.",
     poll_place_full: "Mehr als 10 Vorschläge passen nicht in eine Abstimmung.",
+    poll_option_fixed: "Vorschläge vom Start der Abstimmung bleiben stehen – zurückziehen lässt sich nur, was nachgereicht wurde.",
+    poll_option_has_votes: "Dazu hat schon jemand geantwortet – der Vorschlag bleibt stehen.",
     auto_decide_unsupported: "Termin-Abstimmungen entscheiden sich nicht selbst – danach folgt „Und wo?“.",
     poll_still_open: "Die Abstimmung läuft noch. Beende sie, bevor du einen Plan daraus machst.",
     no_tie: "Für diese Abstimmung gibt es keinen Gleichstand.",

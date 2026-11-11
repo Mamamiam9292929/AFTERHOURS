@@ -172,6 +172,8 @@ export interface Poll {
   date_poll_id: string | null;
   /** S7: Runde einer wöchentlichen Serie („Jede Woche neu“), sonst null. */
   series_id: string | null;
+  /** P42: höchste Position eines zurückgezogenen Vorschlags (neue kommen dahinter), sonst null. */
+  withdrawn_position: number | null;
 }
 
 export interface PollOption {
@@ -183,6 +185,8 @@ export interface PollOption {
   proposed_time: string | null;
   estimated_price_cents: number | null;
   position: number;
+  /** P42: wer den Vorschlag in der laufenden Abstimmung nachgereicht hat (P40); null bei Vorschlägen vom Start. */
+  added_by: string | null;
 }
 
 export interface PollVote {

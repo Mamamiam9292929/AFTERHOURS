@@ -170,6 +170,8 @@ export const errors = {
     poll_place_invalid: "Pick a place or type your idea.",
     poll_place_duplicate: "That option is already in the poll.",
     poll_place_full: "A poll can’t hold more than 10 options.",
+    poll_option_fixed: "Options from the start of the poll stay – you can only take back ones added later.",
+    poll_option_has_votes: "Someone has already answered this one – it stays in the poll.",
     auto_decide_unsupported: "Date polls don't decide themselves – “And where?” comes next.",
     poll_still_open: "The poll is still running. End it before turning it into a plan.",
     no_tie: "There's no tie in this poll.",

@@ -14,6 +14,16 @@ export const pollSlot = {
     duplicate: "Diesen Termin gibt es schon.",
     full: "Mehr als 10 Termine passen nicht in eine Abstimmung.",
   },
+  /** P42 · „Vertippt?“ – nachgereichten Vorschlag zurückziehen, solange niemand sonst geantwortet hat. */
+  withdraw: {
+    open: "Zurückziehen",
+    openLabel: (title: string) => `${title} zurückziehen`,
+    question: "Wieder rausnehmen?",
+    body: "Noch hat niemand sonst dazu geantwortet. Der Hinweis an die Crew verschwindet mit.",
+    confirm: "Ja, zurückziehen",
+    keep: "Behalten",
+    done: (title: string) => `${title} ist wieder raus.`,
+  },
   /** Etappe 2 · „Und das Kino?“ – weiterer Ort in einer laufenden Orts-Abstimmung. */
   place: {
     open: "Anderen Ort vorschlagen",

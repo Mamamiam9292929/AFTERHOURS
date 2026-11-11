@@ -389,6 +389,14 @@ export function useAddPollPlace() {
   });
 }
 
+/** P42: nachgereichten Vorschlag zurückziehen, solange niemand sonst dazu geantwortet hat. */
+export function useRemovePollOption() {
+  return usePollAction(async (optionId: string): Promise<void> => {
+    const { error } = await supabase.rpc("remove_poll_option", { p_option_id: optionId });
+    if (error) throw error;
+  });
+}
+
 export function useRemindPoll() {
   return usePollAction(async (pollId: string): Promise<number> => {
     const { data, error } = await supabase.rpc("remind_poll", { p_poll_id: pollId });
