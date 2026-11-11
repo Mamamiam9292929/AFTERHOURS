@@ -3,7 +3,7 @@ import { planShare, shareOrCopy } from "@/lib/share";
 import { planStanding, standingText } from "@/lib/standing";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { IconBack, IconBasket, IconBell, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconExternal, IconInfo, IconNavigation, IconPin, IconPlans, IconShare, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
+import { IconBack, IconBasket, IconBell, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconInfo, IconNavigation, IconPin, IconPlans, IconShare, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
 import { Fact, PosterTitle, Section } from "@/components/layout/Page";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -27,7 +27,6 @@ import { retryDue } from "@/lib/retry";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { downloadPlanIcs } from "@/lib/ics";
 import { liveStage } from "@/lib/live";
-import { mapProvider } from "@/lib/maps";
 import { goingWithGuests } from "@/lib/quorum";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
@@ -35,6 +34,7 @@ import { estimateCosts, hasStarted, useClosePlan, usePlan, usePlans, usePlanShar
 import { AnswerNote } from "./AnswerNote";
 import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
+import { Directions } from "./Directions";
 import { ExpensesPanel } from "./ExpensesPanel";
 import { storedPlanGuestSecret } from "./guestsApi";
 import { LivePanel } from "./LivePanel";
@@ -388,12 +388,8 @@ export function PlanDetailPage() {
             </Fact>
             <Fact icon={<IconPin aria-hidden />} label={t.plans.detail.where}>
               {plan.address ? <span className="font-semibold">{plan.address}</span> : <span className="text-muted">{t.plans.detail.noAddress}</span>}
-              {place?.latitude != null && place.longitude != null && (
-                <a href={mapProvider.directionsUrl(place.latitude, place.longitude)} target="_blank" rel="noopener noreferrer" className="mt-0.5 flex w-fit items-center gap-1.5 py-1 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime">
-                  {t.plans.detail.openInMaps}
-                  <IconExternal className="size-3.5" aria-hidden />
-                </a>
-              )}
+              {/* P41: Route in der Karten-App – mit Punkt aus Discover, sonst über die Adresse. */}
+              {!locked && <Directions target={{ latitude: place?.latitude, longitude: place?.longitude, name: place?.name, address: plan.address }} />}
               {/* P6 Etappe 3: Wo genau – kleiner Stadtplan, erst nach Einwilligung (wie in Discover). */}
               {place?.latitude != null && place.longitude != null && <SpotMap point={{ latitude: place.latitude, longitude: place.longitude }} name={place.name} demo={place.is_demo} />}
             </Fact>

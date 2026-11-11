@@ -1479,6 +1479,34 @@ await step("P5 – Wetter für Plantag und Ort (Bob, Carol)", async () => {
   await offer.waitFor();
   check((await page.evaluate(() => localStorage.getItem("afterhours.map.tiles"))) === null, "Planseite: „Stadtplan aus“ nimmt die Einwilligung zurück");
   await page.unroute(TILES);
+
+  // P41: „Wie komm ich hin?“ – Route in der Karten-App, erst aufklappen, nichts geht vorab hinaus.
+  const MAPS = /^https:\/\/(maps\.apple\.com|www\.google\.com|www\.openstreetmap\.org)\//;
+  const mapsRequests = [];
+  await page.route(MAPS, (route) => {
+    mapsRequests.push(route.request().url());
+    return route.abort();
+  });
+  const directions = page.getByTestId("directions");
+  const routeButton = directions.getByRole("button", { name: "Wie komm ich hin?" });
+  await routeButton.waitFor();
+  check((await routeButton.getAttribute("aria-expanded")) === "false", "P41: Route-Auswahl ist zugeklappt");
+  check((await directions.getByRole("link").count()) === 0, "P41: zugeklappt keine Links");
+  await routeButton.click();
+  const routeLinks = directions.getByRole("list", { name: "Route öffnen in" }).getByRole("link");
+  await routeLinks.first().waitFor();
+  const apps = await routeLinks.evaluateAll((els) => els.map((a) => [a.dataset.app, a.getAttribute("href"), a.getAttribute("target"), a.getAttribute("rel")]));
+  check(apps.map(([app]) => app).join(",") === "google,osm,apple", `P41: am Rechner Google Maps zuerst, dann OpenStreetMap und Apple Karten (${apps.map(([app]) => app).join(",")})`);
+  check(apps.every(([, href]) => /destination=-?\d+\.\d{5}%2C-?\d+\.\d{5}$|to=-?\d+\.\d{5}%2C-?\d+\.\d{5}$|daddr=-?\d+\.\d{5}%2C-?\d+\.\d{5}$/.test(href)), "P41: mit Ort aus Discover zählt nur der Punkt (5 Stellen)");
+  check(apps.every(([, , target, rel]) => target === "_blank" && rel === "noopener noreferrer"), "P41: Links öffnen neu, ohne Verweis zurück");
+  check(await directions.getByText("Erst beim Antippen geht der Ort an den Anbieter.").isVisible(), "P41: Hinweis, wann der Ort an den Anbieter geht");
+  check((await routeButton.getAttribute("aria-expanded")) === "true", "P41: Knopf meldet „aufgeklappt“");
+  check(mapsRequests.length === 0, "P41: keine Anfrage an Karten-Anbieter ohne Tipp");
+  await directions.scrollIntoViewIfNeeded();
+  await shot(carol, "16g-plan-route");
+  await routeButton.click();
+  check((await directions.getByRole("link").count()) === 0, "P41: zweiter Tipp klappt wieder zu");
+  await page.unroute(MAPS);
 });
 
 // W7 Etappe 1: Store-Screenshots aus dem echten Ablauf – Bobs Sitzung in zwei weiteren Kontexten mit den Maßen,
@@ -1694,6 +1722,13 @@ await step("W10 – Zusagen ohne Konto beim geteilten Plan", async () => {
     await where.waitFor();
     check((await where.innerText()).includes("Demochaussee 220"), "W10: Gast sieht, wohin es geht");
     check((await where.innerText()).includes("U-Bahn Ausgang Nord"), "W10: Gast sieht den Treffpunkt");
+    // P41: Gäste ohne Konto finden den Weg auch – über Ort und Adresse als Text.
+    await where.getByRole("button", { name: "Wie komm ich hin?" }).click();
+    const guestRoute = where.getByRole("list", { name: "Route öffnen in" }).getByRole("link");
+    await guestRoute.first().waitFor();
+    const googleHref = await where.locator('a[data-app="google"]').getAttribute("href");
+    check((await guestRoute.count()) === 3 && googleHref.startsWith("https://www.google.com/maps/dir/?api=1&destination=") && googleHref.includes("Demochaussee%20220"), `P41: Gast bekommt die Route über die Adresse (${googleHref})`);
+    await shot(guest, "16w1b-plan-gast-route");
     check(!/Alice|Bob|Carol/.test(await guest.page.locator("body").innerText()), "W10: keine Namen der Crew");
     // Ohne Namen geht nichts raus.
     await guest.page.getByRole("radio", { name: "Bin dabei" }).click();

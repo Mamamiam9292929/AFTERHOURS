@@ -10,6 +10,7 @@ import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { NoteEditor } from "./AnswerNote";
+import { Directions } from "./Directions";
 import { GuestCalendar } from "./GuestCalendar";
 import { type GuestAnswer, planGuestSecret, useGuestJoinPlan, useGuestNote, useGuestRsvp, useGuestWaitlist, useSharedPlanRsvp } from "./guestsApi";
 
@@ -153,6 +154,8 @@ export function SharedPlanRsvp({
           <div className="min-w-0 text-[15px] leading-snug">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{t.planGuests.rsvp.where}</p>
             {where && <p className="mt-1 break-words font-semibold text-fg">{where}</p>}
+            {/* P41: Route in der eigenen Karten-App – für Gäste über Ort und Adresse. */}
+            <Directions target={{ name: loaded.plan.place, address: loaded.plan.address }} />
             {loaded.plan.meeting_point && (
               <p className="mt-1 break-words text-muted">
                 {t.planGuests.rsvp.meetingPoint}: <span className="text-fg">{loaded.plan.meeting_point}</span>
