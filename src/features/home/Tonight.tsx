@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { IconBasket, IconChat, IconCheck, IconPin, IconPlus, IconWarning, IconWeatherUnknown } from "@/components/icons";
 import { useToast } from "@/components/ui/Toast";
 import { OpenNowPlaces } from "./OpenNow";
+import { Directions } from "@/features/plans/Directions";
 import { usePlanWeather, type PlanWithParticipants } from "@/features/plans/api";
 import { useClaimPlanItem, usePlanItems } from "@/features/plans/itemsApi";
 import { WEATHER_ICONS } from "@/features/plans/weatherIcons";
@@ -112,6 +113,8 @@ export function TonightStrip({ plan, now, userId, lookup }: { plan: PlanWithPart
                 {meetingMain}
               </span>
               {meetingSub && <span className="mt-0.5 block break-words text-sm text-muted">{meetingSub}</span>}
+              {/* P41: Route zur Adresse in der eigenen Karten-App. */}
+              {strip.address && <Directions target={{ address: strip.address }} />}
             </>
           ) : (
             <span data-testid="tonight-meeting" className="block text-sm text-muted">

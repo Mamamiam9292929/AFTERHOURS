@@ -170,7 +170,13 @@ export const plans = {
     organizerYou: "Von dir organisiert",
     fromPoll: "Ergebnis der Abstimmung",
     showPlace: "Ort ansehen",
-    openInMaps: "In Karten öffnen",
+    // P41 · „Wie komm ich hin?“ – Route in der Karten-App
+    route: {
+      open: "Wie komm ich hin?",
+      label: "Route öffnen in",
+      apps: { device: "Karten-App", apple: "Apple Karten", google: "Google Maps", osm: "OpenStreetMap" },
+      hint: "Erst beim Antippen geht der Ort an den Anbieter.",
+    },
     noAddress: "Noch kein Ort festgelegt",
     noMeetingPoint: "Noch kein Treffpunkt festgelegt",
     startsIn: (relative: string) => `Beginnt ${relative}`,

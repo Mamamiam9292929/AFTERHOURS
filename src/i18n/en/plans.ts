@@ -176,7 +176,12 @@ export const plans = {
     organizerYou: "Organised by you",
     fromPoll: "Result of the poll",
     showPlace: "View place",
-    openInMaps: "Open in maps",
+    route: {
+      open: "How do I get there?",
+      label: "Open directions in",
+      apps: { device: "Maps app", apple: "Apple Maps", google: "Google Maps", osm: "OpenStreetMap" },
+      hint: "The place is only sent to the provider when you tap.",
+    },
     noAddress: "No place set yet",
     noMeetingPoint: "No meeting point set yet",
     startsIn: (relative: string) => `Starts ${relative}`,
