@@ -6665,6 +6665,84 @@ await step("P43 – „Seid ihr schon da?“: „Bin da“ oder „Bin da in 20 
   }
 });
 
+await step("P43 Etappe 2 – „Schon da?“ in der „Heute Abend“-Leiste auf Home (Bob 390 px)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const uidOf = (user) => psql(`select id from auth.users where email = '${user.email}'`);
+  const title = `Tischtennis im Park ${RUN}`;
+  const planId = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+    values ('${ids.crew}', '${uidOf(bob)}', '${title}', now() + interval '20 minutes', 'confirmed') returning id`).split("\n")[0];
+  psql(`insert into public.plan_participants (plan_id, user_id, attendance_status) values
+    ('${planId}', '${uidOf(bob)}', 'going'), ('${planId}', '${uidOf(carol)}', 'maybe'), ('${planId}', '${uidOf(alice)}', 'going')`);
+  // Das große Ticket auf Home ist der nächste Plan – liegt aus früheren Schritten noch einer davor, rückt er für diesen
+  // Schritt drei Tage nach hinten (und danach zurück).
+  const ahead = psql(`select coalesce(string_agg(p.id::text, ','), '') from public.plans p
+    where p.id <> '${planId}' and p.starts_at > now() - interval '6 hours' and p.starts_at <= now() + interval '20 minutes'
+      and p.crew_id in (select crew_id from public.crew_members where user_id = '${uidOf(bob)}')`);
+  const moved = ahead ? ahead.split(",") : [];
+  const list = moved.map((id) => `'${id}'`).join(",");
+  if (moved.length) psql(`update public.plans set starts_at = starts_at + interval '3 days' where id in (${list})`);
+  const row = () => psql(`select coalesce(state, '') from public.plan_arrivals where plan_id = '${planId}' and user_id = '${uidOf(bob)}'`);
+  try {
+    // Carol ist schon da (gleiche Tabelle wie auf der Planseite).
+    psql(`insert into public.plan_arrivals (plan_id, user_id, state) values ('${planId}', '${uidOf(carol)}', 'here')`);
+    const bp = bob.page;
+    await bp.goto(`${APP}/home`);
+    const strip = bp.getByTestId("tonight-strip");
+    await strip.waitFor({ timeout: 20_000 });
+    check((await strip.getByRole("link", { name: "Zum Plan" }).getAttribute("href"))?.endsWith(`/plans/${planId}`), "P43 2: die Leiste gehört zum Plan in 20 Minuten");
+    const tile = strip.getByTestId("tonight-arrival");
+    await tile.getByTestId("tonight-arrival-person").first().waitFor({ timeout: 20_000 });
+    check((await tile.getByText("Schon da?").count()) === 1, "P43 2: Kachel „Schon da?“ in der Leiste");
+    check((await tile.getAttribute("data-answer")) === null, "P43 2: Kachel noch ohne eigene Ansage");
+    check(/^Carol · da seit \d{2}:\d{2} Uhr$/.test((await tile.getByTestId("tonight-arrival-person").first().innerText()).trim()), "P43 2: Bob sieht auf Home, dass Carol schon da ist");
+    check((await tile.getByTestId("tonight-arrival-missing").innerText()).includes("2 haben noch nichts gesagt"), "P43 2: wer nichts gesagt hat, steht nur als Zahl da");
+    const stripBox = await strip.boundingBox();
+    const tileBox = await tile.boundingBox();
+    check(Boolean(stripBox && tileBox && tileBox.y - stripBox.y < 120), "P43 2: „Schon da?“ steht oben in der Leiste");
+
+    // „Bin da in 10 Min.“ direkt auf Home – gleiche RPC, Uhrzeit vom Server.
+    await tile.getByTestId("tonight-arrival-late-10").click();
+    await toast(bob, "Gesagt – die Crew sieht: gegen");
+    await bp.locator('[data-testid=tonight-arrival][data-answer="maybe"]').waitFor();
+    check(row() === "late", "P43 2: Bobs Ansage von Home gespeichert");
+    check(psql(`select eta between now() + interval '8 minutes' and now() + interval '11 minutes' from public.plan_arrivals
+      where plan_id = '${planId}' and user_id = '${uidOf(bob)}'`) === "t", "P43 2: Uhrzeit rechnet der Server (jetzt + 10 Min.)");
+    check(/^Du kommst gegen \d{2}:\d{2} Uhr\.$/.test((await tile.getByTestId("tonight-arrival-mine").innerText()).trim()), "P43 2: Bob sieht seine Ansage in der Kachel");
+    check((await tile.getByTestId("tonight-arrival-here").count()) === 1, "P43 2: wer noch kommt, kann danach „Bin da“ sagen");
+    await tile.scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Home „Schon da?“");
+    await a11y(bob, "home-schon-da");
+    await shot(bob, "80-home-schon-da");
+
+    // „Bin da“ – Kachel wird grün, die Knöpfe verschwinden.
+    await tile.getByTestId("tonight-arrival-here").click();
+    await toast(bob, "Gesagt – die Crew sieht, dass du da bist.");
+    await bp.locator('[data-testid=tonight-arrival][data-answer="yes"]').waitFor();
+    check(row() === "here", "P43 2: „Bin da“ von Home gespeichert");
+    check((await tile.getByTestId("tonight-arrival-here").count()) === 0, "P43 2: wer da ist, bekommt keine Knöpfe mehr");
+    check(/^Du bist da seit \d{2}:\d{2} Uhr\.$/.test((await tile.getByTestId("tonight-arrival-mine").innerText()).trim()), "P43 2: „Du bist da seit …“");
+    await shot(bob, "80-home-schon-da-gruen");
+
+    // Gleicher Stand auf der Planseite.
+    await bp.goto(`${APP}/plans/${planId}`);
+    await bp.locator('[data-testid=plan-arrival][data-answer="yes"]').waitFor({ timeout: 20_000 });
+    check(true, "P43 2: die Planseite zeigt dieselbe Ansage");
+
+    // Fehlerzustand auf Home: Hinweis mit „Nochmal versuchen“ statt leerer Kachel.
+    await bp.route("**/rest/v1/rpc/plan_arrival_status", (route) => route.abort());
+    await bp.goto(`${APP}/home`);
+    await bp.getByTestId("tonight-arrival-error").waitFor({ timeout: 20_000 });
+    check(true, "P43 2: Fehlerzustand in der Leiste");
+    await bp.unroute("**/rest/v1/rpc/plan_arrival_status");
+    await strip.getByRole("button", { name: "Nochmal versuchen" }).click();
+    await tile.getByTestId("tonight-arrival-mine").waitFor();
+    check(true, "P43 2: „Nochmal versuchen“ lädt die Kachel");
+  } finally {
+    psql(`delete from public.plans where id = '${planId}'`);
+    if (moved.length) psql(`update public.plans set starts_at = starts_at - interval '3 days' where id in (${list})`);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;
