@@ -68,6 +68,21 @@ export function useUpdateSettings() {
   });
 }
 
+/** P49: Nachtruhe fürs Handy – `null` schaltet sie aus. Schreibt den Stand in den Cache der Einstellungen. */
+export function useSetQuietHours() {
+  const { user } = useAuth();
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (quiet: { from: number; to: number } | null): Promise<{ from: number | null; to: number | null }> => {
+      const { data, error } = await supabase.rpc("set_push_quiet_hours", { p_from: quiet?.from ?? null, p_to: quiet?.to ?? null });
+      if (error) throw error;
+      return data as { from: number | null; to: number | null };
+    },
+    onSuccess: (state) =>
+      client.setQueryData<UserSettings>(qk.settings(user?.id ?? "anonymous"), (old) => (old ? { ...old, push_quiet_from: state.from, push_quiet_to: state.to } : old)),
+  });
+}
+
 /** P11 Etappe 2a: Sprache im Profil speichern (gilt für Kalender-Abo, Push und neue Geräte). */
 export async function saveMyLocale(locale: "de" | "en"): Promise<void> {
   const { error } = await supabase.rpc("set_my_locale", { p_locale: locale });

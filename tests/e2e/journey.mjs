@@ -7524,6 +7524,34 @@ await step("P4 – Push-Mitteilungen: Gerät anmelden, verschlüsselter Push, Te
   check(((await api(app, "GET", "push_subscriptions?select=muted_types")).json?.[0]?.muted_types ?? ["?"]).length === 0, "„Alles“: nichts mehr stumm");
   check((await page.getByTestId("push-pick-status").innerText()).trim() === "Alles", "Pille sagt wieder „Alles“");
 
+  // P49: Nachtruhe – gilt für alle Geräte; Auswahl sofort gespeichert, danach wieder aus (der Versand unten braucht Push).
+  const quiet = page.getByTestId("quiet-hours");
+  await quiet.waitFor();
+  check((await quiet.getAttribute("data-state")) === "off" && (await page.getByTestId("quiet-hours-status").innerText()).trim() === "Aus", "Nachtruhe ist erst aus");
+  const quietSaved = () => page.waitForResponse((r) => r.url().includes("/rpc/set_push_quiet_hours") && r.request().method() === "POST");
+  saving = quietSaved();
+  await quiet.getByRole("button", { name: "23–8 Uhr" }).click();
+  check((await saving).ok(), "„23–8 Uhr“ gespeichert");
+  await toast(app, "Nachtruhe gespeichert.");
+  check((await page.getByTestId("quiet-hours-status").innerText()).trim() === "23–8 Uhr", "Pille zeigt die Nachtruhe");
+  const berlinHourNow = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", hour: "2-digit", hourCycle: "h23" }).format(new Date())) % 24;
+  const quietLine = await page.getByTestId("quiet-hours-now").isVisible().catch(() => false);
+  check(quietLine === (berlinHourNow >= 23 || berlinHourNow < 8), `„Gerade Nachtruhe“ nur in der Nachtruhe (${berlinHourNow} Uhr, Zeile ${quietLine ? "da" : "weg"})`);
+  const quietRow = (await api(app, "GET", "user_settings?select=push_quiet_from,push_quiet_to")).json?.[0];
+  check(quietRow?.push_quiet_from === 23 && quietRow?.push_quiet_to === 8, `API: Nachtruhe gespeichert (${JSON.stringify(quietRow)})`);
+  const quietPatch = await api(bob, "PATCH", "user_settings?push_quiet_from=is.null", { push_quiet_from: 1, push_quiet_to: 2 });
+  check(quietPatch.status >= 400, `API: Nachtruhe nicht direkt änderbar (${quietPatch.status})`);
+  const quietBad = await api(bob, "POST", "rpc/set_push_quiet_hours", { p_from: 8, p_to: 8 });
+  check(quietBad.status >= 400 && quietBad.json?.message === "invalid_quiet_hours", `API: Von = Bis wird abgelehnt (${quietBad.json?.message})`);
+  check(((await api(bob, "GET", "user_settings?select=push_quiet_from&push_quiet_from=not.is.null")).json ?? []).length === 0, "API: Bob sieht Carols Nachtruhe nicht");
+  await quiet.scrollIntoViewIfNeeded();
+  await shot(app, "62-nachtruhe");
+  saving = quietSaved();
+  await quiet.getByRole("button", { name: "Aus", exact: true }).click();
+  check((await saving).ok(), "Nachtruhe wieder aus");
+  await toast(app, "Nachtruhe ist aus.");
+  check((await quiet.getAttribute("data-state")) === "off", "Auswahl zeigt „Aus“");
+
   if (!stubHost || !DB_URL) {
     console.log("   (Push-Stellvertreter oder E2E_DB_URL fehlt – Versand wird übersprungen)");
   } else {

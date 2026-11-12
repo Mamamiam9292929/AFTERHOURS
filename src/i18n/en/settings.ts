@@ -1,6 +1,9 @@
 import type { settings as deSettings } from "../de/settings";
 
 /** F8 · Texte der Einstellungen (SettingsPage, dazu Onboarding), englisch. Eigener Chunk – lädt erst mit der Seite. */
+/** P49: 0 → "midnight", 13 → "1 pm" (times shown in Berlin time). */
+const hour = (h: number) => (h === 0 ? "midnight" : h === 12 ? "noon" : h < 12 ? `${h} am` : `${h - 12} pm`);
+
 export const settings = {
   title: "Settings",
   back: "Profile",
@@ -118,6 +121,16 @@ export const settings = {
       none: "Nothing is coming through to this device right now – the app still shows everything.",
       offInApp: (n: number) => (n === 1 ? "1 area is turned off for the app below, so it won't arrive here either." : `${n} areas are turned off for the app below, so they won't arrive here either.`),
     },
+  },
+  /** P49: quiet hours – all devices and crews, Berlin time. */
+  quiet: {
+    title: "Quiet hours",
+    lead: "Your phone stays silent during this time – on every device, from every crew. Everything still arrives in the app and is waiting there in the morning, without a flood of notifications.",
+    off: "Off",
+    range: (from: number, to: number) => `${hour(from)} – ${hour(to)}`,
+    until: (to: number) => `Quiet hours now – until ${hour(to)}`,
+    saved: "Quiet hours saved.",
+    removed: "Quiet hours are off.",
   },
   /** P2 Etappe 2: persönlicher Abo-Link für Kalender-Apps. */
   calendar: {

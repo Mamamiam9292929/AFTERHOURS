@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { IconBell, IconCake, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconGlobe, IconInfo, IconLock, IconLogout, IconPin, IconPlane, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
+import { IconBell, IconCake, IconCalendarPlus, IconCopy, IconDownload, IconExternal, IconGlobe, IconInfo, IconLock, IconLogout, IconMoon, IconPin, IconPlane, IconRefresh, IconSparkles, IconTrash, IconUser } from "@/components/icons";
 import { PageHeader } from "@/components/layout/Page";
 import { Button, buttonClass } from "@/components/ui/Button";
 import { Chip, SwitchRow } from "@/components/ui/Controls";
@@ -34,7 +34,8 @@ import { addDays, APP_LOCALE, formatAgo, today } from "@/lib/time";
 import { password as passwordRule, validate } from "@/lib/validation";
 import type { ActivityCategory, Interest, LocationSharingMode, Profile, UserSettings } from "@/lib/types";
 import { devicePreset, isGroupOnDevice, matchesPreset, setGroupOnDevice } from "@/lib/pushgroups";
-import { useCalendarFeed, useProfile, usePushDevices, useRenewCalendarFeed, useRevokeCalendarFeed, useSetPushMutedTypes, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
+import { QUIET_PRESETS, quietFromSettings, quietNow, samePreset, type QuietHours } from "@/lib/quiethours";
+import { useCalendarFeed, useProfile, usePushDevices, useRenewCalendarFeed, useRevokeCalendarFeed, useSetPushMutedTypes, useSetQuietHours, useSettings, useUpdateProfile, useUpdateSettings } from "./api";
 import { AvatarPicker } from "./AvatarPicker";
 import { isGroupEnabled, NOTIFICATION_GROUPS, setGroup } from "./notificationGroups";
 
@@ -565,6 +566,56 @@ function DevicePushPicker({ endpoint, initial, preferences }: { endpoint: string
   );
 }
 
+/**
+ * P49 · Nachtruhe fürs Handy: ein festes Zeitfenster (Berliner Zeit), in dem kein Push kommt – für die Person, also
+ * alle Geräte und Crews. Sofort gespeichert wie die Auswahl je Gerät; während der Nachtruhe sagt eine Zeile, bis wann.
+ */
+function QuietHoursPicker({ settings }: { settings: UserSettings }) {
+  const toast = useToast();
+  const save = useSetQuietHours();
+  const now = useNow(60_000);
+  const [quiet, setQuiet] = useState<QuietHours | null>(() => quietFromSettings(settings.push_quiet_from, settings.push_quiet_to));
+  const t2 = t.settings.quiet;
+  const until = quietNow(quiet, now);
+
+  function apply(next: QuietHours | null) {
+    if (samePreset(quiet, next)) return;
+    const previous = quiet;
+    setQuiet(next);
+    save.mutate(next, { onSuccess: () => toast.success(next ? t2.saved : t2.removed), onError: (error) => { setQuiet(previous); toast.error(error); } });
+  }
+
+  return (
+    <div className="mt-4 border-t border-white/10 pt-4" data-testid="quiet-hours" data-state={quiet ? `${quiet.from}-${quiet.to}` : "off"} role="group" aria-labelledby="quiet-hours-title">
+      <div className="flex flex-wrap items-center gap-2">
+        <IconMoon aria-hidden className="size-4 text-muted" />
+        <h4 id="quiet-hours-title" className="mr-auto font-semibold text-fg">
+          {t2.title}
+        </h4>
+        <StatusPill testId="quiet-hours-status" tone={quiet ? "lime" : "glass"}>
+          {quiet ? t2.range(quiet.from, quiet.to) : t2.off}
+        </StatusPill>
+      </div>
+      <p className="mt-1 text-[13px] leading-snug text-muted">{t2.lead}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Chip selected={quiet === null} onToggle={() => apply(null)}>
+          {t2.off}
+        </Chip>
+        {QUIET_PRESETS.map((preset) => (
+          <Chip key={`${preset.from}-${preset.to}`} selected={samePreset(quiet, preset)} onToggle={() => apply(preset)}>
+            {t2.range(preset.from, preset.to)}
+          </Chip>
+        ))}
+      </div>
+      {until !== null && (
+        <p className="mt-3 text-[13px] leading-snug text-fg" data-testid="quiet-hours-now" role="status">
+          {t2.until(until)}
+        </p>
+      )}
+    </div>
+  );
+}
+
 type PushState = "loading" | "unsupported" | "ios-install" | "not-configured" | "blocked" | "on" | "off";
 
 /**
@@ -572,7 +623,7 @@ type PushState = "loading" | "unsupported" | "ios-install" | "not-configured" | 
  * Was ankommt, bestimmt die Auswahl für die App, je Gerät eingeschränkt (DevicePushPicker). Ehrlich, wenn es nicht geht:
  * Browser ohne Push, iPhone ohne installierte App, Server ohne Schlüssel, im Browser blockiert.
  */
-function PushPanel({ preferences }: { preferences: UserSettings["notification_preferences"] }) {
+function PushPanel({ preferences, settings }: { preferences: UserSettings["notification_preferences"]; settings: UserSettings }) {
   const toast = useToast();
   const client = useQueryClient();
   const { user } = useAuth();
@@ -673,6 +724,7 @@ function PushPanel({ preferences }: { preferences: UserSettings["notification_pr
             <p className="mt-2 text-sm leading-snug text-muted">{message[state]}</p>
           )}
           {others > 0 && <p className="mt-2 text-[13px] leading-snug text-muted">{t2.otherDevices(others)}</p>}
+          {(state === "on" || others > 0) && <QuietHoursPicker settings={settings} />}
         </>
       )}
     </div>
@@ -705,7 +757,7 @@ function NotificationsCard({ settings }: { settings: UserSettings }) {
         </StatusPill>
       }
     >
-      <PushPanel preferences={preferences} />
+      <PushPanel preferences={preferences} settings={settings} />
       <div className={cn(ITEM, "divide-y divide-white/10 px-4")}>
         {NOTIFICATION_GROUPS.map((group) => (
           <SwitchRow key={group.key} label={t.settings.notifications.groups[group.key].title} description={t.settings.notifications.groups[group.key].body} checked={isGroupEnabled(preferences, group.types)} onChange={(enabled) => change(group.types, enabled)} />
