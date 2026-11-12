@@ -3634,14 +3634,14 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     const fristOpen = Number(psql(`select count(*) from public.plan_participants where plan_id = '${fristPlan}' and attendance_status = 'invited'`));
     try {
       await carol.page.goto(`${APP}/notifications`);
-      const reminder = carol.page.getByRole("link", { name: /Antwort bis .* – deine fehlt noch/ });
+      const reminder = carol.page.getByRole("link", { name: /Antwort bis .* – deine fehlt noch/ }).filter({ hasText: "Lasertag in der Halle" });
       await reminder.waitFor();
       check(await reminder.getByText(/Lasertag in der Halle/).isVisible(), "P46 Etappe 2: „Antwort bis … – deine fehlt noch“ mit dem Plan");
       await noOverflow(carol, "P46 Erinnerung vor der Frist");
       await shot(carol, "21h6-plan-antwortfrist-erinnerung");
       await carol.page.reload();
       await reminder.waitFor();
-      check((await carol.page.getByRole("link", { name: /Antwort bis .* – deine fehlt noch/ }).count()) === 1, "P46 Etappe 2: Neuladen erinnert nicht noch einmal");
+      check((await carol.page.getByRole("link", { name: /Antwort bis .* – deine fehlt noch/ }).filter({ hasText: "Lasertag in der Halle" }).count()) === 1, "P46 Etappe 2: Neuladen erinnert nicht noch einmal");
       const fristExpected = psql(`select count(*) from public.plan_participants p left join public.user_settings s on s.user_id = p.user_id
         where p.plan_id = '${fristPlan}' and p.attendance_status = 'invited' and coalesce(s.notification_preferences ->> 'plan_reminder', 'true') <> 'false'`);
       check(psql(`select count(*) from public.notifications where related_entity_id = '${fristPlan}' and type = 'plan_reminder' and actor_id is null and payload ->> 'deadline' = 'true'`) === fristExpected,
@@ -3652,7 +3652,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       // Frist vorbei: Bob bekommt den Stand.
       psql(`update public.plans set answer_by = now() - interval '1 minute' where id = '${fristPlan}'`);
       await bob.page.goto(`${APP}/notifications`);
-      const tally = bob.page.getByRole("link", { name: new RegExp(`Frist vorbei: 1 dabei, ${fristOpen} offen`) });
+      const tally = bob.page.getByRole("link", { name: new RegExp(`Frist vorbei: 1 dabei, ${fristOpen} offen`) }).filter({ hasText: "Lasertag in der Halle" });
       await tally.waitFor();
       check(true, `P46 Etappe 2: Bob sieht „Frist vorbei: 1 dabei, ${fristOpen} offen“`);
       await noOverflow(bob, "P46 Stand nach der Frist");
