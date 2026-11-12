@@ -61,6 +61,7 @@ export {
   LuMapPinOff as IconPinOff,
   LuMessageCircle as IconChat,
   LuMinus as IconMinus,
+  LuMoon as IconMoon,
   LuNavigation as IconNavigation,
   LuPencil as IconEdit,
   LuPhone as IconPhone,

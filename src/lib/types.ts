@@ -58,6 +58,9 @@ export interface UserSettings {
   privacy_preferences: Record<string, unknown>;
   /** P11 Etappe 2a: Sprache im Profil (null = noch nie gesetzt, gilt als Deutsch). Ändern nur über `set_my_locale`. */
   locale: "de" | "en" | null;
+  /** P49: Nachtruhe (volle Stunden, Berliner Zeit; beide null = aus). Ändern nur über `set_push_quiet_hours`. */
+  push_quiet_from?: number | null;
+  push_quiet_to?: number | null;
   updated_at: string;
 }
 

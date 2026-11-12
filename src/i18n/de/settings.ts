@@ -119,6 +119,16 @@ export const settings = {
       offInApp: (n: number) => (n === 1 ? "1 Bereich ist unten für die App ausgeschaltet und kommt deshalb auch hier nicht." : `${n} Bereiche sind unten für die App ausgeschaltet und kommen deshalb auch hier nicht.`),
     },
   },
+  /** P49: Nachtruhe fürs Handy – gilt für alle Geräte und Crews, Berliner Zeit. */
+  quiet: {
+    title: "Nachtruhe",
+    lead: "In dieser Zeit brummt dein Handy nicht – auf keinem Gerät, aus keiner Crew. In der App kommt alles an; morgens liegt es dort, ohne Schwall an Mitteilungen.",
+    off: "Aus",
+    range: (from: number, to: number) => `${from}–${to} Uhr`,
+    until: (to: number) => `Gerade Nachtruhe – bis ${to} Uhr`,
+    saved: "Nachtruhe gespeichert.",
+    removed: "Nachtruhe ist aus.",
+  },
   /** P2 Etappe 2: persönlicher Abo-Link für Kalender-Apps. */
   calendar: {
     title: "Kalender-Abo",
