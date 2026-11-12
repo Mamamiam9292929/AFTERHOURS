@@ -201,6 +201,10 @@ export const plans = {
       remind: "Nachfragen",
       remindLabel: (n: number) => (n === 1 ? "Nachfragen – die Person ohne Antwort fragen, ob sie dabei ist" : `Nachfragen – alle ${n} ohne Antwort fragen, ob sie dabei sind`),
       reminded: (n: number) => (n === 0 ? "Alle haben schon geantwortet – niemand wurde gefragt." : n === 1 ? "1 Person gefragt." : `${n} Personen gefragt.`),
+      // P45: Alle mit „Vielleicht“ fragen, ob sie jetzt dabei sind.
+      remindMaybeLabel: (n: number) =>
+        n === 1 ? "Nachfragen – die Person mit „Vielleicht“ fragen, ob sie jetzt dabei ist" : `Nachfragen – alle ${n} mit „Vielleicht“ fragen, ob sie jetzt dabei sind`,
+      remindedMaybe: (n: number) => (n === 0 ? "Niemand steht mehr bei „Vielleicht“ – niemand wurde gefragt." : n === 1 ? "1 Person gefragt." : `${n} Personen gefragt.`),
       // P23: Der Plan wurde verschoben, die alte Antwort gilt nicht mehr.
       askedAgain: (previous: string) => `Neue Zeit – passt es dir noch? Vorher: ${previous}`,
       // P26: Runde voll – statt „Bin dabei“ auf die Nachrückliste.

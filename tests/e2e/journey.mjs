@@ -3465,6 +3465,73 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P45 – „Vielleicht“ festmachen: Bob organisiert (390 px), Carol hat „vielleicht“ gesagt, alle anderen noch nichts.
+  // Bei „Vielleicht“ steht ein eigener „Nachfragen“-Knopf; ein Tipp fragt nur Carol („Bob fragt: Bist du jetzt dabei?“),
+  // der Knopf bei „Noch offen“ bleibt daneben nutzbar. Ein zweiter Tipp innerhalb von 6 Stunden wird abgewiesen.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const carolId = psql(`select id from auth.users where email = '${carol.email}'`);
+    const maybePlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${bobId}', 'Karaoke im Keller', now() + interval '4 days', 'proposed')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status)
+      select '${maybePlan}', m.user_id, case when m.user_id = '${bobId}' then 'going'::public.attendance_status
+                                             when m.user_id = '${carolId}' then 'maybe'::public.attendance_status
+                                             else 'invited'::public.attendance_status end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    try {
+      await bob.page.goto(`${APP}/plans/${maybePlan}`);
+      await bob.page.getByRole("heading", { level: 1, name: "Karaoke im Keller" }).waitFor();
+      const askMaybe = bob.page.getByTestId("plan-remind-maybe");
+      await askMaybe.waitFor();
+      check((await askMaybe.getAttribute("aria-label")) === "Nachfragen – die Person mit „Vielleicht“ fragen, ob sie jetzt dabei ist",
+        "P45: Knopf bei „Vielleicht“ mit verständlicher Beschriftung");
+      check((await bob.page.getByTestId("plan-remind").count()) === 1, "P45: „Nachfragen“ bei „Noch offen“ bleibt daneben");
+      await noOverflow(bob, "P45 Vielleicht festmachen");
+      await a11y(bob, "plan-vielleicht-nachfragen");
+      await askMaybe.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21h2-plan-vielleicht-nachfragen");
+      await askMaybe.click();
+      await toast(bob, "1 Person gefragt.");
+      check(psql(`select string_agg(user_id::text, ',') from public.notifications where type = 'plan_reminder' and related_entity_id = '${maybePlan}'`) === carolId,
+        "P45: nur Carol („vielleicht“) bekommt die Frage – niemand ohne Antwort");
+      check(psql(`select payload ->> 'maybe' from public.notifications where type = 'plan_reminder' and related_entity_id = '${maybePlan}'`) === "true",
+        "P45: als Frage an „Vielleicht“ gekennzeichnet");
+      await askMaybe.click();
+      await toast(bob, "Du hast gerade erst erinnert. Die nächste Erinnerung ist in 6 Stunden möglich.");
+      check(true, "P45: zweiter Tipp innerhalb von 6 Stunden wird abgewiesen");
+
+      // Carol: kein Knopf, die Frage in den Benachrichtigungen führt zur Antwortkarte; „Bin dabei“ beantwortet sie.
+      await carol.page.goto(`${APP}/plans/${maybePlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Karaoke im Keller" }).waitFor();
+      check((await carol.page.getByTestId("plan-remind-maybe").count()) === 0, "P45: einfache Mitglieder sehen keinen Knopf bei fremden Plänen");
+      await carol.page.goto(`${APP}/notifications`);
+      const asked = carol.page.getByRole("link", { name: /Bob fragt: Bist du jetzt dabei\?/ }).filter({ hasText: "Karaoke im Keller" });
+      await asked.waitFor();
+      check((await asked.first().textContent()).includes("Du hast „vielleicht“ gesagt"), "P45: Benachrichtigung erinnert an das „vielleicht“");
+      await shot(carol, "21i2-vielleicht-benachrichtigung");
+      await asked.first().click();
+      await carol.page.waitForURL(`**/plans/${maybePlan}`);
+      const answer = carol.page.getByRole("radiogroup", { name: "Bist du dabei?" });
+      await answer.waitFor();
+      await answer.getByRole("radio", { name: "Bin dabei" }).click();
+      await toast(carol, "Antwort gespeichert.");
+      check(psql(`select attendance_status from public.plan_participants where plan_id = '${maybePlan}' and user_id = '${carolId}'`) === "going",
+        "P45: Carol sagt aus der Frage heraus zu");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/remind_plan_maybe`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: maybePlan }),
+        });
+        check(res.status === 401 || res.status === 403, `P45: ohne Anmeldung kein Nachfragen (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${maybePlan}'; delete from public.plans where id = '${maybePlan}'`);
+    }
+  }
+
   // P23 – Neue Uhrzeit, alle neu fragen: Bob verschiebt seinen Plan (390 px), Carol hatte zugesagt. Beim Ändern der
   // Uhrzeit erscheint „Alle neu fragen“ (vorausgewählt); nach dem Speichern steht Carol wieder bei „Noch offen“, sieht
   // „Vorher: Bin dabei“ und bekommt „Neue Zeit: … – bist du noch dabei?“ statt nur „Plan geändert“.

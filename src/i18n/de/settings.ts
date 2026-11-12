@@ -70,7 +70,7 @@ export const settings = {
     groups: {
       polls: { title: "Neue Abstimmungen", body: "Wenn jemand in deiner Crew eine Abstimmung startet." },
       reminders: { title: "Erinnerungen", body: "Wenn deine Antwort auf eine Abstimmung noch fehlt – von Hand oder kurz vor dem Ende." },
-      planReminders: { title: "Nachfragen zu Plänen", body: "Wenn jemand fragt, ob du bei einem Plan dabei bist, und deine Antwort noch fehlt." },
+      planReminders: { title: "Nachfragen zu Plänen", body: "Wenn jemand fragt, ob du bei einem Plan dabei bist, und deine Antwort noch fehlt oder „vielleicht“ ist." },
       answers: { title: "Neue Antworten", body: "Wenn jemand auf deine Abstimmung oder deinen Plan antwortet." },
       results: { title: "Ergebnisse", body: "Wenn eine Abstimmung endet." },
       plans: { title: "Pläne", body: "Neue Pläne, Änderungen an Zeit, Ort oder Kosten, „Es findet statt“, „Du bist nachgerückt“ und Absagen." },

@@ -131,10 +131,13 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
   }),
   // P16: Am Morgen nach dem Abend einmal, ohne auslösende Person – nur „gestern“, wenn es stimmt.
   // P19: Organisator:in fragt alle ohne Antwort – mit Termin, damit man ohne Öffnen weiß, worum es geht.
-  plan_reminder: (actor, p) => ({
-    title: `${actor} fragt: Bist du dabei?`,
-    body: str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title"),
-  }),
+  // P45: Mit `maybe` fragt die organisierende Person alle, die „vielleicht“ gesagt haben.
+  plan_reminder: (actor, p) => {
+    const plan = str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title");
+    return p.maybe
+      ? { title: `${actor} fragt: Bist du jetzt dabei?`, body: `Du hast „vielleicht“ gesagt · ${plan}` }
+      : { title: `${actor} fragt: Bist du dabei?`, body: plan };
+  },
   // P25: Mindestzahl erreicht – einmal, ohne auslösende Person; wer noch nicht geantwortet hat, wird gefragt.
   plan_quorum: (_actor, p) => ({
     title: `Es findet statt: ${str(p, "title")}`,

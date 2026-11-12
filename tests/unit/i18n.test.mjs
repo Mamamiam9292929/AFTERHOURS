@@ -112,6 +112,19 @@ test("P11 Etappe 2e: Benachrichtigungen zeigen „Stichwahl: …“ auf Englisch
   assert.equal(de.notificationText.poll_vote("Ana", { title: "Stichwahl: Bowling" }).body, "Stichwahl: Bowling");
 });
 
+test("P45: Nachfrage an „Vielleicht“ hat eigenen Text, die normale Nachfrage bleibt", () => {
+  const payload = { title: "Bowling", starts_at: "2026-11-20T19:00:00Z" };
+  const plain = de.notificationText.plan_reminder("Bob", payload);
+  assert.equal(plain.title, "Bob fragt: Bist du dabei?");
+  assert.ok(plain.body.startsWith("Bowling · "));
+  const maybe = de.notificationText.plan_reminder("Bob", { ...payload, maybe: true });
+  assert.equal(maybe.title, "Bob fragt: Bist du jetzt dabei?");
+  assert.ok(maybe.body.startsWith("Du hast „vielleicht“ gesagt · Bowling · "));
+  assert.equal(en.notificationText.plan_reminder("Bob", { ...payload, maybe: true }).title, "Bob asks: are you in now?");
+  assert.ok(en.notificationText.plan_reminder("Bob", { ...payload, maybe: true }).body.startsWith("You said maybe · Bowling · "));
+  assert.equal(en.notificationText.plan_reminder("Bob", payload).title, "Bob asks: are you in?");
+});
+
 test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deutsch und Englisch", async () => {
   const { deCore } = await import("../../src/i18n/de/core.ts");
   const { germanPageTexts } = await import("../../src/i18n/de/pages.ts");
