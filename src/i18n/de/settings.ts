@@ -69,7 +69,7 @@ export const settings = {
     status: (on: number, all: number) => (on === 0 ? "Alle aus" : on === all ? "Alle an" : `${on} von ${all} an`),
     groups: {
       polls: { title: "Neue Abstimmungen", body: "Wenn jemand in deiner Crew eine Abstimmung startet." },
-      reminders: { title: "Erinnerungen", body: "Wenn deine Antwort auf eine Abstimmung noch fehlt – von Hand oder kurz vor dem Ende." },
+      reminders: { title: "Erinnerungen", body: "Wenn deine Antwort auf eine Abstimmung noch fehlt – von Hand oder kurz vor dem Ende –, jemand etwas nachreicht oder deinen Vorschlag wieder rausnimmt." },
       planReminders: { title: "Nachfragen zu Plänen", body: "Wenn jemand fragt, ob du bei einem Plan dabei bist, und deine Antwort noch fehlt oder „vielleicht“ ist." },
       answers: { title: "Neue Antworten", body: "Wenn jemand auf deine Abstimmung oder deinen Plan antwortet." },
       results: { title: "Ergebnisse", body: "Wenn eine Abstimmung endet." },

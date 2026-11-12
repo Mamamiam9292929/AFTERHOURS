@@ -21,6 +21,7 @@ export const pollSlot = {
     openLabel: (title: string) => `Take back ${title}`,
     question: "Remove it again?",
     body: "Nobody else has answered it yet. The heads-up to the crew goes too.",
+    tellsAdder: (name: string) => `${name} will be told.`,
     confirm: "Yes, take it back",
     keep: "Keep it",
     done: (title: string) => `${title} is out again.`,

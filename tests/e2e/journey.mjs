@@ -6634,6 +6634,32 @@ await step("P42 – „Vertippt?“: nachgereichten Vorschlag zurückziehen, sol
     await page.reload();
     await optionCard(bob, "Picknick im Park").first().waitFor();
     check((await optionCard(bob, "Picknick im Park").getByTestId("poll-option-withdraw").count()) === 0, "P42: Carol hat geantwortet – kein „Zurückziehen“");
+
+    // P42 Etappe 2: Bob hat die Abstimmung gestartet und nimmt Carols Vorschlag raus – Carol bekommt Bescheid.
+    const minigolf = await api(carol, "POST", "rpc/add_poll_place", { p_poll_id: pollId, p_title: "Minigolf" });
+    if (minigolf.status >= 300) throw new Error(`Ort nachreichen (Carol) fehlgeschlagen (${minigolf.status} ${minigolf.json?.message})`);
+    await page.reload();
+    const carolCard = optionCard(bob, "Minigolf").first();
+    await carolCard.waitFor();
+    await carolCard.getByTestId("poll-option-withdraw").click();
+    const confirmOther = carolCard.getByTestId("poll-option-withdraw-confirm");
+    await confirmOther.waitFor();
+    check(/Carol bekommt Bescheid\.$/.test((await confirmOther.innerText()).trim().split("\n").find((l) => l.includes("Bescheid")) ?? ""),
+      "P42/2: Nachfrage sagt, dass Carol Bescheid bekommt");
+    await noOverflow(bob, "Abstimmung – fremden Vorschlag zurückziehen");
+    await a11y(bob, "abstimmung-fremden-vorschlag-zurueckziehen");
+    await shot(bob, "78b-abstimmung-fremden-vorschlag-zurueckziehen");
+    const removedOther = page.waitForResponse((r) => r.url().includes("/rpc/remove_poll_option") && r.request().method() === "POST");
+    await confirmOther.getByRole("button", { name: "Ja, zurückziehen" }).click();
+    check((await removedOther).ok(), "P42/2: Bob hat Carols Vorschlag rausgenommen");
+    const removedNotice = () => psql(`select count(*) from public.notifications n join auth.users u on u.id = n.user_id
+      where n.type = 'poll_reminder' and n.related_entity_id = '${pollId}' and (n.payload ->> 'removed')::boolean
+        and n.payload ->> 'place' = 'Minigolf' and u.email = '${carol.email}'`);
+    check(removedNotice() === "1", "P42/2: Carol bekommt genau einen Hinweis");
+    await carol.page.goto(`${APP}/notifications`);
+    await carol.page.getByText(/Bob hat Minigolf wieder aus der Abstimmung genommen$/).first().waitFor();
+    check(true, "P42/2: Carol sieht „Bob hat Minigolf wieder aus der Abstimmung genommen“");
+    await a11y(carol, "benachrichtigung-vorschlag-rausgenommen");
   } finally {
     execFileSync("psql", [DB_URL, "-qc", `delete from public.polls where id = '${pollId}'`]);
   }

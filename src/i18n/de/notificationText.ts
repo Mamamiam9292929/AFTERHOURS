@@ -31,6 +31,13 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
   }),
   // P15: Endspurt ohne auslösende Person – in den letzten drei Stunden, solange die eigene Stimme fehlt.
   poll_reminder: (actor, p) => {
+    // P42 Etappe 2: Jemand anderes (wer gestartet hat, Owner/Admin) hat deinen nachgereichten Vorschlag rausgenommen.
+    if (p.removed) {
+      const what = str(p, "date")
+        ? `${formatPlainDate(str(p, "date"), "long")}${str(p, "time") ? `, ${formatPlainTime(str(p, "time"))}` : ""}`
+        : str(p, "place", "deinen Vorschlag");
+      return { title: `${actor} hat ${what} wieder aus der Abstimmung genommen`, body: str(p, "title") };
+    }
     // P40: „Und Sonntag?“ – jemand hat einen Termin nachgereicht; an alle, die schon abgestimmt haben.
     if (p.added && str(p, "date")) {
       const time = str(p, "time") ? `, ${formatPlainTime(str(p, "time"))}` : "";

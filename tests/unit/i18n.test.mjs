@@ -125,6 +125,21 @@ test("P45: Nachfrage an „Vielleicht“ hat eigenen Text, die normale Nachfrage
   assert.equal(en.notificationText.plan_reminder("Bob", payload).title, "Bob asks: are you in?");
 });
 
+test("P42 Etappe 2: Hinweis, wenn jemand deinen Vorschlag rausnimmt – Termin oder Ort im Text", () => {
+  const slot = de.notificationText.poll_reminder("Alice", { title: "Wann könnt ihr?", removed: true, date: "2026-11-21", time: "20:00" });
+  assert.match(slot.title, /^Alice hat .*21\.? November, 20:00 wieder aus der Abstimmung genommen$/);
+  assert.equal(slot.body, "Wann könnt ihr?");
+  const noTime = de.notificationText.poll_reminder("Alice", { title: "Wann?", removed: true, date: "2026-11-21", time: null });
+  assert.match(noTime.title, /21\.? November wieder aus/);
+  assert.equal(de.notificationText.poll_reminder("Alice", { title: "Was machen wir?", removed: true, place: "Karaoke" }).title,
+    "Alice hat Karaoke wieder aus der Abstimmung genommen");
+  assert.equal(en.notificationText.poll_reminder("Alice", { title: "Was machen wir?", removed: true, place: "Karaoke" }).title,
+    "Alice took Karaoke back out of the poll");
+  assert.match(en.notificationText.poll_reminder("Alice", { title: "x", removed: true, date: "2026-11-21", time: "20:00" }).title, /November.*20:00 back out/);
+  // Nachgereicht (P40) bleibt unverändert.
+  assert.match(de.notificationText.poll_reminder("Bob", { title: "x", added: true, place: "Kino" }).title, /^Bob schlägt noch Kino vor/);
+});
+
 test("F7: Kern ohne Seitentexte, Seitentexte vollständig nachladbar – auf Deutsch und Englisch", async () => {
   const { deCore } = await import("../../src/i18n/de/core.ts");
   const { germanPageTexts } = await import("../../src/i18n/de/pages.ts");

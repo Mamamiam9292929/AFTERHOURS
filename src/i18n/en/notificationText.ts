@@ -28,6 +28,12 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     body: serverTitle(p),
   }),
   poll_reminder: (actor, p) => {
+    if (p.removed) {
+      const what = str(p, "date")
+        ? `${formatPlainDateLong(str(p, "date"))}${str(p, "time") ? `, ${str(p, "time")}` : ""}`
+        : str(p, "place", "your suggestion");
+      return { title: `${actor} took ${what} back out of the poll`, body: serverTitle(p) };
+    }
     if (p.added && str(p, "date")) {
       const time = str(p, "time") ? `, ${str(p, "time")}` : "";
       return { title: `${actor} suggested ${formatPlainDateLong(str(p, "date"))}${time} too – can you make it?`, body: serverTitle(p) };
