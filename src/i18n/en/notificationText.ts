@@ -121,6 +121,14 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
   }),
   plan_reminder: (actor, p) => {
     const plan = str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p);
+    if (p.deadline_over) {
+      const n = (key: string) => (typeof p[key] === "number" ? (p[key] as number) : 0);
+      const parts = [`${n("going")} in`, n("unsure") > 0 ? `${n("unsure")} maybe` : "", n("open") > 0 ? `${n("open")} haven't replied` : ""].filter(Boolean);
+      return { title: n("open") > 0 ? `Deadline passed: ${parts.join(", ")}` : `Deadline passed – everyone replied: ${parts.join(", ")}`, body: plan };
+    }
+    if (p.deadline) {
+      return { title: str(p, "answer_by") ? `Reply by ${formatDateTime(str(p, "answer_by"))} – yours is still missing` : "The reply deadline is almost up – yours is still missing", body: plan };
+    }
     return p.maybe
       ? { title: `${actor} asks: are you in now?`, body: `You said maybe · ${plan}` }
       : { title: `${actor} asks: are you in?`, body: plan };

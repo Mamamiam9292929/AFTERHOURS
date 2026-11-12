@@ -70,7 +70,7 @@ export const settings = {
     groups: {
       polls: { title: "New polls", body: "When someone in your crew starts a poll." },
       reminders: { title: "Reminders", body: "When you still haven't answered a poll – sent by hand or shortly before it closes –, someone adds an option or takes yours back out." },
-      planReminders: { title: "Plan check-ins", body: "When someone asks whether you're in on a plan you haven't answered yet or said maybe to." },
+      planReminders: { title: "Plan check-ins", body: "When someone asks whether you're in on a plan you haven't answered yet or said maybe to – also shortly before a reply deadline and, for your own plan, with the tally afterwards." },
       answers: { title: "New replies", body: "When someone replies to your poll or your plan." },
       results: { title: "Results", body: "When a poll ends." },
       plans: { title: "Plans", body: "New plans, changes to time, place or cost, \"it's on\", \"you're in from the waiting list\" and cancellations." },

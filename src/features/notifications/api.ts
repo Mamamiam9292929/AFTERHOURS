@@ -17,6 +17,8 @@ import type { AppNotification } from "@/lib/types";
  * - P20 Etappe 2: eine Woche vor einem Geburtstag in den eigenen Crews an alle außer das Geburtstagskind (danach Push).
  * - P15: Abstimmungen in ihren letzten drei Stunden (an alle ohne Stimme). Das Fenster ist kurz, deshalb
  *   fragt die App danach höchstens alle 15 Minuten erneut (beim Aktualisieren der Liste).
+ * - P46 Etappe 2: Antwortfristen von Plänen – am letzten Tag davor an alle ohne Antwort, danach der Stand an die
+ *   Person, die den Plan angelegt hat. Im selben 15-Minuten-Takt wie P15.
  * Scheitert das (Netz, Rate Limit), bleibt es bei der Liste – beim nächsten Start versucht es die App wieder.
  */
 let expenseRemindersCheckedFor: string | null = null;
@@ -27,8 +29,8 @@ async function checkClosingPolls(userId: string) {
   const now = Date.now();
   if (closingCheckedAt?.userId === userId && now - closingCheckedAt.at < CLOSING_CHECK_MS) return;
   closingCheckedAt = { userId, at: now };
-  const { data } = await supabase.rpc("send_poll_closing_reminders");
-  if (typeof data === "number" && data > 0) kickPush();
+  const [polls, plans] = await Promise.all([supabase.rpc("send_poll_closing_reminders"), supabase.rpc("send_plan_answer_by_reminders")]);
+  if ([polls.data, plans.data].some((n) => typeof n === "number" && n > 0)) kickPush();
 }
 
 async function checkExpenseReminders(userId: string) {
@@ -43,6 +45,7 @@ async function checkExpenseReminders(userId: string) {
     supabase.rpc("send_my_expense_reminders"),
     supabase.rpc("send_plan_day_reminders"),
     supabase.rpc("send_poll_closing_reminders"),
+    supabase.rpc("send_plan_answer_by_reminders"),
     supabase.rpc("send_plan_photo_nudges"),
     supabase.rpc("send_birthday_reminders"),
   ]);
