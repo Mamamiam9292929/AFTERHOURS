@@ -22,7 +22,7 @@ export const planArrival = {
   none: "Nobody has said anything yet.",
   missing: (n: number) => (n === 1 ? "1 person hasn't said anything yet" : `${n} haven't said anything yet`),
   allSaid: "Everyone has checked in.",
-  honest: "Just a heads-up for the crew – no location, no notification. The time is whatever you say.",
+  honest: "Just a heads-up for the crew – no location. Anyone already there gets a notification if you're running late. The time is whatever you say.",
   error: "Couldn't load “Here yet?” right now.",
   retry: "Try again",
   home: {
