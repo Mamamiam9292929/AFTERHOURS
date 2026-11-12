@@ -16,6 +16,8 @@ import { useUser } from "@/features/auth/AuthProvider";
 import { useCrewAbsences } from "@/features/crews/absencesApi";
 import { canManageCrew, myRole, useCrews } from "@/features/crews/api";
 import { useActivity } from "@/features/discover/api";
+import { AnswerByPicker } from "@/features/plans/AnswerByPicker";
+import { answerByFor } from "@/lib/answerby";
 import { useCreatePlanFromPoll, usePlans, usePlanShareToken } from "@/features/plans/api";
 import { usePeople } from "@/features/profile/api";
 import { loadTexts, t } from "@/i18n";
@@ -228,6 +230,8 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const addressTouched = useRef(false);
+  // P47: Antwortfrist gleich mit dem Plan (Tage vor Beginn).
+  const [answerDays, setAnswerDays] = useState<number | null>(null);
 
   useEffect(() => {
     if (!option) return;
@@ -240,6 +244,7 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
     setNotes("");
     setAddress("");
     setErrors({});
+    setAnswerDays(null);
     addressTouched.current = false;
     titleTouched.current = false;
     create.reset();
@@ -267,7 +272,7 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
     setErrors(next);
     if (Object.values(next).some(Boolean) || !startsAt) return;
     create.mutate(
-      { pollId: poll.id, optionId: option.id, startsAt, title: title.trim(), address: address.trim() || null, meetingPoint: meetingPoint.trim() || null, notes: notes.trim() || null, costPerPersonCents: costCents ?? null },
+      { pollId: poll.id, optionId: option.id, startsAt, title: title.trim(), address: address.trim() || null, meetingPoint: meetingPoint.trim() || null, notes: notes.trim() || null, costPerPersonCents: costCents ?? null, answerBy: answerByFor(startsAt, answerDays) },
       {
         onSuccess: (planId) => {
           toast.success(t.polls.detail.planDialog.created);
@@ -298,6 +303,7 @@ function PlanFromPollDialog({ poll, option, onClose }: { poll: PollWithDetails; 
           <TextField label={t.polls.detail.planDialog.date} name="plan_date" type="date" min={today()} max={addDays(today(), 730)} value={date} onChange={(e) => setDate(e.target.value)} error={errors.when} required />
           <TextField label={t.polls.detail.planDialog.time} name="plan_time" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
         </div>
+        <AnswerByPicker startsAt={date && time ? zonedToUtc(date, time) : null} days={answerDays} onChange={setAnswerDays} />
         <TextField
           label={t.polls.detail.planDialog.address}
           name="plan_address"

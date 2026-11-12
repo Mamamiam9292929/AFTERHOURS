@@ -56,3 +56,20 @@ test("Zwischenstand nennt die Frist, solange sie läuft", () => {
   assert.ok(!standingText(de.standing, s, "Kartbahn", "Sa.", false).includes("Bescheid"), "ohne Frist kein Satz");
   assert.ok(standingText(en.standing, s, "Karting", "Sat", false, "Thu 12 Nov, 20:00").includes("Please answer by Thu 12 Nov, 20:00."));
 });
+
+// P47 · Antwortfrist gleich beim Erstellen: die Formulare merken sich nur die Tage, die Frist rechnet das Abschicken.
+test("P47: Frist aus Tagen und Beginn – nur, was gerade zur Wahl steht", async () => {
+  const { answerByFor } = await import("../../src/lib/answerby.ts");
+  const start = new Date("2026-11-20T19:00:00Z");
+  assert.equal(answerByFor(start, 2, now), "2026-11-18T19:00:00.000Z");
+  assert.equal(answerByFor(start, 7, now), "2026-11-13T19:00:00.000Z");
+  assert.equal(answerByFor(start, null, now), null, "keine Frist gewählt");
+  assert.equal(answerByFor(null, 2, now), null, "ohne Beginn keine Frist");
+  assert.equal(answerByFor(new Date("kaputt"), 2, now), null);
+  assert.equal(answerByFor(new Date("2026-11-14T19:00:00Z"), 7, now), null, "Beginn vorgezogen: „1 Woche vorher“ wäre vorbei – keine Frist statt einer falschen");
+  assert.equal(answerByFor(start, 5, now), null, "nur 1, 2, 3, 7 Tage");
+  // Zeitumstellung: Beginn nach dem 25. Oktober (Winterzeit), eine Woche vorher noch Sommerzeit – gleiche Berliner Uhrzeit.
+  assert.equal(answerByFor(new Date("2026-10-27T19:00:00Z"), 7, new Date("2026-10-10T12:00:00Z")), "2026-10-20T18:00:00.000Z");
+  assert.equal(de.answerBy.form.chosen("Mi., 18. Nov., 20:00 Uhr"), "Antwort bis Mi., 18. Nov., 20:00 Uhr");
+  assert.equal(en.answerBy.form.title, "Answer by");
+});

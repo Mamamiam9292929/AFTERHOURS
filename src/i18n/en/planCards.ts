@@ -27,6 +27,13 @@ export const planCards = {
       allAnswered: "Everyone has answered",
       late: "You can still answer after the deadline.",
     },
+    // P47: right when creating (forms “Create plan” and “Plan from poll”).
+    form: {
+      title: "Answer by",
+      hint: "Optional. Need to book? Say right away when everyone should say yes or no – the reminder runs from the start.",
+      needStart: "Enter day and time first, then you can pick a deadline.",
+      chosen: (when: string) => `Answer by ${when}`,
+    },
     card: {
       title: "Answer by …",
       intro: "Need to book? Set when everyone should say yes or no. The deadline shows on the plan and in the shared count – answering still works afterwards.",

@@ -1301,6 +1301,12 @@ await step("Schritt 8 – Aus dem Ergebnis einen Plan machen", async () => {
   await dialog(alice).getByLabel("Adresse").waitFor();
   await page.waitForFunction(() => document.querySelector('input[name="plan_address"]')?.value.includes("Demochaussee"));
   check(true, "Plan übernimmt die Adresse des Ortes");
+  // P47: Antwortfrist auch hier gleich mit – ohne Auswahl bleibt es bei „Keine“.
+  const answerBy = dialog(alice).getByTestId("plan-form-answer-by");
+  check((await answerBy.count()) === 1, "P47: „Antwort bis“ im Dialog „Plan festmachen“");
+  if ((await answerBy.getByRole("radio").count()) > 0) {
+    check((await answerBy.getByRole("radio", { name: "Keine Antwortfrist" }).getAttribute("aria-checked")) === "true", "P47: im Dialog anfangs keine Frist");
+  }
   await dialog(alice).getByRole("button", { name: "Plan erstellen" }).click();
   await page.waitForURL(/\/plans\/[0-9a-f-]{36}/);
   ids.plan = idFromUrl(page);
@@ -3613,6 +3619,54 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       }
     } finally {
       psql(`delete from public.plans where id = '${deadlinePlan}'`);
+    }
+  }
+
+  // P47 – Antwortfrist gleich beim Erstellen: Bob (390 px) legt einen Plan an. Ohne Tag steht dort ehrlich, dass erst
+  // Tag und Uhrzeit fehlen; danach dieselben Pillen wie unter „Organisieren“. „2 Tage vorher“ wird mit dem Plan
+  // gespeichert – die Planseite zeigt sofort „Antwort bis …“. Ohne Anmeldung legt niemand etwas an.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    let createdPlan = "";
+    try {
+      await bob.page.goto(`${APP}/plans/new?crew=${ids.crew}`);
+      const picker = bob.page.getByTestId("plan-form-answer-by");
+      await picker.waitFor();
+      check((await picker.getByTestId("plan-form-answer-by-empty").innerText()).includes("Erst Tag und Uhrzeit eintragen"), "P47: ohne Tag keine Fristen, sondern ein Hinweis");
+      await bob.page.locator('input[name="title"]').fill("Kegeln mit Frist");
+      const inNineDays = new Date(Date.now() + 9 * 86400_000).toISOString().slice(0, 10);
+      await bob.page.getByLabel("Datum").fill(inNineDays);
+      await bob.page.getByLabel("Uhrzeit").fill("19:30");
+      const radios = picker.getByRole("radio");
+      check((await radios.count()) === 5, "P47: Keine, 1, 2, 3 Tage und 1 Woche vorher");
+      check((await picker.getByRole("radio", { name: "Keine Antwortfrist" }).getAttribute("aria-checked")) === "true", "P47: anfangs keine Frist");
+      await picker.getByRole("radio", { name: /^2 Tage vorher: / }).click();
+      check((await picker.getByRole("radio", { name: /^2 Tage vorher: / }).getAttribute("aria-checked")) === "true", "P47: Auswahl markiert");
+      check((await picker.getByTestId("plan-form-answer-by-chosen").innerText()).startsWith("Antwort bis"), "P47: gewählte Frist als Text");
+      await noOverflow(bob, "P47 Plan erstellen mit Frist");
+      await a11y(bob, "plan-erstellen-antwortfrist");
+      await picker.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "30c-plan-erstellen-antwortfrist");
+      await bob.page.getByRole("button", { name: "Plan erstellen" }).click();
+      await bob.page.waitForURL(/\/plans\/[0-9a-f-]{36}/);
+      createdPlan = idFromUrl(bob.page);
+      await bob.page.getByRole("heading", { level: 1, name: "Kegeln mit Frist" }).waitFor();
+      check(psql(`select (answer_by at time zone 'Europe/Berlin') = (starts_at at time zone 'Europe/Berlin') - interval '2 days' from public.plans where id = '${createdPlan}'`) === "t",
+        "P47: Frist mit dem Plan gespeichert – 2 Tage vor Beginn, gleiche Uhrzeit");
+      await bob.page.getByTestId("plan-answer-by").waitFor();
+      check((await bob.page.getByTestId("plan-answer-by").innerText()).includes("Antwort bis"), "P47: Planseite zeigt die Frist sofort");
+      check((await bob.page.getByTestId("plan-answer-by-card").getByRole("radio", { name: /^2 Tage vorher: / }).getAttribute("aria-checked")) === "true",
+        "P47: unter „Organisieren“ ist dieselbe Frist gewählt");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/create_plan_with_answer_by`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_crew_id: ids.crew, p_title: "Fremd", p_starts_at: new Date(Date.now() + 5 * 86400_000).toISOString(), p_answer_by: null }),
+        });
+        check(res.status === 401 || res.status === 403, `P47: ohne Anmeldung kein Plan (${res.status})`);
+      }
+    } finally {
+      if (createdPlan) psql(`delete from public.notifications where related_entity_id = '${createdPlan}'; delete from public.plans where id = '${createdPlan}'`);
     }
   }
 
