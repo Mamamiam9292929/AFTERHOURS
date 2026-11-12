@@ -139,8 +139,18 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
   // P16: Am Morgen nach dem Abend einmal, ohne auslösende Person – nur „gestern“, wenn es stimmt.
   // P19: Organisator:in fragt alle ohne Antwort – mit Termin, damit man ohne Öffnen weiß, worum es geht.
   // P45: Mit `maybe` fragt die organisierende Person alle, die „vielleicht“ gesagt haben.
+  // P46 Etappe 2: ohne auslösende Person – `deadline` am letzten Tag vor der Antwortfrist an alle ohne Antwort,
+  // `deadline_over` nach Ablauf der Stand an die Person, die den Plan angelegt hat.
   plan_reminder: (actor, p) => {
     const plan = str(p, "starts_at") ? `${str(p, "title")} · ${formatDateTime(str(p, "starts_at"))}` : str(p, "title");
+    if (p.deadline_over) {
+      const n = (key: string) => (typeof p[key] === "number" ? (p[key] as number) : 0);
+      const parts = [`${n("going")} dabei`, n("unsure") > 0 ? `${n("unsure")} vielleicht` : "", n("open") > 0 ? `${n("open")} offen` : ""].filter(Boolean);
+      return { title: n("open") > 0 ? `Frist vorbei: ${parts.join(", ")}` : `Frist vorbei – alle haben geantwortet: ${parts.join(", ")}`, body: plan };
+    }
+    if (p.deadline) {
+      return { title: str(p, "answer_by") ? `Antwort bis ${formatDateTime(str(p, "answer_by"))} – deine fehlt noch` : "Die Antwortfrist läuft ab – deine Antwort fehlt noch", body: plan };
+    }
     return p.maybe
       ? { title: `${actor} fragt: Bist du jetzt dabei?`, body: `Du hast „vielleicht“ gesagt · ${plan}` }
       : { title: `${actor} fragt: Bist du dabei?`, body: plan };

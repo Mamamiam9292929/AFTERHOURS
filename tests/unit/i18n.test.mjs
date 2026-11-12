@@ -125,6 +125,23 @@ test("P45: Nachfrage an „Vielleicht“ hat eigenen Text, die normale Nachfrage
   assert.equal(en.notificationText.plan_reminder("Bob", payload).title, "Bob asks: are you in?");
 });
 
+test("P46 Etappe 2: Erinnerung vor der Antwortfrist und Stand danach – eigene Texte ohne auslösende Person", () => {
+  const payload = { title: "Bowling", starts_at: "2026-11-20T19:00:00Z", answer_by: "2026-11-18T19:00:00Z" };
+  const reminder = de.notificationText.plan_reminder("", { ...payload, deadline: true });
+  assert.match(reminder.title, /^Antwort bis .+20:00.* – deine fehlt noch$/);
+  assert.ok(reminder.body.startsWith("Bowling · "));
+  assert.match(en.notificationText.plan_reminder("", { ...payload, deadline: true }).title, /^Reply by .+ – yours is still missing$/);
+  // Der Stand: Zahlen aus dem Payload, „vielleicht“ und „offen“ nur, wenn es welche gibt. `unsure` statt `maybe`,
+  // damit der Stand nicht als Nachfrage an „Vielleicht“ (P45) gelesen wird.
+  const over = de.notificationText.plan_reminder("", { ...payload, deadline_over: true, going: 5, unsure: 1, open: 2 });
+  assert.equal(over.title, "Frist vorbei: 5 dabei, 1 vielleicht, 2 offen");
+  assert.ok(over.body.startsWith("Bowling · "));
+  assert.equal(de.notificationText.plan_reminder("", { ...payload, deadline_over: true, going: 4, unsure: 0, open: 0 }).title,
+    "Frist vorbei – alle haben geantwortet: 4 dabei");
+  assert.equal(en.notificationText.plan_reminder("", { ...payload, deadline_over: true, going: 5, unsure: 1, open: 2 }).title,
+    "Deadline passed: 5 in, 1 maybe, 2 haven't replied");
+});
+
 test("P42 Etappe 2: Hinweis, wenn jemand deinen Vorschlag rausnimmt – Termin oder Ort im Text", () => {
   const slot = de.notificationText.poll_reminder("Alice", { title: "Wann könnt ihr?", removed: true, date: "2026-11-21", time: "20:00" });
   assert.match(slot.title, /^Alice hat .*21\.? November, 20:00 wieder aus der Abstimmung genommen$/);

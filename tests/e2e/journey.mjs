@@ -3616,6 +3616,65 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P46 Etappe 2 – Erinnerung vor der Antwortfrist, Stand danach: Bobs Plan hat eine Frist in fünf Stunden. Carol
+  // (390 px) öffnet die App und bekommt genau einmal „Antwort bis … – deine fehlt noch“. Nach Ablauf öffnet Bob die
+  // App und bekommt den Stand („Frist vorbei: 1 dabei, … offen“), der zum Plan führt.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const fristPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, answer_by)
+      values ('${ids.crew}', '${bobId}', 'Lasertag in der Halle', date_trunc('day', now()) + interval '9 days 19 hours', 'confirmed',
+        date_trunc('minute', now()) + interval '5 hours')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
+      select '${fristPlan}', m.user_id,
+        case when m.user_id = '${bobId}' then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
+        case when m.user_id = '${bobId}' then now() end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    const fristOpen = Number(psql(`select count(*) from public.plan_participants where plan_id = '${fristPlan}' and attendance_status = 'invited'`));
+    try {
+      await carol.page.goto(`${APP}/notifications`);
+      const reminder = carol.page.getByRole("link", { name: /Antwort bis .* – deine fehlt noch/ }).filter({ hasText: "Lasertag in der Halle" });
+      await reminder.waitFor();
+      check(await reminder.getByText(/Lasertag in der Halle/).isVisible(), "P46 Etappe 2: „Antwort bis … – deine fehlt noch“ mit dem Plan");
+      await noOverflow(carol, "P46 Erinnerung vor der Frist");
+      await shot(carol, "21h6-plan-antwortfrist-erinnerung");
+      await carol.page.reload();
+      await reminder.waitFor();
+      check((await carol.page.getByRole("link", { name: /Antwort bis .* – deine fehlt noch/ }).filter({ hasText: "Lasertag in der Halle" }).count()) === 1, "P46 Etappe 2: Neuladen erinnert nicht noch einmal");
+      const fristExpected = psql(`select count(*) from public.plan_participants p left join public.user_settings s on s.user_id = p.user_id
+        where p.plan_id = '${fristPlan}' and p.attendance_status = 'invited' and coalesce(s.notification_preferences ->> 'plan_reminder', 'true') <> 'false'`);
+      check(psql(`select count(*) from public.notifications where related_entity_id = '${fristPlan}' and type = 'plan_reminder' and actor_id is null and payload ->> 'deadline' = 'true'`) === fristExpected,
+        `P46 Etappe 2: Carols Start erinnert alle ohne Antwort (${fristExpected})`);
+      check(psql(`select count(*) from public.notifications where related_entity_id = '${fristPlan}' and user_id = '${bobId}' and payload ->> 'deadline' = 'true'`) === "0",
+        "P46 Etappe 2: wer schon dabei ist, wird nicht erinnert");
+
+      // Frist vorbei: Bob bekommt den Stand.
+      psql(`update public.plans set answer_by = now() - interval '1 minute' where id = '${fristPlan}'`);
+      await bob.page.goto(`${APP}/notifications`);
+      const tally = bob.page.getByRole("link", { name: new RegExp(`Frist vorbei: 1 dabei, ${fristOpen} offen`) }).filter({ hasText: "Lasertag in der Halle" });
+      await tally.waitFor();
+      check(true, `P46 Etappe 2: Bob sieht „Frist vorbei: 1 dabei, ${fristOpen} offen“`);
+      await noOverflow(bob, "P46 Stand nach der Frist");
+      await shot(bob, "21h7-plan-antwortfrist-stand");
+      check(psql(`select count(*) from public.notifications where related_entity_id = '${fristPlan}' and payload ->> 'deadline_over' = 'true'`) === "1",
+        "P46 Etappe 2: den Stand bekommt nur Bob, genau einmal");
+      await tally.click();
+      await bob.page.waitForURL(`**/plans/${fristPlan}`);
+      check(true, "P46 Etappe 2: der Stand führt zum Plan");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/send_plan_answer_by_reminders`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: "{}",
+        });
+        check(res.status === 401 || res.status === 403, `P46 Etappe 2: ohne Anmeldung kein Anstoßen (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${fristPlan}'; delete from public.plans where id = '${fristPlan}'`);
+    }
+  }
+
   // P23 – Neue Uhrzeit, alle neu fragen: Bob verschiebt seinen Plan (390 px), Carol hatte zugesagt. Beim Ändern der
   // Uhrzeit erscheint „Alle neu fragen“ (vorausgewählt); nach dem Speichern steht Carol wieder bei „Noch offen“, sieht
   // „Vorher: Bin dabei“ und bekommt „Neue Zeit: … – bist du noch dabei?“ statt nur „Plan geändert“.
