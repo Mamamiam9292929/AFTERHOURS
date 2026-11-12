@@ -100,6 +100,23 @@ export function TonightArrival({
             {mine.state === "here" ? copy.home.mineHere(formatTime(mine.updated_at)) : copy.home.mineLate(formatTime(mine.eta ?? mine.updated_at))}
           </span>
         )}
+        {/* P44: Wer da ist, sagt auf der Planseite, wo – hier steht es bzw. der Weg dorthin. */}
+        {mine?.state === "here" &&
+          (mine.spot ? (
+            <span className="mt-1 block break-words text-sm text-fg" data-testid="tonight-arrival-mine-spot">
+              {copy.home.mineSpot(mine.spot)}
+            </span>
+          ) : (
+            data.can_answer && (
+              <Link
+                to={`/plans/${planId}#schon-da`}
+                data-testid="tonight-arrival-ask-spot"
+                className="mt-0.5 inline-flex min-h-11 items-center text-[13px] font-semibold text-muted underline decoration-line-strong underline-offset-4 hover:text-fg hover:decoration-lime"
+              >
+                {copy.home.askSpot}
+              </Link>
+            )
+          ))}
 
         {data.can_answer && mine?.state !== "here" && (
           <div className={cn("flex flex-wrap items-center gap-2", mine && "mt-2")}>
@@ -137,8 +154,10 @@ export function TonightArrival({
             {shown.map((entry) => {
               const name = lookup(entry.user_id)?.display_name ?? t.states.formerMember;
               const time = formatTime(entry.state === "here" ? entry.updated_at : (entry.eta ?? entry.updated_at));
-              const label =
+              const base =
                 entry.state === "here" ? copy.personHere(name, time) : arrivalOverdue(entry, now) ? copy.personOverdue(name, time) : copy.personLate(name, time);
+              // P44: „Wo sitzt ihr?“ gleich mit dazu – genau das will wissen, wer noch unterwegs ist.
+              const label = entry.state === "here" && entry.spot ? copy.home.withSpot(base, entry.spot) : base;
               return (
                 <li key={entry.user_id} data-testid="tonight-arrival-person" data-state={entry.state} className="flex items-center gap-2 break-words text-sm leading-snug text-fg">
                   <span aria-hidden className={cn("size-2 shrink-0 rounded-full", entry.state === "here" ? "bg-lime" : "bg-amber")} />

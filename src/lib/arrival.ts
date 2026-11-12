@@ -44,6 +44,8 @@ export interface ArrivalEntry {
   user_id: string;
   state: "here" | "late";
   eta: string | null;
+  /** P44: „Wo sitzt ihr?“ – nur bei `here`, sonst fehlt er oder ist null. */
+  spot?: string | null;
   updated_at: string;
 }
 

@@ -242,6 +242,7 @@ export const errors = {
     plan_feedback_closed: "“How was it?” opens after the night – for up to 30 days.",
     plan_feedback_not_going: "Only people who were there can say how it was.",
     plan_arrival_closed: "“Here yet?” is open from an hour before the start until three hours after.",
+    plan_arrival_spot_not_here: "Only people who've said “I'm here” can say where you're sitting.",
     plan_arrival_not_going: "Only people who said “I'm in” or “Maybe” can check in.",
     plan_home_closed: "“Home safe?” is open from the start of the night until the next morning.",
     plan_home_not_going: "Only people who said “I'm in” or “Maybe” can check in.",

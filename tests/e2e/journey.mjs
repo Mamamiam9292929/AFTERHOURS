@@ -6764,6 +6764,79 @@ await step("P43 Etappe 2 – „Schon da?“ in der „Heute Abend“-Leiste auf
   }
 });
 
+await step("P44 – „Wo sitzt ihr?“: wer da ist, sagt wo genau (Carol 390 px Planseite, Bob Home)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const uidOf = (user) => psql(`select id from auth.users where email = '${user.email}'`);
+  const title = `Billard am Kanal ${RUN}`;
+  const planId = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+    values ('${ids.crew}', '${uidOf(bob)}', '${title}', now() + interval '15 minutes', 'confirmed') returning id`).split("\n")[0];
+  psql(`insert into public.plan_participants (plan_id, user_id, attendance_status) values
+    ('${planId}', '${uidOf(bob)}', 'going'), ('${planId}', '${uidOf(carol)}', 'going')`);
+  // Wie in „P43 Etappe 2“: Pläne, die auf Home vor diesem stünden, rücken für den Schritt nach hinten.
+  const ahead = psql(`select coalesce(string_agg(p.id::text, ','), '') from public.plans p
+    where p.id <> '${planId}' and p.starts_at > now() - interval '6 hours' and p.starts_at <= now() + interval '15 minutes'
+      and p.crew_id in (select crew_id from public.crew_members where user_id = '${uidOf(bob)}')`);
+  const moved = ahead ? ahead.split(",") : [];
+  const list = moved.map((id) => `'${id}'`).join(",");
+  if (moved.length) psql(`update public.plans set starts_at = starts_at + interval '3 days' where id in (${list})`);
+  const spotOf = (user) => psql(`select coalesce(spot, '') from public.plan_arrivals where plan_id = '${planId}' and user_id = '${uidOf(user)}'`);
+  const cp = carol.page;
+  const narrow = cp.viewportSize();
+  await cp.setViewportSize({ width: 390, height: 844 });
+  try {
+    // Carol (390 px): erst nach „Bin da“ fragt die Karte „Wo sitzt ihr?“.
+    await cp.goto(`${APP}/plans/${planId}`);
+    const card = cp.getByTestId("plan-arrival");
+    await card.waitFor({ timeout: 20_000 });
+    check((await card.getByTestId("plan-arrival-spot-form").count()) === 0, "P44: ohne „Bin da“ kein Feld");
+    await card.getByTestId("plan-arrival-here").click();
+    await toast(carol, "Gesagt – die Crew sieht, dass du da bist.");
+    const input = card.getByLabel("Wo sitzt ihr?");
+    await input.waitFor();
+    check(await card.getByTestId("plan-arrival-spot-save").isDisabled(), "P44: „Sagen“ erst mit Text");
+    await input.fill("  hinten links,   Tisch 12 ");
+    await card.getByTestId("plan-arrival-spot-save").click();
+    await toast(carol, "Gesagt – die Crew sieht, wo ihr sitzt.");
+    check(spotOf(carol) === "hinten links, Tisch 12", "P44: Hinweis gespeichert, Leerzeichen zusammengefasst");
+    await card.getByTestId("plan-arrival-spot").first().waitFor();
+    check((await card.getByTestId("plan-arrival-spot").first().innerText()).trim() === "Du: hinten links, Tisch 12", "P44: Carol sieht ihren Hinweis in der Liste");
+    await card.scrollIntoViewIfNeeded();
+    await noOverflow(carol, "Wo sitzt ihr?");
+    await a11y(carol, "plan-wo-sitzt-ihr");
+    await shot(carol, "81-wo-sitzt-ihr");
+
+    // Bob (noch unterwegs) sieht es auf Home direkt bei Carol.
+    const bp = bob.page;
+    await bp.goto(`${APP}/home`);
+    const tile = bp.getByTestId("tonight-arrival");
+    await tile.getByTestId("tonight-arrival-person").first().waitFor({ timeout: 20_000 });
+    check(/^Carol · da seit \d{2}:\d{2} Uhr · hinten links, Tisch 12$/.test((await tile.getByTestId("tonight-arrival-person").first().innerText()).trim()),
+      "P44: Bob sieht auf Home, wo Carol sitzt");
+    await tile.scrollIntoViewIfNeeded();
+    await noOverflow(bob, "Home „Wo sitzt ihr?“");
+    await shot(bob, "81-home-wo-sitzt-ihr");
+
+    // Bob kommt an: auf Home führt „Wo sitzt ihr? Kurz sagen“ zur Karte; auf der Planseite steht Carols Hinweis.
+    await tile.getByTestId("tonight-arrival-here").click();
+    await toast(bob, "Gesagt – die Crew sieht, dass du da bist.");
+    await tile.getByTestId("tonight-arrival-ask-spot").click();
+    await bp.waitForURL(`**/plans/${planId}#schon-da`);
+    await bp.getByTestId("plan-arrival-spot-form").waitFor({ timeout: 20_000 });
+    check((await bp.getByTestId("plan-arrival-spot").first().innerText()).includes("Carol: hinten links, Tisch 12"), "P44: Planseite zeigt Carols Hinweis");
+
+    // „Später“ löscht Carols Hinweis; leer speichern geht auch.
+    await cp.reload();
+    await card.getByTestId("plan-arrival-undo").click();
+    await toast(carol, "Ansage zurückgenommen.");
+    await cp.waitForFunction(() => !document.querySelector("[data-testid=plan-arrival]")?.hasAttribute("data-answer"));
+    check(spotOf(carol) === "", "P44: Zurücknehmen nimmt den Hinweis mit");
+  } finally {
+    if (narrow) await cp.setViewportSize(narrow);
+    psql(`delete from public.plans where id = '${planId}'`);
+    if (moved.length) psql(`update public.plans set starts_at = starts_at - interval '3 days' where id in (${list})`);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;
