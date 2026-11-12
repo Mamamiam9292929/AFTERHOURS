@@ -67,7 +67,8 @@ export function AnswerByMeter({ plan, now }: { plan: PlanWithParticipants; now: 
 /**
  * P46 · Antwortfrist einstellen (Organisator:in, Owner, Admins; nur vor Beginn): ein Tipp auf „2 Tage vorher“
  * speichert – zur selben Berliner Uhrzeit wie der Beginn. Eine Frist, die zu keiner Auswahl passt (z. B. nach dem
- * Verschieben), steht als eigene, ausgewählte Pille da.
+ * Verschieben), steht als eigene, ausgewählte Pille da. P48: Bei einer laufenden Serie steht darunter, dass die Frist
+ * auch für die nächsten Runden gilt (der Server übernimmt den Abstand beim Anlegen der Runde).
  */
 export function AnswerByCard({ plan, now }: { plan: PlanWithParticipants; now: Date }) {
   const toast = useToast();
@@ -136,6 +137,12 @@ export function AnswerByCard({ plan, now }: { plan: PlanWithParticipants; now: D
         </div>
       )}
       {current != null && <p className="mt-3 text-[13px] font-semibold leading-snug text-fg" data-testid="plan-answer-by-current">{texts.current(formatDateTime(current))}</p>}
+      {/* P48: Bei einer laufenden Serie bekommt die nächste Runde denselben Abstand zum Beginn. */}
+      {current != null && plan.series?.active && (
+        <p className="mt-1 text-[13px] leading-snug text-muted" data-testid="plan-answer-by-series">
+          {texts.series}
+        </p>
+      )}
     </section>
   );
 }

@@ -49,6 +49,8 @@ export const planCards = {
       saved: (when: string) => `Antwort bis ${when} – alle sehen die Frist.`,
       removed: "Keine Antwortfrist mehr.",
       tooLate: "Für eine Frist ist es zu knapp – der Abend beginnt bald.",
+      // P48: Bei einer laufenden Serie gilt die Frist auch für die nächsten Runden.
+      series: "Gilt auch für die nächsten Runden – jeweils mit demselben Abstand zum Beginn.",
     },
   },
   booking: {
