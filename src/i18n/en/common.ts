@@ -247,6 +247,8 @@ export const errors = {
     plan_home_closed: "“Home safe?” is open from the start of the night until the next morning.",
     plan_home_not_going: "Only people who said “I'm in” or “Maybe” can check in.",
     plan_min_going_started: "The plan has already started – the minimum can only be changed before.",
+    plan_answer_by_started: "The plan has already started – an answer deadline can only be set before.",
+    plan_answer_by_invalid: "The deadline has to be in the future and at least an hour before the start.",
     plan_full: "This one is full – join the waiting list on the plan page.",
     plan_not_full: "There's still room – just say you're in.",
     plan_capacity_conflict: "The maximum can't be below the minimum.",

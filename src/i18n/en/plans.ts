@@ -28,6 +28,8 @@ export const plans = {
     going: (n: number) => `${n} in`,
     goingOf: (total: number) => `of ${total} in`,
     yourAnswerOpen: "Your answer is missing",
+    /** P46: Antwortfrist hinter „Deine Antwort fehlt“. */
+    answerBy: (when: string) => `by ${when}`,
     youGoing: "You're in",
     youMaybe: "You: maybe",
     youDeclined: "You can't make it",

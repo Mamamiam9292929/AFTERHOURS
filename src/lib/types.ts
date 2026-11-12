@@ -246,6 +246,8 @@ export interface Plan {
   min_going?: number | null;
   /** P25: wann die Mindestzahl erreicht wurde (Nachricht verschickt bzw. beim Setzen schon erreicht). */
   min_going_reached_at?: string | null;
+  /** P46: Bitte bis dann antworten (Hinweis, keine Sperre), sonst null. */
+  answer_by?: string | null;
   /** P26: höchstens so viele Zusagen (Mitglieder + Gäste), sonst null – darüber geht es auf die Nachrückliste. */
   max_going?: number | null;
   created_at: string;

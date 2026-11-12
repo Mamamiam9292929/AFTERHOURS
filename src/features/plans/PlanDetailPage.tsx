@@ -18,6 +18,7 @@ import { SpotMap } from "@/features/discover/SpotMap";
 import { usePeople } from "@/features/profile/api";
 import { loadTexts, t } from "@/i18n";
 import { joinsWaitlist } from "@/lib/capacity";
+import { answerByState } from "@/lib/answerby";
 import { closePromptDue } from "@/lib/closing";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
@@ -29,7 +30,7 @@ import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { downloadPlanIcs } from "@/lib/ics";
 import { liveStage } from "@/lib/live";
 import { goingWithGuests } from "@/lib/quorum";
-import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
+import { formatAgo, formatDateLong, formatDateTime, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
 import { estimateCosts, hasStarted, useClosePlan, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useRemindPlanMaybe, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { AnswerNote } from "./AnswerNote";
@@ -56,6 +57,9 @@ const PhotosPanel = lazy(() => import("./PhotosPanel").then((m) => ({ default: m
 const PlanGuestsPanel = lazy(() => import("./PlanGuests").then((m) => ({ default: m.PlanGuestsPanel })));
 // W10 Etappe 2: nur geladen, wenn auf diesem Gerät ein Gast-Geheimnis zum Teilen-Link liegt.
 // P25: „Findet statt ab 4“ – Texte und Bedienung laden erst, wenn ein Plan eine Mindestzahl hat bzw. jemand sie einstellt.
+// P46: Antwortfrist – Anzeige bei „Wer kommt mit?“ und Einstellung unter „Organisieren“.
+const AnswerByMeter = lazy(() => import("./PlanAnswerBy").then((m) => ({ default: m.AnswerByMeter })));
+const AnswerByCard = lazy(() => import("./PlanAnswerBy").then((m) => ({ default: m.AnswerByCard })));
 const QuorumMeter = lazy(() => import("./PlanQuorum").then((m) => ({ default: m.QuorumMeter })));
 const QuorumCard = lazy(() => import("./PlanQuorum").then((m) => ({ default: m.QuorumCard })));
 // P26: „Nur 6 Plätze“ – Anzeige, Nachrückliste und Einstellung laden erst, wenn ein Plan eine Höchstzahl hat bzw. jemand sie einstellt.
@@ -190,7 +194,9 @@ export function PlanDetailPage() {
     // Gleicher Link wie „Plan teilen“ (W2: /s/<token>); „Antwort mit einem Tipp“ nur, wenn Gäste dort antworten können (W10).
     const { title, url } = planShare(plan, shareToken.data);
     const when = `${formatDateLong(plan.starts_at)}, ${formatTime(plan.starts_at)}`;
-    const text = standingText(t.planCards.standing, standing, plan.title, when, Boolean(plan.guests_allowed && shareToken.data));
+    // P46: Die Antwortfrist steht mit drin, solange sie läuft.
+    const deadline = answerByState(plan);
+    const text = standingText(t.planCards.standing, standing, plan.title, when, Boolean(plan.guests_allowed && shareToken.data), deadline && !deadline.passed ? formatDateTime(deadline.at) : null);
     setSharingStanding(true);
     const outcome = await shareOrCopy({ title, text, url });
     setSharingStanding(false);
@@ -424,6 +430,14 @@ export function PlanDetailPage() {
               )}
             </Fact>
             <Fact icon={<IconCrews aria-hidden />} label={t.plans.detail.who}>
+              {/* P46: Antwortfrist – bis wann, wie viele noch fehlen. */}
+              {!locked && plan.answer_by && (
+                <Suspense fallback={null}>
+                  <div className="mt-2">
+                    <AnswerByMeter plan={plan} now={now} />
+                  </div>
+                </Suspense>
+              )}
               {/* P25: Mindestzahl – wie viele noch fehlen, bis der Abend stattfindet. */}
               {!locked && plan.min_going != null && (
                 <Suspense fallback={null}>
@@ -645,6 +659,12 @@ export function PlanDetailPage() {
               <IconInfo className="size-4 shrink-0" aria-hidden />
               {t.plans.detail.manage.editBody}
             </p>
+            {/* P46: Bis wann sollen alle antworten? Nur vor Beginn. */}
+            {!started && (
+              <Suspense fallback={null}>
+                <AnswerByCard plan={plan} now={now} />
+              </Suspense>
+            )}
             {/* P25: Ab wie vielen Zusagen findet der Abend statt? Nur vor Beginn. */}
             {!started && (
               <Suspense fallback={null}>

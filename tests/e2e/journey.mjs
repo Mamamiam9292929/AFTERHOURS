@@ -3532,6 +3532,90 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P46 – „Sagt bis Donnerstag Bescheid“: Bob organisiert (390 px), nur er ist dabei. Ein Tipp auf „2 Tage vorher“
+  // setzt die Antwortfrist (gleiche Berliner Uhrzeit wie der Beginn); bei „Wer kommt mit?“ steht „Antwort bis …“ mit
+  // der Zahl der Offenen. Carol (einfaches Mitglied) sieht die Frist am Ticket, kann sie nicht einstellen und kann nach
+  // Ablauf trotzdem antworten. Bob entfernt die Frist wieder; ohne Anmeldung niemand.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const deadlinePlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${bobId}', 'Escape Room am Hafen', date_trunc('day', now()) + interval '9 days 19 hours', 'confirmed')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
+      select '${deadlinePlan}', m.user_id,
+        case when m.user_id = '${bobId}' then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
+        case when m.user_id = '${bobId}' then now() end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    const open = Number(psql(`select count(*) from public.plan_participants where plan_id = '${deadlinePlan}' and attendance_status = 'invited'`));
+    try {
+      await bob.page.goto(`${APP}/plans/${deadlinePlan}`);
+      await bob.page.getByRole("heading", { level: 1, name: "Escape Room am Hafen" }).waitFor();
+      const card = bob.page.getByTestId("plan-answer-by-card");
+      await card.waitFor();
+      check((await bob.page.getByTestId("plan-answer-by").count()) === 0, "P46: ohne Frist keine Anzeige bei „Wer kommt mit?“");
+      check((await card.getByRole("radio", { name: "Keine Antwortfrist" }).getAttribute("aria-checked")) === "true", "P46: anfangs keine Frist");
+      check((await card.getByRole("radio").count()) === 5, "P46: Keine, 1, 2, 3 Tage und 1 Woche vorher – nur, was noch in der Zukunft liegt");
+      await card.getByRole("radio", { name: /^2 Tage vorher: / }).click();
+      await toast(bob, "alle sehen die Frist.");
+      check(psql(`select (answer_by at time zone 'Europe/Berlin') = (starts_at at time zone 'Europe/Berlin') - interval '2 days' from public.plans where id = '${deadlinePlan}'`) === "t",
+        "P46: Frist mit einem Tipp gespeichert – 2 Tage vor Beginn, gleiche Uhrzeit");
+      check((await card.getByRole("radio", { name: /^2 Tage vorher: / }).getAttribute("aria-checked")) === "true", "P46: Auswahl markiert");
+      const meter = bob.page.getByTestId("plan-answer-by");
+      await meter.waitFor();
+      check((await meter.innerText()).includes("Antwort bis"), "P46: „Antwort bis …“ bei „Wer kommt mit?“");
+      check((await bob.page.getByTestId("plan-answer-by-status").innerText()).trim() === `${open} offen`, `P46: Bob sieht „${open} offen“`);
+      await noOverflow(bob, "P46 Antwortfrist");
+      await a11y(bob, "plan-antwortfrist");
+      await card.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21h3-plan-antwortfrist-einstellen");
+      await meter.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21h4-plan-antwortfrist-anzeige");
+
+      // Carol: Frist am großen Ticket, keine Einstellung; nach Ablauf antwortet sie trotzdem.
+      await carol.page.goto(`${APP}/plans/${deadlinePlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Escape Room am Hafen" }).waitFor();
+      const mine = carol.page.getByTestId("ticket-mine");
+      await mine.waitFor({ state: "attached" });
+      check(/^Deine Antwort fehlt · bis .+/.test((await mine.textContent()).trim()), "P46: „Deine Antwort fehlt · bis …“ am Ticket");
+      await carol.page.getByTestId("plan-answer-by").waitFor();
+      check((await carol.page.getByTestId("plan-answer-by-card").count()) === 0, "P46: einfache Mitglieder stellen keine Frist ein");
+      psql(`update public.plans set answer_by = now() - interval '1 minute' where id = '${deadlinePlan}'`);
+      await carol.page.reload();
+      const passed = carol.page.getByTestId("plan-answer-by");
+      await passed.waitFor();
+      check((await passed.getAttribute("data-passed")) === "true", "P46: nach Ablauf als vorbei markiert");
+      check((await passed.innerText()).includes("Antworten geht auch nach der Frist."), "P46: Hinweis, dass antworten weiter geht");
+      check(!(await carol.page.getByTestId("ticket-mine").textContent()).includes("· bis"), "P46: abgelaufene Frist nicht mehr am Ticket");
+      await shot(carol, "21h5-plan-antwortfrist-vorbei");
+      const answer = carol.page.getByRole("radiogroup", { name: "Bist du dabei?" });
+      await answer.getByRole("radio", { name: "Bin dabei" }).click();
+      await toast(carol, "Antwort gespeichert.");
+      check(psql(`select attendance_status from public.plan_participants p join auth.users u on u.id = p.user_id
+        where p.plan_id = '${deadlinePlan}' and u.email = '${carol.email}'`) === "going", "P46: nach der Frist lässt sich weiter antworten");
+
+      // Bob entfernt die Frist (nach dem Ablauf neu gesetzt, damit die Karte eine Auswahl hat).
+      psql(`update public.plans set answer_by = ((starts_at at time zone 'Europe/Berlin') - interval '3 days') at time zone 'Europe/Berlin' where id = '${deadlinePlan}'`);
+      await bob.page.reload();
+      const card2 = bob.page.getByTestId("plan-answer-by-card");
+      await card2.waitFor();
+      check((await card2.getByRole("radio", { name: /^3 Tage vorher: / }).getAttribute("aria-checked")) === "true", "P46: gespeicherte Frist wird erkannt");
+      await card2.getByRole("radio", { name: "Keine Antwortfrist" }).click();
+      await toast(bob, "Keine Antwortfrist mehr.");
+      check(psql(`select coalesce(answer_by::text, 'null') from public.plans where id = '${deadlinePlan}'`) === "null", "P46: Frist entfernt");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/set_plan_answer_by`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: deadlinePlan, p_answer_by: null }),
+        });
+        check(res.status === 401 || res.status === 403, `P46: ohne Anmeldung keine Frist (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.plans where id = '${deadlinePlan}'`);
+    }
+  }
+
   // P23 – Neue Uhrzeit, alle neu fragen: Bob verschiebt seinen Plan (390 px), Carol hatte zugesagt. Beim Ändern der
   // Uhrzeit erscheint „Alle neu fragen“ (vorausgewählt); nach dem Speichern steht Carol wieder bei „Noch offen“, sieht
   // „Vorher: Bin dabei“ und bekommt „Neue Zeit: … – bist du noch dabei?“ statt nur „Plan geändert“.
