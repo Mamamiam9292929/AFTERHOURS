@@ -8,7 +8,7 @@ const TYPES = [
   "poll_created", "poll_reminder", "poll_vote", "poll_result",
   "plan_created", "plan_changed", "plan_cancelled", "plan_attendance",
   "booking_status", "ride_request", "ride_confirmed", "reward_earned",
-  "plan_expense", "plan_settlement", "plan_expense_reminder", "plan_day_reminder", "plan_photo_reported", "plan_photo_nudge", "plan_reminder", "plan_quorum", "plan_waitlist_promoted",
+  "plan_expense", "plan_settlement", "plan_expense_reminder", "plan_day_reminder", "plan_photo_reported", "plan_photo_nudge", "plan_reminder", "plan_quorum", "plan_waitlist_promoted", "plan_arrival_late",
   "birthday_reminder",
   "spontaneous_ask", "spontaneous_answer", "spontaneous_match",
 ];
@@ -31,6 +31,8 @@ test("jede Art hat einen Bereich und einen Farbschein", () => {
   assert.equal(inboxArea("plan_quorum"), "plan", "P25: „Es findet statt“ gehört zum Plan");
   assert.equal(inboxTone("plan_quorum"), "lime");
   assert.equal(inboxArea("plan_waitlist_promoted"), "plan", "P26: „Du bist nachgerückt“ gehört zum Plan");
+  assert.equal(inboxArea("plan_arrival_late"), "plan", "P43 Etappe 2b: „Kommt später“ gehört zum Plan");
+  assert.equal(inboxTone("plan_arrival_late"), "lime");
   assert.equal(inboxArea("birthday_reminder"), "crew", "P20: Geburtstag gehört zur Crew");
   assert.equal(inboxTone("birthday_reminder"), "pink");
   assert.equal(inboxArea("spontaneous_match"), "spontaneous");

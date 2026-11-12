@@ -18,7 +18,8 @@ await loadTexts("planArrival");
  * P43 · „Seid ihr schon da?“ auf der Planseite – ab einer Stunde vor Beginn bis drei Stunden danach (`arrivalOpen`).
  * Wer „Bin dabei“ oder „Vielleicht“ gesagt hat, tippt „Bin da“ (Karte wird grün) oder „Bin da in 10/20/30 Min./1 Std.“
  * (Karte wird gelb, die Uhrzeit rechnet der Server). Die Crew sieht, wer da ist und wer gegen wann kommt; wer nichts
- * sagt, nur als Zahl. Kein Standort, keine Benachrichtigung – und das steht auch so auf der Karte. Mit Live-Standort
+ * sagt, nur als Zahl. Kein Standort – und das steht auch so auf der Karte. Wer schon da ist, bekommt Bescheid, wenn
+ * jemand später kommt (Etappe 2b, Trigger in der Datenbank). Mit Live-Standort
  * gibt es „Bin gleich da“ weiterhin unter „Wo seid ihr?“ (P13); diese Karte braucht keinen.
  */
 export function PlanArrivalCard({

@@ -10,6 +10,7 @@ export const NOTIFICATION_GROUPS: { key: keyof typeof t.settings.notifications.g
   { key: "results", types: ["poll_result"] },
   { key: "plans", types: ["plan_created", "plan_changed", "plan_quorum", "plan_waitlist_promoted", "plan_cancelled"] },
   { key: "dayReminders", types: ["plan_day_reminder"] },
+  { key: "arrivals", types: ["plan_arrival_late"] },
   { key: "photoNudges", types: ["plan_photo_nudge"] },
   { key: "bookings", types: ["booking_status"] },
   { key: "rides", types: ["ride_request", "ride_confirmed"] },

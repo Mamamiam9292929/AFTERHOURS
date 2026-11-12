@@ -35,6 +35,8 @@ const AREA: Record<string, InboxArea> = {
   plan_quorum: "plan",
   // P26: „Du bist nachgerückt“ gehört zum Plan.
   plan_waitlist_promoted: "plan",
+  // P43 Etappe 2b: „Kommt später“ gehört zum Plan.
+  plan_arrival_late: "plan",
   // P20 Etappe 2: Geburtstage gehören zur Crew.
   birthday_reminder: "crew",
   reward_earned: "reward",

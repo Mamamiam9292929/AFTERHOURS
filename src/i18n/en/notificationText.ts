@@ -127,6 +127,10 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     title: `You're in: ${serverTitle(p)}`,
     body: [str(p, "starts_at") ? formatDateTime(str(p, "starts_at")) : "", "A spot opened up – you moved up from the waiting list."].filter(Boolean).join(" · "),
   }),
+  plan_arrival_late: (actor, p) => ({
+    title: str(p, "eta") ? `${actor} is running ${p.later ? "even " : ""}late – there around ${formatTime(str(p, "eta"))}` : `${actor} is running ${p.later ? "even " : ""}late`,
+    body: str(p, "title") ? `${serverTitle(p)} · You're already there` : "You're already there",
+  }),
   birthday_reminder: (actor, p) => ({
     title: str(p, "date") ? `${actor}'s birthday is on ${formatPlainDateLong(str(p, "date"))}` : `${actor}'s birthday is coming up`,
     body: str(p, "crew_name") ? `Plan a party with “${str(p, "crew_name")}”?` : "Plan a party?",

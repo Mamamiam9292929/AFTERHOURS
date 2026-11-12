@@ -33,6 +33,8 @@ export function notificationTarget(n: NotificationRef): string | null {
     const anchor = n.payload?.close === true ? "#abschliessen" : n.payload?.feedback === true ? "#wie-wars" : "#fotos";
     return `/plans/${n.related_entity_id}${anchor}`;
   }
+  // P43 Etappe 2b: „Kommt später“ führt zur Karte „Seid ihr schon da?“ auf der Planseite.
+  if (n.type === "plan_arrival_late" && n.related_entity_id) return `/plans/${n.related_entity_id}#schon-da`;
   // P20 Etappe 2: Die Geburtstags-Erinnerung führt zur Karte „Bald Geburtstag“ mit „Feier planen“.
   if (n.type === "birthday_reminder" && n.crew_id) return `/crews/${n.crew_id}#geburtstage`;
   if (!n.related_entity_id) return n.crew_id ? `/crews/${n.crew_id}` : null;

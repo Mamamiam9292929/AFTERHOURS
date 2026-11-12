@@ -23,7 +23,7 @@ export const planArrival = {
   none: "Noch hat niemand etwas gesagt.",
   missing: (n: number) => (n === 1 ? "1 Person hat noch nichts gesagt" : `${n} haben noch nichts gesagt`),
   allSaid: "Alle haben Bescheid gegeben.",
-  honest: "Nur eine Ansage für die Crew – kein Standort, keine Benachrichtigung. Die Uhrzeit ist, was du sagst.",
+  honest: "Nur eine Ansage für die Crew – kein Standort. Wer schon da ist, bekommt Bescheid, wenn du später kommst. Die Uhrzeit ist, was du sagst.",
   error: "„Seid ihr schon da?“ ließ sich gerade nicht laden.",
   retry: "Nochmal versuchen",
   /** Etappe 2 · Kachel in der „Heute Abend“-Leiste auf Home. */

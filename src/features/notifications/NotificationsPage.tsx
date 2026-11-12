@@ -58,6 +58,7 @@ function NotificationIcon({ type, closing, feedbackOnly, closePlan, className }:
     case "spontaneous_match":
       return <IconSparkles {...props} />;
     case "plan_day_reminder":
+    case "plan_arrival_late":
       return <IconClock {...props} />;
     case "plan_photo_reported":
       return <IconFlag {...props} />;
