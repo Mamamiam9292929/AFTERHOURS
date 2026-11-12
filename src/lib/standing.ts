@@ -60,6 +60,8 @@ export type StandingTexts = {
   quorumReached: string;
   spotsLeft: (n: number) => string;
   full: string;
+  /** P46: Antwortfrist, solange sie läuft. */
+  answerBy: (when: string) => string;
   /** Mit Zusagen über den Link (W10): Freunde ohne Konto antworten direkt. */
   answer: string;
   /** Sonst: Der Link führt Mitglieder zum Plan. */
@@ -70,7 +72,7 @@ export type StandingTexts = {
  * „Kartbahn, Samstag, 14. November, 20:00 Uhr – 5 dabei, 2 vielleicht, 3 haben noch nicht geantwortet. Noch 1 Zusage,
  * dann findet es statt. Antwort mit einem Tipp:“ – der Link folgt dahinter (Teilen-Menü bzw. Zwischenablage).
  */
-export function standingText(tx: StandingTexts, s: Standing, title: string, when: string, guestsCanAnswer: boolean): string {
+export function standingText(tx: StandingTexts, s: Standing, title: string, when: string, guestsCanAnswer: boolean, answerBy?: string | null): string {
   const counts = [tx.going(s.going)];
   if (s.maybe > 0) counts.push(tx.maybe(s.maybe));
   if (s.waiting > 0) counts.push(tx.waiting(s.waiting));
@@ -78,5 +80,7 @@ export function standingText(tx: StandingTexts, s: Standing, title: string, when
   const notes: string[] = [];
   if (s.quorumLeft != null) notes.push(s.quorumLeft > 0 ? tx.quorumLeft(s.quorumLeft) : tx.quorumReached);
   if (s.spotsLeft != null) notes.push(s.spotsLeft > 0 ? tx.spotsLeft(s.spotsLeft) : tx.full);
+  // P46: „Bitte bis Do., 12. Nov., 20:00 Uhr Bescheid sagen.“ – nur, solange die Frist läuft (formatiert von außen).
+  if (answerBy) notes.push(tx.answerBy(answerBy));
   return [`${tx.head(title, when)} – ${counts.join(", ")}.`, ...notes, guestsCanAnswer ? tx.answer : tx.link].join(" ");
 }

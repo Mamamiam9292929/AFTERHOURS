@@ -240,9 +240,9 @@ test("F10: Texte der Planseiten-Karten nur dort, wo sie vorher geladen werden �
   assert.equal("planCards" in deCore, false);
   const { planCards: deCards } = await import("../../src/i18n/de/planCards.ts");
   const { planCards: enCards } = await import("../../src/i18n/en/planCards.ts");
-  // P37: „Zwischenstand teilen“ kam neu dazu und lag nie im Kern.
-  assert.deepEqual(Object.keys(deCards).sort(), [...moved, "standing"].sort());
-  assert.deepEqual(Object.keys(enCards).sort(), [...moved, "standing"].sort());
+  // P37: „Zwischenstand teilen“ und P46: Antwortfrist kamen neu dazu und lagen nie im Kern.
+  assert.deepEqual(Object.keys(deCards).sort(), [...moved, "standing", "answerBy"].sort());
+  assert.deepEqual(Object.keys(enCards).sort(), [...moved, "standing", "answerBy"].sort());
   const files = [];
   async function walk(dir) {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -272,6 +272,7 @@ test("F10: Texte der Planseiten-Karten nur dort, wo sie vorher geladen werden �
     "src/features/plans/LiveMap.tsx",
     "src/features/plans/LivePanel.tsx",
     "src/features/plans/PhotosPanel.tsx",
+    "src/features/plans/PlanAnswerBy.tsx",
     "src/features/plans/PlanDetailPage.tsx",
     "src/features/plans/RidesPanel.tsx",
   ]);

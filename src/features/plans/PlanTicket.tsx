@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/Feedback";
 import { LivePill } from "@/components/ui/Pill";
 import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { answerByState } from "@/lib/answerby";
 import { spotsLeft, waitingGuests, waitlistPosition } from "@/lib/capacity";
 import { goingWithGuests, quorumLeft } from "@/lib/quorum";
 import { formatCountdown, liveCountdown } from "@/lib/quickvote";
-import { calendarDaysBetween, formatTime, ticketDate, zonedParts } from "@/lib/time";
+import { calendarDaysBetween, formatDateTime, formatTime, ticketDate, zonedParts } from "@/lib/time";
 import type { AttendanceStatus, Crew, PlanStatus } from "@/lib/types";
 import type { PlanWithParticipants } from "./api";
 import "@/styles/motion.css";
@@ -103,8 +104,15 @@ function CapacityBadge({ plan, className }: { plan: PlanWithParticipants; classN
   );
 }
 
-/** P26 Etappe 2 · Eigene Antwort am Ticket – wer auf der Nachrückliste steht, sieht den Platz statt „vielleicht“. */
+/**
+ * P26 Etappe 2 · Eigene Antwort am Ticket – wer auf der Nachrückliste steht, sieht den Platz statt „vielleicht“.
+ * P46: Fehlt die Antwort und läuft eine Frist, steht sie dahinter („Deine Antwort fehlt · bis Do., 12. Nov., 20:00 Uhr“).
+ */
 function myStatusText(plan: PlanWithParticipants, userId: string, mine: AttendanceStatus): string {
+  if (mine === "invited") {
+    const deadline = answerByState(plan);
+    if (deadline && !deadline.passed) return `${MY_STATUS.invited} · ${t.plans.ticket.answerBy(formatDateTime(deadline.at))}`;
+  }
   if (mine === "maybe") {
     const position = waitlistPosition(plan.participants, userId, waitingGuests(plan));
     if (position != null) return t.plans.ticket.capacity.you(position);

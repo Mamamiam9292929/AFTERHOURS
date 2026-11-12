@@ -26,6 +26,8 @@ export const plans = {
     going: (n: number) => (n === 1 ? "1 dabei" : `${n} dabei`),
     goingOf: (total: number) => `von ${total} dabei`,
     yourAnswerOpen: "Deine Antwort fehlt",
+    /** P46: Antwortfrist hinter „Deine Antwort fehlt“. */
+    answerBy: (when: string) => `bis ${when}`,
     youGoing: "Du bist dabei",
     youMaybe: "Du: vielleicht",
     youDeclined: "Du hast abgesagt",

@@ -16,8 +16,33 @@ export const planCards = {
     quorumReached: "Findet statt.",
     spotsLeft: (n: number) => (n === 1 ? "Noch 1 Platz frei." : `Noch ${n} Plätze frei.`),
     full: "Alle Plätze vergeben – wer will, rückt nach.",
+    answerBy: (when: string) => `Bitte bis ${when} Bescheid sagen.`,
     answer: "Antwort mit einem Tipp:",
     link: "Zum Plan:",
+  },
+  // P46: „Sagt bis Donnerstag Bescheid“ – Antwortfrist für Pläne.
+  answerBy: {
+    meter: {
+      open: (when: string) => `Antwort bis ${when}`,
+      passed: (when: string) => `Frist war ${when}`,
+      missing: (n: number) => (n === 1 ? "1 offen" : `${n} offen`),
+      missingLong: (n: number) => (n === 1 ? "1 hat noch nicht geantwortet." : `${n} haben noch nicht geantwortet.`),
+      allAnswered: "Alle haben geantwortet",
+      late: "Antworten geht auch nach der Frist.",
+    },
+    card: {
+      title: "Antwort bis …",
+      intro: "Musst du reservieren? Leg fest, bis wann alle zu- oder absagen sollen. Die Frist steht am Plan und im Zwischenstand – antworten geht danach trotzdem noch.",
+      label: "Antwortfrist",
+      none: "Keine",
+      noneLabel: "Keine Antwortfrist",
+      option: (days: number) => (days === 1 ? "1 Tag vorher" : days === 7 ? "1 Woche vorher" : `${days} Tage vorher`),
+      optionLabel: (option: string, when: string) => `${option}: ${when}`,
+      current: (when: string) => `Antwort bis ${when}`,
+      saved: (when: string) => `Antwort bis ${when} – alle sehen die Frist.`,
+      removed: "Keine Antwortfrist mehr.",
+      tooLate: "Für eine Frist ist es zu knapp – der Abend beginnt bald.",
+    },
   },
   booking: {
     none: "Noch keine Reservierung vorbereitet.",
