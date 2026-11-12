@@ -16,7 +16,7 @@ export interface PushGroup {
  * „Nur das Wichtigste“: was einen Tipp verlangt oder den Abend selbst betrifft – neue Abstimmungen,
  * Ergebnisse, Pläne, der Tag des Plans und spontane Fragen.
  */
-export const ESSENTIAL_GROUPS: readonly string[] = ["polls", "results", "plans", "dayReminders", "spontaneous"];
+export const ESSENTIAL_GROUPS: readonly string[] = ["polls", "results", "plans", "dayReminders", "arrivals", "spontaneous"];
 
 /** Kommt diese Gruppe auf dem Gerät an? Ja, solange keine ihrer Arten stummgeschaltet ist. */
 export function isGroupOnDevice(muted: readonly string[], types: readonly string[]): boolean {

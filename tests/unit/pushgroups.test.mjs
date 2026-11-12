@@ -10,6 +10,7 @@ const GROUPS = [
   { key: "results", types: ["poll_result"] },
   { key: "plans", types: ["plan_created", "plan_changed", "plan_cancelled"] },
   { key: "dayReminders", types: ["plan_day_reminder"] },
+  { key: "arrivals", types: ["plan_arrival_late"] },
   { key: "spontaneous", types: ["spontaneous_ask", "spontaneous_answer", "spontaneous_match"] },
   { key: "rewards", types: ["reward_earned"] },
 ];
@@ -36,7 +37,7 @@ test("„Alles“ schaltet nichts stumm", () => {
   assert.equal(matchesPreset(GROUPS, [], "essentials"), false);
 });
 
-test("„Nur das Wichtigste“ lässt Abstimmungen, Ergebnisse, Pläne, den Tag des Plans und spontane Fragen durch", () => {
+test("„Nur das Wichtigste“ lässt Abstimmungen, Ergebnisse, Pläne, den Tag des Plans, „Kommt später“ und spontane Fragen durch", () => {
   const muted = devicePreset(GROUPS, "essentials");
   assert.deepEqual(muted, ["plan_attendance", "poll_vote", "reward_earned"]);
   for (const group of GROUPS) assert.equal(isGroupOnDevice(muted, group.types), ESSENTIAL_GROUPS.includes(group.key), group.key);

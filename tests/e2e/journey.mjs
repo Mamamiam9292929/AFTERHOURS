@@ -6714,6 +6714,27 @@ await step("P43 Etappe 2 – „Schon da?“ in der „Heute Abend“-Leiste auf
     await a11y(bob, "home-schon-da");
     await shot(bob, "80-home-schon-da");
 
+    // P43 Etappe 2b: Carol ist schon da und bekommt Bescheid, dass Bob später kommt – Alice (nichts gesagt) nicht.
+    const lateCount = (user) => psql(`select count(*) from public.notifications where type = 'plan_arrival_late'
+      and related_entity_id = '${planId}' and user_id = '${uidOf(user)}'`);
+    check(lateCount(carol) === "1", "P43 2b: Carol (schon da) bekommt „Bob kommt später“");
+    check(lateCount(alice) === "0" && lateCount(bob) === "0", "P43 2b: wer nichts gesagt hat und Bob selbst bekommen nichts");
+    const cp = carol.page;
+    await cp.goto(`${APP}/notifications`);
+    const late = cp.getByRole("link", { name: /Bob kommt später – gegen \d{2}:\d{2}/ });
+    await late.waitFor({ timeout: 20_000 });
+    check(await late.getByText(`${title} · Du bist schon da`).isVisible(), "P43 2b: Nachricht nennt den Plan");
+    await late.scrollIntoViewIfNeeded();
+    await noOverflow(carol, "Benachrichtigung „kommt später“");
+    await shot(carol, "80-kommt-spaeter");
+    await late.click();
+    await cp.waitForURL(`**/plans/${planId}#schon-da`);
+    await cp.getByTestId("plan-arrival").waitFor({ timeout: 20_000 });
+    check(true, "P43 2b: Nachricht führt zur Karte „Seid ihr schon da?“");
+    await cp.goto(`${APP}/settings`);
+    await cp.getByText("Wer später kommt").first().waitFor();
+    check(true, "P43 2b: „Wer später kommt“ lässt sich in den Einstellungen abschalten");
+
     // „Bin da“ – Kachel wird grün, die Knöpfe verschwinden.
     await tile.getByTestId("tonight-arrival-here").click();
     await toast(bob, "Gesagt – die Crew sieht, dass du da bist.");

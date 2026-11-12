@@ -147,6 +147,11 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     title: `Du bist nachgerückt: ${str(p, "title")}`,
     body: [str(p, "starts_at") ? formatDateTime(str(p, "starts_at")) : "", "Ein Platz ist frei geworden – du bist jetzt dabei."].filter(Boolean).join(" · "),
   }),
+  // P43 Etappe 2b: an alle, die schon „Bin da“ gesagt haben – Uhrzeit ist die eigene Ansage der Person.
+  plan_arrival_late: (actor, p) => ({
+    title: str(p, "eta") ? `${actor} kommt ${p.later ? "noch " : ""}später – gegen ${formatTime(str(p, "eta"))}` : `${actor} kommt ${p.later ? "noch " : ""}später`,
+    body: str(p, "title") ? `${str(p, "title")} · Du bist schon da` : "Du bist schon da",
+  }),
   // P20 Etappe 2: eine Woche vorher, Person = Geburtstagskind, Datum ohne Jahr als YYYY-MM-DD.
   birthday_reminder: (actor, p) => ({
     title: str(p, "date") ? `${actor} hat am ${formatPlainDate(str(p, "date"), "long")} Geburtstag` : `${actor} hat bald Geburtstag`,
