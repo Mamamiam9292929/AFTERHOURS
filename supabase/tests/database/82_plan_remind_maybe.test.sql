@@ -1,0 +1,147 @@
+-- P45: „Vielleicht“ festmachen – Organisator:in, Owner und Admins fragen alle mit „Vielleicht“, höchstens alle
+-- 6 Stunden je Plan (eigene Frist neben P19), nicht nach Beginn, nicht bei abgeschlossenen/abgesagten Plänen; wer
+-- zugesagt, abgesagt oder noch nicht geantwortet hat, wer auf der Nachrückliste steht, ausgetreten ist oder die
+-- Gruppe abgeschaltet hat, bekommt nichts; Außenstehende, anon und einfache Mitglieder können nicht fragen.
+begin;
+\ir helpers.inc
+select no_plan();
+
+select tests.make_user('Alice');
+select tests.make_user('Bob');
+select tests.make_user('Carol');
+select tests.make_user('Dave');
+select tests.make_user('Erik');
+select tests.make_user('Fiona');
+select tests.make_user('Mallory');
+
+select tests.login('alice');
+select tests.set_var('crew', public.create_crew('Weekend Crew', '🎳')::text);
+select tests.set_var('invite', (select token from public.create_crew_invitation(tests.var('crew')::uuid)));
+select tests.login('bob');
+select is(public.accept_crew_invitation(tests.var('invite')) ->> 'status', 'joined', 'Bob tritt bei');
+select tests.login('carol');
+select is(public.accept_crew_invitation(tests.var('invite')) ->> 'status', 'joined', 'Carol tritt bei');
+select tests.login('dave');
+select is(public.accept_crew_invitation(tests.var('invite')) ->> 'status', 'joined', 'Dave tritt bei');
+select tests.login('erik');
+select is(public.accept_crew_invitation(tests.var('invite')) ->> 'status', 'joined', 'Erik tritt bei');
+select tests.login('fiona');
+select is(public.accept_crew_invitation(tests.var('invite')) ->> 'status', 'joined', 'Fiona tritt bei');
+select tests.login('mallory');
+select tests.set_var('mallory_crew', public.create_crew('Fremde Crew')::text);
+
+-- Pläne direkt angelegt, damit Zeiten und Status frei wählbar sind.
+select tests.logout();
+insert into public.plans (crew_id, created_by, title, starts_at, status) values
+  (tests.var('crew')::uuid, tests.uid('bob'), 'Bowling', now() + interval '2 days', 'confirmed'),
+  (tests.var('crew')::uuid, tests.uid('alice'), 'Alle sicher', now() + interval '2 days', 'proposed'),
+  (tests.var('crew')::uuid, tests.uid('bob'), 'Gestartet', now() - interval '10 minutes', 'confirmed'),
+  (tests.var('crew')::uuid, tests.uid('bob'), 'Abgesagt', now() + interval '2 days', 'cancelled'),
+  (tests.var('crew')::uuid, tests.uid('bob'), 'Vorbei', now() + interval '2 days', 'completed');
+select tests.set_var(lower(replace(title, ' ', '_')), id::text) from public.plans
+  where title in ('Bowling', 'Alle sicher', 'Gestartet', 'Abgesagt', 'Vorbei');
+-- Bowling: Bob organisiert und sagt selbst „vielleicht“, Carol und Dave „vielleicht“, Erik ohne Antwort,
+-- Alice abgesagt, Fiona „vielleicht“ auf der Nachrückliste.
+insert into public.plan_participants (plan_id, user_id, attendance_status) values
+  (tests.var('bowling')::uuid, tests.uid('bob'), 'maybe'),
+  (tests.var('bowling')::uuid, tests.uid('carol'), 'maybe'),
+  (tests.var('bowling')::uuid, tests.uid('dave'), 'maybe'),
+  (tests.var('bowling')::uuid, tests.uid('erik'), 'invited'),
+  (tests.var('bowling')::uuid, tests.uid('alice'), 'declined'),
+  (tests.var('alle_sicher')::uuid, tests.uid('alice'), 'going'),
+  (tests.var('alle_sicher')::uuid, tests.uid('bob'), 'going'),
+  (tests.var('gestartet')::uuid, tests.uid('bob'), 'going'),
+  (tests.var('gestartet')::uuid, tests.uid('dave'), 'maybe'),
+  (tests.var('abgesagt')::uuid, tests.uid('bob'), 'going'),
+  (tests.var('abgesagt')::uuid, tests.uid('dave'), 'maybe'),
+  (tests.var('vorbei')::uuid, tests.uid('bob'), 'going'),
+  (tests.var('vorbei')::uuid, tests.uid('dave'), 'maybe');
+insert into public.plan_participants (plan_id, user_id, attendance_status, waitlisted_at) values
+  (tests.var('bowling')::uuid, tests.uid('fiona'), 'maybe', now());
+delete from public.notifications;
+
+-- ---- Rechte ------------------------------------------------------------------------------------
+select ok(not has_function_privilege('anon', 'public.remind_plan_maybe(uuid)', 'execute'), 'anon darf nicht fragen');
+select ok(has_function_privilege('authenticated', 'public.remind_plan_maybe(uuid)', 'execute'), 'angemeldete Personen dürfen die Funktion aufrufen');
+select ok(not has_table_privilege('authenticated', 'public.plan_reminders', 'select'), 'die Nachfrage-Liste bleibt unlesbar');
+select ok(not has_column_privilege('authenticated', 'public.plan_reminders', 'maybe_sent_at', 'update'), 'die neue Frist ist nicht beschreibbar');
+select is((select p.prosecdef from pg_proc p where p.oid = 'public.remind_plan_maybe(uuid)'::regprocedure), true, 'SECURITY DEFINER');
+select ok((select p.proconfig @> array['search_path=""'] from pg_proc p where p.oid = 'public.remind_plan_maybe(uuid)'::regprocedure), 'search_path leer');
+
+-- ---- Angriffe ----------------------------------------------------------------------------------
+select tests.login_anon();
+select throws_ok($$ select public.remind_plan_maybe(tests.var('bowling')::uuid) $$, '42501', null, 'anon kann nicht fragen');
+
+select tests.login('mallory');
+select throws_ok($$ select public.remind_plan_maybe(tests.var('bowling')::uuid) $$, '42501', 'forbidden', 'Außenstehende können nicht fragen');
+select throws_ok($$ select public.remind_plan_maybe(gen_random_uuid()) $$, '42501', 'forbidden', 'unbekannter Plan verrät nichts');
+
+select tests.login('carol');
+select throws_ok($$ select public.remind_plan_maybe(tests.var('bowling')::uuid) $$, '42501', 'forbidden', 'einfache Mitglieder fragen bei fremden Plänen nicht');
+select is((select count(*)::int from public.notifications), 0, 'keine Benachrichtigung nach den Angriffen');
+
+-- ---- Ablauf ------------------------------------------------------------------------------------
+select tests.login('bob');
+select is(public.remind_plan_maybe(tests.var('bowling')::uuid), 2, 'Bob fragt Carol und Dave („vielleicht“)');
+select tests.logout();
+select is((select array_agg(n.user_id order by n.user_id) from public.notifications n where n.type = 'plan_reminder'),
+          (select array_agg(u order by u) from unnest(array[tests.uid('carol'), tests.uid('dave')]) u),
+          'nur Carol und Dave – nicht Erik (ohne Antwort), Alice (abgesagt), Fiona (Nachrückliste), Bob selbst');
+select is((select n.actor_id from public.notifications n where n.type = 'plan_reminder' limit 1), tests.uid('bob'), 'Bob steht als fragende Person drin');
+select is((select n.payload ->> 'title' from public.notifications n where n.type = 'plan_reminder' limit 1), 'Bowling', 'Titel im Payload');
+select ok((select n.payload ? 'starts_at' from public.notifications n where n.type = 'plan_reminder' limit 1), 'Beginn im Payload');
+select is((select bool_and((n.payload ->> 'maybe')::boolean) from public.notifications n where n.type = 'plan_reminder'), true, 'als Frage an „Vielleicht“ gekennzeichnet');
+select is((select n.entity_type || ':' || n.related_entity_id::text from public.notifications n where n.type = 'plan_reminder' limit 1),
+          'plan:' || tests.var('bowling'), 'Antippen führt zum Plan');
+
+select tests.login('bob');
+select throws_ok($$ select public.remind_plan_maybe(tests.var('bowling')::uuid) $$, 'P0001', 'reminder_too_soon', 'höchstens einmal alle sechs Stunden');
+select tests.login('alice');
+select throws_ok($$ select public.remind_plan_maybe(tests.var('bowling')::uuid) $$, 'P0001', 'reminder_too_soon', 'die Frist gilt je Plan, nicht je Person');
+
+-- Die Frist von P19 bleibt unabhängig: „Noch offen“ lässt sich trotzdem fragen (Erik), und umgekehrt.
+select tests.login('bob');
+select is(public.remind_plan(tests.var('bowling')::uuid), 1, 'P19 fragt Erik trotz frischer Frage an „Vielleicht“');
+select tests.logout();
+select is((select count(*)::int from public.notifications where type = 'plan_reminder' and user_id = tests.uid('erik') and not (payload ? 'maybe')),
+          1, 'Erik bekommt die normale Nachfrage');
+
+-- Nach sechs Stunden: Carol hat zugesagt, Dave hat die Gruppe abgeschaltet.
+update public.plan_reminders set maybe_sent_at = now() - interval '6 hours 1 minute' where plan_id = tests.var('bowling')::uuid;
+update public.plan_participants set attendance_status = 'going', responded_at = now()
+  where plan_id = tests.var('bowling')::uuid and user_id = tests.uid('carol');
+update public.user_settings set notification_preferences = notification_preferences || '{"plan_reminder": false}'::jsonb
+  where user_id = tests.uid('dave');
+delete from public.notifications;
+select tests.login('alice');
+select is(public.remind_plan_maybe(tests.var('bowling')::uuid), 1, 'Owner Alice darf fragen; gezählt wird Dave');
+select tests.logout();
+select is((select count(*)::int from public.notifications where type = 'plan_reminder'), 0, 'Dave hat die Gruppe abgeschaltet – keine Benachrichtigung');
+
+-- Ehemalige Mitglieder werden nicht gefragt.
+update public.plan_reminders set maybe_sent_at = now() - interval '7 hours' where plan_id = tests.var('bowling')::uuid;
+update public.user_settings set notification_preferences = notification_preferences - 'plan_reminder'
+  where user_id = tests.uid('dave');
+delete from public.crew_members where crew_id = tests.var('crew')::uuid and user_id = tests.uid('dave');
+insert into public.plan_participants (plan_id, user_id, attendance_status) values (tests.var('bowling')::uuid, tests.uid('dave'), 'maybe')
+  on conflict (plan_id, user_id) do update set attendance_status = 'maybe';
+select tests.login('bob');
+select is(public.remind_plan_maybe(tests.var('bowling')::uuid), 0, 'ehemalige Mitglieder werden nicht gefragt');
+
+-- Niemand bei „Vielleicht“: 0, und das zählt nicht als Nachfrage.
+select tests.login('alice');
+select is(public.remind_plan_maybe(tests.var('alle_sicher')::uuid), 0, 'niemand bei „Vielleicht“ – niemand wird gefragt');
+select tests.logout();
+select is((select count(*)::int from public.plan_reminders where plan_id = tests.var('alle_sicher')::uuid and maybe_sent_at > now() - interval '6 hours'), 0,
+          'ohne gefragte Person beginnt keine Frist');
+
+-- Begonnen, abgesagt, abgeschlossen.
+select tests.login('bob');
+select throws_ok($$ select public.remind_plan_maybe(tests.var('gestartet')::uuid) $$, 'P0001', 'plan_already_started', 'nach Beginn wird nicht mehr gefragt');
+select throws_ok($$ select public.remind_plan_maybe(tests.var('abgesagt')::uuid) $$, 'P0001', 'plan_locked', 'abgesagte Pläne: keine Frage');
+select throws_ok($$ select public.remind_plan_maybe(tests.var('vorbei')::uuid) $$, 'P0001', 'plan_locked', 'abgeschlossene Pläne: keine Frage');
+select tests.logout();
+select is((select count(*)::int from public.notifications where type = 'plan_reminder'), 0, 'begonnene, abgesagte und abgeschlossene Pläne lösen nichts aus');
+
+select * from finish();
+rollback;

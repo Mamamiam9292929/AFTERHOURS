@@ -31,7 +31,7 @@ import { liveStage } from "@/lib/live";
 import { goingWithGuests } from "@/lib/quorum";
 import { formatAgo, formatDateLong, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus } from "@/lib/types";
-import { estimateCosts, hasStarted, useClosePlan, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
+import { estimateCosts, hasStarted, useClosePlan, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useRemindPlanMaybe, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { AnswerNote } from "./AnswerNote";
 import { BookingPanel } from "./BookingPanel";
 import { BringPanel } from "./BringPanel";
@@ -129,6 +129,7 @@ export function PlanDetailPage() {
   // P30: Abschließen läuft über `close_plan` – dann fragt „Wie war’s?“ sofort alle mit Zusage.
   const closePlan = useClosePlan(planId ?? "");
   const remind = useRemindPlan(planId ?? "");
+  const remindMaybe = useRemindPlanMaybe(planId ?? "");
   const update = useUpdatePlan(planId ?? "");
   // W2: Teilen-Link vorab holen – das Teilen-Menü muss direkt auf den Tipp hin aufgehen.
   const shareToken = usePlanShareToken(plan?.id, Boolean(plan) && plan?.status !== "cancelled");
@@ -448,7 +449,10 @@ export function PlanDetailPage() {
                   const guests = (plan.guests ?? []).filter((g) => g.attendance_status === status && !(status === "maybe" && g.waitlisted_at && plan.guests_allowed));
                   if (group.length + guests.length === 0) return null;
                   // P19: Wer organisiert (oder Owner/Admin ist), fragt alle ohne Antwort mit einem Tipp – nur vor Beginn.
-                  const askable = status === "invited" && canManage && !locked && !started ? group.filter((p) => p.user_id !== user.id).length : 0;
+                  // P45: Genauso bei „Vielleicht“ (ohne Nachrückliste, die steht nicht in dieser Gruppe).
+                  const askable =
+                    (status === "invited" || status === "maybe") && canManage && !locked && !started ? group.filter((p) => p.user_id !== user.id).length : 0;
+                  const asking = status === "maybe" ? remindMaybe : remind;
                   return (
                     <div key={status}>
                       <div className="flex min-h-9 items-center justify-between gap-3">
@@ -460,10 +464,16 @@ export function PlanDetailPage() {
                           <Button
                             variant="secondary"
                             size="sm"
-                            data-testid="plan-remind"
-                            aria-label={t.plans.detail.attendance.remindLabel(askable)}
-                            loading={remind.isPending}
-                            onClick={() => remind.mutate(undefined, { onSuccess: (n) => toast.success(t.plans.detail.attendance.reminded(n)), onError: (error) => toast.error(error) })}
+                            data-testid={status === "maybe" ? "plan-remind-maybe" : "plan-remind"}
+                            aria-label={status === "maybe" ? t.plans.detail.attendance.remindMaybeLabel(askable) : t.plans.detail.attendance.remindLabel(askable)}
+                            loading={asking.isPending}
+                            onClick={() =>
+                              asking.mutate(undefined, {
+                                onSuccess: (n) =>
+                                  toast.success(status === "maybe" ? t.plans.detail.attendance.remindedMaybe(n) : t.plans.detail.attendance.reminded(n)),
+                                onError: (error) => toast.error(error),
+                              })
+                            }
                             icon={<IconBell className="size-4" aria-hidden />}
                           >
                             {t.plans.detail.attendance.remind}

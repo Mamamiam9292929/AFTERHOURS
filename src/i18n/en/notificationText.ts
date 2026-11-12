@@ -113,10 +113,12 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
       ? "It's your photo: it's hidden from the crew until someone else decides. You can delete it any time."
       : "Hidden from the crew until you decide: show it again or delete it.",
   }),
-  plan_reminder: (actor, p) => ({
-    title: `${actor} asks: are you in?`,
-    body: str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p),
-  }),
+  plan_reminder: (actor, p) => {
+    const plan = str(p, "starts_at") ? `${serverTitle(p)} · ${formatDateTime(str(p, "starts_at"))}` : serverTitle(p);
+    return p.maybe
+      ? { title: `${actor} asks: are you in now?`, body: `You said maybe · ${plan}` }
+      : { title: `${actor} asks: are you in?`, body: plan };
+  },
   plan_quorum: (_actor, p) => ({
     title: `It's on: ${serverTitle(p)}`,
     body: [typeof p.going === "number" ? `${p.going} are in` : "", str(p, "starts_at") ? formatDateTime(str(p, "starts_at")) : "", p.answered === false ? "Are you in too?" : ""]

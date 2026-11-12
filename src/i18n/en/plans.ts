@@ -204,6 +204,8 @@ export const plans = {
       remind: "Ask",
       remindLabel: (n: number) => (n === 1 ? "Ask – check whether the person without an answer is in" : `Ask – check whether all ${n} without an answer are in`),
       reminded: (n: number) => (n === 0 ? "Everyone has answered – nobody was asked." : n === 1 ? "Asked 1 person." : `Asked ${n} people.`),
+      remindMaybeLabel: (n: number) => (n === 1 ? "Ask – check whether the person who said maybe is in now" : `Ask – check whether all ${n} who said maybe are in now`),
+      remindedMaybe: (n: number) => (n === 0 ? "Nobody is on maybe any more – nobody was asked." : n === 1 ? "Asked 1 person." : `Asked ${n} people.`),
       askedAgain: (previous: string) => `New time – does it still work for you? Before: ${previous}`,
       waitlist: "Waitlist",
       waitlistLabel: "Join the waiting list – if someone drops out, you're in automatically",

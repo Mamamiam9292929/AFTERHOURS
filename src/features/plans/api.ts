@@ -237,6 +237,17 @@ export function useRemindPlan(planId: string) {
   });
 }
 
+/** P45: Alle mit „Vielleicht“ fragen, ob sie jetzt dabei sind. Liefert die Zahl der gefragten Personen. */
+export function useRemindPlanMaybe(planId: string) {
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc("remind_plan_maybe", { p_plan_id: planId });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+}
+
 export function useSetAttendance(planId: string) {
   const client = useQueryClient();
   const { user } = useAuth();
