@@ -58,6 +58,7 @@ export function PlanCreatePage() {
           key={place?.id ?? "blank"}
           initial={{ title: place?.name ?? "", address: place?.address ?? "", costPerPersonCents: place ? typicalPriceCents(place) : null, startsAt: soonStart }}
           submitLabel={t.plans.create.submit}
+          offerAnswerBy
           pending={create.isPending}
           error={create.isError ? errorMessage(create.error) : null}
           onSubmit={(values) =>

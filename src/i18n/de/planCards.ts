@@ -30,6 +30,13 @@ export const planCards = {
       allAnswered: "Alle haben geantwortet",
       late: "Antworten geht auch nach der Frist.",
     },
+    // P47: gleich beim Erstellen (Formular „Plan erstellen“ und „Plan aus Abstimmung“).
+    form: {
+      title: "Antwort bis",
+      hint: "Optional. Musst du reservieren? Dann sag gleich, bis wann alle zu- oder absagen sollen – die Erinnerung läuft von Anfang an.",
+      needStart: "Erst Tag und Uhrzeit eintragen, dann kannst du eine Frist wählen.",
+      chosen: (when: string) => `Antwort bis ${when}`,
+    },
     card: {
       title: "Antwort bis …",
       intro: "Musst du reservieren? Leg fest, bis wann alle zu- oder absagen sollen. Die Frist steht am Plan und im Zwischenstand – antworten geht danach trotzdem noch.",

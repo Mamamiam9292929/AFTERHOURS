@@ -119,13 +119,15 @@ export interface PlanFormValues {
   totalCostCents?: number | null;
   /** P23: Nur beim Bearbeiten – nach dem Speichern alle mit Antwort neu fragen (neue Zeit). */
   askAgain?: boolean;
+  /** P47: Nur beim Erstellen – Antwortfrist gleich mit dem Plan (ISO), sonst null. */
+  answerBy?: string | null;
 }
 
 export function useCreatePlan() {
   const invalidate = useInvalidatePlans();
   return useMutation({
     mutationFn: async (input: PlanFormValues & { crewId: string; activityId?: string | null; confirmed: boolean }): Promise<string> => {
-      const { data, error } = await supabase.rpc("create_plan", {
+      const common = {
         p_crew_id: input.crewId,
         p_title: input.title,
         p_starts_at: input.startsAt.toISOString(),
@@ -137,7 +139,11 @@ export function useCreatePlan() {
         p_total_cost_cents: input.totalCostCents ?? null,
         p_ends_at: input.endsAt?.toISOString() ?? null,
         p_confirmed: input.confirmed,
-      });
+      };
+      // P47: mit Frist über die Hülle – Plan und Frist in einer Transaktion (ungültige Frist = kein Plan).
+      const { data, error } = input.answerBy
+        ? await supabase.rpc("create_plan_with_answer_by", { ...common, p_answer_by: input.answerBy })
+        : await supabase.rpc("create_plan", common);
       if (error) throw error;
       return data as string;
     },
@@ -149,8 +155,8 @@ export function useCreatePlanFromPoll() {
   const invalidate = useInvalidatePlans();
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { pollId: string; optionId: string; startsAt: Date; title: string; address: string | null; meetingPoint: string | null; notes: string | null; costPerPersonCents: number | null }): Promise<string> => {
-      const { data, error } = await supabase.rpc("create_plan_from_poll", {
+    mutationFn: async (input: { pollId: string; optionId: string; startsAt: Date; title: string; address: string | null; meetingPoint: string | null; notes: string | null; costPerPersonCents: number | null; answerBy?: string | null }): Promise<string> => {
+      const common = {
         p_poll_id: input.pollId,
         p_option_id: input.optionId,
         p_starts_at: input.startsAt.toISOString(),
@@ -159,7 +165,10 @@ export function useCreatePlanFromPoll() {
         p_meeting_point: input.meetingPoint,
         p_notes: input.notes,
         p_cost_per_person_cents: input.costPerPersonCents,
-      });
+      };
+      const { data, error } = input.answerBy
+        ? await supabase.rpc("create_plan_from_poll_with_answer_by", { ...common, p_answer_by: input.answerBy })
+        : await supabase.rpc("create_plan_from_poll", common);
       if (error) throw error;
       return data as string;
     },

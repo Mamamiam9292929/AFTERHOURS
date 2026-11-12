@@ -8,6 +8,8 @@ import { t } from "@/i18n";
 import { centsToInput, parseEuroInput } from "@/lib/format";
 import { addDays, formatDateLong, formatTime, today, zonedParts, zonedToUtc } from "@/lib/time";
 import type { PlanFormValues } from "./api";
+import { answerByFor } from "@/lib/answerby";
+import { AnswerByPicker } from "./AnswerByPicker";
 import { planCountdown } from "./PlanTicket";
 
 export interface PlanFormInitial {
@@ -36,6 +38,8 @@ interface PlanFormProps {
   flat?: boolean;
   /** P23 (nur Bearbeiten): Antworten anderer (Mitglieder/Gäste) – ändert sich die Zeit, „Alle neu fragen“ anbieten. */
   answers?: { members: number; guests: number };
+  /** P47 (nur Erstellen): Antwortfrist gleich mit dem Plan festlegen. */
+  offerAnswerBy?: boolean;
 }
 
 /**
@@ -43,7 +47,7 @@ interface PlanFormProps {
  * Glas-Karten (Was & wann · Wo · Kosten · Noch was?); oben zeigt eine Datumskachel wie auf der Plan-Karte,
  * was gerade eingetragen ist.
  */
-export function PlanForm({ initial, submitLabel, pending, error, onSubmit, before, after, allowUnchangedPast = false, flat = false, answers }: PlanFormProps) {
+export function PlanForm({ initial, submitLabel, pending, error, onSubmit, before, after, allowUnchangedPast = false, flat = false, answers, offerAnswerBy = false }: PlanFormProps) {
   const start = initial.startsAt ? zonedParts(initial.startsAt) : null;
   const [title, setTitle] = useState(initial.title ?? "");
   const [date, setDate] = useState(start?.date ?? "");
@@ -56,6 +60,8 @@ export function PlanForm({ initial, submitLabel, pending, error, onSubmit, befor
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   // P23: vorausgewählt – wer verschiebt, will in aller Regel wissen, ob es den anderen noch passt.
   const [askAgain, setAskAgain] = useState(true);
+  // P47: Tage vor Beginn (1/2/3/7) – die Frist selbst rechnet erst das Abschicken aus dem Beginn aus.
+  const [answerDays, setAnswerDays] = useState<number | null>(null);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -80,6 +86,7 @@ export function PlanForm({ initial, submitLabel, pending, error, onSubmit, befor
       costPerPersonCents: costCents ?? null,
       totalCostCents: totalCents ?? null,
       askAgain: offerAskAgain && askAgain,
+      answerBy: offerAnswerBy ? answerByFor(startsAt, answerDays) : null,
     });
   }
 
@@ -102,6 +109,7 @@ export function PlanForm({ initial, submitLabel, pending, error, onSubmit, befor
             <SwitchRow label={t.plans.detail.manage.askAgain} description={t.plans.detail.manage.askAgainBody(answered, answers.guests)} checked={askAgain} onChange={setAskAgain} />
           </div>
         )}
+        {offerAnswerBy && <AnswerByPicker startsAt={preview} days={answerDays} onChange={setAnswerDays} />}
       </FormCard>
       <FormCard title={t.plans.create.sections.where} icon={<IconPin className="size-[18px]" />} tone="violet" flat={flat} testId="plan-form-where">
         <TextField label={t.plans.create.address} name="address" value={address} onChange={(e) => setAddress(e.target.value)} maxLength={200} autoComplete="off" optional />

@@ -283,6 +283,7 @@ test("F10: Texte der Planseiten-Karten nur dort, wo sie vorher geladen werden �
     assert.ok(source.includes('await loadTexts("planCards")'), `${name} liest t.planCards ohne loadTexts`);
   }
   assert.deepEqual(users.sort(), [
+    "src/features/plans/AnswerByPicker.tsx",
     "src/features/plans/BookingPanel.tsx",
     "src/features/plans/BringPanel.tsx",
     "src/features/plans/ExpensesPanel.tsx",
@@ -295,4 +296,7 @@ test("F10: Texte der Planseiten-Karten nur dort, wo sie vorher geladen werden �
   ]);
   const router = await readFile(join(root, "src/app/router.tsx"), "utf8");
   assert.match(router, /PlanDetailPage", \["planCards"\]\)/, "Router lädt die Texte parallel zur Planseite");
+  // P47: „Antwort bis“ in „Plan erstellen“ und im Dialog „Plan festmachen“ der Abstimmung.
+  assert.match(router, /PlanCreatePage", \["planCards"\]\)/, "Router lädt die Texte parallel zu „Plan erstellen“");
+  assert.match(router, /PollDetailPage", \[[^\]]*"planCards"[^\]]*\]\)/, "Router lädt die Texte parallel zur Abstimmung");
 });

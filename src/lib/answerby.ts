@@ -60,3 +60,9 @@ export function matchingDays(answerBy: string | null | undefined, startsAt: stri
   const days = ANSWER_BY_DAYS.find((d) => Math.abs(daysBefore(start, d) - at) < 60 * 1000);
   return days ?? null;
 }
+
+/** P47: Die Frist zu `days` Tagen vor `startsAt`, wenn sie gerade zur Wahl steht – sonst `null` (passt nicht mehr). */
+export function answerByFor(startsAt: Date | null, days: number | null, now: Date = new Date()): string | null {
+  if (!startsAt || days == null || Number.isNaN(startsAt.getTime())) return null;
+  return answerByOptions(startsAt.toISOString(), now).find((o) => o.days === days)?.at ?? null;
+}

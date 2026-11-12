@@ -60,9 +60,9 @@ const CrewDetailPage = page(() => import("@/features/crews/CrewDetailPage"), "Cr
 const JoinPage = page(() => import("@/features/crews/JoinPage"), "JoinPage");
 const InviteLandingPage = page(() => import("@/features/crews/InviteLandingPage"), "InviteLandingPage");
 const PollCreatePage = page(() => import("@/features/polls/PollCreatePage"), "PollCreatePage");
-const PollDetailPage = page(() => import("@/features/polls/PollDetailPage"), "PollDetailPage", ["pollStanding", "pollExtend", "pollSlot"]);
+const PollDetailPage = page(() => import("@/features/polls/PollDetailPage"), "PollDetailPage", ["pollStanding", "pollExtend", "pollSlot", "planCards"]);
 const PlansPage = page(() => import("@/features/plans/PlansPage"), "PlansPage");
-const PlanCreatePage = page(() => import("@/features/plans/PlanCreatePage"), "PlanCreatePage");
+const PlanCreatePage = page(() => import("@/features/plans/PlanCreatePage"), "PlanCreatePage", ["planCards"]);
 const PlanDetailPage = page(() => import("@/features/plans/PlanDetailPage"), "PlanDetailPage", ["planCards"]);
 const SharedPlanPage = page(() => import("@/features/plans/SharedPlanPage"), "SharedPlanPage");
 const SharedPollPage = page(() => import("@/features/polls/SharedPollPage"), "SharedPollPage");
