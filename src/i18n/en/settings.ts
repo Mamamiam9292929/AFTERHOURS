@@ -69,7 +69,7 @@ export const settings = {
     status: (on: number, all: number) => (on === 0 ? "All off" : on === all ? "All on" : `${on} of ${all} on`),
     groups: {
       polls: { title: "New polls", body: "When someone in your crew starts a poll." },
-      reminders: { title: "Reminders", body: "When you still haven't answered a poll – sent by hand or shortly before it closes." },
+      reminders: { title: "Reminders", body: "When you still haven't answered a poll – sent by hand or shortly before it closes –, someone adds an option or takes yours back out." },
       planReminders: { title: "Plan check-ins", body: "When someone asks whether you're in on a plan you haven't answered yet or said maybe to." },
       answers: { title: "New replies", body: "When someone replies to your poll or your plan." },
       results: { title: "Results", body: "When a poll ends." },

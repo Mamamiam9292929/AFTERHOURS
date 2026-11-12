@@ -13,7 +13,7 @@ await loadTexts("pollSlot");
  * Ob der Knopf erscheint, entscheidet die Seite mit `canWithdrawOption`; der Server prüft dasselbe noch einmal.
  * Ein Tipp fragt nach, erst der zweite zieht zurück – die eigene Antwort zum Vorschlag verschwindet mit.
  */
-export function OptionWithdraw({ optionId, title }: { optionId: string; title: string }) {
+export function OptionWithdraw({ optionId, title, adderName }: { optionId: string; title: string; adderName?: string }) {
   const toast = useToast();
   const remove = useRemovePollOption();
   const tx = t.pollSlot.withdraw;
@@ -30,7 +30,11 @@ export function OptionWithdraw({ optionId, title }: { optionId: string; title: s
   return (
     <div role="group" aria-label={tx.question} className="w-full rounded-control border border-danger/35 bg-danger/10 p-3" data-testid="poll-option-withdraw-confirm">
       <p className="text-sm font-semibold text-fg">{tx.question}</p>
-      <p className="mt-0.5 text-[13px] leading-snug text-fg/85">{tx.body}</p>
+      <p className="mt-0.5 text-[13px] leading-snug text-fg/85">
+        {tx.body}
+        {/* P42 Etappe 2: Vorschlag von jemand anderem – der Server sagt der Person Bescheid. */}
+        {adderName && <> {tx.tellsAdder(adderName)}</>}
+      </p>
       <div className="mt-2.5 flex flex-wrap gap-2">
         <Button
           variant="danger"

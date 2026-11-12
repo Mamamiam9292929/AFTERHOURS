@@ -902,7 +902,11 @@ export function PollDetailPage() {
                     </Button>
                   ) : !summary.isOver && canWithdrawOption(poll, tally.option, tally, user.id, isCrewManager, now) ? (
                     // P42: „Vertippt?“ – nachgereichter Vorschlag, zu dem sonst niemand geantwortet hat.
-                    <OptionWithdraw optionId={tally.option.id} title={tally.option.title} />
+                    <OptionWithdraw
+                      optionId={tally.option.id}
+                      title={tally.option.title}
+                      adderName={tally.option.added_by && tally.option.added_by !== user.id ? (people.lookup(tally.option.added_by)?.display_name ?? undefined) : undefined}
+                    />
                   ) : undefined
                 }
               />

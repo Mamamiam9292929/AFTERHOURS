@@ -20,6 +20,8 @@ export const pollSlot = {
     openLabel: (title: string) => `${title} zurückziehen`,
     question: "Wieder rausnehmen?",
     body: "Noch hat niemand sonst dazu geantwortet. Der Hinweis an die Crew verschwindet mit.",
+    /** Etappe 2: Vorschlag von jemand anderem – die Person bekommt Bescheid. */
+    tellsAdder: (name: string) => `${name} bekommt Bescheid.`,
     confirm: "Ja, zurückziehen",
     keep: "Behalten",
     done: (title: string) => `${title} ist wieder raus.`,
