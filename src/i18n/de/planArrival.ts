@@ -26,11 +26,27 @@ export const planArrival = {
   honest: "Nur eine Ansage für die Crew – kein Standort. Wer schon da ist, bekommt Bescheid, wenn du später kommst. Die Uhrzeit ist, was du sagst.",
   error: "„Seid ihr schon da?“ ließ sich gerade nicht laden.",
   retry: "Nochmal versuchen",
+  /** P44 · „Wo sitzt ihr?“ – kurzer Hinweis zur eigenen Ansage „Bin da“. */
+  spot: {
+    label: "Wo sitzt ihr?",
+    placeholder: "z. B. hinten links, Tisch 12",
+    hint: "Ein paar Worte für die, die noch kommen – kein Standort.",
+    save: "Sagen",
+    saved: "Gesagt – die Crew sieht, wo ihr sitzt.",
+    removed: "Hinweis entfernt.",
+    listLabel: "Wo ihr sitzt",
+    /** Eintrag in der Liste, z. B. „Carol: hinten links, Tisch 12“. */
+    person: (name: string, spot: string) => `${name}: ${spot}`,
+  },
   /** Etappe 2 · Kachel in der „Heute Abend“-Leiste auf Home. */
   home: {
     label: "Schon da?",
     mineHere: (time: string) => `Du bist da seit ${time}.`,
     mineLate: (time: string) => `Du kommst gegen ${time}.`,
+    /** P44: Ansage mit Hinweis, z. B. „Carol · da seit 20:02 Uhr · hinten links“. */
+    withSpot: (label: string, spot: string) => `${label} · ${spot}`,
+    mineSpot: (spot: string) => `Ihr sitzt: ${spot}`,
+    askSpot: "Wo sitzt ihr? Kurz sagen",
     more: (n: number) => (n === 1 ? "1 weitere Ansage auf der Planseite" : `${n} weitere Ansagen auf der Planseite`),
     loading: "„Schon da?“ lädt …",
     error: "„Schon da?“ gerade nicht abrufbar.",

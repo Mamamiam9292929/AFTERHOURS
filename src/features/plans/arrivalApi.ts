@@ -32,6 +32,19 @@ export function usePlanArrival(planId: string) {
   });
 }
 
+/** P44 · „Wo sitzt ihr?“ – Hinweis zur eigenen Ansage „Bin da“ setzen; leer löscht. Gibt den gespeicherten Text zurück. */
+export function useSetPlanArrivalSpot(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (spot: string): Promise<string | null> => {
+      const { data, error } = await supabase.rpc("set_plan_arrival_spot", { p_plan_id: planId, p_spot: spot });
+      if (error) throw error;
+      return (data as string | null) ?? null;
+    },
+    onSettled: () => void client.invalidateQueries({ queryKey: arrivalKey(planId) }),
+  });
+}
+
 export function useSetPlanArrival(planId: string) {
   const client = useQueryClient();
   return useMutation({

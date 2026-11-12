@@ -1,15 +1,17 @@
-import { IconCircleCheck } from "@/components/icons";
+import { useState, type FormEvent } from "react";
+import { IconCircleCheck, IconPin } from "@/components/icons";
 import { PosterTitle } from "@/components/layout/Page";
 import { Avatar, type Person } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Feedback";
+import { TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
 import { ARRIVAL_MINUTES, arrivalOrder, arrivalOverdue } from "@/lib/arrival";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatTime } from "@/lib/time";
-import { usePlanArrival, useSetPlanArrival, type ArrivalChoice } from "./arrivalApi";
+import { usePlanArrival, useSetPlanArrival, useSetPlanArrivalSpot, type ArrivalChoice } from "./arrivalApi";
 
 // F7: Texte von „Seid ihr schon da?“ laden erst mit der Karte – also nur rund um den Beginn eines Abends.
 await loadTexts("planArrival");
@@ -70,6 +72,8 @@ export function PlanArrivalCard({
         ? copy.leadLate(formatTime(mine.eta))
         : copy.lead;
   const people = arrivalOrder(data.people, userId);
+  // P44: Wer schon da ist und gesagt hat, wo – in derselben Reihenfolge wie die Liste.
+  const spots = people.filter((entry) => entry.state === "here" && entry.spot);
 
   function say(choice: ArrivalChoice) {
     if (setArrival.isPending) return;
@@ -151,12 +155,26 @@ export function PlanArrivalCard({
             })}
           </ul>
         )}
+        {spots.length > 0 && (
+          <ul className="mt-3 space-y-1.5" aria-label={copy.spot.listLabel} data-testid="plan-arrival-spots">
+            {spots.map((entry) => (
+              <li key={entry.user_id} data-testid="plan-arrival-spot" className="flex items-start gap-2 break-words text-sm leading-snug text-fg">
+                <IconPin className="mt-0.5 size-4 shrink-0 text-lime" aria-hidden />
+                <span className="min-w-0">
+                  {copy.spot.person(entry.user_id === userId ? t.states.you : (lookup(entry.user_id)?.display_name ?? t.states.formerMember), entry.spot ?? "")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
         {(data.missing > 0 || people.length > 0) && (
           <p className="mt-2.5 text-[13px] text-muted" data-testid="plan-arrival-missing">
             {data.missing > 0 ? copy.missing(data.missing) : copy.allSaid}
           </p>
         )}
       </div>
+
+      {data.can_answer && mine?.state === "here" && <ArrivalSpotForm key={mine.spot ?? ""} planId={planId} spot={mine.spot ?? null} />}
 
       {data.can_answer && mine && (
         <button
@@ -173,5 +191,45 @@ export function PlanArrivalCard({
         {copy.honest}
       </p>
     </section>
+  );
+}
+
+/**
+ * P44 · „Wo sitzt ihr?“ – wer „Bin da“ gesagt hat, schreibt in ein paar Worten dazu, wo genau („hinten links, Tisch 12“).
+ * Höchstens 60 Zeichen (der Server kürzt und fasst Leerzeichen zusammen); leer speichern löscht den Hinweis.
+ */
+function ArrivalSpotForm({ planId, spot }: { planId: string; spot: string | null }) {
+  const toast = useToast();
+  const setSpot = useSetPlanArrivalSpot(planId);
+  const [value, setValue] = useState(spot ?? "");
+  const copy = t.planArrival.spot;
+  const changed = value.trim().replace(/\s+/g, " ") !== (spot ?? "");
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!changed || setSpot.isPending) return;
+    setSpot.mutate(value, {
+      onSuccess: (saved) => toast.success(saved ? copy.saved : copy.removed),
+      onError: (error) => toast.error(error),
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-4 space-y-2" data-testid="plan-arrival-spot-form">
+      <TextField
+        label={copy.label}
+        hint={copy.hint}
+        placeholder={copy.placeholder}
+        value={value}
+        maxLength={60}
+        autoComplete="off"
+        enterKeyHint="send"
+        onChange={(event) => setValue(event.target.value)}
+                data-testid="plan-arrival-spot-input"
+      />
+      <Button type="submit" variant="secondary" size="sm" disabled={!changed} loading={setSpot.isPending} data-testid="plan-arrival-spot-save">
+        {copy.save}
+      </Button>
+    </form>
   );
 }

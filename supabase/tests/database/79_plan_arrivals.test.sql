@@ -107,8 +107,8 @@ select is((select array_agg(x ->> 'user_id' || ':' || (x ->> 'state') order by x
           (select array_agg(v order by v) from (values (tests.uid('bob') || ':here'), (tests.uid('carol') || ':late')) t(v)),
           'die Crew sieht Bob (da) und Carol (später) – niemand von außerhalb der Crew');
 select is((public.plan_arrival_status(tests.var('gleich')::uuid) ->> 'missing')::int, 1, 'eine Person ohne Ansage (Alice), Dave zählt nicht');
-select is((select count(*)::int from jsonb_object_keys(public.plan_arrival_status(tests.var('gleich')::uuid) -> 'people' -> 0)), 4,
-          'je Ansage nur Person, Stand, Uhrzeit und Zeitpunkt');
+select is((select count(*)::int from jsonb_object_keys(public.plan_arrival_status(tests.var('gleich')::uuid) -> 'people' -> 0)), 5,
+          'je Ansage nur Person, Stand, Uhrzeit, Hinweis „Wo sitzt ihr?“ (P44) und Zeitpunkt');
 
 -- Wer umschwenkt auf „Kann nicht“, verschwindet aus der Liste.
 select tests.login('carol');
