@@ -114,9 +114,11 @@ update public.user_settings set notification_preferences = notification_preferen
   where user_id = tests.uid('dave');
 delete from public.notifications;
 select tests.login('alice');
-select is(public.remind_plan_maybe(tests.var('bowling')::uuid), 1, 'Owner Alice darf fragen; gezählt wird Dave');
+select is(public.remind_plan_maybe(tests.var('bowling')::uuid), 2, 'Owner Alice darf fragen; gezählt werden Bob („vielleicht“, fragt jetzt nicht selbst) und Dave');
 select tests.logout();
-select is((select count(*)::int from public.notifications where type = 'plan_reminder'), 0, 'Dave hat die Gruppe abgeschaltet – keine Benachrichtigung');
+select is((select array_agg(n.user_id) from public.notifications n where n.type = 'plan_reminder'), array[tests.uid('bob')],
+          'nur Bob bekommt etwas – Dave hat die Gruppe abgeschaltet, Carol hat inzwischen zugesagt');
+delete from public.notifications;
 
 -- Ehemalige Mitglieder werden nicht gefragt.
 update public.plan_reminders set maybe_sent_at = now() - interval '7 hours' where plan_id = tests.var('bowling')::uuid;
