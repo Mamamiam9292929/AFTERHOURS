@@ -4488,6 +4488,19 @@ await step("P8 – Stammtisch: Plan wiederholt sich von selbst (Alice, Bob)", as
     await bob.page.getByText("Dieser Plan ist ein Vorschlag und noch nicht bestätigt.").waitFor();
     await shot(bob, "33-plan-wiederkehrend");
 
+    // P48: Alice setzt an dieser Runde „2 Tage vorher“ – die Karte sagt, dass die Frist für die nächsten Runden mitgilt.
+    await alice.page.goto(`${APP}/plans/${nextId}`);
+    const seriesDeadline = alice.page.getByTestId("plan-answer-by-card");
+    await seriesDeadline.waitFor();
+    check((await seriesDeadline.getByTestId("plan-answer-by-series").count()) === 0, "P48: ohne Frist kein Hinweis auf die nächsten Runden");
+    await seriesDeadline.getByRole("radio", { name: /^2 Tage vorher: / }).click();
+    await toast(alice, "alle sehen die Frist.");
+    await seriesDeadline.getByTestId("plan-answer-by-series").waitFor();
+    check((await seriesDeadline.getByTestId("plan-answer-by-series").innerText()).includes("Gilt auch für die nächsten Runden"),
+      "P48: Stammtisch mit Frist – Hinweis „Gilt auch für die nächsten Runden“");
+    await seriesDeadline.scrollIntoViewIfNeeded();
+    await shot(alice, "33-plan-frist-serie");
+
     // P8 Etappe 2: Alice setzt diesen Termin aus – die Serie läuft weiter, der nächste steht sofort da.
     await alice.page.goto(`${APP}/plans/${nextId}`);
     const skipCard = alice.page.getByRole("region", { name: "Regelmäßig" });
@@ -4510,7 +4523,17 @@ await step("P8 – Stammtisch: Plan wiederholt sich von selbst (Alice, Bob)", as
     check(psql(`select status || ':' || (skipped_at is not null) from public.plans where id = '${nextId}'`) === "cancelled:true", "ausgesetzter Termin ist abgesagt und markiert");
     check(psql(`select (p3.starts_at - p2.starts_at) = interval '7 days' from public.plans p2, public.plans p3 where p2.id = '${nextId}' and p3.id = '${thirdId}'`) === "t", "nächster Termin eine Woche später");
     check(psql(`select s.active from public.plan_series s join public.plans p on p.series_id = s.id where p.id = '${thirdId}'`) === "t", "die Serie läuft weiter");
+    // Der Beginn trägt hier Sekundenbruchteile (now() − 2 h), die Frist aus der App nur Millisekunden – deshalb gegen
+    // den Abstand der ausgesetzten Runde vergleichen und „2 Tage“ auf die Sekunde.
+    check(psql(`select p3.answer_by is not null
+        and (p3.starts_at at time zone 'Europe/Berlin') - (p3.answer_by at time zone 'Europe/Berlin')
+          = (p2.starts_at at time zone 'Europe/Berlin') - (p2.answer_by at time zone 'Europe/Berlin')
+        and abs(extract(epoch from (p3.starts_at at time zone 'Europe/Berlin') - (p3.answer_by at time zone 'Europe/Berlin')) - 172800) < 1
+      from public.plans p2, public.plans p3 where p2.id = '${nextId}' and p3.id = '${thirdId}'`) === "t",
+      "P48: nächste Runde übernimmt die Frist – 2 Tage vorher, gleiche Berliner Uhrzeit");
     await alice.page.getByTestId("repeat-line").waitFor();
+    await alice.page.getByTestId("plan-answer-by-series").waitFor();
+    check(true, "P48: auf der nächsten Runde steht die Frist samt Hinweis");
 
     // Bob erfährt es und sieht den Termin als „Ausgesetzt“ mit Sprung zum nächsten.
     await bob.page.goto(`${APP}/notifications`);

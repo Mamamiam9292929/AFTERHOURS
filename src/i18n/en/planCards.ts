@@ -46,6 +46,8 @@ export const planCards = {
       saved: (when: string) => `Answer by ${when} – everyone can see the deadline.`,
       removed: "No answer deadline any more.",
       tooLate: "Too close for a deadline – the evening starts soon.",
+      // P48: In a running series the deadline carries over to the next rounds.
+      series: "Also applies to the next rounds – always the same time before the start.",
     },
   },
   booking: {
