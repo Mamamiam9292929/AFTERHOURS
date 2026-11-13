@@ -8,7 +8,7 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { answerByState } from "@/lib/answerby";
 import { spotsLeft, waitingGuests, waitlistPosition } from "@/lib/capacity";
-import { goingWithGuests, quorumLeft } from "@/lib/quorum";
+import { goingHeads, goingWithGuests, quorumLeft } from "@/lib/quorum";
 import { formatCountdown, liveCountdown } from "@/lib/quickvote";
 import { calendarDaysBetween, formatDateTime, formatTime, ticketDate, zonedParts } from "@/lib/time";
 import type { AttendanceStatus, Crew, PlanStatus } from "@/lib/types";
@@ -235,7 +235,8 @@ export function PlanTicket({ plan, crew, userId, lookup, cutout, className }: Pl
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-fg">
             <AvatarStack people={going.map((p) => lookup(p.user_id))} max={5} />
-            {t.plans.ticket.going(going.length)}
+            {/* P51: Begleitung zählt mit – wie Mindest- und Höchstzahl daneben. */}
+            {t.plans.ticket.going(goingHeads(plan.participants))}
             <QuorumBadge plan={plan} />
             <CapacityBadge plan={plan} />
           </span>

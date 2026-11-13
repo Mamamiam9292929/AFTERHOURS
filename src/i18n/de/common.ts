@@ -260,6 +260,8 @@ export const errors = {
     plan_not_full: "Es ist noch Platz – sag einfach zu.",
     plan_capacity_conflict: "Die Höchstzahl darf nicht unter der Mindestzahl liegen.",
     plan_max_below_going: "Es haben schon mehr zugesagt – die Höchstzahl kann nicht darunter liegen.",
+    plan_plus_ones_not_going: "Begleitung geht nur mit „Bin dabei“.",
+    plan_plus_ones_started: "Der Abend hat schon angefangen.",
     plan_max_going_started: "Der Plan hat schon angefangen – die Höchstzahl lässt sich nur vorher ändern.",
     plan_waitlist_started: "Der Plan hat schon angefangen – die Nachrückliste ist geschlossen.",
     plan_waitlist_going: "Du bist schon dabei.",

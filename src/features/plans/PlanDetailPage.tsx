@@ -31,7 +31,7 @@ import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { downloadPlanIcs } from "@/lib/ics";
 import { qk } from "@/lib/query";
 import { liveStage } from "@/lib/live";
-import { goingWithGuests } from "@/lib/quorum";
+import { goingHeads, goingWithGuests } from "@/lib/quorum";
 import { formatAgo, formatDateLong, formatDateTime, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus, PlanStop } from "@/lib/types";
 import { estimateCosts, hasStarted, useClosePlan, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useRemindPlanMaybe, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
@@ -79,6 +79,8 @@ const PlanArrivalCard = lazy(() => import("./PlanArrival").then((m) => ({ defaul
 const PlanHomeCard = lazy(() => import("./PlanHome").then((m) => ({ default: m.PlanHomeCard })));
 // P50: „Danach noch wohin?“ – Stationen des Abends; Daten und Formular erst mit der Planseite (eigener Chunk).
 const PlanStopsFact = lazy(() => import("./PlanStops").then((m) => ({ default: m.PlanStopsFact })));
+// P51: „Bringst du wen mit?“ – nur bei „Bin dabei“ vor Beginn.
+const PlusOnesPicker = lazy(() => import("./PlusOnes").then((m) => ({ default: m.PlusOnesPicker })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -314,6 +316,12 @@ export function PlanDetailPage() {
                 {t.plans.detail.attendance.askedAgain(ANSWERS.find((a) => a.value === previous)?.label ?? previous)}
               </p>
             )}
+            {/* P51: Begleitung zur Zusage – zählt bei Plätzen, Mindestzahl und Reservierung mit. */}
+            {!locked && !started && mine === "going" && (
+              <Suspense fallback={null}>
+                <PlusOnesPicker plan={plan} userId={user.id} now={now} />
+              </Suspense>
+            )}
             {/* P24: Zusatz zur eigenen Antwort („komme später“) – die Crew sieht ihn bei „Wer kommt mit?“. */}
             {!locked && mine !== "invited" && <AnswerNote key={mine} planId={plan.id} answer={mine} note={myRow?.note ?? null} />}
             {locked && myRow?.note && mine !== "invited" && <p className="mt-2.5 text-sm font-semibold text-fg">{t.plans.detail.attendance.note.quoted(myRow.note)}</p>}
@@ -482,7 +490,8 @@ export function PlanDetailPage() {
                       <div className="flex min-h-9 items-center justify-between gap-3">
                         <p className="flex items-center gap-2 text-[13px] font-semibold text-muted">
                           <span aria-hidden className={cn("size-2 rounded-full", GROUP_DOT[status])} />
-                          {t.plans.detail.attendance.groups[status]} ({group.length + guests.length})
+                          {/* P51: Bei „Dabei“ zählt die Begleitung mit – wie bei Mindest- und Höchstzahl. */}
+                          {t.plans.detail.attendance.groups[status]} ({(status === "going" ? goingHeads(group) : group.length) + guests.length})
                         </p>
                         {askable > 0 && (
                           <Button
@@ -521,6 +530,13 @@ export function PlanDetailPage() {
                               <Avatar person={person} size="xs" decorative />
                               <span className="min-w-0 break-words">
                                 {p.user_id === user.id ? t.states.you : (person?.display_name ?? t.states.formerMember)}
+                                {/* P51: „+2“ – bringt zwei Personen ohne Konto mit. */}
+                                {status === "going" && (p.plus_ones ?? 0) > 0 && (
+                                  <span className="ml-1.5 inline-flex h-5 items-center rounded-full bg-lime px-1.5 align-[1px] text-[12px] font-bold text-lime-ink" data-testid="who-plus-ones">
+                                    <span aria-hidden>{t.planCards.plusOnes.chip(p.plus_ones ?? 0)}</span>
+                                    <span className="sr-only">{t.planCards.plusOnes.chipLabel(p.plus_ones ?? 0)}</span>
+                                  </span>
+                                )}
                                 {p.note && status !== "invited" && (
                                   <span className="font-normal text-muted" data-testid="who-note">
                                     {" · "}

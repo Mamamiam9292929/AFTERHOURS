@@ -4,7 +4,7 @@
  * damit die Regeln ohne i18n-Laufzeit testbar bleiben.
  */
 
-type Answer = { attendance_status: string; waitlisted_at?: string | null };
+type Answer = { attendance_status: string; waitlisted_at?: string | null; plus_ones?: number | null };
 
 export type StandingPlan = {
   status: string;
@@ -40,7 +40,8 @@ export function planStanding(plan: StandingPlan, now: Date = new Date()): Standi
   const guests = plan.guests ?? [];
   const waits = (a: Answer, guest: boolean) => a.attendance_status === "maybe" && Boolean(a.waitlisted_at) && (!guest || Boolean(plan.guests_allowed));
   const all = [...plan.participants.map((a) => ({ a, guest: false })), ...guests.map((a) => ({ a, guest: true }))];
-  const going = all.filter(({ a }) => a.attendance_status === "going").length;
+  // P51: Begleitung zählt bei „dabei“ mit (wie `goingWithGuests` und `app_private.plan_going_count`).
+  const going = all.reduce((sum, { a, guest }) => sum + (a.attendance_status !== "going" ? 0 : 1 + (guest ? 0 : Math.min(Math.max(Math.trunc(a.plus_ones ?? 0), 0), 3))), 0);
   const waiting = all.filter(({ a, guest }) => waits(a, guest)).length;
   const maybe = all.filter(({ a, guest }) => a.attendance_status === "maybe" && !waits(a, guest)).length;
   const open = plan.participants.filter((a) => a.attendance_status === "invited").length;
