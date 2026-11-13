@@ -398,6 +398,9 @@ export const planCards = {
     hint: "Bringing someone? Tap once all your tickets are sorted.",
     savedYes: "Noted: you've got your ticket.",
     savedNo: "Noted: no ticket yet.",
+    remind: "Ask",
+    remindLabel: (n: number) => (n === 1 ? "Ask – check whether the person without a ticket has one now" : `Ask – check whether all ${n} without a ticket have one now`),
+    reminded: (n: number) => (n === 0 ? "Everyone has a ticket by now – nobody was asked." : n === 1 ? "Asked 1 person." : `Asked ${n} people.`),
     card: {
       title: "Tickets",
       intro: "Gig, cinema, festival: does everyone need their own ticket? Then the crew sees who already has one.",

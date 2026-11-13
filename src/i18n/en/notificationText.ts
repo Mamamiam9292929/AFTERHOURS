@@ -135,6 +135,9 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     if (p.deadline) {
       return { title: str(p, "answer_by") ? `Reply by ${formatDateTime(str(p, "answer_by"))} – yours is still missing` : "The reply deadline is almost up – yours is still missing", body: plan };
     }
+    if (p.ticket) {
+      return { title: `${actor} asks: got your ticket?`, body: `You're going but have no ticket yet · ${plan}` };
+    }
     return p.maybe
       ? { title: `${actor} asks: are you in now?`, body: `You said maybe · ${plan}` }
       : { title: `${actor} asks: are you in?`, body: plan };

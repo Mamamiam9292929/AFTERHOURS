@@ -158,6 +158,10 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     if (p.deadline) {
       return { title: str(p, "answer_by") ? `Antwort bis ${formatDateTime(str(p, "answer_by"))} – deine fehlt noch` : "Die Antwortfrist läuft ab – deine Antwort fehlt noch", body: plan };
     }
+    // P53 Etappe 2a: Mit `ticket` fragt die organisierende Person alle mit Zusage, aber ohne Ticket.
+    if (p.ticket) {
+      return { title: `${actor} fragt: Hast du dein Ticket?`, body: `Du bist dabei, aber noch ohne Ticket · ${plan}` };
+    }
     return p.maybe
       ? { title: `${actor} fragt: Bist du jetzt dabei?`, body: `Du hast „vielleicht“ gesagt · ${plan}` }
       : { title: `${actor} fragt: Bist du dabei?`, body: plan };

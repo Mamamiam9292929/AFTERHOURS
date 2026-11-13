@@ -411,6 +411,10 @@ export const planCards = {
     hint: "Bringst du wen mit, tipp erst, wenn alle Tickets da sind.",
     savedYes: "Notiert: Du hast dein Ticket.",
     savedNo: "Notiert: noch kein Ticket.",
+    remind: "Nachfragen",
+    remindLabel: (n: number) =>
+      n === 1 ? "Nachfragen – die Person ohne Ticket fragen, ob sie schon eins hat" : `Nachfragen – alle ${n} ohne Ticket fragen, ob sie schon eins haben`,
+    reminded: (n: number) => (n === 0 ? "Alle haben inzwischen ein Ticket – niemand wurde gefragt." : n === 1 ? "1 Person gefragt." : `${n} Personen gefragt.`),
     card: {
       title: "Tickets",
       intro: "Konzert, Kino, Festival: Braucht jede:r ein eigenes Ticket? Dann sieht die Crew, wer schon eins hat.",
