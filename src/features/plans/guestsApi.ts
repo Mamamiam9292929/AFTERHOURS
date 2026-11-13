@@ -90,6 +90,8 @@ export function useGuestRsvp(token: string, secret: string) {
     },
     onSettled: () => {
       void client.invalidateQueries({ queryKey: rsvpKey(token) });
+      // P52: „Kann nicht“ und Zurückziehen geben Sachen auf der Mitbring-Liste frei.
+      void client.invalidateQueries({ queryKey: ["plan-guest-items", token] });
       void client.invalidateQueries({ queryKey: ["plan-share-preview", token] });
     },
   });
@@ -153,6 +155,45 @@ export function useGuestPlusOnes(token: string, secret: string) {
       void client.invalidateQueries({ queryKey: rsvpKey(token) });
       void client.invalidateQueries({ queryKey: ["plan-share-preview", token] });
     },
+  });
+}
+
+/**
+ * P52 · Mitbring-Liste für Gäste mit Zusage oder „Vielleicht“: Sachen der Crew mit Stand – offen, eigene, vergeben
+ * (ohne Namen). `open`: Übernehmen geht noch (Zusagen über den Link offen).
+ */
+export type SharedPlanItems = { open: boolean; items: { id: string; label: string; state: "open" | "mine" | "taken" }[] };
+
+const itemsKey = (token: string) => ["plan-guest-items", token] as const;
+
+export function useSharedPlanItems(token: string, secret: string, enabled: boolean) {
+  return useQuery({
+    queryKey: itemsKey(token),
+    enabled,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    retry: false,
+    queryFn: async (): Promise<SharedPlanItems> => {
+      const { data, error } = await supabase.rpc("shared_plan_items", { p_token: token, p_secret: secret });
+      if (error) throw error;
+      return data as SharedPlanItems;
+    },
+  });
+}
+
+/** „Bring ich“ (`claim: true`) / „Doch nicht“ als Gast. Bei „schon vergeben“ lädt die Liste neu. */
+export function useGuestClaimPlanItem(token: string, secret: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { itemId: string; claim: boolean }) => {
+      const { error } = await supabase.rpc("guest_claim_plan_item", { p_token: token, p_secret: secret, p_item_id: input.itemId, p_claim: input.claim });
+      if (error) throw error;
+    },
+    onSuccess: (_data, input) =>
+      client.setQueryData<SharedPlanItems>(itemsKey(token), (old) =>
+        old ? { ...old, items: old.items.map((i) => (i.id === input.itemId ? { ...i, state: input.claim ? "mine" : "open" } : i)) } : old,
+      ),
+    onSettled: () => void client.invalidateQueries({ queryKey: itemsKey(token) }),
   });
 }
 

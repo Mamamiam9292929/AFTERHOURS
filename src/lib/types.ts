@@ -367,8 +367,10 @@ export interface PlanItem {
   label: string;
   /** null, wenn das Konto gelöscht wurde */
   created_by: string | null;
-  /** wer es mitbringt; null = noch offen */
+  /** wer es mitbringt; null = noch offen (oder ein Gast bringt es) */
   claimed_by: string | null;
+  /** P52: Gast über den Teilen-Link (`plan_guests.id`), der es mitbringt; schließt `claimed_by` aus */
+  claimed_by_guest: string | null;
   claimed_at: string | null;
   created_at: string;
 }

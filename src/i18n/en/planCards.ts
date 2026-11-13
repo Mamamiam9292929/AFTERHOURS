@@ -261,6 +261,9 @@ export const planCards = {
     removed: "Removed from the list.",
     you: "You're bringing it",
     bringer: (name: string) => `${name} is bringing it`,
+    /** P52 */
+    someGuest: "A guest",
+    guestsHint: "Friends without an account who answered via the link see this list too and can take open items.",
     open: "Still open",
     progress: (claimed: number, total: number) => (claimed === total ? "All covered" : `${claimed} of ${total} covered`),
     mine: (n: number) => (n === 1 ? "You're bringing 1 thing." : `You're bringing ${n} things.`),

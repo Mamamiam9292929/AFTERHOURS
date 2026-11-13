@@ -54,6 +54,23 @@ export const planGuests = {
     ctaTitle: "Want to plan too?",
     ctaBody: "With an account you see all of the crew's plans, vote along and get notified when something changes.",
   },
+  /** P52 · Bring list for guests who said yes or maybe – without crew names. */
+  items: {
+    title: "Who's bringing what?",
+    intro: "The crew listed what's needed. Tap what you'll bring – the crew sees it on the list.",
+    claim: "I'll bring it",
+    claimLabel: (label: string) => `${label} – I'll bring it`,
+    unclaim: "Not after all",
+    unclaimLabel: (label: string) => `${label} – not bringing it after all`,
+    open: "Still open",
+    mine: "You're bringing it",
+    taken: "Someone's bringing it",
+    progress: (taken: number, total: number) => (taken === total ? "All taken" : `${taken} of ${total} taken`),
+    claimed: (label: string) => `Saved: you're bringing ${label}.`,
+    unclaimed: (label: string) => `${label} is open again.`,
+    locked: "The night has started – the list can't be changed via the link anymore.",
+    loading: "Loading the bring list …",
+  },
   /** P27 · Kalenderdatei für Gäste ohne Konto. */
   calendar: {
     title: "In your calendar",

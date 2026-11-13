@@ -54,6 +54,23 @@ export const planGuests = {
     ctaTitle: "Selbst mitplanen?",
     ctaBody: "Mit einem Konto siehst du alle Pläne der Crew, stimmst mit ab und bekommst Bescheid, wenn sich etwas ändert.",
   },
+  /** P52 · Mitbring-Liste für Gäste mit Zusage oder „Vielleicht“ – ohne Namen der Crew. */
+  items: {
+    title: "Wer bringt was?",
+    intro: "Die Crew hat aufgeschrieben, was gebraucht wird. Tipp an, was du mitbringst – die Crew sieht es bei der Liste.",
+    claim: "Bring ich",
+    claimLabel: (label: string) => `${label} – bring ich mit`,
+    unclaim: "Doch nicht",
+    unclaimLabel: (label: string) => `${label} – doch nicht mitbringen`,
+    open: "Noch offen",
+    mine: "Bringst du mit",
+    taken: "Bringt schon jemand",
+    progress: (taken: number, total: number) => (taken === total ? "Alles vergeben" : `${taken} von ${total} vergeben`),
+    claimed: (label: string) => `Gespeichert: Du bringst ${label} mit.`,
+    unclaimed: (label: string) => `${label} ist wieder offen.`,
+    locked: "Der Abend hat angefangen – die Liste lässt sich über den Link nicht mehr ändern.",
+    loading: "Mitbring-Liste wird geladen …",
+  },
   /** P27 · Kalenderdatei für Gäste ohne Konto – entsteht im Browser aus dem, was die Karte zeigt. */
   calendar: {
     title: "Im Kalender",
