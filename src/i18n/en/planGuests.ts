@@ -2,6 +2,16 @@ import type { planGuests as dePlanGuests } from "../de/planGuests";
 
 export const planGuests = {
   rsvp: {
+    /** P51 Etappe 2: bringing someone as a guest – like “Bringing anyone?” on the crew's plan page. */
+    plusOnes: {
+      question: "Bringing anyone?",
+      none: "Just me",
+      chip: (n: number) => `+${n}`,
+      option: (n: number) => (n === 0 ? "Just me, nobody else" : n === 1 ? "I'm bringing 1 person" : `I'm bringing ${n} people`),
+      hint: "The crew sees “+1” next to your name – no names needed for the people you bring. If you change your answer, this resets.",
+      full: "All spots are taken – no room for more people.",
+      saved: (n: number) => (n === 0 ? "Saved: just you." : n === 1 ? "+1 saved." : `+${n} saved.`),
+    },
     /** P26 Etappe 2: Runde voll – „Bin dabei“ geht erst wieder, wenn jemand absagt. */
     full: "This plan is full right now. Tap “Waitlist” – if someone drops out, you’re in automatically. “Maybe” always works.",
     waitlist: {

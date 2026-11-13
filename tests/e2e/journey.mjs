@@ -4202,6 +4202,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
         case when m.user_id in ('${bobId}', '${aliceId}') then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
         case when m.user_id in ('${bobId}', '${aliceId}') then now() end
       from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    let plusGuestContext = null;
     try {
       await bob.page.goto(`${APP}/plans/${plusPlan}`);
       await bob.page.getByRole("heading", { level: 1, name: "Pizza bei Gino" }).waitFor();
@@ -4247,7 +4248,56 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
         });
         check(res.status === 401 || res.status === 403, `ohne Anmeldung keine Begleitung (${res.status})`);
       }
+
+      // P51 Etappe 2 – Gäste bringen auch wen mit: Lena (ohne Konto, 390 px) sagt über den Teilen-Link zu. Bei
+      // „höchstens 4“ und drei Zusagen ist nur noch „+1“ frei („+2“/„+3“ gesperrt); ein Tipp speichert, die Crew
+      // sieht „+1“ hinter „Lena (Gast)“ und „Dabei (4)“. Ein fremdes Geheimnis ändert nichts.
+      check((await api(bob, "POST", "rpc/set_plan_guests", { p_plan_id: plusPlan, p_allowed: true })).status < 300, "Begleitung (Gast): Bob lässt Gäste zusagen");
+      const plusToken = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: plusPlan })).json;
+      plusGuestContext = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+      const lena = { page: await plusGuestContext.newPage(), viewport: "mobile" };
+      await lena.page.goto(`${APP}/s/${plusToken}`);
+      await lena.page.getByTestId("rsvp-card").waitFor();
+      check((await lena.page.getByTestId("rsvp-plus-ones").count()) === 0, "Begleitung (Gast): ohne Zusage keine Auswahl");
+      await lena.page.getByRole("radio", { name: "Bin dabei" }).click();
+      await lena.page.getByLabel("Dein Name").fill("Lena");
+      await lena.page.getByRole("button", { name: "Antwort senden" }).click();
+      const guestPicker = lena.page.getByTestId("rsvp-plus-ones");
+      await guestPicker.waitFor();
+      check((await guestPicker.getByRole("radio", { name: "Nur ich, ohne Begleitung" }).getAttribute("aria-checked")) === "true", "Begleitung (Gast): anfangs „Nur ich“");
+      // Die Vorschau lädt nach der Zusage neu: dann ist nur noch ein Platz frei.
+      await lena.page.waitForFunction(() => document.querySelector('[data-testid="rsvp-plus-ones"] [data-plus-ones="2"]')?.hasAttribute("disabled"));
+      check(await guestPicker.getByRole("radio", { name: "Ich bringe 3 Personen mit" }).isDisabled(), "Begleitung (Gast): „+3“ passt nicht mehr");
+      check(!(await guestPicker.getByRole("radio", { name: "Ich bringe 1 Person mit" }).isDisabled()), "Begleitung (Gast): „+1“ passt noch");
+      await guestPicker.getByRole("radio", { name: "Ich bringe 1 Person mit" }).click();
+      await guestPicker.getByText("+1 gespeichert.").waitFor();
+      check(psql(`select plus_ones from public.plan_guests where plan_id = '${plusPlan}' and display_name = 'Lena'`) === "1", "Begleitung (Gast): mit einem Tipp gespeichert");
+      check((await guestPicker.getByRole("radio", { name: "Ich bringe 1 Person mit" }).getAttribute("aria-checked")) === "true", "Begleitung (Gast): „+1“ gewählt");
+      await guestPicker.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(lena, "Begleitung als Gast");
+      await a11y(lena, "geteilt-begleitung");
+      await shot(lena, "21w2-geteilt-gast-begleitung");
+      // Fremdes Geheimnis: abgewiesen, Lena bleibt bei „+1“.
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/guest_plus_ones_shared_plan`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_token: plusToken, p_secret: "f".repeat(64), p_count: 0 }),
+        });
+        check(res.status >= 400, `Begleitung (Gast): fremdes Geheimnis abgewiesen (${res.status})`);
+        check(psql(`select plus_ones from public.plan_guests where plan_id = '${plusPlan}' and display_name = 'Lena'`) === "1", "Begleitung (Gast): fremdes Geheimnis ändert nichts");
+      }
+      // Die Crew sieht „+1“ hinter Lena; „Dabei“ zählt 4 (Bob, Alice, Lena mit einer) – die Runde ist voll.
+      await bob.page.reload();
+      const guestChip = bob.page.getByTestId("who-guest").filter({ hasText: "Lena" });
+      await guestChip.waitFor();
+      check((await guestChip.getByTestId("who-plus-ones").innerText()).includes("+1"), "Begleitung (Gast): Crew sieht „+1“ beim Gast");
+      check(/Dabei \(4\)/.test(await bob.page.locator("p", { hasText: /^Dabei \(/ }).first().innerText()), "Begleitung (Gast): „Dabei“ zählt 4");
+      check((await api(carol, "POST", "rpc/set_attendance", { p_plan_id: plusPlan, p_status: "going" })).status >= 400, "Begleitung (Gast): voll – Carols Zusage abgewiesen");
+      await guestChip.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21w3-plan-gast-begleitung");
     } finally {
+      if (plusGuestContext) await plusGuestContext.close().catch(() => {});
       psql(`delete from public.notifications where related_entity_id = '${plusPlan}'; delete from public.plans where id = '${plusPlan}'`);
     }
   }

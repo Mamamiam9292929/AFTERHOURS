@@ -1,4 +1,4 @@
-// P51 · „Ich bring wen mit“ – Begleitung zählt bei „dabei“ mit (src/lib/quorum.ts, src/lib/standing.ts).
+// P51 · „Ich bring wen mit“ (Etappe 2: auch Gäste) – Begleitung zählt bei „dabei“ mit (src/lib/quorum.ts, src/lib/standing.ts).
 // Gleiche Zählung wie `app_private.plan_going_count` auf dem Server (pgTAP 92_plan_plus_ones).
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -37,7 +37,7 @@ test("Mindest- und Höchstzahl rechnen mit Begleitung", () => {
   assert.equal(spotsLeft(plan, going, now), 0, "und voll");
 });
 
-test("Zwischenstand zählt Begleitung bei „dabei“, Gäste ohne", () => {
+test("Zwischenstand zählt Begleitung bei „dabei“ – auch bei Gästen (Etappe 2)", () => {
   const standing = planStanding(
     {
       status: "confirmed",
@@ -52,5 +52,19 @@ test("Zwischenstand zählt Begleitung bei „dabei“, Gäste ohne", () => {
     },
     now,
   );
-  assert.deepEqual(standing, { going: 4, maybe: 1, waiting: 0, open: 1, quorumLeft: 2, spotsLeft: null });
+  assert.deepEqual(standing, { going: 7, maybe: 1, waiting: 0, open: 1, quorumLeft: 0, spotsLeft: null });
+});
+
+test("Etappe 2: Begleitung der Gäste zählt wie bei Mitgliedern", () => {
+  const participants = [{ attendance_status: "going", plus_ones: 1 }];
+  const guests = [
+    { attendance_status: "going", plus_ones: 2 },
+    { attendance_status: "going" },
+    { attendance_status: "maybe", plus_ones: 3 },
+    { attendance_status: "declined", plus_ones: 1 },
+  ];
+  assert.equal(goingWithGuests({ participants, guests }), 6, "2 + (3 + 1); „Vielleicht“ und Absage zählen nicht");
+  assert.equal(goingWithGuests({ participants, guests: null }), 2, "ohne Gäste");
+  const plan = { max_going: 6, status: "confirmed", starts_at: "2026-11-14T19:00:00Z" };
+  assert.equal(spotsLeft(plan, goingWithGuests({ participants, guests }), now), 0, "Gäste-Begleitung füllt die Runde");
 });

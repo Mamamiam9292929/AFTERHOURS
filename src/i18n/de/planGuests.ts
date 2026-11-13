@@ -1,6 +1,16 @@
 /** W10 · Zusagen ohne Konto beim geteilten Plan – Seitentexte, geladen erst mit Zusagekarte bzw. Gästeliste (F7). */
 export const planGuests = {
   rsvp: {
+    /** P51 Etappe 2: Begleitung als Gast – wie „Bringst du wen mit?“ auf der Planseite der Crew. */
+    plusOnes: {
+      question: "Bringst du wen mit?",
+      none: "Nur ich",
+      chip: (n: number) => `+${n}`,
+      option: (n: number) => (n === 0 ? "Nur ich, ohne Begleitung" : n === 1 ? "Ich bringe 1 Person mit" : `Ich bringe ${n} Personen mit`),
+      hint: "Die Crew sieht „+1“ hinter deinem Namen, Namen deiner Begleitung braucht es nicht. Änderst du deine Antwort, ist die Begleitung weg.",
+      full: "Alle Plätze sind vergeben – mehr Begleitung passt nicht rein.",
+      saved: (n: number) => (n === 0 ? "Ohne Begleitung gespeichert." : n === 1 ? "+1 gespeichert." : `+${n} gespeichert.`),
+    },
     /** P26 Etappe 2/3b: Runde voll – statt „Bin dabei“ auf die Nachrückliste. */
     full: "Die Runde ist gerade voll. Tipp auf „Nachrücken“ – sagt jemand ab, bist du automatisch dabei. „Vielleicht“ geht jederzeit.",
     /** P26 Etappe 3b: eigener Platz auf der Nachrückliste; ohne Konto gibt es keine Nachricht. */
