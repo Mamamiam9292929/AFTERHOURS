@@ -75,6 +75,8 @@ const PlanCloseCard = lazy(() => import("./PlanFeedback").then((m) => ({ default
 // P31: „Gut heimgekommen?“ – Karte und Texte nur rund um den Abend (ab Beginn bis 12 h nach dem Ende).
 const PlanArrivalCard = lazy(() => import("./PlanArrival").then((m) => ({ default: m.PlanArrivalCard })));
 const PlanHomeCard = lazy(() => import("./PlanHome").then((m) => ({ default: m.PlanHomeCard })));
+// P50: „Danach noch wohin?“ – Stationen des Abends; Daten und Formular erst mit der Planseite (eigener Chunk).
+const PlanStopsFact = lazy(() => import("./PlanStops").then((m) => ({ default: m.PlanStopsFact })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -409,6 +411,10 @@ export function PlanDetailPage() {
               {/* P6 Etappe 3: Wo genau – kleiner Stadtplan, erst nach Einwilligung (wie in Discover). */}
               {place?.latitude != null && place.longitude != null && <SpotMap point={{ latitude: place.latitude, longitude: place.longitude }} name={place.name} demo={place.is_demo} />}
             </Fact>
+            {/* P50: Danach noch wohin? – weitere Stationen in der Reihenfolge des Abends. */}
+            <Suspense fallback={null}>
+              <PlanStopsFact planId={plan.id} startsAt={plan.starts_at} canManage={canManage} locked={locked} />
+            </Suspense>
             {/* P5: Vorhersage für Beginn und Ort (Open-Meteo) – nur bei anstehenden Plänen mit Ort. */}
             {!locked && <PlanWeather plan={plan} />}
             <Fact icon={<IconNavigation aria-hidden />} label={t.plans.detail.meetingPoint}>

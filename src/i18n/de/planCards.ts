@@ -289,6 +289,27 @@ export const planCards = {
       movie: { name: "Filmabend", items: ["Popcorn", "Chips", "Getränke", "Decken", "Beamer", "Schokolade"] },
     },
   },
+  /** P50 · „Danach noch wohin?“ – weitere Stationen des Abends unter „Wo“. */
+  stops: {
+    label: "Danach",
+    empty: "Noch keine weitere Station – geht ihr danach noch woanders hin?",
+    addFirst: "Danach noch wohin?",
+    addMore: "Noch eine Station",
+    name: "Wohin?",
+    namePlaceholder: "z. B. Bar Raval, Club, Döner",
+    time: "Ab wann?",
+    address: "Adresse",
+    addressPlaceholder: "Straße und Hausnummer",
+    timeHint: "Uhrzeit vor dem Beginn zählt als nächster Tag (01:00 = nach Mitternacht).",
+    save: "Station anhängen",
+    cancel: "Abbrechen",
+    added: (name: string) => `„${name}“ hängt am Abend dran.`,
+    removed: "Station herausgenommen.",
+    remove: (name: string) => `„${name}“ herausnehmen`,
+    later: "danach",
+    full: "Vier Stationen – mehr passt in keinen Abend.",
+    loadError: "Stationen konnten nicht geladen werden.",
+  },
   /** P3 · Kosten aufteilen: wer hat was ausgelegt, wer gibt wem wie viel. Bezahlt wird außerhalb der App. */
   expenses: {
     title: "Kosten teilen",
