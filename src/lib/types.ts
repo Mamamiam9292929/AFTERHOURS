@@ -346,6 +346,17 @@ export interface PlanLiveLocation {
   arrival_eta: string | null;
 }
 
+/** P50 · „Danach noch wohin?“ – weitere Station eines Abends (ohne Personenbezug). */
+export interface PlanStop {
+  id: string;
+  plan_id: string;
+  title: string;
+  /** null = ohne Uhrzeit („danach“) */
+  at: string | null;
+  address: string | null;
+  created_at: string;
+}
+
 export interface PlanItem {
   id: string;
   plan_id: string;

@@ -279,6 +279,27 @@ export const planCards = {
       movie: { name: "Movie night", items: ["Popcorn", "Crisps", "Drinks", "Blankets", "Projector", "Chocolate"] },
     },
   },
+  /** P50 · “Where to after?” – more stops for the evening under “Where”. */
+  stops: {
+    label: "After that",
+    empty: "No further stop yet – heading somewhere else afterwards?",
+    addFirst: "Where to after?",
+    addMore: "Add another stop",
+    name: "Where to?",
+    namePlaceholder: "e.g. Bar Raval, club, kebab",
+    time: "From when?",
+    address: "Address",
+    addressPlaceholder: "Street and number",
+    timeHint: "A time before the start counts as the next day (01:00 = after midnight).",
+    save: "Add stop",
+    cancel: "Cancel",
+    added: (name: string) => `“${name}” is now part of the evening.`,
+    removed: "Stop removed.",
+    remove: (name: string) => `Remove “${name}”`,
+    later: "later",
+    full: "Four stops – no evening needs more.",
+    loadError: "Couldn't load the stops.",
+  },
   /** P3 · Kosten aufteilen: wer hat was ausgelegt, wer gibt wem wie viel. Bezahlt wird außerhalb der App. */
   expenses: {
     title: "Split costs",

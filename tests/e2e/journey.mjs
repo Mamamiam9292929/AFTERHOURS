@@ -7150,6 +7150,94 @@ await step("P44 – „Wo sitzt ihr?“: wer da ist, sagt wo genau (Carol 390 px
   }
 });
 
+await step("P50 – „Danach noch wohin?“: Stationen am Abend (Bob organisiert, Carol 390 px)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const uidOf = (user) => psql(`select id from auth.users where email = '${user.email}'`);
+  const title = `Essen und weiterziehen ${RUN}`;
+  // Morgen, 19 Uhr Berliner Zeit – damit „22:30“ am selben Abend liegt und „13:30“ zu weit wäre.
+  const planId = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+    values ('${ids.crew}', '${uidOf(bob)}', '${title}',
+            ((date_trunc('day', now() at time zone 'Europe/Berlin') + interval '1 day 19 hours') at time zone 'Europe/Berlin'), 'confirmed')
+    returning id`).split("\n")[0];
+  const stopsOf = () => psql(`select coalesce(string_agg(title || '|' || coalesce(to_char(at at time zone 'Europe/Berlin', 'HH24:MI'), '-') || '|' || coalesce(address, '-'), ';' order by created_at), '')
+    from public.plan_stops where plan_id = '${planId}'`);
+  const cp = carol.page;
+  const narrow = cp.viewportSize();
+  await cp.setViewportSize({ width: 390, height: 844 });
+  try {
+    // Carol (einfaches Mitglied): ohne Stationen steht nichts da – kein Knopf, keine leere Zeile.
+    await cp.goto(`${APP}/plans/${planId}`);
+    await cp.getByText("Treffpunkt").first().waitFor({ timeout: 20_000 });
+    check((await cp.getByTestId("plan-stop-open").count()) === 0, "P50: Mitglieder hängen keine Station an");
+    check((await cp.getByTestId("plan-stops").count()) === 0, "P50: ohne Stationen keine Liste");
+
+    // Bob (organisiert): „Danach noch wohin?“ öffnet das Formular.
+    const bp = bob.page;
+    await bp.goto(`${APP}/plans/${planId}`);
+    await bp.getByTestId("plan-stop-open").click();
+    const form = bp.getByTestId("plan-stop-form");
+    await form.waitFor();
+    // Fehlerzustand: zu spät (Beginn 19 Uhr + 18 h = 13 Uhr) und ohne Namen.
+    await form.getByRole("button", { name: "Station anhängen" }).click();
+    await form.getByText("Wohin geht's? Mindestens zwei Zeichen.").waitFor();
+    await form.getByLabel("Wohin?").fill("Frühstück");
+    await form.getByLabel("Ab wann?").fill("13:30");
+    await form.getByRole("button", { name: "Station anhängen" }).click();
+    await form.getByText("Die Uhrzeit muss nach dem Beginn liegen – höchstens 18 Stunden danach.").waitFor();
+    check(stopsOf() === "", "P50: nichts gespeichert bei falscher Uhrzeit");
+
+    await form.getByLabel("Wohin?").fill("  Bar   Raval ");
+    await form.getByLabel("Ab wann?").fill("22:30");
+    await form.getByLabel("Adresse").fill("Muskauer Str. 9");
+    await form.getByRole("button", { name: "Station anhängen" }).click();
+    await toast(bob, "„Bar Raval“ hängt am Abend dran.");
+    check(stopsOf() === "Bar Raval|22:30|Muskauer Str. 9", `P50: Station gespeichert (${stopsOf()})`);
+
+    // Zweite Station ohne Uhrzeit – steht danach.
+    await bp.getByTestId("plan-stop-open").click();
+    await bp.getByTestId("plan-stop-form").getByLabel("Wohin?").fill("Tanzen");
+    await bp.getByTestId("plan-stop-form").getByRole("button", { name: "Station anhängen" }).click();
+    await toast(bob, "„Tanzen“ hängt am Abend dran.");
+    await bp.getByTestId("plan-stop").nth(1).waitFor();
+    const order = await bp.getByTestId("plan-stop").allInnerTexts();
+    check(/^22:30[\s\S]*Bar Raval/.test(order[0] ?? "") && /^danach[\s\S]*Tanzen/.test(order[1] ?? ""), `P50: Reihenfolge des Abends (${JSON.stringify(order)})`);
+
+    // Carol sieht beide Stationen, mit Route zur Bar, ohne Knopf zum Herausnehmen.
+    await cp.reload();
+    const stops = cp.getByTestId("plan-stop");
+    await stops.nth(1).waitFor({ timeout: 20_000 });
+    check((await stops.count()) === 2, "P50: Carol sieht beide Stationen");
+    check((await stops.first().getByTestId("directions").count()) === 1, "P50: Route zur Bar");
+    check((await cp.getByRole("button", { name: "„Bar Raval“ herausnehmen" }).count()) === 0, "P50: Carol nimmt nichts heraus");
+    await cp.getByTestId("plan-stops").scrollIntoViewIfNeeded();
+    await noOverflow(carol, "Danach noch wohin?");
+    await a11y(carol, "plan-danach");
+    await shot(carol, "82-danach-noch-wohin");
+
+    // API: nur wer den Plan bearbeiten darf; nicht direkt schreiben; Außenstehende sehen nichts.
+    const carolAdd = await api(carol, "POST", "rpc/add_plan_stop", { p_plan_id: planId, p_title: "Meine Bar" });
+    check(carolAdd.status >= 400, `API: Mitglied hängt keine Station an (${carolAdd.status})`);
+    const direct = await api(carol, "POST", "plan_stops", { plan_id: planId, title: "Direkt" });
+    check(direct.status >= 400, `API: Stationen nicht direkt anlegbar (${direct.status})`);
+    // Mallorys Sitzung kann hier schon abgelaufen sein (401) – auch dann sieht sie nichts; die Regel prüft pgTAP genau.
+    const outsider = await api(mallory, "GET", `plan_stops?plan_id=eq.${planId}`);
+    check(outsider.status >= 400 || (Array.isArray(outsider.json) && outsider.json.length === 0), `API: Außenstehende sehen keine Stationen (${outsider.status})`);
+    const anon = await api(null, "GET", `plan_stops?plan_id=eq.${planId}`);
+    check(anon.status >= 400 || (anon.json ?? []).length === 0, `API: anon sieht keine Stationen (${anon.status})`);
+
+    // Verschieben nimmt die Uhrzeit mit; Bob nimmt „Tanzen“ wieder heraus.
+    psql(`update public.plans set starts_at = starts_at + interval '30 minutes' where id = '${planId}'`);
+    check(stopsOf().startsWith("Bar Raval|23:00|"), `P50: verschoben – Station wandert mit (${stopsOf()})`);
+    await bp.reload();
+    await bp.getByRole("button", { name: "„Tanzen“ herausnehmen" }).click();
+    await toast(bob, "Station herausgenommen.");
+    check(stopsOf() === "Bar Raval|23:00|Muskauer Str. 9", "P50: „Tanzen“ ist raus");
+  } finally {
+    if (narrow) await cp.setViewportSize(narrow);
+    psql(`delete from public.plans where id = '${planId}'`);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;

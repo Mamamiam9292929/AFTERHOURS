@@ -73,6 +73,7 @@ export const qk = {
   planRides: (planId: string) => ["plans", planId, "rides"] as const,
   planExpenses: (planId: string) => ["plans", planId, "expenses"] as const,
   planItems: (planId: string) => ["plans", planId, "items"] as const,
+  planStops: (planId: string) => ["plans", planId, "stops"] as const,
   planPhotos: (planId: string) => ["plans", planId, "photos"] as const,
   planLive: (planId: string) => ["plans", planId, "live"] as const,
   notifications: ["notifications"] as const,
