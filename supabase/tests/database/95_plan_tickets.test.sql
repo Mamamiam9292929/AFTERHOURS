@@ -21,7 +21,7 @@ select public.accept_crew_invitation(tests.var('invite'));
 select tests.login('mallory');
 select public.create_crew('Fremde Crew');
 
--- Bob legt den Plan an (Organisator, ist dabei). Dave kommt erst danach in die Crew (keine Zeile im Plan).
+-- Bob legt den Plan an (Organisator, ist dabei). Dave kommt erst danach in die Crew.
 select tests.login('bob');
 select tests.set_var('plan', public.create_plan(tests.var('crew')::uuid, 'Konzert', now() + interval '10 days', p_confirmed => true)::text);
 select tests.login('dave');
@@ -73,9 +73,12 @@ select is((select has_ticket from public.plan_participants where plan_id = tests
   'Bob sieht: Carol hat ein Ticket');
 select is((select has_ticket from public.plan_participants where plan_id = tests.var('plan')::uuid and user_id = auth.uid()), false,
   'Bob hat noch keins – nur die eigene Angabe zählt');
+-- Ohne Zeile im Plan (z. B. nach Austritt und Wiedereintritt) gibt es keine Angabe und keine untergeschobene Zeile.
+select tests.logout();
+delete from public.plan_participants where plan_id = tests.var('plan')::uuid and user_id = tests.uid('dave');
 select tests.login('dave');
 select throws_ok($$ select public.set_my_plan_ticket(tests.var('plan')::uuid, true) $$, 'P0001', 'plan_ticket_not_invited',
-  'erst später in die Crew: keine Zeile, keine Angabe');
+  'ohne Zeile im Plan: keine Angabe');
 select is((select count(*)::int from public.plan_participants where plan_id = tests.var('plan')::uuid and user_id = auth.uid()), 0,
   'Dave bekommt keine Zeile untergeschoben');
 
