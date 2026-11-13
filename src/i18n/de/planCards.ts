@@ -16,6 +16,8 @@ export const planCards = {
     quorumReached: "Findet statt.",
     spotsLeft: (n: number) => (n === 1 ? "Noch 1 Platz frei." : `Noch ${n} Plätze frei.`),
     full: "Alle Plätze vergeben – wer will, rückt nach.",
+    ticketsMissing: (n: number) => (n === 1 ? "1 von euch hat noch kein Ticket." : `${n} von euch haben noch kein Ticket.`),
+    ticketsComplete: "Alle, die dabei sind, haben ihr Ticket.",
     answerBy: (when: string) => `Bitte bis ${when} Bescheid sagen.`,
     answer: "Antwort mit einem Tipp:",
     link: "Zum Plan:",

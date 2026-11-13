@@ -4393,6 +4393,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   // Ticket“. Carol (Tablet, ohne Antwort) sieht den Stand, aber keine Auswahl und darf nicht schalten. Alice meldet ihr
   // Ticket: „Alle haben eins“. Sagt Alice ab, steht sie als „Ticket übrig“ da. Ohne Anmeldung geht nichts.
   // Etappe 2a: Bob fragt Alice (dabei, ohne Ticket) mit „Nachfragen“; die Benachrichtigung führt zur Auswahl.
+  // Etappe 2b: Der geteilte Zwischenstand sagt „1 von euch hat noch kein Ticket.“
   if (DB_URL) {
     const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
     const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
@@ -4453,6 +4454,14 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await askTickets.click();
       await toast(bob, "Du hast gerade erst erinnert. Die nächste Erinnerung ist in 6 Stunden möglich.");
       check(true, "Tickets: zweiter Tipp innerhalb von 6 Stunden wird abgewiesen");
+      // Etappe 2b: Der Zwischenstand für den Gruppenchat nennt die Zahl ohne Ticket – ohne Namen.
+      await stubShare(bob.page);
+      await bob.page.getByRole("button", { name: "Zwischenstand teilen" }).click();
+      await bob.page.waitForFunction(() => (window.__shared ?? []).length >= 1);
+      const ticketStanding = (await sharedData(bob.page)).at(-1);
+      check((ticketStanding?.text ?? "").includes(" 1 von euch hat noch kein Ticket. "), `Tickets: Zwischenstand nennt, wie viele noch keins haben – „${ticketStanding?.text}“`);
+      check(!/Alice|Bob|Carol/.test(ticketStanding?.text ?? ""), "Tickets: keine Namen im Zwischenstand");
+      await unstubShare(bob.page);
       await alice.page.goto(`${APP}/notifications`);
       const askedTicket = alice.page.getByRole("link", { name: /Bob fragt: Hast du dein Ticket\?/ }).filter({ hasText: "Konzert im Stadtpark" });
       await askedTicket.waitFor();

@@ -4,7 +4,7 @@
  * damit die Regeln ohne i18n-Laufzeit testbar bleiben.
  */
 
-type Answer = { attendance_status: string; waitlisted_at?: string | null; plus_ones?: number | null };
+type Answer = { attendance_status: string; waitlisted_at?: string | null; plus_ones?: number | null; has_ticket?: boolean | null };
 
 export type StandingPlan = {
   status: string;
@@ -12,6 +12,8 @@ export type StandingPlan = {
   min_going?: number | null;
   max_going?: number | null;
   guests_allowed?: boolean;
+  /** P53: Ticket-Check an. */
+  tickets_needed?: boolean | null;
   participants: Answer[];
   guests?: Answer[] | null;
 };
@@ -27,6 +29,11 @@ export type Standing = {
   quorumLeft: number | null;
   /** P26: `null` ohne Höchstzahl, `0` voll. */
   spotsLeft: number | null;
+  /**
+   * P53 Etappe 2b: Mitglieder mit „Bin dabei“, die noch kein Ticket angegeben haben. `null` ohne Ticket-Check oder
+   * solange kein Mitglied zugesagt hat, `0` alle haben eins. Gäste zählen nicht – sie können (noch) nichts angeben.
+   */
+  ticketsMissing: number | null;
 };
 
 /**
@@ -49,7 +56,10 @@ export function planStanding(plan: StandingPlan, now: Date = new Date()): Standi
   // Gleiche Regeln wie `quorumLeft` (P25) und `spotsLeft` (P26) – hier ohne Laufzeit-Import, damit Node den Test
   // ohne Bundler laden kann; der Unit-Test prüft, dass beide übereinstimmen.
   const left = (limit: number | null | undefined) => (limit == null || limit < 1 ? null : Math.max(limit - going, 0));
-  return { going, maybe, waiting, open, quorumLeft: left(plan.min_going), spotsLeft: left(plan.max_going) };
+  // P53: wie `ticketStanding` (Unit-Test prüft, dass beide übereinstimmen) – nur Zusagen von Mitgliedern.
+  const membersGoing = plan.participants.filter((a) => a.attendance_status === "going");
+  const ticketsMissing = plan.tickets_needed && membersGoing.length > 0 ? membersGoing.filter((a) => !a.has_ticket).length : null;
+  return { going, maybe, waiting, open, quorumLeft: left(plan.min_going), spotsLeft: left(plan.max_going), ticketsMissing };
 }
 
 export type StandingTexts = {
@@ -62,6 +72,9 @@ export type StandingTexts = {
   quorumReached: string;
   spotsLeft: (n: number) => string;
   full: string;
+  /** P53 Etappe 2b: Ticket-Check – so viele mit Zusage haben noch keins bzw. alle haben eins. */
+  ticketsMissing: (n: number) => string;
+  ticketsComplete: string;
   /** P46: Antwortfrist, solange sie läuft. */
   answerBy: (when: string) => string;
   /** Mit Zusagen über den Link (W10): Freunde ohne Konto antworten direkt. */
@@ -82,6 +95,7 @@ export function standingText(tx: StandingTexts, s: Standing, title: string, when
   const notes: string[] = [];
   if (s.quorumLeft != null) notes.push(s.quorumLeft > 0 ? tx.quorumLeft(s.quorumLeft) : tx.quorumReached);
   if (s.spotsLeft != null) notes.push(s.spotsLeft > 0 ? tx.spotsLeft(s.spotsLeft) : tx.full);
+  if (s.ticketsMissing != null) notes.push(s.ticketsMissing > 0 ? tx.ticketsMissing(s.ticketsMissing) : tx.ticketsComplete);
   // P46: „Bitte bis Do., 12. Nov., 20:00 Uhr Bescheid sagen.“ – nur, solange die Frist läuft (formatiert von außen).
   if (answerBy) notes.push(tx.answerBy(answerBy));
   return [`${tx.head(title, when)} – ${counts.join(", ")}.`, ...notes, guestsCanAnswer ? tx.answer : tx.link].join(" ");

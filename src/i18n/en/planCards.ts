@@ -14,6 +14,8 @@ export const planCards = {
     quorumReached: "It’s on.",
     spotsLeft: (n: number) => (n === 1 ? "1 spot left." : `${n} spots left.`),
     full: "All spots taken – anyone else joins the waitlist.",
+    ticketsMissing: (n: number) => (n === 1 ? "1 of you still needs a ticket." : `${n} of you still need a ticket.`),
+    ticketsComplete: "Everyone going has their ticket.",
     answerBy: (when: string) => `Please answer by ${when}.`,
     answer: "Answer with one tap:",
     link: "To the plan:",
