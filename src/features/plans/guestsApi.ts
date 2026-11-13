@@ -43,6 +43,8 @@ export type SharedPlanRsvp =
         meeting_point: string | null;
         /** W11: Gäste mit Antwort dürfen der Crew beitreten (Owner/Admin hat freigeschaltet). */
         can_join?: boolean;
+        /** P50 Etappe 2b: weitere Stationen in der Reihenfolge des Abends (fehlt bei älterem Server). */
+        stops?: { title: string; at: string | null; address: string | null }[];
       };
       counts: { going: number; maybe: number };
       /**

@@ -14,6 +14,7 @@ export const FEED_TEXTS = {
     maybe: (title) => `Vielleicht: ${title}`,
     crew: (name) => `Crew: ${name}`,
     meetingPoint: (value) => `Treffpunkt: ${value}`,
+    stop: (time, title, address) => `Danach: ${time ? `${time} Uhr ` : ""}${title}${address ? ` (${address})` : ""}`,
     noAnswer: "Deine Antwort fehlt noch.",
     link: (url) => `Plan in AFTERHOURS: ${url}`,
     description: "Deine Pläne aus AFTERHOURS",
@@ -24,6 +25,7 @@ export const FEED_TEXTS = {
     maybe: (title) => `Maybe: ${title}`,
     crew: (name) => `Crew: ${name}`,
     meetingPoint: (value) => `Meeting point: ${value}`,
+    stop: (time, title, address) => `Then: ${time ? `${time} ` : ""}${title}${address ? ` (${address})` : ""}`,
     noAnswer: "You haven't answered yet.",
     link: (url) => `Plan in AFTERHOURS: ${url}`,
     description: "Your plans from AFTERHOURS",
@@ -77,6 +79,21 @@ export function foldLine(line) {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const validDate = (value) => typeof value === "string" && !Number.isNaN(new Date(value).getTime());
 
+const clock = new Intl.DateTimeFormat("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/**
+ * P50 Etappe 2b · Stationen des Abends als Zeilen der Beschreibung („Danach: 22:30 Uhr Bar Raval (Muskauer Str. 9)“).
+ * Reihenfolge wie geliefert (die Datenbank sortiert wie die Planseite); Uhrzeit in Berliner Zeit; höchstens vier.
+ */
+export function stopLines(stops, locale = "de") {
+  const text = FEED_TEXTS[feedLocale(locale)];
+  if (!Array.isArray(stops)) return [];
+  return stops
+    .filter((stop) => stop && typeof stop.title === "string" && stop.title.trim())
+    .slice(0, 4)
+    .map((stop) => text.stop(validDate(stop.at) ? clock.format(new Date(stop.at)) : null, stop.title.trim(), typeof stop.address === "string" && stop.address.trim() ? stop.address.trim() : null));
+}
+
 /** Status im Kalender: abgesagt, vorläufig (Vorschlag oder eigene Antwort „Vielleicht“) oder fest. */
 export function eventStatus(event) {
   if (event.status === "cancelled") return "CANCELLED";
@@ -101,6 +118,7 @@ export function eventLines(event, { site, now, locale = "de" }) {
   const description = [
     event.crew ? text.crew(event.crew) : null,
     event.meeting_point ? text.meetingPoint(event.meeting_point) : null,
+    ...stopLines(event.stops, locale),
     event.attendance === "invited" && event.status !== "cancelled" ? text.noAnswer : null,
     text.link(url),
   ].filter(Boolean).join("\n");

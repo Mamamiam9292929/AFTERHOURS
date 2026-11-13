@@ -53,6 +53,14 @@ export function icsFileName(title: string): string {
   return `${slug || "afterhours-plan"}.ics`;
 }
 
+/** P50 Etappe 2b · Station des Abends, wie sie Planseite, Zusagekarte und Kalender-Abo liefern. */
+export type IcsStop = { title: string; at: string | null; address: string | null };
+
+/** Zeilen „Danach: …“ für die Beschreibung – Reihenfolge wie geliefert (die Quelle sortiert), Text kommt vom Aufrufer. */
+export function icsStopLines(stops: readonly IcsStop[] | null | undefined, line: (stop: IcsStop) => string): string[] {
+  return (stops ?? []).filter((stop) => stop && typeof stop.title === "string" && stop.title.trim()).map(line);
+}
+
 export type IcsEvent = {
   uid: string;
   title: string;
@@ -110,10 +118,14 @@ export type GuestIcsPlan = {
   place: string | null;
   address: string | null;
   meeting_point: string | null;
+  /** P50 Etappe 2b: weitere Stationen (fehlt bei älteren Antworten). */
+  stops?: IcsStop[];
 };
 
 export type GuestIcsLabels = {
   meetingPoint: (value: string) => string;
+  /** P50 Etappe 2b: eine Zeile je Station. */
+  stop?: (stop: IcsStop) => string;
   answer: string;
   link: (url: string) => string;
   noUpdates: string;
@@ -134,6 +146,7 @@ export function guestPlanIcs(
 ): string {
   const description = [
     plan.meeting_point ? input.labels.meetingPoint(plan.meeting_point) : null,
+    ...(input.labels.stop ? icsStopLines(plan.stops, input.labels.stop) : []),
     input.labels.answer,
     input.labels.link(input.url),
     input.labels.noUpdates,
@@ -159,7 +172,20 @@ export function guestPlanIcs(
 }
 
 /** Stand des Termins, wie er in der Datei steht – auf dem Gerät gemerkt, um Änderungen zu erkennen. */
-export type GuestIcsStamp = { title: string; starts_at: string; ends_at: string | null; where: string | null; meeting_point: string | null };
+export type GuestIcsStamp = {
+  title: string;
+  starts_at: string;
+  ends_at: string | null;
+  where: string | null;
+  meeting_point: string | null;
+  /** P50 Etappe 2b: Stationen als Kurzform; fehlt in Ständen von vor Etappe 2b (dann kein Vergleich). */
+  stops?: string;
+};
+
+/** Stationen als vergleichbarer Text (Uhrzeit als UTC, damit Formatierung keine Änderung vortäuscht). */
+function stopsKey(stops: readonly IcsStop[] | undefined): string {
+  return (stops ?? []).map((stop) => [stop.at ? new Date(stop.at).toISOString() : "", stop.title, stop.address ?? ""].join("|")).join("\n");
+}
 
 export function guestIcsStamp(plan: GuestIcsPlan): GuestIcsStamp {
   return {
@@ -168,6 +194,7 @@ export function guestIcsStamp(plan: GuestIcsPlan): GuestIcsStamp {
     ends_at: plan.ends_at ? new Date(plan.ends_at).toISOString() : null,
     where: [plan.place, plan.address].filter(Boolean).join(", ") || null,
     meeting_point: plan.meeting_point,
+    stops: stopsKey(plan.stops),
   };
 }
 
@@ -179,7 +206,9 @@ export function guestIcsChanges(saved: GuestIcsStamp | null, plan: GuestIcsPlan)
   const now = guestIcsStamp(plan);
   const changes: GuestIcsChange[] = [];
   if (saved.starts_at !== now.starts_at || saved.ends_at !== now.ends_at) changes.push("time");
-  if (saved.where !== now.where || saved.meeting_point !== now.meeting_point) changes.push("where");
+  // Stationen zählen als Ort; ältere Stände ohne Stationen lösen keinen Hinweis aus.
+  const stopsChanged = saved.stops !== undefined && saved.stops !== now.stops;
+  if (saved.where !== now.where || saved.meeting_point !== now.meeting_point || stopsChanged) changes.push("where");
   if (saved.title !== now.title) changes.push("title");
   return changes;
 }
@@ -192,7 +221,10 @@ export function parseGuestIcsStamp(raw: string | null): GuestIcsStamp | null {
     const textOrNull = (v: unknown) => v === null || typeof v === "string";
     if (typeof value.title !== "string" || typeof value.starts_at !== "string" || Number.isNaN(Date.parse(value.starts_at))) return null;
     if (!textOrNull(value.ends_at) || !textOrNull(value.where) || !textOrNull(value.meeting_point)) return null;
-    return { title: value.title, starts_at: value.starts_at, ends_at: value.ends_at ?? null, where: value.where ?? null, meeting_point: value.meeting_point ?? null };
+    if (value.stops !== undefined && typeof value.stops !== "string") return null;
+    const stamp: GuestIcsStamp = { title: value.title, starts_at: value.starts_at, ends_at: value.ends_at ?? null, where: value.where ?? null, meeting_point: value.meeting_point ?? null };
+    if (typeof value.stops === "string") stamp.stops = value.stops;
+    return stamp;
   } catch {
     return null;
   }

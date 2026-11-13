@@ -124,6 +124,8 @@ export const plans = {
     add: "In den Kalender",
     done: "Kalenderdatei geladen – öffne sie, um den Termin einzutragen.",
     meetingPoint: (value: string) => `Treffpunkt: ${value}`,
+    /** P50 Etappe 2b: weitere Station des Abends. */
+    stop: (time: string | null, title: string, address: string | null) => `Danach: ${time ? `${time} ` : ""}${title}${address ? ` (${address})` : ""}`,
     link: (url: string) => `Plan in AFTERHOURS: ${url}`,
     /** P2 Etappe 2: Hinweis auf das Abo. */
     subscribe: "Alle Pläne automatisch: Kalender-Abo",
