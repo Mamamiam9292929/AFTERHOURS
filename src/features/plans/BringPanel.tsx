@@ -164,7 +164,7 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
                             {mine
                               ? t.planCards.items.you
                               : item.claimed_by_guest
-                                ? t.planCards.items.bringer(guest ? t.plans.detail.guest(guest) : t.planCards.items.someGuest)
+                                ? t.planCards.items.bringer(guest ? t.plans.detail.attendance.guest(guest) : t.planCards.items.someGuest)
                                 : t.planCards.items.bringer(bringer?.display_name ?? t.states.formerMember)}
                           </span>
                         </>
