@@ -52,7 +52,7 @@ test("Zwischenstand zählt Begleitung bei „dabei“ – auch bei Gästen (Etap
     },
     now,
   );
-  assert.deepEqual(standing, { going: 7, maybe: 1, waiting: 0, open: 1, quorumLeft: 0, spotsLeft: null });
+  assert.deepEqual(standing, { going: 7, maybe: 1, waiting: 0, open: 1, quorumLeft: 0, spotsLeft: null, ticketsMissing: null });
 });
 
 test("Etappe 2: Begleitung der Gäste zählt wie bei Mitgliedern", () => {

@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { planStanding, standingText } from "../../src/lib/standing.ts";
 import { quorumLeft } from "../../src/lib/quorum.ts";
 import { spotsLeft } from "../../src/lib/capacity.ts";
+import { ticketStanding } from "../../src/lib/tickets.ts";
 import { planCards as de } from "../../src/i18n/de/planCards.ts";
 import { planCards as en } from "../../src/i18n/en/planCards.ts";
 
@@ -18,7 +19,7 @@ const plan = (extra) => ({
 });
 
 test("zählt Mitglieder und Gäste wie „Wer kommt mit?“, Absagen nicht", () => {
-  assert.deepEqual(planStanding(plan(), now), { going: 5, maybe: 2, waiting: 0, open: 3, quorumLeft: null, spotsLeft: null });
+  assert.deepEqual(planStanding(plan(), now), { going: 5, maybe: 2, waiting: 0, open: 3, quorumLeft: null, spotsLeft: null, ticketsMissing: null });
 });
 
 test("Nachrückliste zählt nicht bei „vielleicht“ – Gäste nur mit Zusagen über den Link", () => {
@@ -26,8 +27,8 @@ test("Nachrückliste zählt nicht bei „vielleicht“ – Gäste nur mit Zusage
     participants: [p("going"), p("maybe", "2026-11-10T10:00:00Z"), p("maybe")],
     guests: [p("maybe", "2026-11-10T10:01:00Z")],
   });
-  assert.deepEqual(planStanding({ ...waiting, guests_allowed: true }, now), { going: 1, maybe: 1, waiting: 2, open: 0, quorumLeft: null, spotsLeft: null });
-  assert.deepEqual(planStanding({ ...waiting, guests_allowed: false }, now), { going: 1, maybe: 2, waiting: 1, open: 0, quorumLeft: null, spotsLeft: null });
+  assert.deepEqual(planStanding({ ...waiting, guests_allowed: true }, now), { going: 1, maybe: 1, waiting: 2, open: 0, quorumLeft: null, spotsLeft: null, ticketsMissing: null });
+  assert.deepEqual(planStanding({ ...waiting, guests_allowed: false }, now), { going: 1, maybe: 2, waiting: 1, open: 0, quorumLeft: null, spotsLeft: null, ticketsMissing: null });
 });
 
 test("kein Knopf bei abgesagt, abgeschlossen, begonnen", () => {
@@ -90,4 +91,26 @@ test("keine Namen im Text – die Eingabe hat gar keine", () => {
   const withNames = plan({ participants: [{ attendance_status: "going", display_name: "Alice", user_id: "u1" }], guests: [{ attendance_status: "going", display_name: "Dana" }] });
   const text = standingText(de.standing, planStanding(withNames, now), ...head, true);
   assert.doesNotMatch(text, /Alice|Dana|u1/);
+});
+
+test("P53 Etappe 2b: Ticket-Stand im Zwischenstand – nur mit Check, nur Zusagen von Mitgliedern, nur Zahlen", () => {
+  const head = ["Konzert", "Samstag, 14. November, 20:00 Uhr"];
+  const t = (status, has_ticket) => ({ attendance_status: status, has_ticket });
+  const participants = [t("going", true), t("going", false), t("going", false), t("maybe", false), t("declined", true), t("invited", false)];
+  const on = planStanding({ status: "confirmed", starts_at: "2026-11-14T19:00:00Z", tickets_needed: true, participants, guests: [p("going")] }, now);
+  assert.equal(on.ticketsMissing, 2, "zwei Zusagen ohne Ticket – „vielleicht“, Absage, ohne Antwort und Gäste zählen nicht");
+  assert.equal(on.ticketsMissing, ticketStanding(participants).missing.length, "gleiche Regel wie der Ticket-Stand auf der Planseite");
+  assert.match(standingText(de.standing, on, ...head, false), / 2 von euch haben noch kein Ticket\. Zum Plan:$/);
+  assert.match(standingText(en.standing, on, "Gig", "Sat", false), / 2 of you still need a ticket\. /);
+  const one = planStanding({ status: "confirmed", starts_at: "2026-11-14T19:00:00Z", tickets_needed: true, participants: [t("going", false)] }, now);
+  assert.match(standingText(de.standing, one, ...head, false), / 1 von euch hat noch kein Ticket\. /);
+  const done = planStanding({ status: "confirmed", starts_at: "2026-11-14T19:00:00Z", tickets_needed: true, participants: [t("going", true), t("maybe", false)] }, now);
+  assert.equal(done.ticketsMissing, 0);
+  assert.match(standingText(de.standing, done, ...head, false), / Alle, die dabei sind, haben ihr Ticket\. Zum Plan:$/);
+  const off = planStanding({ status: "confirmed", starts_at: "2026-11-14T19:00:00Z", tickets_needed: false, participants }, now);
+  assert.equal(off.ticketsMissing, null, "ohne Check kein Satz");
+  assert.ok(!standingText(de.standing, off, ...head, false).includes("Ticket"));
+  const nobody = planStanding({ status: "confirmed", starts_at: "2026-11-14T19:00:00Z", tickets_needed: true, participants: [t("maybe", false)] }, now);
+  assert.equal(nobody.ticketsMissing, null, "solange niemand zugesagt hat, kein Satz");
+  assert.ok(!standingText(de.standing, on, ...head, false).includes("Alice"), "keine Namen");
 });
