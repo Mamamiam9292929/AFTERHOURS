@@ -27,12 +27,12 @@ export function goingHeads(participants: { attendance_status: string; plus_ones?
 }
 
 /**
- * Zusagen wie bei „Wer kommt mit?“: Mitglieder (mit Begleitung, P51) und Gäste mit „Bin dabei“ – gleiche Zählung
- * wie `app_private.plan_going_count` auf dem Server.
+ * Zusagen wie bei „Wer kommt mit?“: Mitglieder und Gäste mit „Bin dabei“, jeweils mit Begleitung (P51, Etappe 2
+ * für Gäste) – gleiche Zählung wie `app_private.plan_going_count` auf dem Server.
  */
 export function goingWithGuests(plan: {
   participants: { attendance_status: string; plus_ones?: number | null }[];
-  guests?: { attendance_status: string }[] | null;
+  guests?: { attendance_status: string; plus_ones?: number | null }[] | null;
 }): number {
-  return goingHeads(plan.participants) + (plan.guests ?? []).filter((g) => g.attendance_status === "going").length;
+  return goingHeads(plan.participants) + goingHeads(plan.guests ?? []);
 }

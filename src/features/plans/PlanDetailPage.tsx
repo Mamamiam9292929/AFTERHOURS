@@ -490,8 +490,8 @@ export function PlanDetailPage() {
                       <div className="flex min-h-9 items-center justify-between gap-3">
                         <p className="flex items-center gap-2 text-[13px] font-semibold text-muted">
                           <span aria-hidden className={cn("size-2 rounded-full", GROUP_DOT[status])} />
-                          {/* P51: Bei „Dabei“ zählt die Begleitung mit – wie bei Mindest- und Höchstzahl. */}
-                          {t.plans.detail.attendance.groups[status]} ({(status === "going" ? goingHeads(group) : group.length) + guests.length})
+                          {/* P51: Bei „Dabei“ zählt die Begleitung mit (Etappe 2: auch die der Gäste) – wie bei Mindest- und Höchstzahl. */}
+                          {t.plans.detail.attendance.groups[status]} ({status === "going" ? goingHeads(group) + goingHeads(guests) : group.length + guests.length})
                         </p>
                         {askable > 0 && (
                           <Button
@@ -563,6 +563,13 @@ export function PlanDetailPage() {
                             </span>
                             <span className="min-w-0 break-words">
                               {t.plans.detail.attendance.guest(g.display_name)}
+                              {/* P51 Etappe 2: Begleitung des Gasts wie bei Mitgliedern. */}
+                              {status === "going" && (g.plus_ones ?? 0) > 0 && (
+                                <span className="ml-1.5 inline-flex h-5 items-center rounded-full bg-lime px-1.5 align-[1px] text-[12px] font-bold text-lime-ink" data-testid="who-plus-ones">
+                                  <span aria-hidden>{t.planCards.plusOnes.chip(g.plus_ones ?? 0)}</span>
+                                  <span className="sr-only">{t.planCards.plusOnes.chipLabel(g.plus_ones ?? 0)}</span>
+                                </span>
+                              )}
                               {/* P24 Etappe 2: Zusatz des Gasts wie bei Mitgliedern. */}
                               {g.note && (
                                 <span className="font-normal text-muted" data-testid="who-note">

@@ -77,9 +77,16 @@ export function SharedPlanPage() {
   // geantwortet hat, sieht sie auch nach Beginn (eigene Antwort, „Crew beitreten“, falls freigeschaltet).
   if (token && (result.plan.guests || storedPlanGuestSecret(token))) {
     // P26 Etappe 2: Runde voll – Gäste können dann nur „Vielleicht“ oder „Kann nicht“ sagen.
-    const full = spotsLeft(result.plan, result.plan.going_count) === 0;
+    const spots = spotsLeft(result.plan, result.plan.going_count);
     return (
-      <SharedPlanRsvp token={token} hero={<SharedPlanTicket data={result} />} signedIn={Boolean(user)} fallback={fallback ?? <GuestInvite data={result} />} full={full} />
+      <SharedPlanRsvp
+        token={token}
+        hero={<SharedPlanTicket data={result} />}
+        signedIn={Boolean(user)}
+        fallback={fallback ?? <GuestInvite data={result} />}
+        full={spots === 0}
+        spots={spots}
+      />
     );
   }
   if (fallback) return fallback;

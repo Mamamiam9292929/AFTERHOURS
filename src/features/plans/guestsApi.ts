@@ -51,7 +51,15 @@ export type SharedPlanRsvp =
        * P24 Etappe 2: `note` fehlt, solange es keinen Zusatz gibt. P26 Etappe 3b: `waitlist` = eigener Platz auf der
        * Nachrückliste (1 = als Nächstes), `promoted` = über die Liste nachgerückt; beide fehlen sonst.
        */
-      me: { name: string; status: GuestAnswer; note?: string; waitlist?: number; promoted?: true } | null;
+      me: {
+        name: string;
+        status: GuestAnswer;
+        note?: string;
+        waitlist?: number;
+        promoted?: true;
+        /** P51 Etappe 2: Begleitung (1–3); fehlt ohne Begleitung. */
+        plus_ones?: number;
+      } | null;
     }
   | { status: "not_found" | "expired" | "guests_off" };
 
@@ -120,6 +128,31 @@ export function useGuestNote(token: string, secret: string) {
         old?.status === "valid" && old.me ? { ...old, me: saved ? { ...old.me, note: saved } : { name: old.me.name, status: old.me.status } } : old,
       ),
     onSettled: () => void client.invalidateQueries({ queryKey: rsvpKey(token) }),
+  });
+}
+
+/**
+ * P51 Etappe 2 · „Ich bring wen mit“ als Gast: 0–3 Begleitungen zur eigenen Zusage. Liefert die gespeicherte Zahl;
+ * die Zahlen der Karte (und die Vorschau mit den freien Plätzen) laden danach neu.
+ */
+export function useGuestPlusOnes(token: string, secret: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (count: number): Promise<number> => {
+      const { data, error } = await supabase.rpc("guest_plus_ones_shared_plan", { p_token: token, p_secret: secret, p_count: count });
+      if (error) throw error;
+      return (data as number | null) ?? 0;
+    },
+    onSuccess: (saved) =>
+      client.setQueryData<SharedPlanRsvp>(rsvpKey(token), (old) => {
+        if (old?.status !== "valid" || !old.me) return old;
+        const { plus_ones: _previous, ...rest } = old.me;
+        return { ...old, me: saved > 0 ? { ...rest, plus_ones: saved } : rest };
+      }),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: rsvpKey(token) });
+      void client.invalidateQueries({ queryKey: ["plan-share-preview", token] });
+    },
   });
 }
 

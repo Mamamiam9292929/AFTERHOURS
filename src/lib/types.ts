@@ -267,6 +267,8 @@ export interface PlanGuest {
   note?: string | null;
   /** P26 Etappe 3b: seit wann auf der Nachrückliste (gemeinsam mit der Crew), sonst null. */
   waitlisted_at?: string | null;
+  /** P51 Etappe 2: Begleitung des Gasts (0–3), nur bei „Bin dabei“. */
+  plus_ones?: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { IconPin } from "@/components/icons";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -13,7 +13,16 @@ import { formatTime } from "@/lib/time";
 import { NoteEditor } from "./AnswerNote";
 import { Directions } from "./Directions";
 import { GuestCalendar } from "./GuestCalendar";
-import { type GuestAnswer, planGuestSecret, useGuestJoinPlan, useGuestNote, useGuestRsvp, useGuestWaitlist, useSharedPlanRsvp } from "./guestsApi";
+import {
+  type GuestAnswer,
+  planGuestSecret,
+  useGuestJoinPlan,
+  useGuestNote,
+  useGuestPlusOnes,
+  useGuestRsvp,
+  useGuestWaitlist,
+  useSharedPlanRsvp,
+} from "./guestsApi";
 
 // F7: Texte der Zusagen ohne Konto liegen nicht im Start-Bundle.
 await loadTexts("planGuests");
@@ -38,6 +47,7 @@ export function SharedPlanRsvp({
   signedIn,
   fallback,
   full = false,
+  spots = null,
 }: {
   token: string;
   hero: ReactNode;
@@ -45,6 +55,8 @@ export function SharedPlanRsvp({
   fallback: ReactNode;
   /** P26 Etappe 2: Höchstzahl erreicht (laut Vorschau) – „Bin dabei“ ist dann zu, außer für die, die schon dabei sind. */
   full?: boolean;
+  /** P51 Etappe 2: freie Plätze laut Vorschau (null = keine Höchstzahl) – begrenzt die Begleitung. */
+  spots?: number | null;
 }) {
   const secret = useMemo(() => planGuestSecret(token), [token]);
   const rsvp = useSharedPlanRsvp(token, secret);
@@ -257,6 +269,10 @@ export function SharedPlanRsvp({
           {open && me && chosen === me.status && !pending && (
             <NoteEditor key={me.status} answer={me.status} note={me.note ?? null} pending={note.isPending} save={(value, callbacks) => note.mutate(value, callbacks)} />
           )}
+          {/* P51 Etappe 2: „Ich bring wen mit“ – nur zur gespeicherten Zusage „Bin dabei“, vor Beginn. */}
+          {open && me?.status === "going" && chosen === "going" && !pending && (
+            <GuestPlusOnes token={token} secret={secret} mine={me.plus_ones ?? 0} spots={spots} />
+          )}
         </div>
 
         {open && oneTap && knownName && (
@@ -356,6 +372,60 @@ export function SharedPlanRsvp({
         </div>
       )}
     </AuthLayout>
+  );
+}
+
+/**
+ * P51 Etappe 2 · „Bringst du wen mit?“ für Gäste – vier Pillen wie auf der Planseite der Crew („Nur ich“, „+1“ bis
+ * „+3“), ein Tipp speichert. Bei einer Höchstzahl sind Pillen gesperrt, für die kein Platz mehr frei ist; der Server
+ * prüft dasselbe (`plan_full`). Rückmeldung steht in der Karte (die Gast-Seite hat keine Toasts).
+ */
+function GuestPlusOnes({ token, secret, mine, spots }: { token: string; secret: string; mine: number; spots: number | null }) {
+  const headingId = useId();
+  const save = useGuestPlusOnes(token, secret);
+  const texts = t.planGuests.rsvp.plusOnes;
+  const [saved, setSaved] = useState<number | null>(null);
+  const full = spots === 0 && mine < 3;
+  return (
+    <div className="mt-4 border-t border-line pt-4" data-testid="rsvp-plus-ones">
+      <p id={headingId} className="text-[14px] font-semibold text-fg">
+        {texts.question}
+      </p>
+      <div role="radiogroup" aria-labelledby={headingId} className="mt-2.5 grid grid-cols-4 gap-2">
+        {[0, 1, 2, 3].map((n) => {
+          const selected = n === mine;
+          // Mehr Begleitung nur, solange Plätze frei sind; weniger geht immer.
+          const blocked = spots != null && n > mine + spots;
+          return (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={texts.option(n)}
+              disabled={save.isPending || blocked}
+              data-plus-ones={n}
+              onClick={() => {
+                if (selected) return;
+                setSaved(null);
+                save.mutate(n, { onSuccess: (value) => setSaved(value) });
+              }}
+              className="vote-pill h-10 px-2 text-[14px]"
+            >
+              {n === 0 ? texts.none : texts.chip(n)}
+            </button>
+          );
+        })}
+      </div>
+      <div aria-live="polite" className="mt-2 space-y-2">
+        {save.isError ? (
+          <FormMessage>{(save.error as { message?: string }).message === "plan_full" ? texts.full : errorMessage(save.error)}</FormMessage>
+        ) : (
+          saved != null && <FormMessage tone="success">{texts.saved(saved)}</FormMessage>
+        )}
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-muted">{full ? texts.full : texts.hint}</p>
+    </div>
   );
 }
 
