@@ -257,9 +257,9 @@ test("F10: Texte der Planseiten-Karten nur dort, wo sie vorher geladen werden �
   assert.equal("planCards" in deCore, false);
   const { planCards: deCards } = await import("../../src/i18n/de/planCards.ts");
   const { planCards: enCards } = await import("../../src/i18n/en/planCards.ts");
-  // P37: „Zwischenstand teilen“, P46: Antwortfrist, P50: Stationen und P51: Begleitung kamen neu dazu und lagen nie im Kern.
-  assert.deepEqual(Object.keys(deCards).sort(), [...moved, "standing", "answerBy", "stops", "plusOnes"].sort());
-  assert.deepEqual(Object.keys(enCards).sort(), [...moved, "standing", "answerBy", "stops", "plusOnes"].sort());
+  // P37: „Zwischenstand teilen“, P46: Antwortfrist, P50: Stationen, P51: Begleitung und P53: Tickets kamen neu dazu und lagen nie im Kern.
+  assert.deepEqual(Object.keys(deCards).sort(), [...moved, "standing", "answerBy", "stops", "plusOnes", "tickets"].sort());
+  assert.deepEqual(Object.keys(enCards).sort(), [...moved, "standing", "answerBy", "stops", "plusOnes", "tickets"].sort());
   const files = [];
   async function walk(dir) {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -295,6 +295,7 @@ test("F10: Texte der Planseiten-Karten nur dort, wo sie vorher geladen werden �
     "src/features/plans/PlanStops.tsx",
     "src/features/plans/PlusOnes.tsx",
     "src/features/plans/RidesPanel.tsx",
+    "src/features/plans/TicketCheck.tsx",
   ]);
   const router = await readFile(join(root, "src/app/router.tsx"), "utf8");
   assert.match(router, /PlanDetailPage", \["planCards"\]\)/, "Router lädt die Texte parallel zur Planseite");

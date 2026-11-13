@@ -4388,6 +4388,85 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P53 – „Habt ihr alle Tickets?“: Bob (390 px) plant ein Konzert und schaltet unter „Organisieren“ den Ticket-Check
+  // ein. Unter „Wer kommt mit?“ steht „0 von 2 mit Ticket“ und wer noch keins hat; Bob sagt mit einem Tipp „Hab mein
+  // Ticket“. Carol (Tablet, ohne Antwort) sieht den Stand, aber keine Auswahl und darf nicht schalten. Alice meldet ihr
+  // Ticket: „Alle haben eins“. Sagt Alice ab, steht sie als „Ticket übrig“ da. Ohne Anmeldung geht nichts.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const ticketPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${bobId}', 'Konzert im Stadtpark', date_trunc('day', now()) + interval '8 days 20 hours', 'confirmed')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
+      select '${ticketPlan}', m.user_id,
+        case when m.user_id in ('${bobId}', '${aliceId}') then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
+        case when m.user_id in ('${bobId}', '${aliceId}') then now() end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    try {
+      await bob.page.goto(`${APP}/plans/${ticketPlan}`);
+      await bob.page.getByRole("heading", { level: 1, name: "Konzert im Stadtpark" }).waitFor();
+      check((await bob.page.getByTestId("plan-tickets").count()) === 0, "Tickets: ohne Check keine Anzeige");
+      check((await bob.page.getByTestId("plan-my-ticket").count()) === 0, "Tickets: ohne Check keine Auswahl");
+      const card = bob.page.getByTestId("plan-tickets-card");
+      await card.waitFor();
+      check((await card.getByRole("radio", { name: "Kein Ticket nötig" }).getAttribute("aria-checked")) === "true", "Tickets: anfangs aus");
+      await card.getByRole("radio", { name: "Jede:r braucht eins" }).click();
+      await toast(bob, "Ticket-Check ist an.");
+      check(psql(`select tickets_needed from public.plans where id = '${ticketPlan}'`) === "t", "Tickets: Check mit einem Tipp gespeichert");
+      const meter = bob.page.getByTestId("plan-tickets");
+      await meter.waitFor();
+      check((await meter.innerText()).includes("0 von 2 mit Ticket"), "Tickets: „0 von 2 mit Ticket“");
+      check((await bob.page.getByTestId("plan-tickets-missing").innerText()).includes("Du"), "Tickets: „Noch ohne Ticket“ nennt Bob als „Du“");
+      check((await bob.page.getByTestId("plan-tickets-status").innerText()).includes("2 fehlen noch"), "Tickets: „2 fehlen noch“");
+      const mine = bob.page.getByTestId("plan-my-ticket");
+      await mine.waitFor();
+      check((await mine.getByRole("radio", { name: "Noch keins" }).getAttribute("aria-checked")) === "true", "Tickets: anfangs „Noch keins“");
+      await mine.getByRole("radio", { name: "Hab mein Ticket" }).click();
+      await toast(bob, "Notiert: Du hast dein Ticket.");
+      check(psql(`select has_ticket from public.plan_participants where plan_id = '${ticketPlan}' and user_id = '${bobId}'`) === "t", "Tickets: „Hab mein Ticket“ gespeichert");
+      await bob.page.getByTestId("plan-tickets-status").filter({ hasText: "1 fehlt noch" }).waitFor();
+      check(true, "Tickets: „1 fehlt noch“");
+      await noOverflow(bob, "Tickets");
+      await a11y(bob, "plan-tickets");
+      await meter.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21w6-plan-tickets");
+
+      // Carol (Tablet) hat noch nicht geantwortet: sieht den Stand, keine Auswahl, darf nicht schalten.
+      await carol.page.goto(`${APP}/plans/${ticketPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Konzert im Stadtpark" }).waitFor();
+      await carol.page.getByTestId("plan-tickets").waitFor();
+      check((await carol.page.getByTestId("plan-my-ticket").count()) === 0, "Tickets: ohne Antwort keine Auswahl");
+      check((await carol.page.getByTestId("plan-tickets-card").count()) === 0, "Tickets: kein Schalter für einfache Mitglieder");
+      check((await api(carol, "POST", "rpc/set_plan_tickets_needed", { p_plan_id: ticketPlan, p_needed: false })).status >= 400, "Tickets: Carol darf nicht schalten");
+
+      // Alice meldet ihr Ticket – alle haben eins. Dann sagt sie ab: „Ticket übrig“.
+      check((await api(alice, "POST", "rpc/set_my_plan_ticket", { p_plan_id: ticketPlan, p_has: true })).status < 300, "Tickets: Alice hat ihr Ticket");
+      await carol.page.reload();
+      await carol.page.getByTestId("plan-tickets-status").filter({ hasText: "Alle haben eins" }).waitFor();
+      check((await carol.page.getByTestId("plan-tickets-missing").count()) === 0, "Tickets: alle haben eins – keine Namen mehr");
+      check((await api(alice, "POST", "rpc/set_attendance", { p_plan_id: ticketPlan, p_status: "declined" })).status < 300, "Tickets: Alice sagt ab");
+      await carol.page.reload();
+      const spare = carol.page.getByTestId("plan-tickets-spare");
+      await spare.waitFor();
+      check((await spare.innerText()).startsWith("Ticket übrig:"), "Tickets: Alice hat ein Ticket übrig");
+      await spare.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await a11y(carol, "plan-tickets-uebrig");
+      await shot(carol, "21w7-plan-ticket-uebrig");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/set_my_plan_ticket`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: ticketPlan, p_has: true }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Ticket (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${ticketPlan}'; delete from public.plans where id = '${ticketPlan}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });

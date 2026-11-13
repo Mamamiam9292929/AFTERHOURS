@@ -251,6 +251,8 @@ export interface Plan {
   min_going_reached_at?: string | null;
   /** P46: Bitte bis dann antworten (Hinweis, keine Sperre), sonst null. */
   answer_by?: string | null;
+  /** P53: Ticket-Check an – jede:r braucht ein eigenes Ticket. */
+  tickets_needed?: boolean;
   /** P26: höchstens so viele Zusagen (Mitglieder + Gäste), sonst null – darüber geht es auf die Nachrückliste. */
   max_going?: number | null;
   created_at: string;
@@ -285,6 +287,8 @@ export interface PlanParticipant {
   note?: string | null;
   /** P26: seit wann auf der Nachrückliste (Reihenfolge), sonst null. */
   waitlisted_at?: string | null;
+  /** P53: Person sagt, sie hat ihr Ticket (Ticket-Check). */
+  has_ticket?: boolean | null;
   /** P51: so viele Begleitungen ohne Konto bringt die Person mit (0–3), nur bei „Bin dabei“. */
   plus_ones?: number | null;
 }

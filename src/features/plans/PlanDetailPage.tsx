@@ -32,6 +32,7 @@ import { downloadPlanIcs } from "@/lib/ics";
 import { qk } from "@/lib/query";
 import { liveStage } from "@/lib/live";
 import { goingHeads, goingWithGuests } from "@/lib/quorum";
+import { canSayTicket } from "@/lib/tickets";
 import { formatAgo, formatDateLong, formatDateTime, formatRelative, formatTime } from "@/lib/time";
 import type { AttendanceStatus, PlanStatus, PlanStop } from "@/lib/types";
 import { estimateCosts, hasStarted, useClosePlan, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useRemindPlanMaybe, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
@@ -81,6 +82,10 @@ const PlanHomeCard = lazy(() => import("./PlanHome").then((m) => ({ default: m.P
 const PlanStopsFact = lazy(() => import("./PlanStops").then((m) => ({ default: m.PlanStopsFact })));
 // P51: „Bringst du wen mit?“ – nur bei „Bin dabei“ vor Beginn.
 const PlusOnesPicker = lazy(() => import("./PlusOnes").then((m) => ({ default: m.PlusOnesPicker })));
+// P53: „Habt ihr alle Tickets?“ – Ticket-Check (Anzeige, eigene Angabe, Schalter) als eigener Chunk.
+const TicketsMeter = lazy(() => import("./TicketCheck").then((m) => ({ default: m.TicketsMeter })));
+const MyTicketPicker = lazy(() => import("./TicketCheck").then((m) => ({ default: m.MyTicketPicker })));
+const TicketsCard = lazy(() => import("./TicketCheck").then((m) => ({ default: m.TicketsCard })));
 
 const ANSWERS: { value: Exclude<AttendanceStatus, "invited">; label: string }[] = [
   { value: "going", label: t.plans.detail.attendance.going },
@@ -322,6 +327,12 @@ export function PlanDetailPage() {
                 <PlusOnesPicker plan={plan} userId={user.id} now={now} />
               </Suspense>
             )}
+            {/* P53: „Hast du dein Ticket?“ – bei eingeschaltetem Ticket-Check, auch nach Beginn (Abendkasse). */}
+            {!locked && plan.tickets_needed && canSayTicket(myRow) && (
+              <Suspense fallback={null}>
+                <MyTicketPicker plan={plan} userId={user.id} />
+              </Suspense>
+            )}
             {/* P24: Zusatz zur eigenen Antwort („komme später“) – die Crew sieht ihn bei „Wer kommt mit?“. */}
             {!locked && mine !== "invited" && <AnswerNote key={mine} planId={plan.id} answer={mine} note={myRow?.note ?? null} />}
             {locked && myRow?.note && mine !== "invited" && <p className="mt-2.5 text-sm font-semibold text-fg">{t.plans.detail.attendance.note.quoted(myRow.note)}</p>}
@@ -453,6 +464,14 @@ export function PlanDetailPage() {
                 <Suspense fallback={null}>
                   <div className="mt-2">
                     <AnswerByMeter plan={plan} now={now} />
+                  </div>
+                </Suspense>
+              )}
+              {/* P53: Ticket-Check – wer dabei ist und schon ein Ticket hat. */}
+              {!locked && plan.tickets_needed && (
+                <Suspense fallback={null}>
+                  <div className="mt-2">
+                    <TicketsMeter plan={plan} userId={user.id} lookup={people.lookup} />
                   </div>
                 </Suspense>
               )}
@@ -710,6 +729,10 @@ export function PlanDetailPage() {
                 <CapacityCard plan={plan} />
               </Suspense>
             )}
+            {/* P53: Braucht jede:r ein Ticket? Auch nach Beginn noch umschaltbar. */}
+            <Suspense fallback={null}>
+              <TicketsCard plan={plan} />
+            </Suspense>
             {/* P8: Stammtisch – der Plan wiederholt sich von selbst. */}
             <RepeatCard key={plan.id} plan={plan} plans={allPlans.data ?? [plan]} />
           </aside>

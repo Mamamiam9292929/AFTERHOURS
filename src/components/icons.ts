@@ -81,6 +81,7 @@ export {
   LuSparkles as IconSparkles,
   LuSun as IconWeatherClear,
   LuTicket as IconPlans,
+  LuTicketCheck as IconTicketCheck,
   LuTimer as IconTimer,
   LuThermometer as IconWeatherUnknown,
   LuTrash2 as IconTrash,

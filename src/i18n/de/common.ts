@@ -263,6 +263,8 @@ export const errors = {
     plan_max_below_going: "Es haben schon mehr zugesagt – die Höchstzahl kann nicht darunter liegen.",
     plan_plus_ones_not_going: "Begleitung geht nur mit „Bin dabei“.",
     plan_plus_ones_started: "Der Abend hat schon angefangen.",
+    plan_tickets_off: "Für diesen Plan ist der Ticket-Check aus.",
+    plan_ticket_not_invited: "Du stehst bei diesem Plan noch nicht auf der Liste – sag erst zu.",
     plan_max_going_started: "Der Plan hat schon angefangen – die Höchstzahl lässt sich nur vorher ändern.",
     plan_waitlist_started: "Der Plan hat schon angefangen – die Nachrückliste ist geschlossen.",
     plan_waitlist_going: "Du bist schon dabei.",
