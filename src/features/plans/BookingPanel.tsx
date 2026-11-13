@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { formatPlainDate, formatPlainTime, today, zonedParts } from "@/lib/time";
 import type { Activity, BookingRequest, BookingStatus } from "@/lib/types";
+import { goingHeads } from "@/lib/quorum";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
 import { ACTIVE_BOOKING_STATUSES, useBookings, useCancelBooking, useConfirmBooking, useCreateBooking, useRecordBookingOutcome, type PlanWithParticipants } from "./api";
 
@@ -69,7 +70,8 @@ export function BookingPanel({ plan, activity, canManage }: { plan: PlanWithPart
   const [reference, setReference] = useState("");
 
   const start = zonedParts(plan.starts_at);
-  const going = plan.participants.filter((p) => p.attendance_status === "going").length;
+  // P51: Begleitung braucht auch einen Platz am Tisch.
+  const going = goingHeads(plan.participants);
   const [date, setDate] = useState(start.date);
   const [time, setTime] = useState(start.time);
   const [partySize, setPartySize] = useState(String(Math.max(going, 1)));

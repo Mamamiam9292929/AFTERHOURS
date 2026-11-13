@@ -380,4 +380,15 @@ export const planCards = {
     deleted: "Eintrag gelöscht.",
     deleteConfirm: "Löschen",
   },
+  /** P51 · „Ich bring wen mit“ – Begleitung zur Zusage (Antwortkarte, „Wer kommt mit?“). */
+  plusOnes: {
+    question: "Bringst du wen mit?",
+    none: "Nur ich",
+    option: (n: number) => (n === 0 ? "Nur ich, ohne Begleitung" : n === 1 ? "Ich bringe 1 Person mit" : `Ich bringe ${n} Personen mit`),
+    hint: "Zählt bei Plätzen, Mindestzahl und Reservierung mit. Änderst du deine Antwort, ist die Begleitung weg.",
+    full: "Alle Plätze sind vergeben – mehr Begleitung passt nicht rein.",
+    saved: (n: number) => (n === 0 ? "Ohne Begleitung gespeichert." : n === 1 ? "+1 gespeichert." : `+${n} gespeichert.`),
+    chip: (n: number) => `+${n}`,
+    chipLabel: (n: number) => (n === 1 ? "bringt 1 Person mit" : `bringt ${n} Personen mit`),
+  },
 };

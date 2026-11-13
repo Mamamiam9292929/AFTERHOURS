@@ -257,6 +257,8 @@ export const errors = {
     plan_not_full: "There's still room – just say you're in.",
     plan_capacity_conflict: "The maximum can't be below the minimum.",
     plan_max_below_going: "More people are already in – the maximum can't be lower than that.",
+    plan_plus_ones_not_going: "You can only bring someone if you're in.",
+    plan_plus_ones_started: "The evening has already started – you can't change who you're bringing any more.",
     plan_max_going_started: "The plan has already started – the maximum can only be changed before.",
     plan_waitlist_started: "The plan has already started – the waiting list is closed.",
     plan_waitlist_going: "You're already in.",

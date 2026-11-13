@@ -370,4 +370,14 @@ export const planCards = {
     deleted: "Entry deleted.",
     deleteConfirm: "Delete",
   },
+  plusOnes: {
+    question: "Bringing anyone?",
+    none: "Just me",
+    option: (n: number) => (n === 0 ? "Just me, nobody else" : n === 1 ? "I'm bringing 1 person" : `I'm bringing ${n} people`),
+    hint: "Counts towards spots, the minimum and the booking. If you change your answer, your plus-ones are cleared.",
+    full: "All spots are taken – there's no room for more plus-ones.",
+    saved: (n: number) => (n === 0 ? "Saved: just you." : `+${n} saved.`),
+    chip: (n: number) => `+${n}`,
+    chipLabel: (n: number) => (n === 1 ? "is bringing 1 person" : `is bringing ${n} people`),
+  },
 } satisfies typeof dePlanCards;

@@ -3,6 +3,7 @@ import { IconCheck, IconCrews } from "@/components/icons";
 import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { goingWithGuests } from "@/lib/quorum";
 import { qk } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
 import type { PlanWithParticipants } from "./api";
@@ -14,9 +15,9 @@ await loadTexts("planQuorum");
 /** Zur Wahl stehende Mindestzahlen; eine gespeicherte andere Zahl (2–50) wird ergänzt. */
 const OPTIONS = [2, 3, 4, 5, 6, 8, 10];
 
-/** P25: Zusagen wie bei „Wer kommt mit?“ – Mitglieder und Gäste mit „Bin dabei“. */
+/** P25: Zusagen wie bei „Wer kommt mit?“ – Mitglieder (mit Begleitung, P51) und Gäste mit „Bin dabei“. */
 export function goingCount(plan: Pick<PlanWithParticipants, "participants" | "guests">): number {
-  return plan.participants.filter((p) => p.attendance_status === "going").length + (plan.guests ?? []).filter((g) => g.attendance_status === "going").length;
+  return goingWithGuests(plan);
 }
 
 function useSetPlanMinGoing(planId: string) {

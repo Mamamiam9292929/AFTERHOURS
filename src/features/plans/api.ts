@@ -2,6 +2,7 @@ import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { qk } from "@/lib/query";
+import { goingHeads } from "@/lib/quorum";
 import { useRealtime } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
 import { dueSeries, type PlanSeries, type RepeatRule } from "@/lib/repeat";
@@ -38,7 +39,8 @@ export interface CostEstimate {
 
 /** Kosten pro Person und gesamt; fehlt eine der beiden Angaben, wird sie aus den Zusagen berechnet. */
 export function estimateCosts(plan: PlanWithParticipants): CostEstimate {
-  const goingCount = plan.participants.filter((p) => p.attendance_status === "going").length;
+  // P51: Begleitung isst und trinkt mit – sie zählt bei der Schätzung wie eine Zusage.
+  const goingCount = goingHeads(plan.participants);
   const perPerson = plan.estimated_cost_per_person_cents;
   const total = plan.estimated_total_cost_cents;
   return {
@@ -271,7 +273,7 @@ export function useSetAttendance(planId: string) {
       if (previous && user) {
         client.setQueryData<PlanWithParticipants | null>(qk.plan(planId), (old) =>
           old
-            ? { ...old, participants: old.participants.map((p) => (p.user_id === user.id ? { ...p, attendance_status: status, responded_at: new Date().toISOString(), note: p.attendance_status === status ? p.note : null } : p)) }
+            ? { ...old, participants: old.participants.map((p) => (p.user_id === user.id ? { ...p, attendance_status: status, responded_at: new Date().toISOString(), note: p.attendance_status === status ? p.note : null, plus_ones: p.attendance_status === status ? p.plus_ones : 0 } : p)) }
             : old,
         );
       }
@@ -316,6 +318,29 @@ export function useSetPlanAnswerNote(planId: string) {
           old ? { ...old, participants: old.participants.map((p) => (p.user_id === user.id ? { ...p, note } : p)) } : old,
         );
       }
+      void client.invalidateQueries({ queryKey: qk.plans });
+    },
+  });
+}
+
+/** P51: Begleitung zur eigenen Zusage (0–3). Liefert die gespeicherte Zahl. */
+export function useSetPlanPlusOnes(planId: string) {
+  const client = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (count: number): Promise<number> => {
+      const { data, error } = await supabase.rpc("set_plan_plus_ones", { p_plan_id: planId, p_count: count });
+      if (error) throw error;
+      return (data as number | null) ?? 0;
+    },
+    onSuccess: (count) => {
+      if (user) {
+        client.setQueryData<PlanWithParticipants | null>(qk.plan(planId), (old) =>
+          old ? { ...old, participants: old.participants.map((p) => (p.user_id === user.id ? { ...p, plus_ones: count } : p)) } : old,
+        );
+      }
+      // Nachrücken oder „Findet statt“ kann andere Zeilen ändern – neu laden.
+      void client.invalidateQueries({ queryKey: qk.plan(planId) });
       void client.invalidateQueries({ queryKey: qk.plans });
     },
   });

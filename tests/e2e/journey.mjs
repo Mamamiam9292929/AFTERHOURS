@@ -4187,6 +4187,71 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P51 – „Ich bring wen mit“: Bob (390 px) ist dabei und bringt mit einem Tipp zwei mit. Die Crew sieht „+2“ bei
+  // „Wer kommt mit?“, „Dabei“ zählt 4. Mit „höchstens 4“ ist die Runde voll: „+3“ ist gesperrt, Carols Zusage weist
+  // der Server ab. Ohne „Bin dabei“ keine Begleitung, ohne Anmeldung gar nichts; „Nur ich“ macht wieder Platz.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const plusPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+      values ('${ids.crew}', '${bobId}', 'Pizza bei Gino', date_trunc('day', now()) + interval '5 days 19 hours', 'confirmed')
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
+      select '${plusPlan}', m.user_id,
+        case when m.user_id in ('${bobId}', '${aliceId}') then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
+        case when m.user_id in ('${bobId}', '${aliceId}') then now() end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    try {
+      await bob.page.goto(`${APP}/plans/${plusPlan}`);
+      await bob.page.getByRole("heading", { level: 1, name: "Pizza bei Gino" }).waitFor();
+      const picker = bob.page.getByTestId("plan-plus-ones");
+      await picker.waitFor();
+      check((await picker.getByRole("radio", { name: "Nur ich, ohne Begleitung" }).getAttribute("aria-checked")) === "true", "Begleitung: anfangs „Nur ich“");
+      await picker.getByRole("radio", { name: "Ich bringe 2 Personen mit" }).click();
+      await toast(bob, "+2 gespeichert.");
+      check(psql(`select plus_ones from public.plan_participants where plan_id = '${plusPlan}' and user_id = '${bobId}'`) === "2", "Begleitung: mit einem Tipp gespeichert");
+      const chip = bob.page.getByTestId("who-plus-ones");
+      await chip.waitFor();
+      check((await chip.innerText()).includes("+2"), "Begleitung: „+2“ bei „Wer kommt mit?“");
+      check(/Dabei \(4\)/.test(await bob.page.locator("p", { hasText: /^Dabei \(/ }).first().innerText()), "Begleitung: „Dabei“ zählt 4 (Bob mit zwei, Alice)");
+      await noOverflow(bob, "Begleitung");
+      await a11y(bob, "plan-begleitung");
+      await picker.scrollIntoViewIfNeeded();
+      await shot(bob, "21w-plan-begleitung");
+
+      // Carol (Tablet) sieht die Begleitung; ohne „Bin dabei“ bringt sie selbst niemanden mit.
+      await carol.page.goto(`${APP}/plans/${plusPlan}`);
+      await carol.page.getByRole("heading", { level: 1, name: "Pizza bei Gino" }).waitFor();
+      await carol.page.getByTestId("who-plus-ones").waitFor();
+      check((await carol.page.getByTestId("plan-plus-ones").count()) === 0, "Begleitung: ohne Zusage keine Auswahl");
+      check((await api(carol, "POST", "rpc/set_plan_plus_ones", { p_plan_id: plusPlan, p_count: 1 })).status >= 400, "Begleitung: ohne „Bin dabei“ abgewiesen");
+
+      // Höchstens 4: mit Bobs Begleitung voll.
+      check((await api(bob, "POST", "rpc/set_plan_max_going", { p_plan_id: plusPlan, p_max: 4 })).status < 300, "Begleitung: Höchstzahl 4 gesetzt");
+      check((await api(carol, "POST", "rpc/set_attendance", { p_plan_id: plusPlan, p_status: "going" })).status >= 400, "Begleitung: voll – Carols Zusage abgewiesen");
+      await bob.page.reload();
+      await picker.waitFor();
+      check(await picker.getByRole("radio", { name: "Ich bringe 3 Personen mit" }).isDisabled(), "Begleitung: voll – „+3“ gesperrt");
+      check((await picker.innerText()).includes("Alle Plätze sind vergeben"), "Begleitung: Hinweis bei voller Runde");
+      await picker.getByRole("radio", { name: "Nur ich, ohne Begleitung" }).click();
+      await toast(bob, "Ohne Begleitung gespeichert.");
+      check(psql(`select plus_ones from public.plan_participants where plan_id = '${plusPlan}' and user_id = '${bobId}'`) === "0", "Begleitung: „Nur ich“ gespeichert");
+      await bob.page.getByTestId("who-plus-ones").waitFor({ state: "detached" });
+      check(true, "Begleitung: „+2“ verschwindet");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/set_plan_plus_ones`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: plusPlan, p_count: 1 }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung keine Begleitung (${res.status})`);
+      }
+    } finally {
+      psql(`delete from public.notifications where related_entity_id = '${plusPlan}'; delete from public.plans where id = '${plusPlan}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });
