@@ -92,24 +92,24 @@ export function PlanStopsFact({ planId, startsAt, canManage, locked }: PlanStops
       ) : (
         <ol className="mt-1 space-y-2" aria-label={t.planCards.stops.label} data-testid="plan-stops">
           {list.map((stop) => (
-            <li key={stop.id} data-testid="plan-stop" className={cn(PANEL_ITEM, "flex items-start gap-3 py-2.5 pr-2 pl-3.5")}>
-              <StatusPill tone={stop.at ? "lime" : "glass"} className="mt-0.5 shrink-0">
-                {stop.at ? formatTime(stop.at) : t.planCards.stops.later}
-              </StatusPill>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold break-words text-fg">{stop.title}</p>
-                {stop.address && <p className="mt-0.5 text-sm break-words text-muted">{stop.address}</p>}
-                {!locked && stop.address && <Directions target={{ name: stop.title, address: stop.address }} />}
+            // Uhrzeit, Name und × in einer Zeile; Adresse und Route darunter über die volle Breite – bei 390 px bricht
+            // „Wie komm ich hin?“ sonst neben der Pille um.
+            <li key={stop.id} data-testid="plan-stop" className={cn(PANEL_ITEM, "py-2.5 pr-2 pl-3.5")}>
+              <div className="flex min-h-9 items-center gap-3">
+                <StatusPill tone={stop.at ? "lime" : "glass"}>{stop.at ? formatTime(stop.at) : t.planCards.stops.later}</StatusPill>
+                <p className="min-w-0 flex-1 font-semibold break-words text-fg">{stop.title}</p>
+                {editable && (
+                  <IconButton
+                    label={t.planCards.stops.remove(stop.title)}
+                    disabled={remove.isPending}
+                    onClick={() => remove.mutate(stop.id, { onSuccess: () => toast.success(t.planCards.stops.removed), onError: (error) => toast.error(error) })}
+                  >
+                    <IconClose className="size-4" aria-hidden />
+                  </IconButton>
+                )}
               </div>
-              {editable && (
-                <IconButton
-                  label={t.planCards.stops.remove(stop.title)}
-                  disabled={remove.isPending}
-                  onClick={() => remove.mutate(stop.id, { onSuccess: () => toast.success(t.planCards.stops.removed), onError: (error) => toast.error(error) })}
-                >
-                  <IconClose className="size-4" aria-hidden />
-                </IconButton>
-              )}
+              {stop.address && <p className="mt-1.5 text-sm break-words text-muted">{stop.address}</p>}
+              {!locked && stop.address && <Directions target={{ name: stop.title, address: stop.address }} className="-mt-1" />}
             </li>
           ))}
         </ol>
