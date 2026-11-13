@@ -210,6 +210,7 @@ export const errors = {
     plan_stop_limit: "Mehr als vier Stationen gehen nicht.",
     plan_item_limit: "Auf der Liste stehen schon 40 Sachen. Fasst ein paar zusammen.",
     plan_item_taken: "Das bringt inzwischen schon jemand anderes mit.",
+    plan_items_guest_no_answer: "Die Mitbring-Liste siehst du, sobald du „Bin dabei“ oder „Vielleicht“ gesagt hast.",
     live_location_not_going: "Standort teilen kann nur, wer dabei ist oder „vielleicht“ gesagt hat.",
     live_location_outside_window: "Standort teilen geht nur ab 2 Stunden vor Beginn bis zum Ende des Plans.",
     live_location_not_sharing: "Teil erst deinen Standort – dann kannst du sagen, wann du da bist.",

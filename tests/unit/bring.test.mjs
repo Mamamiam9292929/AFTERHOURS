@@ -1,7 +1,7 @@
 // P14 Etappe 2 · Wer bringt was? auf Home und Vorlagen je Anlass (src/lib/bring.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bringSummary, guessTemplate, sameLabel, templateSuggestions } from "../../src/lib/bring.ts";
+import { bringSummary, guessTemplate, isOpenItem, sameLabel, templateSuggestions } from "../../src/lib/bring.ts";
 
 const item = (id, label, claimed_by, minute) => ({ id, label, claimed_by, created_at: `2026-10-29T18:${String(minute).padStart(2, "0")}:00Z` });
 
@@ -21,6 +21,16 @@ test("alles von anderen vergeben: nichts Eigenes, nichts offen", () => {
   const s = bringSummary([item("u", "Uno", "bob", 1)], "me");
   assert.deepEqual(s.mine, []);
   assert.deepEqual(s.open, []);
+});
+
+test("P52: was ein Gast mitbringt, ist nicht offen und nicht deins", () => {
+  const items = [item("k", "Kohle", null, 1), { ...item("c", "Chips", null, 2), claimed_by_guest: "gast-1" }, { ...item("b", "Bier", null, 3), claimed_by_guest: null }];
+  const s = bringSummary(items, "me");
+  assert.deepEqual(s.open, [{ id: "k", label: "Kohle" }, { id: "b", label: "Bier" }]);
+  assert.deepEqual(s.mine, []);
+  assert.equal(isOpenItem({ claimed_by: null }), true, "älterer Stand ohne Spalte: offen");
+  assert.equal(isOpenItem({ claimed_by: null, claimed_by_guest: "gast-1" }), false);
+  assert.equal(isOpenItem({ claimed_by: "bob", claimed_by_guest: null }), false);
 });
 
 test("Vorlage aus dem Plantitel", () => {

@@ -207,6 +207,7 @@ export const errors = {
     plan_stop_limit: "No more than four stops.",
     plan_item_limit: "There are already 40 things on the list. Combine a few.",
     plan_item_taken: "Someone else is already bringing that.",
+    plan_items_guest_no_answer: "You'll see the bring list once you've answered “I'm in” or “Maybe”.",
     live_location_not_going: "Only people who are in or said \"maybe\" can share their location.",
     live_location_outside_window: "Location sharing only works from 2 hours before the start until the end of the plan.",
     live_location_not_sharing: "Share your location first – then you can say when you'll be there.",

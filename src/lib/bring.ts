@@ -7,6 +7,8 @@ export interface BringItem {
   id: string;
   label: string;
   claimed_by: string | null;
+  /** P52: Gast über den Teilen-Link, der es mitbringt (fehlt bei älterem Stand). */
+  claimed_by_guest?: string | null;
   created_at: string;
 }
 
@@ -24,9 +26,14 @@ export function bringSummary(items: readonly BringItem[], userId: string): Bring
   const sorted = [...items].sort((a, b) => a.created_at.localeCompare(b.created_at));
   return {
     mine: sorted.filter((i) => i.claimed_by === userId).map((i) => i.label),
-    open: sorted.filter((i) => i.claimed_by == null).map((i) => ({ id: i.id, label: i.label })),
+    open: sorted.filter((i) => isOpenItem(i)).map((i) => ({ id: i.id, label: i.label })),
     total: items.length,
   };
+}
+
+/** P52: Offen ist, was weder ein Mitglied noch ein Gast mitbringt. */
+export function isOpenItem(item: Pick<BringItem, "claimed_by" | "claimed_by_guest">): boolean {
+  return item.claimed_by == null && item.claimed_by_guest == null;
 }
 
 /** Anlässe mit Vorlagen; die Sachen selbst stehen sprachabhängig in den Texten (`t.planCards.items.templates`). */

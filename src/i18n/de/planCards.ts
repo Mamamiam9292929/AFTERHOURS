@@ -270,6 +270,10 @@ export const planCards = {
     removed: "Von der Liste genommen.",
     you: "Du bringst es",
     bringer: (name: string) => `${name} bringt es`,
+    /** P52: Gast, dessen Name nicht (mehr) geladen ist. */
+    someGuest: "Ein Gast",
+    /** P52: Hinweis, wenn Zusagen über den Link an sind. */
+    guestsHint: "Freunde ohne Konto, die über den Link zugesagt haben, sehen die Liste auch und können offene Sachen übernehmen.",
     open: "Noch offen",
     progress: (claimed: number, total: number) => (claimed === total ? "Alles vergeben" : `${claimed} von ${total} vergeben`),
     mine: (n: number) => (n === 1 ? "Du bringst 1 Sache mit." : `Du bringst ${n} Sachen mit.`),

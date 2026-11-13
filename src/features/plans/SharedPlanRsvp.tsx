@@ -12,6 +12,7 @@ import { errorMessage } from "@/lib/errors";
 import { formatTime } from "@/lib/time";
 import { NoteEditor } from "./AnswerNote";
 import { Directions } from "./Directions";
+import { GuestBringList } from "./GuestBringList";
 import { GuestCalendar } from "./GuestCalendar";
 import {
   type GuestAnswer,
@@ -335,6 +336,11 @@ export function SharedPlanRsvp({
 
         {/* P27: Termin in den eigenen Kalender – erst mit gespeicherter Zusage oder „Vielleicht“ (auch auf der Nachrückliste). */}
         {me && !pending && <GuestCalendar token={token} plan={loaded.plan} answer={me.status} open={open} />}
+
+        {/* P52: Mitbring-Liste der Crew – mit gespeicherter Zusage oder „Vielleicht“, solange der Plan nicht abgesagt ist. */}
+        {me && !pending && (me.status === "going" || me.status === "maybe") && loaded.plan.status !== "cancelled" && (
+          <GuestBringList token={token} secret={secret} />
+        )}
 
         {open && me && (
           <button

@@ -7,7 +7,7 @@ import { ErrorState, Skeleton } from "@/components/ui/Feedback";
 import { FormMessage, TextField } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
-import { BRING_TEMPLATES, guessTemplate, sameLabel, templateSuggestions, type BringTemplate } from "@/lib/bring";
+import { BRING_TEMPLATES, guessTemplate, isOpenItem, sameLabel, templateSuggestions, type BringTemplate } from "@/lib/bring";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
 import { PANEL_ITEM, StatusPill } from "./PlanPanel";
@@ -57,8 +57,10 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
   if (items.isError) return <ErrorState error={items.error} onRetry={() => void items.refetch()} />;
 
   const list = items.data;
-  const sorted = [...list].sort((a, b) => Number(a.claimed_by != null) - Number(b.claimed_by != null));
-  const claimedCount = list.filter((i) => i.claimed_by != null).length;
+  const sorted = [...list].sort((a, b) => Number(!isOpenItem(a)) - Number(!isOpenItem(b)));
+  const claimedCount = list.filter((i) => !isOpenItem(i)).length;
+  // P52: Gäste über den Teilen-Link bringen auch etwas mit – die Crew sieht „Dana (Gast) bringt es“.
+  const guestName = (id: string) => plan.guests?.find((g) => g.id === id)?.display_name ?? null;
   const mineCount = list.filter((i) => i.claimed_by === userId).length;
   const full = list.length >= MAX_ITEMS;
 
@@ -116,6 +118,11 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
   return (
     <div className="space-y-3">
       {!locked && <p className="text-[15px] leading-snug text-muted">{t.planCards.items.intro}</p>}
+      {!locked && plan.guests_allowed && (
+        <p className="text-[13px] leading-snug text-faint" data-testid="items-guests-hint">
+          {t.planCards.items.guestsHint}
+        </p>
+      )}
 
       {list.length === 0 ? (
         <p className="text-[15px] text-muted">{t.planCards.items.empty}</p>
@@ -131,8 +138,9 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
             {sorted.map((item) => {
               const mine = item.claimed_by === userId;
               const bringer = item.claimed_by ? lookup(item.claimed_by) : null;
+              const guest = item.claimed_by_guest ? guestName(item.claimed_by_guest) : null;
               const canRemove = !locked && (item.created_by === userId || canManage);
-              const state = item.claimed_by == null ? "open" : mine ? "mine" : "taken";
+              const state = isOpenItem(item) ? "open" : mine ? "mine" : "taken";
               return (
                 <li
                   key={item.id}
@@ -151,8 +159,14 @@ export function BringPanel({ plan, userId, canManage, locked, lookup }: BringPan
                       ) : (
                         <>
                           {/* Eigene Sachen ohne Profilbild: der Lime-Haken sagt es schon, und bei 390 px passt „Du bringst es“ neben „Doch nicht“. */}
-                          {!mine && <Avatar person={bringer} size="xs" decorative />}
-                          <span className={mine ? "break-words" : "truncate"}>{mine ? t.planCards.items.you : t.planCards.items.bringer(bringer?.display_name ?? t.states.formerMember)}</span>
+                          {!mine && !item.claimed_by_guest && <Avatar person={bringer} size="xs" decorative />}
+                          <span className={mine ? "break-words" : "truncate"} data-guest={item.claimed_by_guest ? true : undefined}>
+                            {mine
+                              ? t.planCards.items.you
+                              : item.claimed_by_guest
+                                ? t.planCards.items.bringer(guest ? t.plans.detail.attendance.guest(guest) : t.planCards.items.someGuest)
+                                : t.planCards.items.bringer(bringer?.display_name ?? t.states.formerMember)}
+                          </span>
                         </>
                       )}
                     </p>

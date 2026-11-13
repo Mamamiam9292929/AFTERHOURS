@@ -4302,6 +4302,90 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
     }
   }
 
+  // P52 – Gäste bringen was mit: Bob grillt und lässt Gäste über den Link zusagen; auf der Liste stehen Kohle, Grillgut
+  // und Bier (Bier bringt Bob). Mia (ohne Konto, 390 px) sieht die Liste erst nach ihrer Zusage, ohne Namen der Crew;
+  // sie übernimmt die Kohle mit einem Tipp. Carol (Tablet) sieht „Mia (Gast) bringt es“ und bekommt die Kohle nicht;
+  // ein fremdes Geheimnis ändert nichts. „Kann nicht“ gibt die Kohle wieder frei.
+  if (DB_URL) {
+    const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+    const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
+    const grillPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, guests_allowed)
+      values ('${ids.crew}', '${bobId}', 'Grillen im Park', date_trunc('day', now()) + interval '6 days 18 hours', 'confirmed', true)
+      returning id`).split("\n")[0];
+    psql(`insert into public.plan_participants (plan_id, user_id, attendance_status, responded_at)
+      select '${grillPlan}', m.user_id,
+        case when m.user_id = '${bobId}' then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
+        case when m.user_id = '${bobId}' then now() end
+      from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    let grillGuestContext = null;
+    try {
+      for (const [label, claim] of [["Kohle", false], ["Grillgut", false], ["Bier", true]]) {
+        check((await api(bob, "POST", "rpc/add_plan_item", { p_plan_id: grillPlan, p_label: label, p_claim: claim })).status < 300, `Gäste bringen mit: „${label}“ auf der Liste`);
+      }
+      const grillToken = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: grillPlan })).json;
+      grillGuestContext = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+      const mia = { page: await grillGuestContext.newPage(), viewport: "mobile" };
+      await mia.page.goto(`${APP}/s/${grillToken}`);
+      await mia.page.getByTestId("rsvp-card").waitFor();
+      check((await mia.page.getByTestId("rsvp-items").count()) === 0, "Gäste bringen mit: ohne Zusage keine Liste");
+      await mia.page.getByRole("radio", { name: "Bin dabei" }).click();
+      await mia.page.getByLabel("Dein Name").fill("Mia");
+      await mia.page.getByRole("button", { name: "Antwort senden" }).click();
+      const list = mia.page.getByTestId("rsvp-items");
+      await list.getByTestId("rsvp-item").first().waitFor();
+      check((await list.getByTestId("rsvp-item").count()) === 3, "Gäste bringen mit: Mia sieht drei Sachen");
+      check((await list.getByTestId("rsvp-items-progress").innerText()).includes("1 von 3 vergeben"), "Gäste bringen mit: Stand „1 von 3 vergeben“");
+      const beer = list.getByTestId("rsvp-item").filter({ hasText: "Bier" });
+      check((await beer.getAttribute("data-state")) === "taken", "Gäste bringen mit: Bier bringt schon jemand");
+      check(!(await list.innerText()).includes("Bob"), "Gäste bringen mit: keine Namen der Crew");
+      check((await beer.getByRole("button").count()) === 0, "Gäste bringen mit: vergebene Sache ohne Knopf");
+      await list.getByRole("button", { name: "Kohle – bring ich mit" }).click();
+      await list.getByText("Gespeichert: Du bringst Kohle mit.").waitFor();
+      check((await list.getByTestId("rsvp-item").filter({ hasText: "Kohle" }).getAttribute("data-state")) === "mine", "Gäste bringen mit: Kohle ist Mias");
+      check(
+        psql(`select g.display_name from public.plan_items i join public.plan_guests g on g.id = i.claimed_by_guest where i.plan_id = '${grillPlan}' and i.label = 'Kohle'`) === "Mia",
+        "Gäste bringen mit: beim Server gespeichert",
+      );
+      await list.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(mia, "Mitbring-Liste als Gast");
+      await a11y(mia, "geteilt-mitbringen");
+      await shot(mia, "21w4-geteilt-gast-mitbringen");
+      if (ANON) {
+        const kohle = psql(`select id from public.plan_items where plan_id = '${grillPlan}' and label = 'Kohle'`);
+        const res = await fetch(`${API}/rest/v1/rpc/guest_claim_plan_item`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_token: grillToken, p_secret: "f".repeat(64), p_item_id: kohle, p_claim: false }),
+        });
+        check(res.status >= 400, `Gäste bringen mit: fremdes Geheimnis abgewiesen (${res.status})`);
+        check(psql(`select claimed_by_guest is not null from public.plan_items where id = '${kohle}'`) === "t", "Gäste bringen mit: fremdes Geheimnis ändert nichts");
+      }
+
+      // Carol (Tablet) sieht auf der Planseite, dass Mia die Kohle bringt, und den Hinweis zur Liste für Gäste.
+      await carol.page.goto(`${APP}/plans/${grillPlan}`);
+      const panel = carol.page.locator("section#mitbringen");
+      const coal = panel.getByTestId("plan-item").filter({ hasText: "Kohle" });
+      await coal.waitFor();
+      check((await coal.getAttribute("data-state")) === "taken", "Gäste bringen mit: für die Crew vergeben");
+      check((await coal.innerText()).includes("Mia (Gast) bringt es"), "Gäste bringen mit: Crew sieht „Mia (Gast) bringt es“");
+      check((await coal.getByRole("button", { name: "Bring ich" }).count()) === 0, "Gäste bringen mit: kein „Bring ich“ bei Mias Sache");
+      check(await panel.getByTestId("items-guests-hint").isVisible(), "Gäste bringen mit: Hinweis für die Crew");
+      const kohleId = psql(`select id from public.plan_items where plan_id = '${grillPlan}' and label = 'Kohle'`);
+      check((await api(carol, "POST", "rpc/claim_plan_item", { p_item_id: kohleId, p_claim: true })).status >= 400, "Gäste bringen mit: Carol bekommt die Kohle nicht");
+      await coal.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await a11y(carol, "plan-mitbringen-gast");
+      await shot(carol, "21w5-plan-gast-mitbringen");
+
+      // „Kann nicht“: die Liste verschwindet, die Kohle ist wieder offen.
+      await mia.page.getByRole("radio", { name: "Kann nicht" }).click();
+      await list.waitFor({ state: "detached" });
+      check(psql(`select claimed_by_guest is null from public.plan_items where id = '${kohleId}'`) === "t", "Gäste bringen mit: „Kann nicht“ gibt die Kohle frei");
+    } finally {
+      if (grillGuestContext) await grillGuestContext.close().catch(() => {});
+      psql(`delete from public.notifications where related_entity_id = '${grillPlan}'; delete from public.plans where id = '${grillPlan}'`);
+    }
+  }
+
   await alice.page.goto(`${APP}/crews`);
   await alice.page.getByRole("link", { name: /Weekend Crew/ }).first().waitFor();
   const crewsTitle = alice.page.getByRole("heading", { level: 1 });
