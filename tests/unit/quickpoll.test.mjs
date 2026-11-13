@@ -45,7 +45,8 @@ const cases = [
   ["Was geht?", ["Was geht"], [], null, "Was geht – wer ist dabei?"],
   // Feinschliff (20.10.): Uhrzeiten, wie man sie sagt, Tage mit Tageszeit, Kurzformen am Rand
   ["kino am fr um halb 8", ["Kino"], ["2026-10-23"], "19:30", "Was geht Freitag?"],
-  ["Restaurant am Mo um viertel nach 7", ["Restaurant"], ["2026-10-19"], "19:15", "Was geht heute?"],
+  // Montag 20 Uhr: „Mo um viertel nach 7“ ist heute schon vorbei – gemeint ist der nächste Montag.
+  ["Restaurant am Mo um viertel nach 7", ["Restaurant"], ["2026-10-26"], "19:15", "Was geht Montag?"],
   ["dreiviertel 8 bar", ["Bar"], [], "19:45", "Bar – wer ist dabei?"],
   ["Am So. um halb 8 Tatort", ["Tatort"], ["2026-10-25"], "19:30", "Was geht Sonntag?"],
   ["Kneipe? heute so gegen 9", ["Kneipe"], ["2026-10-19"], "21:00", "Was geht heute?"],
@@ -176,4 +177,17 @@ test("P33: englische Sätze", () => {
   const en = (s) => parseQuickPoll(s, NOW, "en");
   assert.deepEqual(quickPlan(en("cinema fri 8pm"), NOW), { title: "Cinema", startsAt: "2026-10-23T18:00:00.000Z" });
   assert.equal(quickPlan(en("cinema or bowling fri 8pm"), NOW), null);
+});
+
+test("Wochentag von heute mit schon vergangener Uhrzeit meint nächste Woche", () => {
+  // Freitag, 13. November 2026, 21:10 Berliner Zeit (UTC+1).
+  const FRI_EVENING = new Date("2026-11-13T20:10:00Z");
+  const r = parseQuickPoll("bowling oder kino, fr oder sa, 20 uhr", FRI_EVENING);
+  assert.deepEqual(dates(r), ["2026-11-14", "2026-11-20"], "Freitag 20 Uhr ist vorbei – nächster Freitag, Samstag bleibt morgen");
+  assert.ok(r.options.every((o) => o.proposed_date > "2026-11-13"), "kein Vorschlag in der Vergangenheit");
+  assert.deepEqual(dates(parseQuickPoll("kino fr 22 uhr", FRI_EVENING)), ["2026-11-13"], "22 Uhr ist noch nicht vorbei – heute");
+  assert.deepEqual(dates(parseQuickPoll("kino freitag", FRI_EVENING)), ["2026-11-13"], "ohne Uhrzeit zählt heute");
+  assert.deepEqual(dates(parseQuickPoll("kino heute 20 uhr", FRI_EVENING)), ["2026-11-13"], "„heute“ bleibt heute");
+  assert.deepEqual(dates(parseQuickPoll("WE bowling 19 uhr", FRI_EVENING)), ["2026-11-14", "2026-11-20"], "Wochenende: Freitag schon vorbei");
+  assert.deepEqual(dates(parseQuickPoll("bowling fri 8pm", FRI_EVENING, "en")), ["2026-11-20"], "auch auf Englisch");
 });

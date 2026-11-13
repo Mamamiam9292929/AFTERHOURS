@@ -86,17 +86,19 @@ interface BerlinNow {
   date: string;
   weekday: number;
   year: number;
+  /** Uhrzeit in Berlin als „HH:MM“ */
+  time: string;
 }
 
 function berlinNow(now: Date): BerlinNow {
   const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" })
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
       .formatToParts(now)
       .map((p) => [p.type, p.value]),
   );
   const date = `${parts.year}-${parts.month}-${parts.day}`;
   const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.weekday ?? "");
-  return { date, weekday, year: Number(parts.year) };
+  return { date, weekday, year: Number(parts.year), time: `${parts.hour}:${parts.minute}` };
 }
 
 function addDays(date: string, days: number): string {
@@ -160,9 +162,14 @@ function stripFiller(phrase: string, filler: string[] = FILLER): string {
   return p;
 }
 
-/** Wochentag ab heute (heute zählt, wenn es derselbe Tag ist). */
-function nextWeekday(now: BerlinNow, weekday: number): string {
-  return addDays(now.date, (weekday - now.weekday + 7) % 7);
+/**
+ * Wochentag ab heute (heute zählt, wenn es derselbe Tag ist). Steht eine Uhrzeit dabei, die heute schon vorbei ist
+ * („fr 20 uhr“ am Freitag um 21 Uhr), ist der nächste dieser Wochentag gemeint – ein Termin in der Vergangenheit
+ * lässt sich weder abstimmen noch als Plan anlegen.
+ */
+function nextWeekday(now: BerlinNow, weekday: number, time: string | null = null): string {
+  const date = addDays(now.date, (weekday - now.weekday + 7) % 7);
+  return date === now.date && time != null && time <= now.time ? addDays(date, 7) : date;
 }
 
 export function parseQuickPoll(input: string, now: Date = new Date(), lang: QuickLang = "de"): QuickPoll {
@@ -252,9 +259,9 @@ export function parseQuickPoll(input: string, now: Date = new Date(), lang: Quic
         if (word === "today" || word === "tonight") addDay(today.date);
         else if (word === "tomorrow" || word === "tmrw" || word === "tmr") addDay(addDays(today.date, 1));
         else if (word === "weekend") {
-          addDay(nextWeekday(today, 5));
-          addDay(nextWeekday(today, 6));
-        } else if (word in EN_WEEKDAYS) addDay(nextWeekday(today, EN_WEEKDAYS[word] ?? 0));
+          addDay(nextWeekday(today, 5, time));
+          addDay(nextWeekday(today, 6, time));
+        } else if (word in EN_WEEKDAYS) addDay(nextWeekday(today, EN_WEEKDAYS[word] ?? 0, time));
         else rest.push(w);
       }
       addActivity(stripFiller(rest.join(" "), EN_FILLER));
@@ -277,9 +284,9 @@ export function parseQuickPoll(input: string, now: Date = new Date(), lang: Quic
       else if (word === "morgen") addDay(addDays(today.date, 1));
       else if (word === "übermorgen" || word === "uebermorgen") addDay(addDays(today.date, 2));
       else if (word === "wochenende") {
-        addDay(nextWeekday(today, 5));
-        addDay(nextWeekday(today, 6));
-      } else if (word in WEEKDAYS && shortOk) addDay(nextWeekday(today, WEEKDAYS[word] ?? 0));
+        addDay(nextWeekday(today, 5, time));
+        addDay(nextWeekday(today, 6, time));
+      } else if (word in WEEKDAYS && shortOk) addDay(nextWeekday(today, WEEKDAYS[word] ?? 0, time));
       else rest.push(w);
     }
     addActivity(stripFiller(rest.join(" ")));
