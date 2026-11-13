@@ -1352,7 +1352,7 @@ await step("Schritt 9 – Teilnehmer bestätigen", async () => {
   check((await bob.page.locator(".ticket-feature .ticket-stamp").innerText()).toLowerCase() === "dabei", "Zusage: grünes Ticket mit Stempel „Dabei“");
   // V2 Etappe 3c: „Bist du dabei?“ ist eine Karte in der Farbe der eigenen Antwort, die Antworten sind Pillen.
   await bob.page.locator('.answer-card[data-answer="yes"]').waitFor();
-  check((await bob.page.locator(".answer-card .vote-pill[aria-checked=true]").innerText()) === "Bin dabei", "Zusage: Antwort-Karte grün, „Bin dabei“ als gewählte Pille");
+  check((await bob.page.locator(".answer-card [aria-labelledby=attendance-heading] .vote-pill[aria-checked=true]").innerText()) === "Bin dabei", "Zusage: Antwort-Karte grün, „Bin dabei“ als gewählte Pille");
   check((await bob.page.locator(".plan-facts").count()) === 1, "Was/Wann/Wo stehen auf einer Karte");
   await shot(bob, "16-plan");
   await carol.page.goto(`${APP}/plans/${ids.plan}`);
