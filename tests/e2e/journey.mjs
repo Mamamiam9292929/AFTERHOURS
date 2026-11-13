@@ -7219,7 +7219,9 @@ await step("P50 – „Danach noch wohin?“: Stationen am Abend (Bob organisier
     check(carolAdd.status >= 400, `API: Mitglied hängt keine Station an (${carolAdd.status})`);
     const direct = await api(carol, "POST", "plan_stops", { plan_id: planId, title: "Direkt" });
     check(direct.status >= 400, `API: Stationen nicht direkt anlegbar (${direct.status})`);
-    check(((await api(mallory, "GET", `plan_stops?plan_id=eq.${planId}`)).json ?? []).length === 0, "API: Außenstehende sehen keine Stationen");
+    // Mallorys Sitzung kann hier schon abgelaufen sein (401) – auch dann sieht sie nichts; die Regel prüft pgTAP genau.
+    const outsider = await api(mallory, "GET", `plan_stops?plan_id=eq.${planId}`);
+    check(outsider.status >= 400 || (Array.isArray(outsider.json) && outsider.json.length === 0), `API: Außenstehende sehen keine Stationen (${outsider.status})`);
     const anon = await api(null, "GET", `plan_stops?plan_id=eq.${planId}`);
     check(anon.status >= 400 || (anon.json ?? []).length === 0, `API: anon sieht keine Stationen (${anon.status})`);
 
