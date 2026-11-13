@@ -9,6 +9,7 @@ import { rememberedGuestName, rememberGuestName } from "@/features/polls/api";
 import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { errorMessage } from "@/lib/errors";
+import { formatTime } from "@/lib/time";
 import { NoteEditor } from "./AnswerNote";
 import { Directions } from "./Directions";
 import { GuestCalendar } from "./GuestCalendar";
@@ -86,6 +87,8 @@ export function SharedPlanRsvp({
   const oneTap = Boolean(knownName) && !editingName;
   const open = loaded.plan.open;
   const where = [loaded.plan.place, loaded.plan.address].filter(Boolean).join(" · ");
+  // P50 Etappe 2b: weitere Stationen des Abends (Server liefert sie in der Reihenfolge des Abends).
+  const stops = loaded.plan.stops ?? [];
   // P26 Etappe 2: Ist die Runde voll, bleibt „Bin dabei“ zu – wer schon zugesagt hat, behält den Platz.
   const goingClosed = full && me?.status !== "going";
   const fullError = answer.isError && (answer.error as { code?: string; message?: string }).message === "plan_full";
@@ -148,7 +151,7 @@ export function SharedPlanRsvp({
       title={!open ? t.planGuests.rsvp.closedTitle : me ? t.planGuests.rsvp.changeTitle(me.name) : t.planGuests.rsvp.title}
       intro={!open ? t.planGuests.rsvp.closedIntro : me ? t.planGuests.rsvp.changeIntro : t.planGuests.rsvp.intro}
     >
-      {(where || loaded.plan.meeting_point) && (
+      {(where || loaded.plan.meeting_point || stops.length > 0) && (
         <div className="vote-card mb-5 flex gap-3 p-4" data-testid="rsvp-where">
           <IconPin className="mt-0.5 size-5 shrink-0 text-lime" aria-hidden />
           <div className="min-w-0 text-[15px] leading-snug">
@@ -160,6 +163,23 @@ export function SharedPlanRsvp({
               <p className="mt-1 break-words text-muted">
                 {t.planGuests.rsvp.meetingPoint}: <span className="text-fg">{loaded.plan.meeting_point}</span>
               </p>
+            )}
+            {stops.length > 0 && (
+              <div className={cn((where || loaded.plan.meeting_point) && "mt-3 border-t border-line pt-3")}>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted">{t.planGuests.rsvp.stops}</p>
+                <ol className="mt-1.5 space-y-2.5" aria-label={t.planGuests.rsvp.stops} data-testid="rsvp-stops">
+                  {stops.map((stop, index) => (
+                    <li key={`${index}-${stop.title}`} data-testid="rsvp-stop">
+                      <p className="flex flex-wrap items-baseline gap-x-2 break-words">
+                        <span className="shrink-0 text-[13px] font-bold tabular-nums text-lime">{stop.at ? formatTime(stop.at) : t.planGuests.rsvp.stopLater}</span>
+                        <span className="min-w-0 font-semibold text-fg">{stop.title}</span>
+                      </p>
+                      {stop.address && <p className="mt-0.5 break-words text-sm text-muted">{stop.address}</p>}
+                      {stop.address && <Directions target={{ name: stop.title, address: stop.address }} className="-mt-1" />}
+                    </li>
+                  ))}
+                </ol>
+              </div>
             )}
           </div>
         </div>

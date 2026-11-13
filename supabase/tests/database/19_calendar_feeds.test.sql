@@ -80,8 +80,9 @@ select is(
   'Bahnstraße 1, Leipzig', 'Adresse für den eigenen Kalender');
 select is(
   (select array_agg(k order by k) from jsonb_array_elements(tests.var('events')::jsonb -> 'events') e, jsonb_object_keys(e) k where e ->> 'title' = 'Bowling'),
-  array['address', 'attendance', 'created_at', 'crew', 'ends_at', 'id', 'meeting_point', 'starts_at', 'status', 'title', 'updated_at'],
-  'je Termin nur Titel, Zeiten, Ort, Treffpunkt, Status, eigene Antwort, Crew und Plan-ID');
+  -- P50 Etappe 2b: dazu die Stationen des Abends (ohne Personen).
+  array['address', 'attendance', 'created_at', 'crew', 'ends_at', 'id', 'meeting_point', 'starts_at', 'status', 'stops', 'title', 'updated_at'],
+  'je Termin nur Titel, Zeiten, Ort, Treffpunkt, Status, eigene Antwort, Crew, Plan-ID und Stationen');
 select ok(tests.var('events') !~* '(Schlüssel|cost|Alice|Bob|Mallory|Geheimweg|example\.test)', 'keine Notizen, Kosten, Namen, E-Mails, fremden Pläne');
 select throws_ok('select * from public.plans', '42501', null, 'der Abruf macht keinen Plan direkt lesbar');
 

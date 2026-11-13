@@ -2,7 +2,7 @@
 // Läuft ohne Netz: node --test tests/unit/
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildCalendar, eventStatus, eventSummary, foldLine, icsText, parseFeedToken } from "../../api/_lib/calendar-feed.js";
+import { buildCalendar, eventStatus, eventSummary, foldLine, icsText, parseFeedToken, stopLines } from "../../api/_lib/calendar-feed.js";
 import { handleCalendar } from "../../api/calendar.js";
 
 const TOKEN = "0123456789abcdef".repeat(4);
@@ -186,4 +186,39 @@ test("Funktion: nimmt die Sprache aus der Antwort der Datenbank", async () => {
   const response = await handleCalendar(new Request(`${SITE}/c/${TOKEN}`), env, fakeFetch(200, { status: "valid", locale: "en", events: [event({ status: "cancelled" })] }), NOW);
   assert.equal(response.status, 200);
   assert.ok((await response.text()).includes("SUMMARY:Cancelled: Bowling"));
+});
+
+// ---- P50 Etappe 2b · Stationen des Abends im Abo ----------------------------------------------------
+const STOPS = [
+  // 22:30 Berliner Sommerzeit = 20:30 UTC (23.10.2026, vor der Zeitumstellung)
+  { title: "Bar Raval", at: "2026-10-23T20:30:00Z", address: "Muskauer Str. 9" },
+  // nach Mitternacht
+  { title: "Club Ost", at: "2026-10-23T23:15:00Z", address: null },
+  { title: "Döner", at: null, address: "  " },
+];
+
+test("Stationen stehen nach dem Treffpunkt in der Beschreibung, Uhrzeit in Berliner Zeit", () => {
+  const unfolded = buildCalendar([event({ stops: STOPS })], { site: SITE, now: NOW }).replace(/\r\n /g, "");
+  assert.ok(
+    unfolded.includes("Treffpunkt: Vor dem Eingang\\nDanach: 22:30 Uhr Bar Raval (Muskauer Str. 9)\\nDanach: 01:15 Uhr Club Ost\\nDanach: Döner\\nPlan in AFTERHOURS:"),
+    unfolded,
+  );
+  // LOCATION bleibt der erste Ort.
+  assert.ok(unfolded.includes("LOCATION:Bahnstraße 1\\, Leipzig\r\n"));
+});
+
+test("Stationen auf Englisch, Winterzeit", () => {
+  assert.deepEqual(stopLines([{ title: "Bar", at: "2026-11-20T21:30:00Z", address: "A" }], "en"), ["Then: 22:30 Bar (A)"]);
+});
+
+test("Stationen: fehlend, kaputt oder zu viele", () => {
+  assert.deepEqual(stopLines(undefined), []);
+  assert.deepEqual(stopLines("Bar"), []);
+  assert.deepEqual(stopLines([null, { title: 3 }, { title: " " }, { title: "Bar", at: "nie" }]), ["Danach: Bar"]);
+  assert.equal(stopLines(Array.from({ length: 7 }, (_, i) => ({ title: `S${i}`, at: null }))).length, 4);
+  // Maskierung wie jeder andere Text (Komma, Semikolon, Zeilenumbruch).
+  const ics = buildCalendar([event({ stops: [{ title: "Bar; zwei\nZeilen", at: null, address: "A, B" }] })], { site: SITE, now: NOW }).replace(/\r\n /g, "");
+  assert.ok(ics.includes("Danach: Bar\\; zwei\\nZeilen (A\\, B)"));
+  // Ohne Stationen: Beschreibung wie bisher.
+  assert.equal(buildCalendar([event({ stops: [] })], { site: SITE, now: NOW }), buildCalendar([event()], { site: SITE, now: NOW }));
 });

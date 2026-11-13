@@ -20,6 +20,9 @@ export const planGuests = {
     closedIntro: "Über den Link lässt sich nur bis zum Beginn antworten.",
     where: "Wohin",
     meetingPoint: "Treffpunkt",
+    /** P50 Etappe 2b: weitere Stationen des Abends. */
+    stops: "Danach",
+    stopLater: "danach",
     question: "Deine Antwort",
     counts: (going: number, maybe: number) =>
       [going === 0 ? "Noch keine Zusage" : going === 1 ? "1 ist dabei" : `${going} sind dabei`, maybe > 0 ? `${maybe} vielleicht` : null].filter(Boolean).join(" · "),
@@ -55,6 +58,7 @@ export const planGuests = {
     cancelled: "Der Plan ist abgesagt – nimm den Termin aus deinem Kalender.",
     file: {
       meetingPoint: (value: string) => `Treffpunkt: ${value}`,
+      stop: (time: string | null, title: string, address: string | null) => `Danach: ${time ? `${time} ` : ""}${title}${address ? ` (${address})` : ""}`,
       going: "Deine Antwort: Bin dabei",
       maybe: "Deine Antwort: Vielleicht",
       link: (url: string) => `Zur Karte: ${url}`,

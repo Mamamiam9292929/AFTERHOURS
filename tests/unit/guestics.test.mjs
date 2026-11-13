@@ -1,7 +1,7 @@
 // P27 · Kalenderdatei für Gäste ohne Konto (src/lib/icsformat.ts, Typen entfernt Node selbst).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildIcs, foldLine, guestIcsChanges, guestIcsStamp, guestPlanIcs, icsFileName, icsText, parseGuestIcsStamp } from "../../src/lib/icsformat.ts";
+import { buildIcs, foldLine, guestIcsChanges, guestIcsStamp, guestPlanIcs, icsFileName, icsStopLines, icsText, parseGuestIcsStamp } from "../../src/lib/icsformat.ts";
 
 const labels = {
   meetingPoint: (v) => `Treffpunkt: ${v}`,
@@ -119,4 +119,45 @@ test("Plan der Crew (P2) nutzt dieselben Bausteine unverändert", () => {
   assert.equal(field(ics, "SEQUENCE"), "0");
   assert.equal(field(ics, "LAST-MODIFIED"), "20261101T100000Z");
   assert.equal(icsFileName("Größte Übung"), "grosste-ubung.ics");
+});
+
+// ---- P50 Etappe 2b · Stationen des Abends ----------------------------------------------------------
+const stops = [
+  { title: "Bar Raval", at: "2026-11-20T21:30:00Z", address: "Muskauer Str. 9" },
+  { title: "Club Ost", at: null, address: null },
+];
+const stopLabel = (stop) => `Danach: ${stop.at ? `${stop.at.slice(11, 16)} ` : ""}${stop.title}${stop.address ? ` (${stop.address})` : ""}`;
+
+test("Stationen stehen in der Beschreibung – nach dem Treffpunkt, in gelieferter Reihenfolge", () => {
+  const ics = guestPlanIcs({ ...plan, stops }, { token: TOKEN, url: URL_, answer: "going", labels: { ...labels, stop: stopLabel } }, NOW);
+  const description = field(ics, "DESCRIPTION");
+  assert.equal(
+    description,
+    "Treffpunkt: U-Bahn Ausgang Nord\\nDanach: 21:30 Bar Raval (Muskauer Str. 9)\\nDanach: Club Ost\\nDeine Antwort: Bin dabei\\nZur Karte: https://afterhours.example/s/abcDEF123_-xyz\\nDieser Termin ändert sich nicht von selbst.",
+  );
+  // Ort bleibt der erste Ort – Stationen ändern LOCATION nicht.
+  assert.equal(field(ics, "LOCATION"), "Strike District\\, Demochaussee 220\\, 10115 Berlin");
+});
+
+test("ohne Stationen (oder ohne Text dafür) bleibt die Beschreibung wie bisher", () => {
+  const before = guestPlanIcs(plan, { token: TOKEN, url: URL_, answer: "going", labels }, NOW);
+  assert.equal(guestPlanIcs({ ...plan, stops: [] }, { token: TOKEN, url: URL_, answer: "going", labels: { ...labels, stop: stopLabel } }, NOW), before);
+  assert.equal(guestPlanIcs({ ...plan, stops }, { token: TOKEN, url: URL_, answer: "going", labels }, NOW), before);
+  assert.deepEqual(icsStopLines(null, stopLabel), []);
+  assert.deepEqual(icsStopLines([{ title: "  ", at: null, address: null }], stopLabel), []);
+});
+
+test("Stationen geändert → Hinweis „Ort“; alter Stand ohne Stationen → kein falscher Hinweis", () => {
+  const saved = guestIcsStamp({ ...plan, stops });
+  assert.deepEqual(guestIcsChanges(saved, { ...plan, stops }), []);
+  // Gleiche Uhrzeit anders geschrieben: keine Änderung.
+  assert.deepEqual(guestIcsChanges(saved, { ...plan, stops: [{ ...stops[0], at: "2026-11-20T22:30:00+01:00" }, stops[1]] }), []);
+  assert.deepEqual(guestIcsChanges(saved, { ...plan, stops: [stops[0]] }), ["where"]);
+  assert.deepEqual(guestIcsChanges(saved, { ...plan, stops: [{ ...stops[0], at: "2026-11-20T22:00:00Z" }, stops[1]] }), ["where"]);
+  assert.deepEqual(guestIcsChanges(saved, { ...plan, stops: [...stops, { title: "Döner", at: null, address: null }] }), ["where"]);
+  // Stand aus der Zeit vor Etappe 2b (ohne `stops`) auf dem Gerät.
+  const { stops: _ignored, ...legacy } = saved;
+  assert.deepEqual(guestIcsChanges(parseGuestIcsStamp(JSON.stringify(legacy)), { ...plan, stops }), []);
+  assert.deepEqual(parseGuestIcsStamp(JSON.stringify(saved)), saved);
+  assert.equal(parseGuestIcsStamp(JSON.stringify({ ...saved, stops: 5 })), null);
 });

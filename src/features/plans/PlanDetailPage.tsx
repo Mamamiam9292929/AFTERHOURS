@@ -1,6 +1,7 @@
 import { ShareButton } from "@/components/ui/ShareButton";
 import { planShare, shareOrCopy } from "@/lib/share";
 import { planStanding, standingText } from "@/lib/standing";
+import { useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { IconBack, IconBasket, IconBell, IconCalendar, IconCamera, IconCar, IconCalendarCheck, IconCalendarPlus, IconCrews, IconEdit, IconInfo, IconNavigation, IconPin, IconPlans, IconShare, IconUserPlus, IconVote, IconWallet } from "@/components/icons";
@@ -28,10 +29,11 @@ import { homeCheckOpen } from "@/lib/homecheck";
 import { retryDue } from "@/lib/retry";
 import { useDocumentTitle, useNow } from "@/lib/hooks";
 import { downloadPlanIcs } from "@/lib/ics";
+import { qk } from "@/lib/query";
 import { liveStage } from "@/lib/live";
 import { goingWithGuests } from "@/lib/quorum";
 import { formatAgo, formatDateLong, formatDateTime, formatRelative, formatTime } from "@/lib/time";
-import type { AttendanceStatus, PlanStatus } from "@/lib/types";
+import type { AttendanceStatus, PlanStatus, PlanStop } from "@/lib/types";
 import { estimateCosts, hasStarted, useClosePlan, usePlan, usePlans, usePlanShareToken, useJoinPlanWaitlist, useRemindPlan, useRemindPlanMaybe, useSetAttendance, useSetPlanStatus, useUpdatePlan, type PlanWithParticipants } from "./api";
 import { AnswerNote } from "./AnswerNote";
 import { BookingPanel } from "./BookingPanel";
@@ -121,6 +123,7 @@ export function PlanDetailPage() {
   const { planId } = useParams();
   const user = useUser();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const now = useNow(30_000);
   const planQuery = usePlan(planId);
   // P8: Für wiederkehrende Pläne – welcher Termin der Serie ist der letzte?
@@ -388,7 +391,8 @@ export function PlanDetailPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    downloadPlanIcs(plan);
+                    // P50 Etappe 2b: Stationen aus „Danach“ (lädt die Karte darunter ohnehin) kommen mit in die Datei.
+                    downloadPlanIcs(plan, queryClient.getQueryData<PlanStop[]>(qk.planStops(plan.id)) ?? []);
                     toast.success(t.plans.calendar.done);
                   }}
                   className="mt-0.5 flex w-fit items-center gap-1.5 py-1 text-sm font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-lime"

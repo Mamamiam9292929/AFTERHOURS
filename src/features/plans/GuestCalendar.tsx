@@ -6,7 +6,7 @@ import { t } from "@/i18n";
 import { downloadIcs } from "@/lib/ics";
 import { type GuestIcsPlan, type GuestIcsStamp, guestIcsChanges, guestIcsStamp, guestPlanIcs, icsFileName, parseGuestIcsStamp } from "@/lib/icsformat";
 import { siteUrl } from "@/lib/supabase";
-import { formatDateTime } from "@/lib/time";
+import { formatDateTime, formatTime } from "@/lib/time";
 
 /** Auf dem Gerät gemerkt: mit welchem Stand der Termin zuletzt heruntergeladen wurde (nur Plan-Angaben, kein Name). */
 const stampKey = (token: string) => `afterhours.planguest.ics.${token}`;
@@ -29,7 +29,7 @@ function writeStamp(token: string, stamp: GuestIcsStamp) {
 
 /**
  * P27 · „In meinen Kalender“ für Gäste ohne Konto (W10). Die Datei entsteht im Browser aus genau dem, was die
- * Zusagekarte ohnehin zeigt (Titel, Zeit, Ort, Adresse, Treffpunkt) plus eigener Antwort und Link zurück – keine
+ * Zusagekarte ohnehin zeigt (Titel, Zeit, Ort, Adresse, Treffpunkt, Stationen) plus eigener Antwort und Link zurück – keine
  * Namen der Crew, nichts geht an einen Server. Ohne Konto gibt es kein Abo; deshalb merkt sich das Gerät den Stand
  * der Datei, und ändert sich Zeit, Ort oder Titel, sagt die Karte das und bietet die neue Datei an.
  */
@@ -56,7 +56,14 @@ export function GuestCalendar({ token, plan, answer, open }: { token: string; pl
   function download() {
     const url = `${siteUrl()}/s/${token}`;
     const file = t.planGuests.calendar.file;
-    const labels = { meetingPoint: file.meetingPoint, link: file.link, noUpdates: file.noUpdates, answer: answer === "going" ? file.going : file.maybe };
+    const labels = {
+      meetingPoint: file.meetingPoint,
+      // P50 Etappe 2b: Stationen des Abends als eigene Zeilen.
+      stop: (stop: { title: string; at: string | null; address: string | null }) => file.stop(stop.at ? formatTime(stop.at) : null, stop.title, stop.address),
+      link: file.link,
+      noUpdates: file.noUpdates,
+      answer: answer === "going" ? file.going : file.maybe,
+    };
     downloadIcs(guestPlanIcs(plan, { token, url, answer: answer as "going" | "maybe", labels }), icsFileName(plan.title));
     const next = guestIcsStamp(plan);
     writeStamp(token, next);

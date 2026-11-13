@@ -7284,6 +7284,77 @@ await step("P50 Etappe 2a – neue Station am Abend: Bescheid an alle mit Zusage
   }
 });
 
+await step("P50 Etappe 2b – Stationen auf der Gast-Karte, in der Kalenderdatei und im Kalender-Abo (Gast 390 px)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const uidOf = (user) => psql(`select id from auth.users where email = '${user.email}'`);
+  const title = `Essen mit Gästen ${RUN}`;
+  // Morgen 19 Uhr Berliner Zeit; Bar um 22:30, danach „Club Ost“ ohne Uhrzeit.
+  const planId = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status, address)
+    values ('${ids.crew}', '${uidOf(bob)}', '${title}',
+            ((date_trunc('day', now() at time zone 'Europe/Berlin') + interval '1 day 19 hours') at time zone 'Europe/Berlin'), 'confirmed', 'Oranienstr. 1')
+    returning id`).split("\n")[0];
+  const barAt = psql(`select to_char((starts_at + interval '3 hours 30 minutes') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') from public.plans where id = '${planId}'`);
+  let guest = null;
+  try {
+    check((await api(bob, "POST", "rpc/add_plan_stop", { p_plan_id: planId, p_title: "Club Ost" })).status < 300, "P50 2b: Bob hängt „Club Ost“ an");
+    check((await api(bob, "POST", "rpc/add_plan_stop", { p_plan_id: planId, p_title: "Bar Raval", p_at: barAt, p_address: "Muskauer Str. 9" })).status < 300, "P50 2b: Bob hängt „Bar Raval“ um 22:30 an");
+    const token = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: planId })).json;
+    // Ohne Gäste-Freigabe: keine Stationen über den Link, auch nicht in der öffentlichen Vorschau.
+    const closed = await api(null, "POST", "rpc/shared_plan_rsvp", { p_token: token });
+    check(closed.json?.status === "guests_off" && !JSON.stringify(closed.json).includes("Raval"), "P50 2b: ohne Gäste-Freigabe keine Stationen");
+    const preview = await api(null, "POST", "rpc/preview_shared_plan", { p_token: token });
+    check(preview.json?.status === "valid" && !JSON.stringify(preview.json).includes("Raval"), "P50 2b: öffentliche Vorschau ohne Stationen");
+    check((await api(bob, "POST", "rpc/set_plan_guests", { p_plan_id: planId, p_allowed: true })).status < 300, "P50 2b: Bob lässt Gäste zusagen");
+
+    // Gast ohne Konto (390 px): Stationen in der Reihenfolge des Abends unter „Wohin“.
+    guest = await newUser("Gast Stationen", "mobile");
+    await guest.page.goto(`${APP}/s/${token}`);
+    const stopList = guest.page.getByTestId("rsvp-stops");
+    await stopList.waitFor({ timeout: 20_000 });
+    const items = guest.page.getByTestId("rsvp-stop");
+    check((await items.count()) === 2, "P50 2b: Gast sieht beide Stationen");
+    const first = (await items.nth(0).innerText()).replace(/\s+/g, " ");
+    const second = (await items.nth(1).innerText()).replace(/\s+/g, " ");
+    check(first.includes("22:30 Uhr") && first.includes("Bar Raval") && first.includes("Muskauer Str. 9"), `P50 2b: erst die Bar mit Uhrzeit und Adresse („${first}“)`);
+    check(second.includes("danach") && second.includes("Club Ost"), `P50 2b: danach der Club ohne Uhrzeit („${second}“)`);
+    check((await items.nth(0).getByTestId("directions").count()) === 1 && (await items.nth(1).getByTestId("directions").count()) === 0, "P50 2b: Route nur zur Station mit Adresse");
+    await stopList.scrollIntoViewIfNeeded();
+    await noOverflow(guest, "Gast-Karte mit Stationen");
+    await a11y(guest, "gast-stationen");
+    await shot(guest, "83b-gast-stationen");
+
+    // Zusagen und Termin in den Kalender: Stationen stehen in der Beschreibung.
+    await guest.page.getByRole("radio", { name: "Bin dabei" }).click();
+    await guest.page.getByLabel("Dein Name").fill("Gina");
+    await guest.page.getByRole("button", { name: "Antwort senden" }).click();
+    const calendar = guest.page.getByTestId("rsvp-calendar");
+    await calendar.waitFor({ timeout: 20_000 });
+    const [download] = await Promise.all([guest.page.waitForEvent("download"), calendar.getByRole("button", { name: "In meinen Kalender" }).click()]);
+    const guestIcs = fs.readFileSync(await download.path(), "utf8").replace(/\r\n /g, "");
+    check(guestIcs.includes("Danach: 22:30 Uhr Bar Raval (Muskauer Str. 9)\\nDanach: Club Ost"), "P50 2b: Gast-Kalenderdatei nennt die Stationen in Reihenfolge");
+
+    // Bob: „In den Kalender“ auf der Planseite nimmt die Stationen mit.
+    const bp = bob.page;
+    await bp.goto(`${APP}/plans/${planId}`);
+    await bp.getByTestId("plan-stop").nth(1).waitFor({ timeout: 20_000 });
+    const [crewDownload] = await Promise.all([bp.waitForEvent("download"), bp.getByRole("button", { name: "In den Kalender", exact: true }).click()]);
+    const crewIcs = fs.readFileSync(await crewDownload.path(), "utf8").replace(/\r\n /g, "");
+    check(crewIcs.includes("Danach: 22:30 Uhr Bar Raval (Muskauer Str. 9)\\nDanach: Club Ost"), "P50 2b: Kalenderdatei der Crew nennt die Stationen");
+
+    // Kalender-Abo: dieselben Zeilen, ohne App.
+    if (ANON) {
+      const feed = (await api(bob, "POST", "rpc/renew_calendar_feed", {})).json;
+      const response = await handleCalendar(new Request(`${APP}/c/${feed?.token}.ics`), { VITE_SUPABASE_URL: API, VITE_SUPABASE_ANON_KEY: ANON }, fetch);
+      const feedIcs = (await response.text()).replace(/\r\n /g, "");
+      check(response.status === 200 && feedIcs.includes("Danach: 22:30 Uhr Bar Raval (Muskauer Str. 9)\\nDanach: Club Ost"), `P50 2b: Kalender-Abo nennt die Stationen (${response.status})`);
+      await api(bob, "POST", "rpc/revoke_calendar_feed", {});
+    }
+  } finally {
+    if (guest) await guest.context.close();
+    psql(`delete from public.plans where id = '${planId}'`);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;
