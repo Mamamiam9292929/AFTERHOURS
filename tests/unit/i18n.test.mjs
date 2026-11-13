@@ -301,3 +301,15 @@ test("F10: Texte der Planseiten-Karten nur dort, wo sie vorher geladen werden �
   assert.match(router, /PlanCreatePage", \["planCards"\]\)/, "Router lädt die Texte parallel zu „Plan erstellen“");
   assert.match(router, /PollDetailPage", \[[^\]]*"planCards"[^\]]*\]\)/, "Router lädt die Texte parallel zur Abstimmung");
 });
+
+test("P50 Etappe 2a: neue Station am Abend – eigener Text mit Uhrzeit, ohne Uhrzeit nur der Name", () => {
+  const payload = { title: "Essen und Bar", changed: ["stops"], stop: "Bar Raval", stop_at: "2026-11-20T21:30:00Z", starts_at: "2026-11-20T18:00:00Z" };
+  const de1 = de.notificationText.plan_changed("Bob", payload);
+  assert.equal(de1.title, "Danach: Bar Raval um 22:30");
+  assert.equal(de1.body, "Essen und Bar · Bob hat die Station eingetragen");
+  assert.equal(de.notificationText.plan_changed("Bob", { ...payload, stop_at: null }).title, "Danach: Bar Raval");
+  assert.equal(en.notificationText.plan_changed("Bob", payload).title, "Next: Bar Raval at 22:30");
+  assert.equal(en.notificationText.plan_changed("Bob", { ...payload, stop_at: null }).body, "Essen und Bar · Bob added the stop");
+  // Andere Änderungen bleiben beim bisherigen Text.
+  assert.equal(de.notificationText.plan_changed("Bob", { title: "Essen und Bar", changed: ["address"] }).title, "Bob hat einen Plan geändert: Ort");
+});

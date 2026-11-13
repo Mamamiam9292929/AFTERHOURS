@@ -69,7 +69,14 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     if (p.asked_again) {
       return { title: `Neue Zeit: ${str(p, "title")} – bist du noch dabei?`, body: str(p, "starts_at") ? `${actor} hat verschoben auf ${formatDateTime(str(p, "starts_at"))}` : `${actor} hat den Plan verschoben` };
     }
-    const labels: Record<string, string> = { starts_at: "Zeit", address: "Ort", meeting_point: "Treffpunkt", cost: "Kosten" };
+    // P50 Etappe 2a: am Abend kommt eine Station dazu – an alle mit Zusage.
+    if (str(p, "stop")) {
+      return {
+        title: str(p, "stop_at") ? `Danach: ${str(p, "stop")} um ${formatTime(str(p, "stop_at"))}` : `Danach: ${str(p, "stop")}`,
+        body: str(p, "title") ? `${str(p, "title")} · ${actor} hat die Station eingetragen` : `${actor} hat die Station eingetragen`,
+      };
+    }
+    const labels: Record<string, string> = { starts_at: "Zeit", address: "Ort", meeting_point: "Treffpunkt", cost: "Kosten", stops: "Danach" };
     const changed = Array.isArray(p.changed) ? (p.changed as string[]).map((key) => labels[key] ?? key).join(", ") : "";
     return { title: `${actor} hat einen Plan geändert${changed ? `: ${changed}` : ""}`, body: str(p, "title") };
   },
