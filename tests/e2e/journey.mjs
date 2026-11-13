@@ -4392,6 +4392,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   // ein. Unter „Wer kommt mit?“ steht „0 von 2 mit Ticket“ und wer noch keins hat; Bob sagt mit einem Tipp „Hab mein
   // Ticket“. Carol (Tablet, ohne Antwort) sieht den Stand, aber keine Auswahl und darf nicht schalten. Alice meldet ihr
   // Ticket: „Alle haben eins“. Sagt Alice ab, steht sie als „Ticket übrig“ da. Ohne Anmeldung geht nichts.
+  // Etappe 2a: Bob fragt Alice (dabei, ohne Ticket) mit „Nachfragen“; die Benachrichtigung führt zur Auswahl.
   if (DB_URL) {
     const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
     const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
@@ -4433,12 +4434,51 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       await meter.evaluate((el) => el.scrollIntoView({ block: "center" }));
       await shot(bob, "21w6-plan-tickets");
 
+      // P53 Etappe 2a: Bob fragt mit einem Tipp alle aus „Noch ohne Ticket“ (hier Alice) – „Bob fragt: Hast du dein
+      // Ticket?“. Ein zweiter Tipp innerhalb von 6 Stunden wird abgewiesen; Alice landet aus der Frage auf der Auswahl.
+      const askTickets = meter.getByTestId("plan-remind-tickets");
+      await askTickets.waitFor();
+      check((await askTickets.getAttribute("aria-label")) === "Nachfragen – die Person ohne Ticket fragen, ob sie schon eins hat",
+        "Tickets: „Nachfragen“ mit verständlicher Beschriftung");
+      await noOverflow(bob, "Tickets nachfragen");
+      await a11y(bob, "plan-tickets-nachfragen");
+      await askTickets.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21w6b-plan-tickets-nachfragen");
+      await askTickets.click();
+      await toast(bob, "1 Person gefragt.");
+      check(psql(`select string_agg(user_id::text, ',') from public.notifications where type = 'plan_reminder' and related_entity_id = '${ticketPlan}'`) === aliceId,
+        "Tickets: nur Alice (dabei, ohne Ticket) wird gefragt – nicht Bob selbst, nicht wer noch nicht geantwortet hat");
+      check(psql(`select payload ->> 'ticket' from public.notifications where type = 'plan_reminder' and related_entity_id = '${ticketPlan}'`) === "true",
+        "Tickets: als Ticket-Frage gekennzeichnet");
+      await askTickets.click();
+      await toast(bob, "Du hast gerade erst erinnert. Die nächste Erinnerung ist in 6 Stunden möglich.");
+      check(true, "Tickets: zweiter Tipp innerhalb von 6 Stunden wird abgewiesen");
+      await alice.page.goto(`${APP}/notifications`);
+      const askedTicket = alice.page.getByRole("link", { name: /Bob fragt: Hast du dein Ticket\?/ }).filter({ hasText: "Konzert im Stadtpark" });
+      await askedTicket.waitFor();
+      check((await askedTicket.first().textContent()).includes("noch ohne Ticket"), "Tickets: Benachrichtigung sagt, worum es geht");
+      await askedTicket.first().click();
+      await alice.page.waitForURL(`**/plans/${ticketPlan}`);
+      await alice.page.getByTestId("plan-my-ticket").waitFor();
+      check(true, "Tickets: aus der Frage direkt zur Auswahl „Hast du dein Ticket?“");
+      check((await alice.page.getByTestId("plan-remind-tickets").count()) === 0, "Tickets: wer als Einzige:r noch fehlt, sieht kein „Nachfragen“ (sich selbst fragt niemand)");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/remind_plan_tickets`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: ticketPlan }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Nachfragen bei Tickets (${res.status})`);
+      }
+
       // Carol (Tablet) hat noch nicht geantwortet: sieht den Stand, keine Auswahl, darf nicht schalten.
       await carol.page.goto(`${APP}/plans/${ticketPlan}`);
       await carol.page.getByRole("heading", { level: 1, name: "Konzert im Stadtpark" }).waitFor();
       await carol.page.getByTestId("plan-tickets").waitFor();
       check((await carol.page.getByTestId("plan-my-ticket").count()) === 0, "Tickets: ohne Antwort keine Auswahl");
       check((await carol.page.getByTestId("plan-tickets-card").count()) === 0, "Tickets: kein Schalter für einfache Mitglieder");
+      check((await carol.page.getByTestId("plan-remind-tickets").count()) === 0, "Tickets: kein „Nachfragen“ für einfache Mitglieder");
+      check((await api(carol, "POST", "rpc/remind_plan_tickets", { p_plan_id: ticketPlan })).status >= 400, "Tickets: Carol darf nicht nachfragen");
       check((await api(carol, "POST", "rpc/set_plan_tickets_needed", { p_plan_id: ticketPlan, p_needed: false })).status >= 400, "Tickets: Carol darf nicht schalten");
 
       // Alice meldet ihr Ticket – alle haben eins. Dann sagt sie ab: „Ticket übrig“.

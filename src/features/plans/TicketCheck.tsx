@@ -1,7 +1,8 @@
 import { useId } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { IconCheck, IconTicketCheck } from "@/components/icons";
+import { IconBell, IconCheck, IconTicketCheck } from "@/components/icons";
 import type { Person } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -33,6 +34,17 @@ function useSetMyTicket(planId: string, userId: string) {
   });
 }
 
+/** P53 Etappe 2a: Alle mit Zusage, aber ohne Ticket fragen. Liefert die Zahl der gefragten Personen. */
+function useRemindTickets(planId: string) {
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc("remind_plan_tickets", { p_plan_id: planId });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+}
+
 function useSetTicketsNeeded(planId: string) {
   const client = useQueryClient();
   return useMutation({
@@ -52,11 +64,15 @@ function useSetTicketsNeeded(planId: string) {
 /**
  * P53 · „Habt ihr alle Tickets?“ unter „Wer kommt mit?“ – für alle in der Crew, solange der Ticket-Check an ist:
  * wie viele, die dabei sind, schon ein Ticket haben (Balken wie bei der Mindestzahl), wer noch keins hat und wer
- * nach einer Absage eins übrig hat.
+ * nach einer Absage eins übrig hat. Etappe 2a: Wer organisiert (oder Owner/Admin ist), fragt vor Beginn mit
+ * „Nachfragen“ alle aus „Noch ohne Ticket“ (außer sich selbst) – `canRemind` entscheidet die Planseite.
  */
-export function TicketsMeter({ plan, userId, lookup }: { plan: PlanWithParticipants; userId: string; lookup: Lookup }) {
+export function TicketsMeter({ plan, userId, lookup, canRemind = false }: { plan: PlanWithParticipants; userId: string; lookup: Lookup; canRemind?: boolean }) {
   const texts = t.planCards.tickets;
+  const toast = useToast();
+  const remind = useRemindTickets(plan.id);
   const s = ticketStanding(plan.participants);
+  const askable = canRemind ? s.missing.filter((id) => id !== userId).length : 0;
   const name = (id: string) => (id === userId ? t.states.you : (lookup(id)?.display_name ?? t.states.formerMember));
   const names = (ids: string[]) => ids.map(name).join(", ");
   return (
@@ -92,6 +108,26 @@ export function TicketsMeter({ plan, userId, lookup }: { plan: PlanWithParticipa
             <p className="mt-1 text-[13px] font-semibold leading-snug text-fg" data-testid="plan-tickets-missing">
               {texts.missing(names(s.missing))}
             </p>
+          )}
+          {askable > 0 && (
+            <div className="mt-2.5">
+              <Button
+                variant="secondary"
+                size="sm"
+                data-testid="plan-remind-tickets"
+                aria-label={texts.remindLabel(askable)}
+                loading={remind.isPending}
+                onClick={() =>
+                  remind.mutate(undefined, {
+                    onSuccess: (n) => toast.success(texts.reminded(n)),
+                    onError: (error) => toast.error(error),
+                  })
+                }
+                icon={<IconBell className="size-4" aria-hidden />}
+              >
+                {texts.remind}
+              </Button>
+            </div>
           )}
         </>
       )}

@@ -471,7 +471,8 @@ export function PlanDetailPage() {
               {!locked && plan.tickets_needed && (
                 <Suspense fallback={null}>
                   <div className="mt-2">
-                    <TicketsMeter plan={plan} userId={user.id} lookup={people.lookup} />
+                    {/* Etappe 2a: „Nachfragen“ bei „Noch ohne Ticket“ – wie P19/P45 nur vor Beginn. */}
+                    <TicketsMeter plan={plan} userId={user.id} lookup={people.lookup} canRemind={canManage && !started} />
                   </div>
                 </Suspense>
               )}

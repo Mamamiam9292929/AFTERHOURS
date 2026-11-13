@@ -125,6 +125,19 @@ test("P45: Nachfrage an „Vielleicht“ hat eigenen Text, die normale Nachfrage
   assert.equal(en.notificationText.plan_reminder("Bob", payload).title, "Bob asks: are you in?");
 });
 
+test("P53 Etappe 2a: Nachfrage an alle ohne Ticket hat eigenen Text", () => {
+  const payload = { title: "Konzert", starts_at: "2026-11-20T19:00:00Z", ticket: true };
+  const de1 = de.notificationText.plan_reminder("Bob", payload);
+  assert.equal(de1.title, "Bob fragt: Hast du dein Ticket?");
+  assert.ok(de1.body.startsWith("Du bist dabei, aber noch ohne Ticket · Konzert · "));
+  const en1 = en.notificationText.plan_reminder("Bob", payload);
+  assert.equal(en1.title, "Bob asks: got your ticket?");
+  assert.ok(en1.body.startsWith("You're going but have no ticket yet · Konzert · "));
+  assert.equal(de.planCards.tickets.reminded(0), "Alle haben inzwischen ein Ticket – niemand wurde gefragt.");
+  assert.equal(de.planCards.tickets.reminded(2), "2 Personen gefragt.");
+  assert.equal(en.planCards.tickets.reminded(1), "Asked 1 person.");
+});
+
 test("P46 Etappe 2: Erinnerung vor der Antwortfrist und Stand danach – eigene Texte ohne auslösende Person", () => {
   const payload = { title: "Bowling", starts_at: "2026-11-20T19:00:00Z", answer_by: "2026-11-18T19:00:00Z" };
   const reminder = de.notificationText.plan_reminder("", { ...payload, deadline: true });
