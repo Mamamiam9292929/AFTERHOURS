@@ -21,9 +21,9 @@ _Stand: 13.11.2026 · gezählt mit `node scripts/zahlen.mjs` (Zeilen ohne Leerze
 | Server für Vorschaukarten | 508 | 4 |
 | Werkzeuge | 378 | 6 |
 | Tests Datenbank (pgTAP) | 11.190 | 91 |
-| Tests App und Funktionen | 14.623 | 71 |
+| Tests App und Funktionen | 14.625 | 71 |
 | **Code gesamt (ohne Tests)** | **57.489** | |
-| **Tests gesamt** | **25.813** | |
+| **Tests gesamt** | **25.815** | |
 
 | Was | Anzahl |
 |---|---:|
