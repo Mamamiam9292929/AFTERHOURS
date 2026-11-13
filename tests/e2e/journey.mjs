@@ -7238,6 +7238,52 @@ await step("P50 – „Danach noch wohin?“: Stationen am Abend (Bob organisier
   }
 });
 
+await step("P50 Etappe 2a – neue Station am Abend: Bescheid an alle mit Zusage (Carol 390 px)", async () => {
+  const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
+  const uidOf = (user) => psql(`select id from auth.users where email = '${user.email}'`);
+  const title = `Heute weiterziehen ${RUN}`;
+  // Beginn in einer Stunde: „am Abend“ (ab 3 h vorher) – Carol ist dabei, Alice vielleicht.
+  const planId = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
+    values ('${ids.crew}', '${uidOf(bob)}', '${title}', date_trunc('minute', now()) + interval '1 hour', 'confirmed')
+    returning id`).split("\n")[0];
+  psql(`insert into public.plan_participants (plan_id, user_id, attendance_status) values
+    ('${planId}', '${uidOf(carol)}', 'going'), ('${planId}', '${uidOf(alice)}', 'maybe'), ('${planId}', '${uidOf(bob)}', 'going')
+    on conflict (plan_id, user_id) do update set attendance_status = excluded.attendance_status`);
+  const stopNotes = (user) => psql(`select count(*) from public.notifications where type = 'plan_changed'
+    and related_entity_id = '${planId}' and user_id = '${uidOf(user)}' and payload ->> 'stop' = 'Bar Raval'`);
+  const cp = carol.page;
+  const narrow = cp.viewportSize();
+  await cp.setViewportSize({ width: 390, height: 844 });
+  try {
+    const bp = bob.page;
+    await bp.goto(`${APP}/plans/${planId}`);
+    await bp.getByTestId("plan-stop-open").click();
+    const form = bp.getByTestId("plan-stop-form");
+    await form.getByLabel("Wohin?").fill("Bar Raval");
+    await form.getByLabel("Adresse").fill("Muskauer Str. 9");
+    await form.getByRole("button", { name: "Station anhängen" }).click();
+    await toast(bob, "„Bar Raval“ hängt am Abend dran.");
+    check(stopNotes(carol) === "1", "P50 2a: Carol (dabei) bekommt Bescheid");
+    check(stopNotes(alice) === "0" && stopNotes(bob) === "0", "P50 2a: „Vielleicht“ und Bob selbst bekommen nichts");
+
+    await cp.goto(`${APP}/notifications`);
+    const note = cp.getByRole("link", { name: /Danach: Bar Raval/ });
+    await note.waitFor({ timeout: 20_000 });
+    check(await note.getByText(`${title} · Bob hat die Station eingetragen`).isVisible(), "P50 2a: Nachricht nennt Plan und Person");
+    await note.scrollIntoViewIfNeeded();
+    await noOverflow(carol, "Benachrichtigung „Danach“");
+    await a11y(carol, "danach-bescheid");
+    await shot(carol, "83-danach-bescheid");
+    await note.click();
+    await cp.waitForURL(`**/plans/${planId}`);
+    await cp.getByTestId("plan-stop").first().waitFor({ timeout: 20_000 });
+    check(true, "P50 2a: Nachricht führt zum Plan mit der Station");
+  } finally {
+    if (narrow) await cp.setViewportSize(narrow);
+    psql(`delete from public.plans where id = '${planId}'`);
+  }
+});
+
 await step("P33 – Steht schon fest? „kino 20.11. 20 uhr“ gleich als Plan (Bob, 390 px)", async () => {
   const page = bob.page;
   const count = async (table) => ((await api(bob, "GET", `${table}?select=id`)).json ?? []).length;

@@ -59,7 +59,13 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     if (p.asked_again) {
       return { title: `New time: ${serverTitle(p)} – are you still in?`, body: str(p, "starts_at") ? `${actor} moved it to ${formatDateTime(str(p, "starts_at"))}` : `${actor} moved the plan` };
     }
-    const labels: Record<string, string> = { starts_at: "time", address: "place", meeting_point: "meeting point", cost: "cost" };
+    if (str(p, "stop")) {
+      return {
+        title: str(p, "stop_at") ? `Next: ${str(p, "stop")} at ${formatTime(str(p, "stop_at"))}` : `Next: ${str(p, "stop")}`,
+        body: serverTitle(p) ? `${serverTitle(p)} · ${actor} added the stop` : `${actor} added the stop`,
+      };
+    }
+    const labels: Record<string, string> = { starts_at: "time", address: "place", meeting_point: "meeting point", cost: "cost", stops: "next stop" };
     const changed = Array.isArray(p.changed) ? (p.changed as string[]).map((key) => labels[key] ?? key).join(", ") : "";
     return { title: `${actor} changed a plan${changed ? `: ${changed}` : ""}`, body: serverTitle(p) };
   },
