@@ -37,6 +37,8 @@ import path from "node:path";
 import { chromium } from "playwright";
 import { handleCalendar } from "../../api/calendar.js";
 import { handleShare } from "../../api/share.js";
+// Erwarteter Titel der Ein-Satz-Abstimmung hängt vom Wochentag und der Uhrzeit ab („fr 20 uhr“ am Freitagabend = nächster Freitag).
+import { parseQuickPoll } from "../../src/lib/quickpoll.ts";
 
 const APP = (process.env.APP_URL ?? "http://127.0.0.1:5173").replace(/\/$/, "");
 const MAILPIT = (process.env.MAILPIT_URL ?? "http://127.0.0.1:54324").replace(/\/$/, "");
@@ -5733,7 +5735,7 @@ await step("P11 – Englische Oberfläche: Sprache wählen, Texte, Formate, zur�
   const chips = sheet.getByRole("list", { name: "This becomes" });
   for (const chip of ["Bowling", "Cinema", "20:00"]) await chips.getByText(chip, { exact: true }).waitFor();
   check((await chips.getByRole("listitem").count()) === 5, "Ein-Satz-Abstimmung zerlegt den englischen Satz: 2 Aktivitäten, 2 Tage, 1 Uhrzeit");
-  await sheet.getByText("What's on at the weekend?").waitFor();
+  await sheet.getByText(parseQuickPoll("bowling or cinema, fri or sat, 8 pm", new Date(), "en").title, { exact: true }).waitFor();
   await shot(bob, "27d-ein-satz-englisch");
   await page.keyboard.press("Escape");
   // P11 Etappe 2f: Ortsbeschreibung aus OSM auf Englisch, ohne deutschen Satz.
@@ -6494,12 +6496,14 @@ await step("V2 + S1 – Ein Satz, eine Abstimmung: „Was geht?“ auf Home (Bob
   for (const chip of ["Bowling", "Kino", "20:00"]) await chips.getByText(chip, { exact: true }).waitFor();
   check((await chips.getByRole("listitem").count()) === 5, "Vorschau: 2 Aktivitäten, 2 Tage, 1 Uhrzeit");
   await sheet.getByText("4 Vorschläge", { exact: false }).waitFor();
-  await sheet.getByText("Was geht am Wochenende?").waitFor();
+  // Meist „Was geht am Wochenende?“ – am Freitag nach 20 Uhr ist der Freitag eine Woche später gemeint.
+  const s1Title = parseQuickPoll("bowling oder kino, fr oder sa, 20 uhr").title;
+  await sheet.getByText(s1Title, { exact: true }).waitFor();
   await shot(bob, "42-ein-satz");
   await sheet.getByRole("button", { name: /Los – in die Gruppe/ }).click();
   await page.waitForURL(/\/polls\/[0-9a-f-]{36}/, { timeout: 20000 });
   const pollId = idFromUrl(page);
-  await page.getByRole("heading", { level: 1 }).filter({ hasText: /wochenende/i }).waitFor();
+  await page.getByRole("heading", { level: 1 }).filter({ hasText: new RegExp(s1Title.replace(/[?]/g, ""), "i") }).waitFor();
   const rows = (await api(bob, "GET", `polls?id=eq.${pollId}&select=title,guests_allowed,poll_options!poll_options_poll_id_fkey(title,proposed_date,proposed_time)`)).json ?? [];
   check(rows[0]?.poll_options?.length === 4 && rows[0].poll_options.every((o) => o.proposed_time?.startsWith("20:00")), "S1: vier Vorschläge mit Tag und 20:00 angelegt");
   check(rows[0]?.guests_allowed === true, "S2: Gäste dürfen über den Link mitstimmen");
