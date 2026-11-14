@@ -30,8 +30,8 @@ export type Standing = {
   /** P26: `null` ohne Höchstzahl, `0` voll. */
   spotsLeft: number | null;
   /**
-   * P53 Etappe 2b: Mitglieder mit „Bin dabei“, die noch kein Ticket angegeben haben. `null` ohne Ticket-Check oder
-   * solange kein Mitglied zugesagt hat, `0` alle haben eins. Gäste zählen nicht – sie können (noch) nichts angeben.
+   * P53 Etappe 2b: Zusagen, die noch kein Ticket angegeben haben. `null` ohne Ticket-Check oder solange niemand
+   * zugesagt hat, `0` alle haben eins. Etappe 2c: Gäste zählen mit, solange Zusagen über den Link an sind.
    */
   ticketsMissing: number | null;
 };
@@ -56,9 +56,9 @@ export function planStanding(plan: StandingPlan, now: Date = new Date()): Standi
   // Gleiche Regeln wie `quorumLeft` (P25) und `spotsLeft` (P26) – hier ohne Laufzeit-Import, damit Node den Test
   // ohne Bundler laden kann; der Unit-Test prüft, dass beide übereinstimmen.
   const left = (limit: number | null | undefined) => (limit == null || limit < 1 ? null : Math.max(limit - going, 0));
-  // P53: wie `ticketStanding` (Unit-Test prüft, dass beide übereinstimmen) – nur Zusagen von Mitgliedern.
-  const membersGoing = plan.participants.filter((a) => a.attendance_status === "going");
-  const ticketsMissing = plan.tickets_needed && membersGoing.length > 0 ? membersGoing.filter((a) => !a.has_ticket).length : null;
+  // P53: wie `ticketStanding` (Unit-Test prüft, dass beide übereinstimmen) – Gäste nur mit Zusagen über den Link.
+  const ticketGoing = [...plan.participants, ...(plan.guests_allowed ? guests : [])].filter((a) => a.attendance_status === "going");
+  const ticketsMissing = plan.tickets_needed && ticketGoing.length > 0 ? ticketGoing.filter((a) => !a.has_ticket).length : null;
   return { going, maybe, waiting, open, quorumLeft: left(plan.min_going), spotsLeft: left(plan.max_going), ticketsMissing };
 }
 
