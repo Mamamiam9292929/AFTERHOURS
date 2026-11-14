@@ -1,6 +1,16 @@
 /** W10 · Zusagen ohne Konto beim geteilten Plan – Seitentexte, geladen erst mit Zusagekarte bzw. Gästeliste (F7). */
 export const planGuests = {
   rsvp: {
+    /** P53 Etappe 2c: Ticket-Check als Gast – wie „Hast du dein Ticket?“ auf der Planseite der Crew. */
+    tickets: {
+      question: "Hast du dein Ticket?",
+      yes: "Hab mein Ticket",
+      no: "Noch keins",
+      hint: "Die Crew braucht für diesen Abend jede:r ein eigenes Ticket. Sie sieht hier nur, ob du eins hast – gekauft wird nichts.",
+      hintSpare: "Du hast abgesagt, aber ein Ticket: Die Crew sieht „Ticket übrig“ bei deinem Namen. Ist es weg, tipp „Noch keins“.",
+      savedYes: "Notiert: Du hast dein Ticket.",
+      savedNo: "Notiert: noch kein Ticket.",
+    },
     /** P51 Etappe 2: Begleitung als Gast – wie „Bringst du wen mit?“ auf der Planseite der Crew. */
     plusOnes: {
       question: "Bringst du wen mit?",
