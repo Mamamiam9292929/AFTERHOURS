@@ -2086,7 +2086,8 @@ await step("P14 – Wer bringt was? Mitbring-Liste auf der Planseite (Alice, Bob
   const panel = page.locator("section#mitbringen");
   await panel.getByRole("heading", { name: "Wer bringt was?" }).waitFor();
   check((await panel.getAttribute("data-tone")) === "amber", "Mitbring-Liste als Glas-Karte mit gelbem Schein");
-  check(await panel.getByText("Noch steht nichts auf der Liste.").isVisible(), "Leerzustand ohne Einträge");
+  // Die Liste lädt nach der Überschrift – warten statt sofort prüfen (wackelte in PR #275).
+  await panel.getByText("Noch steht nichts auf der Liste.").waitFor({ timeout: 10000 }).then(() => true, () => false).then((ok) => check(ok, "Leerzustand ohne Einträge"));
   // Alice schreibt zwei Sachen auf, eine davon bringt sie selbst mit.
   const field = panel.getByLabel("Was wird gebraucht?");
   await field.fill("  Snacks   für die Bahn ");
