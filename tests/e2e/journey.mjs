@@ -2086,7 +2086,8 @@ await step("P14 – Wer bringt was? Mitbring-Liste auf der Planseite (Alice, Bob
   const panel = page.locator("section#mitbringen");
   await panel.getByRole("heading", { name: "Wer bringt was?" }).waitFor();
   check((await panel.getAttribute("data-tone")) === "amber", "Mitbring-Liste als Glas-Karte mit gelbem Schein");
-  check(await panel.getByText("Noch steht nichts auf der Liste.").isVisible(), "Leerzustand ohne Einträge");
+  // Die Liste lädt nach der Überschrift – warten statt sofort prüfen (wackelte in PR #275).
+  await panel.getByText("Noch steht nichts auf der Liste.").waitFor({ timeout: 10000 }).then(() => true, () => false).then((ok) => check(ok, "Leerzustand ohne Einträge"));
   // Alice schreibt zwei Sachen auf, eine davon bringt sie selbst mit.
   const field = panel.getByLabel("Was wird gebraucht?");
   await field.fill("  Snacks   für die Bahn ");
@@ -4396,6 +4397,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   // Etappe 2b: Der geteilte Zwischenstand sagt „1 von euch hat noch kein Ticket.“
   // Etappe 2c: Gäste über den Teilen-Link melden ihr Ticket auf der Zusagekarte.
   // P54: Alice bietet ihr übriges Ticket an, Carol nimmt es mit „Nehm ich“.
+  // P55: Bob besorgt Alices Ticket und tippt „Gekauft“.
   if (DB_URL) {
     const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
     const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
@@ -4607,6 +4609,60 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
           body: JSON.stringify({ p_plan_id: ticketPlan }),
         });
         check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Ticket-Angebot (${res.status})`);
+      }
+
+      // P55 – „Ich besorg die Tickets“: Alice sagt wieder zu (ohne Ticket). Bob (390 px, hat seins) tippt „Ich besorg
+      // welche“, wählt Alice und übernimmt. Alice sieht „Bob besorgt dein Ticket“ und steht nicht mehr bei „Noch ohne
+      // Ticket“; Carol kann Alice nicht noch mal übernehmen. Bob tippt „Gekauft“ – Alice hat ein Ticket, Carol sieht
+      // „Ticket von Bob: Alice“. Ohne Anmeldung geht nichts.
+      check((await api(alice, "POST", "rpc/set_attendance", { p_plan_id: ticketPlan, p_status: "going" })).status < 300, "Besorgen: Alice sagt wieder zu");
+      await bob.page.goto(`${APP}/plans/${ticketPlan}`);
+      const buyStart = bob.page.getByTestId("plan-ticket-buy-start");
+      await buyStart.waitFor();
+      check((await buyStart.getAttribute("aria-label")) === "Ich besorg welche – auswählen, für wen du Tickets kaufst", "Besorgen: Knopf mit verständlicher Beschriftung");
+      await buyStart.click();
+      const picker = bob.page.getByTestId("plan-ticket-buy-picker");
+      await picker.waitFor();
+      const people = await picker.getByTestId("plan-ticket-buy-person").allInnerTexts();
+      check(people.length === 1 && people[0].includes("Alice"), `Besorgen: zur Auswahl steht nur Alice (${people.join(", ")})`);
+      await picker.getByRole("button", { name: "Alice" }).click();
+      check((await picker.getByRole("button", { name: "Alice" }).getAttribute("aria-pressed")) === "true", "Besorgen: Alice ausgewählt");
+      await picker.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(bob, "Tickets besorgen");
+      await a11y(bob, "plan-ticket-besorgen");
+      await shot(bob, "21w12-plan-ticket-besorgen");
+      await picker.getByTestId("plan-ticket-buy-save").click();
+      await toast(bob, "Notiert: Du besorgst 1 Ticket.");
+      check(psql(`select ticket_by from public.plan_participants where plan_id = '${ticketPlan}' and user_id = '${aliceId}'`) === bobId, "Besorgen: bei Alice steht Bob");
+      check(psql(`select count(*) from public.notifications where type = 'plan_reminder' and related_entity_id = '${ticketPlan}' and user_id = '${aliceId}' and payload ? 'ticket_buy'`) === "1",
+        "Besorgen: Alice bekommt Bescheid");
+      const buyMine = bob.page.getByTestId("plan-ticket-buy-mine");
+      await buyMine.waitFor();
+      check((await buyMine.innerText()).includes("Du besorgst für Alice"), "Besorgen: Bob sieht „Du besorgst für Alice“");
+      await alice.page.goto(`${APP}/plans/${ticketPlan}`);
+      await alice.page.getByTestId("plan-ticket-buy-for-me").filter({ hasText: "Bob besorgt dein Ticket" }).waitFor();
+      check(!(await alice.page.getByTestId("plan-tickets").innerText()).includes("Noch ohne Ticket: Du"), "Besorgen: Alice steht nicht mehr bei „Noch ohne Ticket“");
+      check((await api(carol, "POST", "rpc/set_plan_ticket_buys", { p_plan_id: ticketPlan, p_user_ids: [aliceId] })).status >= 400, "Besorgen: Carol kann Alice nicht doppelt übernehmen");
+      await buyMine.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(bob, "21w13-plan-ticket-besorgt");
+      await buyMine.getByTestId("plan-tickets-bought").click();
+      await toast(bob, "1 Ticket gekauft – Bescheid ist raus.");
+      check(psql(`select has_ticket::text || ticket_by from public.plan_participants where plan_id = '${ticketPlan}' and user_id = '${aliceId}'`) === `true${bobId}`,
+        "Besorgen: Alice hat ein Ticket – von Bob");
+      await carol.page.reload();
+      await carol.page.getByTestId("plan-ticket-bought").filter({ hasText: "Ticket von Bob: Alice" }).waitFor();
+      await carol.page.getByTestId("plan-tickets-status").filter({ hasText: "Alle haben eins" }).waitFor();
+      check(true, "Besorgen: Carol sieht „Ticket von Bob: Alice“ und „Alle haben eins“");
+      await carol.page.getByTestId("plan-tickets").evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await a11y(carol, "plan-ticket-gekauft");
+      await shot(carol, "21w14-plan-ticket-gekauft");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/set_plan_ticket_buys`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: ticketPlan, p_user_ids: [aliceId] }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Besorgen (${res.status})`);
       }
     } finally {
       if (ticketGuestContext) await ticketGuestContext.close().catch(() => {});

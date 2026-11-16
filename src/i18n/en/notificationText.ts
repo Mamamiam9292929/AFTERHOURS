@@ -144,6 +144,12 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     if (p.ticket_taken) {
       return { title: `${actor} is taking your ticket`, body: `Sort out the money between you · ${plan}` };
     }
+    if (p.ticket_buy) {
+      return { title: `${actor} is getting your ticket`, body: `No need to buy one yourself · ${plan}` };
+    }
+    if (p.ticket_bought) {
+      return { title: `${actor} bought your ticket`, body: `Sort out the money between you · ${plan}` };
+    }
     return p.maybe
       ? { title: `${actor} asks: are you in now?`, body: `You said maybe · ${plan}` }
       : { title: `${actor} asks: are you in?`, body: plan };

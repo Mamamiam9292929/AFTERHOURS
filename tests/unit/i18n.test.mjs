@@ -153,6 +153,21 @@ test("P54: Ticket angeboten und genommen – eigene Texte, keine Verwechslung mi
   assert.equal(en.planCards.tickets.offered(3), "Offered – 3 people without a ticket were told.");
 });
 
+test("P55: Ticket wird besorgt und gekauft – eigene Texte", () => {
+  const payload = { title: "Konzert", starts_at: "2026-11-20T19:00:00Z" };
+  const buy = de.notificationText.plan_reminder("Bob", { ...payload, ticket_buy: true });
+  assert.equal(buy.title, "Bob besorgt dein Ticket");
+  assert.ok(buy.body.startsWith("Du musst keins mehr kaufen · Konzert · "));
+  const bought = de.notificationText.plan_reminder("Bob", { ...payload, ticket_bought: true });
+  assert.equal(bought.title, "Bob hat dein Ticket gekauft");
+  assert.ok(bought.body.startsWith("Das Geld klärt ihr unter euch · Konzert · "));
+  assert.equal(en.notificationText.plan_reminder("Bob", { ...payload, ticket_buy: true }).title, "Bob is getting your ticket");
+  assert.equal(en.notificationText.plan_reminder("Bob", { ...payload, ticket_bought: true }).title, "Bob bought your ticket");
+  assert.equal(de.planCards.tickets.buySaved(0), "Du besorgst für niemanden mehr.");
+  assert.equal(de.planCards.tickets.buySaved(2), "Notiert: Du besorgst 2 Tickets.");
+  assert.equal(en.planCards.tickets.boughtSaved(1), "1 ticket bought – they've been told.");
+});
+
 test("P46 Etappe 2: Erinnerung vor der Antwortfrist und Stand danach – eigene Texte ohne auslösende Person", () => {
   const payload = { title: "Bowling", starts_at: "2026-11-20T19:00:00Z", answer_by: "2026-11-18T19:00:00Z" };
   const reminder = de.notificationText.plan_reminder("", { ...payload, deadline: true });
