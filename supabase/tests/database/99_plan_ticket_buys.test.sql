@@ -128,6 +128,7 @@ select throws_ok($$ select public.set_plan_ticket_buys(tests.var('konzert')::uui
 select is(public.set_plan_ticket_buys(tests.var('konzert')::uuid, array[tests.uid('bob')]), 1, 'Gina besorgt für Bob – wer selbst besorgt, kann auch besorgt werden');
 
 -- Bob ändert seine Liste: Dave raus, Gina rein – Dave ist wieder frei, nur Gina bekommt neu Bescheid.
+select tests.logout();
 delete from public.notifications;
 select tests.login('bob');
 select is(public.set_plan_ticket_buys(tests.var('konzert')::uuid, array[tests.uid('carol'), tests.uid('gina')]), 2, 'Bob: Carol und Gina');
