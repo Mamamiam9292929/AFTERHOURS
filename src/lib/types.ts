@@ -271,6 +271,8 @@ export interface PlanGuest {
   waitlisted_at?: string | null;
   /** P51 Etappe 2: Begleitung des Gasts (0–3), nur bei „Bin dabei“. */
   plus_ones?: number | null;
+  /** P53 Etappe 2c: Gast sagt, er hat sein Ticket (Ticket-Check). */
+  has_ticket?: boolean | null;
   created_at: string;
   updated_at: string;
 }

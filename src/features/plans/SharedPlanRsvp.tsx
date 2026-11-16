@@ -21,6 +21,7 @@ import {
   useGuestNote,
   useGuestPlusOnes,
   useGuestRsvp,
+  useGuestTicket,
   useGuestWaitlist,
   useSharedPlanRsvp,
 } from "./guestsApi";
@@ -274,6 +275,11 @@ export function SharedPlanRsvp({
           {open && me?.status === "going" && chosen === "going" && !pending && (
             <GuestPlusOnes token={token} secret={secret} mine={me.plus_ones ?? 0} spots={spots} />
           )}
+          {/* P53 Etappe 2c: „Hast du dein Ticket?“ – bei Ticket-Check, mit gespeicherter Zusage oder „Vielleicht“ (oder übrigem Ticket). */}
+          {loaded.plan.tickets_needed && me && !pending && loaded.plan.status !== "cancelled" && loaded.plan.status !== "completed" &&
+            (me.status === "going" || me.status === "maybe" || me.has_ticket) && (
+              <GuestTicket token={token} secret={secret} mine={Boolean(me.has_ticket)} spare={me.status === "declined"} />
+            )}
         </div>
 
         {open && oneTap && knownName && (
@@ -431,6 +437,59 @@ function GuestPlusOnes({ token, secret, mine, spots }: { token: string; secret: 
         )}
       </div>
       <p className="mt-2 text-[13px] leading-snug text-muted">{full ? texts.full : texts.hint}</p>
+    </div>
+  );
+}
+
+/**
+ * P53 Etappe 2c · „Hast du dein Ticket?“ für Gäste – zwei Pillen wie auf der Planseite der Crew, ein Tipp speichert.
+ * Rückmeldung steht in der Karte (die Gast-Seite hat keine Toasts). `spare`: abgesagt, aber mit Ticket.
+ */
+function GuestTicket({ token, secret, mine, spare }: { token: string; secret: string; mine: boolean; spare: boolean }) {
+  const headingId = useId();
+  const save = useGuestTicket(token, secret);
+  const texts = t.planGuests.rsvp.tickets;
+  const [saved, setSaved] = useState<boolean | null>(null);
+  const options = [
+    { value: true, label: texts.yes },
+    { value: false, label: texts.no },
+  ];
+  return (
+    <div className="mt-4 border-t border-line pt-4" data-testid="rsvp-ticket">
+      <p id={headingId} className="text-[14px] font-semibold text-fg">
+        {texts.question}
+      </p>
+      <div role="radiogroup" aria-labelledby={headingId} className="mt-2.5 grid grid-cols-2 gap-2">
+        {options.map((o) => {
+          const selected = o.value === mine;
+          return (
+            <button
+              key={String(o.value)}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              disabled={save.isPending}
+              data-ticket={o.value ? "yes" : "no"}
+              onClick={() => {
+                if (selected) return;
+                setSaved(null);
+                save.mutate(o.value, { onSuccess: (value) => setSaved(value) });
+              }}
+              className="vote-pill h-10 px-2 text-[14px]"
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+      <div aria-live="polite" className="mt-2 space-y-2">
+        {save.isError ? (
+          <FormMessage>{errorMessage(save.error)}</FormMessage>
+        ) : (
+          saved != null && <FormMessage tone="success">{saved ? texts.savedYes : texts.savedNo}</FormMessage>
+        )}
+      </div>
+      <p className="mt-2 text-[13px] leading-snug text-muted">{spare ? texts.hintSpare : texts.hint}</p>
     </div>
   );
 }

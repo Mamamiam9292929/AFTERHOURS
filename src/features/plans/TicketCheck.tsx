@@ -66,15 +66,19 @@ function useSetTicketsNeeded(planId: string) {
  * wie viele, die dabei sind, schon ein Ticket haben (Balken wie bei der Mindestzahl), wer noch keins hat und wer
  * nach einer Absage eins übrig hat. Etappe 2a: Wer organisiert (oder Owner/Admin ist), fragt vor Beginn mit
  * „Nachfragen“ alle aus „Noch ohne Ticket“ (außer sich selbst) – `canRemind` entscheidet die Planseite.
+ * Etappe 2c: Gäste über den Teilen-Link stehen als „Dana (Gast)“ mit drin.
  */
 export function TicketsMeter({ plan, userId, lookup, canRemind = false }: { plan: PlanWithParticipants; userId: string; lookup: Lookup; canRemind?: boolean }) {
   const texts = t.planCards.tickets;
   const toast = useToast();
   const remind = useRemindTickets(plan.id);
-  const s = ticketStanding(plan.participants);
+  // Etappe 2c: Gäste zählen mit, solange Zusagen über den Link an sind – nur dann können sie ihre Angabe ändern.
+  const s = ticketStanding(plan.participants, plan.guests_allowed ? (plan.guests ?? []) : []);
+  // Gäste haben kein Postfach – „Nachfragen“ geht nur an Mitglieder (Etappe 2a).
   const askable = canRemind ? s.missing.filter((id) => id !== userId).length : 0;
   const name = (id: string) => (id === userId ? t.states.you : (lookup(id)?.display_name ?? t.states.formerMember));
-  const names = (ids: string[]) => ids.map(name).join(", ");
+  const names = (ids: string[], guests: string[] = []) => [...ids.map(name), ...guests.map((g) => t.plans.detail.attendance.guest(g))].join(", ");
+  const missingCount = s.missing.length + s.missingGuests.length;
   return (
     <div data-testid="plan-tickets" data-complete={s.complete ? "true" : "false"} className="mb-3 rounded-card border border-white/10 bg-white/[0.04] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -85,7 +89,7 @@ export function TicketsMeter({ plan, userId, lookup, canRemind = false }: { plan
         {s.going > 0 && (
           <StatusPill tone={s.complete ? "lime" : "amber"} testId="plan-tickets-status">
             {s.complete && <IconCheck className="size-3.5" aria-hidden />}
-            {s.complete ? texts.complete : texts.missingPill(s.missing.length)}
+            {s.complete ? texts.complete : texts.missingPill(missingCount)}
           </StatusPill>
         )}
       </div>
@@ -104,9 +108,9 @@ export function TicketsMeter({ plan, userId, lookup, canRemind = false }: { plan
             <div className={cn("bar-grow h-full rounded-full bg-lime", s.complete && "shadow-[0_0_18px_var(--color-lime)]")} style={{ width: `${Math.max(s.have / s.going, 0.04) * 100}%` }} />
           </div>
           <p className="mt-1.5 text-[13px] text-muted">{texts.count(s.have, s.going)}</p>
-          {s.missing.length > 0 && (
+          {missingCount > 0 && (
             <p className="mt-1 text-[13px] font-semibold leading-snug text-fg" data-testid="plan-tickets-missing">
-              {texts.missing(names(s.missing))}
+              {texts.missing(names(s.missing, s.missingGuests))}
             </p>
           )}
           {askable > 0 && (
@@ -131,9 +135,9 @@ export function TicketsMeter({ plan, userId, lookup, canRemind = false }: { plan
           )}
         </>
       )}
-      {s.spare.length > 0 && (
+      {s.spare.length + s.spareGuests.length > 0 && (
         <p className="mt-1 text-[13px] font-semibold leading-snug text-lime" data-testid="plan-tickets-spare">
-          {texts.spare(names(s.spare))}
+          {texts.spare(names(s.spare, s.spareGuests))}
         </p>
       )}
     </div>

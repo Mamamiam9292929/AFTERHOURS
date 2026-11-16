@@ -45,6 +45,8 @@ export type SharedPlanRsvp =
         can_join?: boolean;
         /** P50 Etappe 2b: weitere Stationen in der Reihenfolge des Abends (fehlt bei älterem Server). */
         stops?: { title: string; at: string | null; address: string | null }[];
+        /** P53 Etappe 2c: Ticket-Check an (fehlt bei älterem Server). */
+        tickets_needed?: boolean;
       };
       counts: { going: number; maybe: number };
       /**
@@ -59,6 +61,8 @@ export type SharedPlanRsvp =
         promoted?: true;
         /** P51 Etappe 2: Begleitung (1–3); fehlt ohne Begleitung. */
         plus_ones?: number;
+        /** P53 Etappe 2c: „Hab mein Ticket“; fehlt ohne Ticket. */
+        has_ticket?: true;
       } | null;
     }
   | { status: "not_found" | "expired" | "guests_off" };
@@ -155,6 +159,28 @@ export function useGuestPlusOnes(token: string, secret: string) {
       void client.invalidateQueries({ queryKey: rsvpKey(token) });
       void client.invalidateQueries({ queryKey: ["plan-share-preview", token] });
     },
+  });
+}
+
+/**
+ * P53 Etappe 2c · „Hab mein Ticket“ als Gast beim Ticket-Check. Liefert den gespeicherten Stand; die Karte lädt
+ * danach neu.
+ */
+export function useGuestTicket(token: string, secret: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (has: boolean): Promise<boolean> => {
+      const { data, error } = await supabase.rpc("guest_ticket_shared_plan", { p_token: token, p_secret: secret, p_has: has });
+      if (error) throw error;
+      return Boolean(data);
+    },
+    onSuccess: (saved) =>
+      client.setQueryData<SharedPlanRsvp>(rsvpKey(token), (old) => {
+        if (old?.status !== "valid" || !old.me) return old;
+        const { has_ticket: _previous, ...rest } = old.me;
+        return { ...old, me: saved ? { ...rest, has_ticket: true } : rest };
+      }),
+    onSettled: () => void client.invalidateQueries({ queryKey: rsvpKey(token) }),
   });
 }
 

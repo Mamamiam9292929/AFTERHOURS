@@ -4394,6 +4394,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   // Ticket: „Alle haben eins“. Sagt Alice ab, steht sie als „Ticket übrig“ da. Ohne Anmeldung geht nichts.
   // Etappe 2a: Bob fragt Alice (dabei, ohne Ticket) mit „Nachfragen“; die Benachrichtigung führt zur Auswahl.
   // Etappe 2b: Der geteilte Zwischenstand sagt „1 von euch hat noch kein Ticket.“
+  // Etappe 2c: Gäste über den Teilen-Link melden ihr Ticket auf der Zusagekarte.
   if (DB_URL) {
     const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
     const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
@@ -4406,6 +4407,7 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
         case when m.user_id in ('${bobId}', '${aliceId}') then 'going'::public.attendance_status else 'invited'::public.attendance_status end,
         case when m.user_id in ('${bobId}', '${aliceId}') then now() end
       from public.crew_members m where m.crew_id = '${ids.crew}'`);
+    let ticketGuestContext = null;
     try {
       await bob.page.goto(`${APP}/plans/${ticketPlan}`);
       await bob.page.getByRole("heading", { level: 1, name: "Konzert im Stadtpark" }).waitFor();
@@ -4511,7 +4513,50 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
         });
         check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Ticket (${res.status})`);
       }
+
+      // P53 Etappe 2c: Bob lässt Gäste über den Link zusagen. Nina (ohne Konto, 390 px) sagt zu und sieht „Hast du dein
+      // Ticket?“ auf der Zusagekarte; die Crew sieht „Nina (Gast)“ bei „Noch ohne Ticket“. Ein Tipp „Hab mein Ticket“
+      // – danach „Alle haben eins“. Ein fremdes Geheimnis ändert nichts.
+      check((await api(bob, "POST", "rpc/set_plan_guests", { p_plan_id: ticketPlan, p_allowed: true })).status < 300, "Tickets (Gast): Bob lässt Gäste zusagen");
+      const ticketToken = (await api(bob, "POST", "rpc/plan_share_token", { p_plan_id: ticketPlan })).json;
+      ticketGuestContext = await browser.newContext({ viewport: VIEWPORTS.mobile, deviceScaleFactor: 2, locale: "de-DE", timezoneId: "Europe/Berlin", serviceWorkers: "block" });
+      const nina = { page: await ticketGuestContext.newPage(), viewport: "mobile" };
+      await nina.page.goto(`${APP}/s/${ticketToken}`);
+      await nina.page.getByTestId("rsvp-card").waitFor();
+      check((await nina.page.getByTestId("rsvp-ticket").count()) === 0, "Tickets (Gast): ohne Antwort keine Auswahl");
+      await nina.page.getByRole("radio", { name: "Bin dabei" }).click();
+      await nina.page.getByLabel("Dein Name").fill("Nina");
+      await nina.page.getByRole("button", { name: "Antwort senden" }).click();
+      const guestTicket = nina.page.getByTestId("rsvp-ticket");
+      await guestTicket.waitFor();
+      check((await guestTicket.getByRole("radio", { name: "Noch keins" }).getAttribute("aria-checked")) === "true", "Tickets (Gast): anfangs „Noch keins“");
+      await carol.page.reload();
+      await carol.page.getByTestId("plan-tickets-missing").filter({ hasText: "Nina (Gast)" }).waitFor();
+      check((await carol.page.getByTestId("plan-tickets-status").innerText()).includes("1 fehlt noch"), "Tickets (Gast): Crew sieht „Nina (Gast)“ ohne Ticket");
+      await guestTicket.getByRole("radio", { name: "Hab mein Ticket" }).click();
+      await guestTicket.getByText("Notiert: Du hast dein Ticket.").waitFor();
+      check(psql(`select has_ticket from public.plan_guests where plan_id = '${ticketPlan}' and display_name = 'Nina'`) === "t", "Tickets (Gast): mit einem Tipp gespeichert");
+      check((await guestTicket.getByRole("radio", { name: "Hab mein Ticket" }).getAttribute("aria-checked")) === "true", "Tickets (Gast): „Hab mein Ticket“ gewählt");
+      await guestTicket.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(nina, "Ticket als Gast");
+      await a11y(nina, "geteilt-ticket");
+      await shot(nina, "21w8-geteilt-gast-ticket");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/guest_ticket_shared_plan`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_token: ticketToken, p_secret: "f".repeat(64), p_has: false }),
+        });
+        check(res.status >= 400, `Tickets (Gast): fremdes Geheimnis abgewiesen (${res.status})`);
+        check(psql(`select has_ticket from public.plan_guests where plan_id = '${ticketPlan}' and display_name = 'Nina'`) === "t", "Tickets (Gast): fremdes Geheimnis ändert nichts");
+      }
+      await carol.page.reload();
+      await carol.page.getByTestId("plan-tickets-status").filter({ hasText: "Alle haben eins" }).waitFor();
+      check((await carol.page.getByTestId("plan-tickets").innerText()).includes("2 von 2 mit Ticket"), "Tickets (Gast): Gast zählt mit – „2 von 2 mit Ticket“");
+      await carol.page.getByTestId("plan-tickets").evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await shot(carol, "21w9-plan-tickets-gast");
     } finally {
+      if (ticketGuestContext) await ticketGuestContext.close().catch(() => {});
       psql(`delete from public.notifications where related_entity_id = '${ticketPlan}'; delete from public.plans where id = '${ticketPlan}'`);
     }
   }

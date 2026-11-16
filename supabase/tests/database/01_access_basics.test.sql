@@ -33,8 +33,9 @@ select is(
                        'public.guest_plus_ones_shared_plan(text, text, integer)'::regprocedure,
                        'public.shared_plan_items(text, text)'::regprocedure,
                        'public.guest_claim_plan_item(text, text, uuid, boolean)'::regprocedure,
+                       'public.guest_ticket_shared_plan(text, text, boolean)'::regprocedure,
                        'public.calendar_feed_events(text)'::regprocedure)),
-  0, 'anon darf keine Funktion ausführen – Ausnahmen: Einladungsvorschau (W1), Plan- und Abstimmungs-Vorschau (W2), Stimmzettel, Abstimmen und Beitrittslink als Gast (W3), Zusagen als Gast beim Plan (W10) mit Zusatz (P24), Nachrückliste (P26), Begleitung (P51), Mitbring-Liste (P52) und Beitrittslink (W11), Kalender-Abo (P2)');
+  0, 'anon darf keine Funktion ausführen – Ausnahmen: Einladungsvorschau (W1), Plan- und Abstimmungs-Vorschau (W2), Stimmzettel, Abstimmen und Beitrittslink als Gast (W3), Zusagen als Gast beim Plan (W10) mit Zusatz (P24), Nachrückliste (P26), Begleitung (P51), Mitbring-Liste (P52), Ticket (P53) und Beitrittslink (W11), Kalender-Abo (P2)');
 
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace

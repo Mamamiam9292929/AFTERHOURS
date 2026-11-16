@@ -2,6 +2,16 @@ import type { planGuests as dePlanGuests } from "../de/planGuests";
 
 export const planGuests = {
   rsvp: {
+    /** P53 Etappe 2c: ticket check as a guest – like “Got your ticket?” on the crew's plan page. */
+    tickets: {
+      question: "Got your ticket?",
+      yes: "Got my ticket",
+      no: "Not yet",
+      hint: "Everyone needs their own ticket for this one. The crew only sees whether you have one – nothing is bought here.",
+      hintSpare: "You declined but have a ticket: the crew sees “spare ticket” next to your name. Once it's gone, tap “Not yet”.",
+      savedYes: "Noted: you've got your ticket.",
+      savedNo: "Noted: no ticket yet.",
+    },
     /** P51 Etappe 2: bringing someone as a guest – like “Bringing anyone?” on the crew's plan page. */
     plusOnes: {
       question: "Bringing anyone?",

@@ -93,12 +93,12 @@ test("keine Namen im Text – die Eingabe hat gar keine", () => {
   assert.doesNotMatch(text, /Alice|Dana|u1/);
 });
 
-test("P53 Etappe 2b: Ticket-Stand im Zwischenstand – nur mit Check, nur Zusagen von Mitgliedern, nur Zahlen", () => {
+test("P53 Etappe 2b: Ticket-Stand im Zwischenstand – nur mit Check, nur Zusagen, nur Zahlen", () => {
   const head = ["Konzert", "Samstag, 14. November, 20:00 Uhr"];
   const t = (status, has_ticket) => ({ attendance_status: status, has_ticket });
   const participants = [t("going", true), t("going", false), t("going", false), t("maybe", false), t("declined", true), t("invited", false)];
   const on = planStanding({ status: "confirmed", starts_at: "2026-11-14T19:00:00Z", tickets_needed: true, participants, guests: [p("going")] }, now);
-  assert.equal(on.ticketsMissing, 2, "zwei Zusagen ohne Ticket – „vielleicht“, Absage, ohne Antwort und Gäste zählen nicht");
+  assert.equal(on.ticketsMissing, 2, "zwei Zusagen ohne Ticket – „vielleicht“, Absage, ohne Antwort und Gäste ohne Freigabe zählen nicht");
   assert.equal(on.ticketsMissing, ticketStanding(participants).missing.length, "gleiche Regel wie der Ticket-Stand auf der Planseite");
   assert.match(standingText(de.standing, on, ...head, false), / 2 von euch haben noch kein Ticket\. Zum Plan:$/);
   assert.match(standingText(en.standing, on, "Gig", "Sat", false), / 2 of you still need a ticket\. /);
@@ -113,4 +113,16 @@ test("P53 Etappe 2b: Ticket-Stand im Zwischenstand – nur mit Check, nur Zusage
   const nobody = planStanding({ status: "confirmed", starts_at: "2026-11-14T19:00:00Z", tickets_needed: true, participants: [t("maybe", false)] }, now);
   assert.equal(nobody.ticketsMissing, null, "solange niemand zugesagt hat, kein Satz");
   assert.ok(!standingText(de.standing, on, ...head, false).includes("Alice"), "keine Namen");
+});
+
+test("P53 Etappe 2c: Gäste über den Teilen-Link zählen im Ticket-Stand mit – nur mit Freigabe", () => {
+  const t = (status, has_ticket) => ({ attendance_status: status, has_ticket });
+  const participants = [{ user_id: "a", ...t("going", true) }];
+  const guests = [{ id: "g1", display_name: "Dana", ...t("going", false) }, { id: "g2", display_name: "Emil", ...t("going", true) }, { id: "g3", display_name: "Fritz", ...t("declined", true) }];
+  const base = { status: "confirmed", starts_at: "2026-11-14T19:00:00Z", tickets_needed: true, participants, guests };
+  const on = planStanding({ ...base, guests_allowed: true }, now);
+  assert.equal(on.ticketsMissing, 1, "Dana (Gast) hat noch keins");
+  assert.equal(on.ticketsMissing, ticketStanding(participants, guests).missing.length + ticketStanding(participants, guests).missingGuests.length, "gleiche Regel wie die Planseite");
+  const off = planStanding({ ...base, guests_allowed: false }, now);
+  assert.equal(off.ticketsMissing, 0, "ohne Freigabe zählen nur Mitglieder");
 });
