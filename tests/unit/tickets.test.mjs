@@ -1,7 +1,7 @@
-// P53 · „Habt ihr alle Tickets?“ – Stand des Ticket-Checks (src/lib/tickets.ts). Server: pgTAP 95_plan_tickets, 97_plan_guest_tickets, 98_plan_ticket_offer.
+// P53 · „Habt ihr alle Tickets?“ – Stand des Ticket-Checks (src/lib/tickets.ts). Server: pgTAP 95_plan_tickets, 97_plan_guest_tickets, 98_plan_ticket_offer, 99_plan_ticket_buys.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canOfferTicket, canSayTicket, canTakeTicket, ticketStanding } from "../../src/lib/tickets.ts";
+import { canBuyTickets, canOfferTicket, canSayTicket, canTakeTicket, ticketBuyCandidates, ticketBuys, ticketStanding } from "../../src/lib/tickets.ts";
 
 test("Ticket-Check zählt nur Zusagen, Absagen mit Ticket stehen als „übrig“ da", () => {
   const s = ticketStanding([
@@ -79,4 +79,28 @@ test("P54: Angebote stehen nur bei Absagen mit Ticket, anbieten und nehmen nach 
   assert.equal(canTakeTicket({ user_id: "c", attendance_status: "maybe", has_ticket: false }), false, "erst zusagen");
   assert.equal(canTakeTicket({ user_id: "c", attendance_status: "going", waitlisted_at: "x" }), false, "nicht von der Nachrückliste");
   assert.equal(canTakeTicket(undefined), false);
+});
+
+test("P55: wer für wen besorgt – offen und gekauft getrennt, Absagen fallen raus", () => {
+  const rows = [
+    { user_id: "bob", attendance_status: "going", has_ticket: false },
+    { user_id: "carol", attendance_status: "going", has_ticket: false, ticket_by: "bob" },
+    { user_id: "dave", attendance_status: "going", has_ticket: true, ticket_by: "bob" },
+    { user_id: "erik", attendance_status: "declined", has_ticket: false, ticket_by: "bob" },
+    { user_id: "fiona", attendance_status: "declined", has_ticket: true, ticket_by: "gina" },
+    { user_id: "gina", attendance_status: "going", has_ticket: false },
+    { user_id: "hana", attendance_status: "going", has_ticket: false, ticket_by: "bob", waitlisted_at: "x" },
+    { user_id: "ivo", attendance_status: "going", has_ticket: false, ticket_by: "gina" },
+  ];
+  assert.deepEqual(ticketBuys(rows), [
+    { by: "bob", pending: ["carol"], bought: ["dave"] },
+    { by: "gina", pending: ["ivo"], bought: ["fiona"] },
+  ], "Absage ohne Ticket und Nachrückliste zählen nicht als offen, gekauft bleibt auch nach Absage");
+  assert.deepEqual(ticketBuyCandidates(rows, "bob"), ["carol", "gina"], "Bob: eigene Übernahmen und Freie, nicht Ivo (Gina besorgt), nicht sich selbst");
+  assert.deepEqual(ticketBuyCandidates(rows, "gina"), ["bob", "ivo"]);
+  assert.deepEqual(ticketBuys([]), []);
+  assert.equal(canBuyTickets({ user_id: "bob", attendance_status: "going" }), true);
+  assert.equal(canBuyTickets({ user_id: "bob", attendance_status: "maybe" }), false, "erst zusagen");
+  assert.equal(canBuyTickets({ user_id: "bob", attendance_status: "going", waitlisted_at: "x" }), false, "nicht von der Nachrückliste");
+  assert.equal(canBuyTickets(undefined), false);
 });

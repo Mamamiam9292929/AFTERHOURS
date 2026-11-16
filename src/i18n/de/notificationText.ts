@@ -169,6 +169,13 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     if (p.ticket_taken) {
       return { title: `${actor} nimmt dein Ticket`, body: `Das Geld klärt ihr unter euch · ${plan}` };
     }
+    // P55: `ticket_buy` – jemand besorgt dein Ticket; `ticket_bought` – gekauft.
+    if (p.ticket_buy) {
+      return { title: `${actor} besorgt dein Ticket`, body: `Du musst keins mehr kaufen · ${plan}` };
+    }
+    if (p.ticket_bought) {
+      return { title: `${actor} hat dein Ticket gekauft`, body: `Das Geld klärt ihr unter euch · ${plan}` };
+    }
     return p.maybe
       ? { title: `${actor} fragt: Bist du jetzt dabei?`, body: `Du hast „vielleicht“ gesagt · ${plan}` }
       : { title: `${actor} fragt: Bist du dabei?`, body: plan };

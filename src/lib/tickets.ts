@@ -7,6 +7,8 @@
  * Planseite gibt sie nur mit, solange Zusagen über den Link an sind (sonst könnten sie nichts mehr ändern).
  * P54: Wer ein Ticket übrig hat, bietet es an (`offer_plan_ticket`); wer zugesagt und keins hat, nimmt es mit
  * „Nehm ich“ (`take_plan_ticket`). Das Angebot steht in `ticket_offered_at` und gilt nur mit Absage und Ticket.
+ * P55: Wer zugesagt hat, besorgt Tickets für andere mit Zusage ohne Ticket (`set_plan_ticket_buys`); `ticket_by` ohne
+ * Ticket heißt „besorgt gerade“, mit Ticket „gekauft von“ (`mark_plan_tickets_bought`).
  */
 export interface TicketAnswer {
   user_id: string;
@@ -16,6 +18,8 @@ export interface TicketAnswer {
   ticket_offered_at?: string | null;
   /** P26: auf der Nachrückliste (zählt nicht als Zusage zum Nehmen) */
   waitlisted_at?: string | null;
+  /** P55: wer das Ticket besorgt (ohne Ticket: übernommen, mit Ticket: gekauft) */
+  ticket_by?: string | null;
 }
 
 export interface TicketGuest {
@@ -72,4 +76,39 @@ export function canOfferTicket(answer: TicketAnswer | undefined): boolean {
 /** P54: Darf die Person ein angebotenes Ticket nehmen? Zugesagt (nicht auf der Nachrückliste) und noch ohne Ticket. */
 export function canTakeTicket(answer: TicketAnswer | undefined): boolean {
   return Boolean(answer && answer.attendance_status === "going" && !answer.waitlisted_at && !answer.has_ticket);
+}
+
+/** P55: Wer besorgt für wen? Je besorgende Person: noch offen (übernommen) und schon gekauft – Reihenfolge wie die Teilnehmer. */
+export interface TicketBuy {
+  by: string;
+  pending: string[];
+  bought: string[];
+}
+
+export function ticketBuys(participants: TicketAnswer[]): TicketBuy[] {
+  const out = new Map<string, TicketBuy>();
+  for (const p of participants) {
+    if (!p.ticket_by) continue;
+    // Gekauft zählt bei allen mit Ticket; offen nur bei Zusage ohne Ticket (sonst gibt der Server frei).
+    const bought = Boolean(p.has_ticket);
+    if (!bought && (p.attendance_status !== "going" || p.waitlisted_at)) continue;
+    const entry = out.get(p.ticket_by) ?? { by: p.ticket_by, pending: [], bought: [] };
+    (bought ? entry.bought : entry.pending).push(p.user_id);
+    out.set(p.ticket_by, entry);
+  }
+  return [...out.values()];
+}
+
+/** P55: Darf die Person Tickets für andere besorgen? Zugesagt und nicht auf der Nachrückliste. */
+export function canBuyTickets(answer: TicketAnswer | undefined): boolean {
+  return Boolean(answer && answer.attendance_status === "going" && !answer.waitlisted_at);
+}
+
+/** P55: Für wen kann `me` besorgen? Zugesagt, nicht auf der Nachrückliste, ohne Ticket, nicht schon von jemand anderem übernommen. */
+export function ticketBuyCandidates(participants: TicketAnswer[], me: string): string[] {
+  return participants
+    .filter(
+      (p) => p.user_id !== me && p.attendance_status === "going" && !p.waitlisted_at && !p.has_ticket && (!p.ticket_by || p.ticket_by === me),
+    )
+    .map((p) => p.user_id);
 }

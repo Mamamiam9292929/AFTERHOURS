@@ -293,6 +293,8 @@ export interface PlanParticipant {
   has_ticket?: boolean | null;
   /** P54: seit wann die Person ihr übriges Ticket der Crew anbietet (nur mit Absage und Ticket). */
   ticket_offered_at?: string | null;
+  /** P55: wer das Ticket dieser Person besorgt (ohne Ticket: übernommen, mit Ticket: gekauft). */
+  ticket_by?: string | null;
   /** P51: so viele Begleitungen ohne Konto bringt die Person mit (0–3), nur bei „Bin dabei“. */
   plus_ones?: number | null;
 }

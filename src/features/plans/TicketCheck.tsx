@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconBell, IconCheck, IconTicketCheck } from "@/components/icons";
 import type { Person } from "@/components/ui/Avatar";
@@ -8,7 +8,7 @@ import { loadTexts, t } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { qk } from "@/lib/query";
 import { supabase } from "@/lib/supabase";
-import { canOfferTicket, canTakeTicket, ticketStanding } from "@/lib/tickets";
+import { canBuyTickets, canOfferTicket, canTakeTicket, ticketBuyCandidates, ticketBuys, ticketStanding } from "@/lib/tickets";
 import type { PlanWithParticipants } from "./api";
 import { StatusPill } from "./PlanPanel";
 
@@ -72,6 +72,160 @@ function useTakeTicket(planId: string) {
   });
 }
 
+/** P55: Liste setzen, für wen ich Tickets besorge. Liefert die Zahl der offenen Übernahmen. */
+function useSetTicketBuys(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]): Promise<number> => {
+      const { data, error } = await supabase.rpc("set_plan_ticket_buys", { p_plan_id: planId, p_user_ids: ids });
+      if (error) throw error;
+      return data as number;
+    },
+    onSettled: () => void client.invalidateQueries({ queryKey: qk.plan(planId) }),
+  });
+}
+
+/** P55: „Gekauft“ – alle, für die ich besorge, haben jetzt ein Ticket. Liefert die Zahl. */
+function useMarkTicketsBought(planId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<number> => {
+      const { data, error } = await supabase.rpc("mark_plan_tickets_bought", { p_plan_id: planId });
+      if (error) throw error;
+      return data as number;
+    },
+    onSettled: () => void client.invalidateQueries({ queryKey: qk.plan(planId) }),
+  });
+}
+
+/**
+ * P55 · „Ich besorg die Tickets“ im Ticket-Stand: wer für wen besorgt (offen) bzw. gekauft hat, das eigene „Bob besorgt
+ * dein Ticket“, und für alle mit Zusage „Ich besorg welche“ mit Auswahl aus „Noch ohne Ticket“ sowie „Gekauft“.
+ * Auswahl und Ändern nur vor Beginn, „Gekauft“ auch danach (Abendkasse).
+ */
+function TicketBuys({ plan, userId, name, beforeStart }: { plan: PlanWithParticipants; userId: string; name: (id: string) => string; beforeStart: boolean }) {
+  const texts = t.planCards.tickets;
+  const toast = useToast();
+  const save = useSetTicketBuys(plan.id);
+  const bought = useMarkTicketsBought(plan.id);
+  const [picked, setPicked] = useState<string[] | null>(null);
+  const buys = ticketBuys(plan.participants);
+  const mineBuy = buys.find((b) => b.by === userId);
+  const myPending = mineBuy?.pending ?? [];
+  const forMe = plan.participants.find((p) => p.user_id === userId && p.ticket_by && !p.has_ticket)?.ticket_by;
+  const candidates = ticketBuyCandidates(plan.participants, userId);
+  const canBuy = beforeStart && canBuyTickets(plan.participants.find((p) => p.user_id === userId)) && candidates.length > 0;
+  const list = (ids: string[]) => ids.map(name).join(", ");
+  const pillBase = "inline-flex h-10 items-center justify-center rounded-full border px-4 text-[14px] font-semibold transition-colors disabled:opacity-50";
+
+  return (
+    <div data-testid="plan-ticket-buys">
+      {forMe && (
+        <p className="mt-1.5 text-[13px] font-semibold leading-snug text-lime" data-testid="plan-ticket-buy-for-me">
+          {texts.buyForMe(name(forMe))}
+        </p>
+      )}
+      {buys
+        .filter((b) => b.pending.length > 0 && b.by !== userId)
+        .map((b) => (
+          <p key={`p-${b.by}`} className="mt-1 text-[13px] leading-snug text-fg" data-testid="plan-ticket-buy">
+            {texts.buyOther(name(b.by), list(b.pending))}
+          </p>
+        ))}
+      {buys
+        .filter((b) => b.bought.length > 0)
+        .map((b) => (
+          <p key={`b-${b.by}`} className="mt-1 text-[13px] leading-snug text-muted" data-testid="plan-ticket-bought">
+            {texts.boughtFrom(name(b.by), list(b.bought))}
+          </p>
+        ))}
+      {myPending.length > 0 && picked === null && (
+        <div className="mt-2.5 rounded-card border border-lime/40 bg-lime/10 px-3 py-2" data-testid="plan-ticket-buy-mine">
+          <p className="text-[13px] font-semibold leading-snug text-fg">{texts.buyMine(list(myPending))}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="plan-tickets-bought"
+              aria-label={texts.boughtLabel(myPending.length)}
+              disabled={bought.isPending}
+              onClick={() => bought.mutate(undefined, { onSuccess: (n) => toast.success(texts.boughtSaved(n)), onError: (error) => toast.error(error) })}
+              className={cn(pillBase, "border-lime bg-lime text-lime-ink")}
+            >
+              <IconCheck className="mr-1.5 size-4" aria-hidden />
+              {texts.bought}
+            </button>
+            {beforeStart && (
+              <button type="button" data-testid="plan-ticket-buy-edit" onClick={() => setPicked(myPending)} className={cn(pillBase, "border-line-strong text-fg hover:border-white/25")}>
+                {texts.buyEdit}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {picked === null && myPending.length === 0 && canBuy && (
+        <div className="mt-2.5">
+          <Button
+            variant="secondary"
+            size="sm"
+            data-testid="plan-ticket-buy-start"
+            aria-label={texts.buyLabel}
+            onClick={() => setPicked([])}
+            icon={<IconTicketCheck className="size-4" aria-hidden />}
+          >
+            {texts.buy}
+          </Button>
+        </div>
+      )}
+      {picked !== null && (
+        <fieldset className="mt-2.5 rounded-card border border-white/10 bg-white/[0.04] p-3" data-testid="plan-ticket-buy-picker">
+          <legend className="px-1 text-[13px] font-semibold text-fg">{texts.buyPick}</legend>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {candidates.map((id) => {
+              const on = picked.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={on}
+                  data-testid="plan-ticket-buy-person"
+                  onClick={() => setPicked(on ? picked.filter((x) => x !== id) : [...picked, id])}
+                  className={cn(pillBase, on ? "border-lime bg-lime text-lime-ink" : "border-line-strong text-fg hover:border-white/25")}
+                >
+                  {on && <IconCheck className="mr-1.5 size-4" aria-hidden />}
+                  {name(id)}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              data-testid="plan-ticket-buy-save"
+              loading={save.isPending}
+              disabled={picked.length === 0 && myPending.length === 0}
+              onClick={() =>
+                save.mutate(picked, {
+                  onSuccess: (n) => {
+                    toast.success(texts.buySaved(n));
+                    setPicked(null);
+                  },
+                  onError: (error) => toast.error(error),
+                })
+              }
+            >
+              {texts.buySave}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setPicked(null)}>
+              {texts.buyCancel}
+            </Button>
+          </div>
+          <p className="mt-2 text-[12px] leading-snug text-muted">{texts.buyHint}</p>
+        </fieldset>
+      )}
+    </div>
+  );
+}
+
 function useSetTicketsNeeded(planId: string) {
   const client = useQueryClient();
   return useMutation({
@@ -119,7 +273,10 @@ export function TicketsMeter({
   // Etappe 2c: Gäste zählen mit, solange Zusagen über den Link an sind – nur dann können sie ihre Angabe ändern.
   const s = ticketStanding(plan.participants, plan.guests_allowed ? (plan.guests ?? []) : []);
   // Gäste haben kein Postfach – „Nachfragen“ geht nur an Mitglieder (Etappe 2a).
-  const askable = canRemind ? s.missing.filter((id) => id !== userId).length : 0;
+  // P55: Wessen Ticket gerade jemand besorgt, wird nicht gefragt und steht unter „besorgt für“ statt „Noch ohne Ticket“.
+  const covered = new Set(plan.participants.filter((p) => p.ticket_by && !p.has_ticket).map((p) => p.user_id));
+  const uncovered = s.missing.filter((id) => !covered.has(id));
+  const askable = canRemind ? uncovered.filter((id) => id !== userId).length : 0;
   const name = (id: string) => (id === userId ? t.states.you : (lookup(id)?.display_name ?? t.states.formerMember));
   const names = (ids: string[], guests: string[] = []) => [...ids.map(name), ...guests.map((g) => t.plans.detail.attendance.guest(g))].join(", ");
   const missingCount = s.missing.length + s.missingGuests.length;
@@ -152,11 +309,12 @@ export function TicketsMeter({
             <div className={cn("bar-grow h-full rounded-full bg-lime", s.complete && "shadow-[0_0_18px_var(--color-lime)]")} style={{ width: `${Math.max(s.have / s.going, 0.04) * 100}%` }} />
           </div>
           <p className="mt-1.5 text-[13px] text-muted">{texts.count(s.have, s.going)}</p>
-          {missingCount > 0 && (
+          {uncovered.length + s.missingGuests.length > 0 && (
             <p className="mt-1 text-[13px] font-semibold leading-snug text-fg" data-testid="plan-tickets-missing">
-              {texts.missing(names(s.missing, s.missingGuests))}
+              {texts.missing(names(uncovered, s.missingGuests))}
             </p>
           )}
+          <TicketBuys plan={plan} userId={userId} name={name} beforeStart={beforeStart} />
           {askable > 0 && (
             <div className="mt-2.5">
               <Button
