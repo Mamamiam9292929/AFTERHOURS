@@ -15,8 +15,8 @@ _Stand: 16.11.2026 · gezählt mit `node scripts/zahlen.mjs` (Zeilen ohne Leerze
 
 | Bereich | Zeilen | Dateien |
 |---|---:|---:|
-| App (Oberfläche) | 42.093 | 297 |
-| Datenbank (Migrationen) | 15.303 | 99 |
+| App (Oberfläche) | 42.091 | 297 |
+| Datenbank (Migrationen) | 15.305 | 99 |
 | Edge Functions | 1.987 | 13 |
 | Server für Vorschaukarten | 524 | 4 |
 | Werkzeuge | 378 | 6 |
