@@ -291,6 +291,8 @@ export interface PlanParticipant {
   waitlisted_at?: string | null;
   /** P53: Person sagt, sie hat ihr Ticket (Ticket-Check). */
   has_ticket?: boolean | null;
+  /** P54: seit wann die Person ihr übriges Ticket der Crew anbietet (nur mit Absage und Ticket). */
+  ticket_offered_at?: string | null;
   /** P51: so viele Begleitungen ohne Konto bringt die Person mit (0–3), nur bei „Bin dabei“. */
   plus_ones?: number | null;
 }

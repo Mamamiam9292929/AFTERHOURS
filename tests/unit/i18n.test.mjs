@@ -138,6 +138,21 @@ test("P53 Etappe 2a: Nachfrage an alle ohne Ticket hat eigenen Text", () => {
   assert.equal(en.planCards.tickets.reminded(1), "Asked 1 person.");
 });
 
+test("P54: Ticket angeboten und genommen – eigene Texte, keine Verwechslung mit der Nachfrage", () => {
+  const payload = { title: "Konzert", starts_at: "2026-11-20T19:00:00Z" };
+  const offer = de.notificationText.plan_reminder("Alice", { ...payload, ticket_offer: true });
+  assert.equal(offer.title, "Alice hat ein Ticket übrig");
+  assert.ok(offer.body.startsWith("Du bist dabei, aber noch ohne Ticket – wer zuerst „Nehm ich“ tippt, bekommt es · Konzert · "));
+  const taken = de.notificationText.plan_reminder("Carol", { ...payload, ticket_taken: true });
+  assert.equal(taken.title, "Carol nimmt dein Ticket");
+  assert.ok(taken.body.startsWith("Das Geld klärt ihr unter euch · Konzert · "));
+  assert.equal(en.notificationText.plan_reminder("Alice", { ...payload, ticket_offer: true }).title, "Alice has a spare ticket");
+  assert.equal(en.notificationText.plan_reminder("Carol", { ...payload, ticket_taken: true }).title, "Carol is taking your ticket");
+  assert.equal(de.planCards.tickets.offered(0), "Angeboten – gerade braucht niemand eins. Wer noch zusagt, sieht es.");
+  assert.equal(de.planCards.tickets.offered(1), "Angeboten – 1 Person ohne Ticket hat Bescheid bekommen.");
+  assert.equal(en.planCards.tickets.offered(3), "Offered – 3 people without a ticket were told.");
+});
+
 test("P46 Etappe 2: Erinnerung vor der Antwortfrist und Stand danach – eigene Texte ohne auslösende Person", () => {
   const payload = { title: "Bowling", starts_at: "2026-11-20T19:00:00Z", answer_by: "2026-11-18T19:00:00Z" };
   const reminder = de.notificationText.plan_reminder("", { ...payload, deadline: true });

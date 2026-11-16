@@ -403,6 +403,16 @@ export const planCards = {
     remind: "Ask",
     remindLabel: (n: number) => (n === 1 ? "Ask – check whether the person without a ticket has one now" : `Ask – check whether all ${n} without a ticket have one now`),
     reminded: (n: number) => (n === 0 ? "Everyone has a ticket by now – nobody was asked." : n === 1 ? "Asked 1 person." : `Asked ${n} people.`),
+    offer: "Offer ticket",
+    offerLabel: "Offer ticket – everyone going without a ticket gets told",
+    offered: (n: number) =>
+      n === 0 ? "Offered – nobody needs one right now. Anyone who says yes later will see it." : n === 1 ? "Offered – 1 person without a ticket was told." : `Offered – ${n} people without a ticket were told.`,
+    offeredMine: "You're offering your ticket. You'll see here and in your notifications who takes it.",
+    offerFrom: (name: string) => `${name} is offering a ticket`,
+    take: "I'll take it",
+    takeLabel: (name: string) => `Take ${name}'s ticket`,
+    taken: (name: string) => `${name}'s ticket is yours – sort out the money between you.`,
+    offerHint: "AFTERHOURS only lets people know – you sort out the ticket and the money yourselves.",
     card: {
       title: "Tickets",
       intro: "Gig, cinema, festival: does everyone need their own ticket? Then the crew sees who already has one.",

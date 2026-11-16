@@ -138,6 +138,12 @@ export const notificationText: Record<NotificationType, (actor: string, payload:
     if (p.ticket) {
       return { title: `${actor} asks: got your ticket?`, body: `You're going but have no ticket yet · ${plan}` };
     }
+    if (p.ticket_offer) {
+      return { title: `${actor} has a spare ticket`, body: `You're going but have no ticket yet – first to tap "I'll take it" gets it · ${plan}` };
+    }
+    if (p.ticket_taken) {
+      return { title: `${actor} is taking your ticket`, body: `Sort out the money between you · ${plan}` };
+    }
     return p.maybe
       ? { title: `${actor} asks: are you in now?`, body: `You said maybe · ${plan}` }
       : { title: `${actor} asks: are you in?`, body: plan };
