@@ -4395,10 +4395,12 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
   // Etappe 2a: Bob fragt Alice (dabei, ohne Ticket) mit „Nachfragen“; die Benachrichtigung führt zur Auswahl.
   // Etappe 2b: Der geteilte Zwischenstand sagt „1 von euch hat noch kein Ticket.“
   // Etappe 2c: Gäste über den Teilen-Link melden ihr Ticket auf der Zusagekarte.
+  // P54: Alice bietet ihr übriges Ticket an, Carol nimmt es mit „Nehm ich“.
   if (DB_URL) {
     const psql = (sql) => execFileSync("psql", [DB_URL, "-Atqc", sql]).toString().trim();
     const bobId = psql(`select id from auth.users where email = '${bob.email}'`);
     const aliceId = psql(`select id from auth.users where email = '${alice.email}'`);
+    const carolId = psql(`select id from auth.users where email = '${carol.email}'`);
     const ticketPlan = psql(`insert into public.plans (crew_id, created_by, title, starts_at, status)
       values ('${ids.crew}', '${bobId}', 'Konzert im Stadtpark', date_trunc('day', now()) + interval '8 days 20 hours', 'confirmed')
       returning id`).split("\n")[0];
@@ -4555,6 +4557,57 @@ await step("Crew-Chat, Plans-Übersicht, Profil", async () => {
       check((await carol.page.getByTestId("plan-tickets").innerText()).includes("2 von 2 mit Ticket"), "Tickets (Gast): Gast zählt mit – „2 von 2 mit Ticket“");
       await carol.page.getByTestId("plan-tickets").evaluate((el) => el.scrollIntoView({ block: "center" }));
       await shot(carol, "21w9-plan-tickets-gast");
+
+      // P54 – „Ticket übrig – wer will?“: Carol sagt zu (noch ohne Ticket). Alice hat abgesagt und ein Ticket übrig – sie
+      // bietet es mit einem Tipp an; Carol bekommt Bescheid, landet auf dem Plan und nimmt es mit „Nehm ich“. Danach hat
+      // Carol ein Ticket, Alice keins mehr, und Alice erfährt, dass Carol es nimmt. Ohne Anmeldung geht nichts.
+      check((await api(carol, "POST", "rpc/set_attendance", { p_plan_id: ticketPlan, p_status: "going" })).status < 300, "Ticket übrig: Carol sagt zu");
+      await alice.page.goto(`${APP}/plans/${ticketPlan}`);
+      const offerButton = alice.page.getByTestId("plan-offer-ticket");
+      await offerButton.waitFor();
+      check((await offerButton.getAttribute("aria-label")) === "Ticket anbieten – alle, die dabei sind und noch keins haben, bekommen Bescheid",
+        "Ticket übrig: „Ticket anbieten“ mit verständlicher Beschriftung");
+      await offerButton.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(alice, "Ticket anbieten");
+      await a11y(alice, "plan-ticket-anbieten");
+      await shot(alice, "21w10-plan-ticket-anbieten");
+      await offerButton.click();
+      await toast(alice, "Angeboten – 1 Person ohne Ticket hat Bescheid bekommen.");
+      await alice.page.getByTestId("plan-ticket-offered-mine").waitFor();
+      check((await alice.page.getByTestId("plan-offer-ticket").count()) === 0, "Ticket übrig: nach dem Anbieten kein zweiter Knopf");
+      check(psql(`select string_agg(user_id::text, ',') from public.notifications where type = 'plan_reminder' and related_entity_id = '${ticketPlan}' and payload ? 'ticket_offer'`) === carolId,
+        "Ticket übrig: nur Carol (dabei, ohne Ticket) bekommt Bescheid");
+      await carol.page.goto(`${APP}/notifications`);
+      const offered = carol.page.getByRole("link", { name: /Alice hat ein Ticket übrig/ }).filter({ hasText: "Konzert im Stadtpark" });
+      await offered.first().waitFor();
+      await offered.first().click();
+      await carol.page.waitForURL(`**/plans/${ticketPlan}`);
+      const offerRow = carol.page.getByTestId("plan-ticket-offer");
+      await offerRow.waitFor();
+      check((await offerRow.innerText()).includes("Alice bietet ein Ticket an"), "Ticket übrig: Carol sieht das Angebot");
+      const takeButton = offerRow.getByRole("button", { name: "Ticket von Alice nehmen" });
+      await takeButton.waitFor();
+      await offerRow.evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await noOverflow(carol, "Ticket nehmen");
+      await a11y(carol, "plan-ticket-nehmen");
+      await shot(carol, "21w11-plan-ticket-nehmen");
+      await takeButton.click();
+      await toast(carol, "Das Ticket von Alice ist deins – das Geld klärt ihr unter euch.");
+      check(psql(`select has_ticket from public.plan_participants where plan_id = '${ticketPlan}' and user_id = '${carolId}'`) === "t", "Ticket übrig: Carol hat jetzt ein Ticket");
+      check(psql(`select has_ticket from public.plan_participants where plan_id = '${ticketPlan}' and user_id = '${aliceId}'`) === "f", "Ticket übrig: Alice hat keins mehr");
+      await carol.page.getByTestId("plan-tickets-status").filter({ hasText: "Alle haben eins" }).waitFor();
+      check((await carol.page.getByTestId("plan-ticket-offer").count()) === 0, "Ticket übrig: das Angebot ist weg");
+      check(psql(`select actor_id from public.notifications where type = 'plan_reminder' and related_entity_id = '${ticketPlan}' and user_id = '${aliceId}' and payload ? 'ticket_taken'`) === carolId,
+        "Ticket übrig: Alice erfährt, dass Carol es nimmt");
+      check((await api(carol, "POST", "rpc/take_plan_ticket", { p_plan_id: ticketPlan, p_from: aliceId })).status >= 400, "Ticket übrig: kein zweites Mal");
+      if (ANON) {
+        const res = await fetch(`${API}/rest/v1/rpc/offer_plan_ticket`, {
+          method: "POST",
+          headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_plan_id: ticketPlan }),
+        });
+        check(res.status === 401 || res.status === 403, `ohne Anmeldung kein Ticket-Angebot (${res.status})`);
+      }
     } finally {
       if (ticketGuestContext) await ticketGuestContext.close().catch(() => {});
       psql(`delete from public.notifications where related_entity_id = '${ticketPlan}'; delete from public.plans where id = '${ticketPlan}'`);

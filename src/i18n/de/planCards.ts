@@ -417,6 +417,17 @@ export const planCards = {
     remindLabel: (n: number) =>
       n === 1 ? "Nachfragen – die Person ohne Ticket fragen, ob sie schon eins hat" : `Nachfragen – alle ${n} ohne Ticket fragen, ob sie schon eins haben`,
     reminded: (n: number) => (n === 0 ? "Alle haben inzwischen ein Ticket – niemand wurde gefragt." : n === 1 ? "1 Person gefragt." : `${n} Personen gefragt.`),
+    // P54: „Ticket übrig – wer will?“
+    offer: "Ticket anbieten",
+    offerLabel: "Ticket anbieten – alle, die dabei sind und noch keins haben, bekommen Bescheid",
+    offered: (n: number) =>
+      n === 0 ? "Angeboten – gerade braucht niemand eins. Wer noch zusagt, sieht es." : n === 1 ? "Angeboten – 1 Person ohne Ticket hat Bescheid bekommen." : `Angeboten – ${n} ohne Ticket haben Bescheid bekommen.`,
+    offeredMine: "Du bietest dein Ticket an. Wer es nimmt, siehst du hier und in den Benachrichtigungen.",
+    offerFrom: (name: string) => `${name} bietet ein Ticket an`,
+    take: "Nehm ich",
+    takeLabel: (name: string) => `Ticket von ${name} nehmen`,
+    taken: (name: string) => `Das Ticket von ${name} ist deins – das Geld klärt ihr unter euch.`,
+    offerHint: "AFTERHOURS gibt nur Bescheid – Ticket und Geld regelt ihr selbst.",
     card: {
       title: "Tickets",
       intro: "Konzert, Kino, Festival: Braucht jede:r ein eigenes Ticket? Dann sieht die Crew, wer schon eins hat.",

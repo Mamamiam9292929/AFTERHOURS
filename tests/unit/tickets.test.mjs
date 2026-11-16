@@ -1,7 +1,7 @@
-// P53 · „Habt ihr alle Tickets?“ – Stand des Ticket-Checks (src/lib/tickets.ts). Server: pgTAP 95_plan_tickets, 97_plan_guest_tickets.
+// P53 · „Habt ihr alle Tickets?“ – Stand des Ticket-Checks (src/lib/tickets.ts). Server: pgTAP 95_plan_tickets, 97_plan_guest_tickets, 98_plan_ticket_offer.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { canSayTicket, ticketStanding } from "../../src/lib/tickets.ts";
+import { canOfferTicket, canSayTicket, canTakeTicket, ticketStanding } from "../../src/lib/tickets.ts";
 
 test("Ticket-Check zählt nur Zusagen, Absagen mit Ticket stehen als „übrig“ da", () => {
   const s = ticketStanding([
@@ -59,4 +59,24 @@ test("Etappe 2c: Gäste über den Teilen-Link zählen mit und stehen mit Namen d
   const done = ticketStanding([{ user_id: "a", attendance_status: "invited" }], [{ id: "g", display_name: "Emil", attendance_status: "going", has_ticket: true }]);
   assert.equal(done.complete, true, "nur ein Gast dabei, mit Ticket: komplett");
   assert.deepEqual(ticketStanding([]).missingGuests, [], "ohne Gäste leer");
+});
+
+test("P54: Angebote stehen nur bei Absagen mit Ticket, anbieten und nehmen nach Regeln", () => {
+  const s = ticketStanding([
+    { user_id: "a", attendance_status: "declined", has_ticket: true, ticket_offered_at: "2026-11-16T01:00:00Z" },
+    { user_id: "b", attendance_status: "declined", has_ticket: true },
+    { user_id: "c", attendance_status: "going", has_ticket: false, ticket_offered_at: "2026-11-16T01:00:00Z" },
+  ]);
+  assert.deepEqual(s.spare, ["a", "b"]);
+  assert.deepEqual(s.offered, ["a"], "ein altes Angebot ohne Absage zählt nicht");
+  assert.equal(canOfferTicket({ user_id: "b", attendance_status: "declined", has_ticket: true }), true);
+  assert.equal(canOfferTicket({ user_id: "a", attendance_status: "declined", has_ticket: true, ticket_offered_at: "x" }), false, "nicht doppelt");
+  assert.equal(canOfferTicket({ user_id: "d", attendance_status: "declined", has_ticket: false }), false, "ohne Ticket nichts anzubieten");
+  assert.equal(canOfferTicket({ user_id: "e", attendance_status: "going", has_ticket: true }), false, "wer dabei ist, braucht es selbst");
+  assert.equal(canOfferTicket(undefined), false);
+  assert.equal(canTakeTicket({ user_id: "c", attendance_status: "going", has_ticket: false }), true);
+  assert.equal(canTakeTicket({ user_id: "c", attendance_status: "going", has_ticket: true }), false, "hat schon eins");
+  assert.equal(canTakeTicket({ user_id: "c", attendance_status: "maybe", has_ticket: false }), false, "erst zusagen");
+  assert.equal(canTakeTicket({ user_id: "c", attendance_status: "going", waitlisted_at: "x" }), false, "nicht von der Nachrückliste");
+  assert.equal(canTakeTicket(undefined), false);
 });
