@@ -220,7 +220,7 @@ export function TicketsMeter({
               <li
                 key={id}
                 data-testid="plan-ticket-offer"
-                className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-lime/40 bg-lime/[0.08] px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-lime/40 bg-lime/10 px-3 py-2"
               >
                 <span className="text-[13px] font-semibold leading-snug text-fg">{texts.offerFrom(name(id))}</span>
                 {canTakeTicket(mine) && (
@@ -235,7 +235,7 @@ export function TicketsMeter({
                         onError: (error) => toast.error(error),
                       })
                     }
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-lime bg-lime px-4 text-[14px] font-semibold text-lime-ink transition-opacity disabled:opacity-50"
+                    className="inline-flex h-10 items-center justify-center rounded-full border border-lime bg-lime px-4 text-[14px] font-semibold text-lime-ink transition-colors disabled:opacity-50"
                   >
                     {texts.take}
                   </button>

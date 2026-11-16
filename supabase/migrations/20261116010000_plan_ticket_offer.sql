@@ -18,6 +18,8 @@
 --   * Kein neuer Benachrichtigungstyp: `plan_reminder` mit `ticket_offer` bzw. `ticket_taken` im Payload (eigener Text in
 --     der App); wer „Nachfragen zu Plänen“ abgeschaltet hat, bekommt nichts.
 --   * Gäste über den Teilen-Link (P53 Etappe 2c) haben kein Postfach und bleiben in dieser Etappe außen vor.
+--   * Nach Beginn: Fehler `plan_plus_ones_started` („Der Abend hat schon angefangen.“) – gleicher Text, kein neuer Schlüssel
+--     im Start-Bundle.
 
 alter table public.plan_participants
   add column ticket_offered_at timestamptz;
@@ -65,7 +67,7 @@ begin
     perform app_private.fail('plan_tickets_off');
   end if;
   if v_plan.starts_at <= now() then
-    perform app_private.fail('plan_ticket_started');
+    perform app_private.fail('plan_plus_ones_started');
   end if;
 
   select pp.* into v_row from public.plan_participants pp
@@ -125,7 +127,7 @@ begin
     perform app_private.fail('plan_tickets_off');
   end if;
   if v_plan.starts_at <= now() then
-    perform app_private.fail('plan_ticket_started');
+    perform app_private.fail('plan_plus_ones_started');
   end if;
   if p_from is null or p_from = v_uid then
     perform app_private.fail('invalid_input');

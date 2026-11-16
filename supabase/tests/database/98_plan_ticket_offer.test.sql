@@ -92,7 +92,7 @@ select tests.login('fiona');
 select throws_ok($$ select public.offer_plan_ticket(tests.var('konzert')::uuid) $$, 'P0001', 'plan_ticket_not_spare', 'Absage ohne Ticket: nichts anzubieten');
 select tests.login('alice');
 select throws_ok($$ select public.offer_plan_ticket(tests.var('ohne_check')::uuid) $$, 'P0001', 'plan_tickets_off', 'ohne Ticket-Check kein Angebot');
-select throws_ok($$ select public.offer_plan_ticket(tests.var('gestartet')::uuid) $$, 'P0001', 'plan_ticket_started', 'nach Beginn kein Angebot');
+select throws_ok($$ select public.offer_plan_ticket(tests.var('gestartet')::uuid) $$, 'P0001', 'plan_plus_ones_started', 'nach Beginn kein Angebot');
 select throws_ok($$ select public.offer_plan_ticket(tests.var('abgesagt')::uuid) $$, 'P0001', 'plan_locked', 'abgesagter Plan: kein Angebot');
 select throws_ok($$ select public.offer_plan_ticket(tests.var('vorbei')::uuid) $$, 'P0001', 'plan_locked', 'abgeschlossener Plan: kein Angebot');
 select tests.logout();
@@ -178,7 +178,7 @@ update public.plan_participants set ticket_offered_at = now() where user_id = te
   (tests.var('ohne_check')::uuid, tests.var('gestartet')::uuid, tests.var('abgesagt')::uuid, tests.var('vorbei')::uuid);
 select tests.login('bob');
 select throws_ok($$ select public.take_plan_ticket(tests.var('ohne_check')::uuid, tests.uid('alice')) $$, 'P0001', 'plan_tickets_off', 'ohne Ticket-Check nichts zu nehmen');
-select throws_ok($$ select public.take_plan_ticket(tests.var('gestartet')::uuid, tests.uid('alice')) $$, 'P0001', 'plan_ticket_started', 'nach Beginn nichts zu nehmen');
+select throws_ok($$ select public.take_plan_ticket(tests.var('gestartet')::uuid, tests.uid('alice')) $$, 'P0001', 'plan_plus_ones_started', 'nach Beginn nichts zu nehmen');
 select throws_ok($$ select public.take_plan_ticket(tests.var('abgesagt')::uuid, tests.uid('alice')) $$, 'P0001', 'plan_locked', 'abgesagter Plan: nichts zu nehmen');
 select throws_ok($$ select public.take_plan_ticket(tests.var('vorbei')::uuid, tests.uid('alice')) $$, 'P0001', 'plan_locked', 'abgeschlossener Plan: nichts zu nehmen');
 select tests.logout();
